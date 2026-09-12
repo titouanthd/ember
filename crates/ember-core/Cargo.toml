@@ -4,8 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-macroquad.workspace = true
-serde.workspace = true
-slotmap.workspace = true
-ron.workspace = true
 glam.workspace = true
+serde.workspace = true
+ron.workspace = true
