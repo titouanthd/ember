@@ -8,7 +8,7 @@ members = [
     "games/breakout",
     "games/snake",
     "games/asteroids", 
-    "games/bullet-hell",
+    "games/bullet-hell", "games/minesweeper",
 ]
 
 [workspace.package]

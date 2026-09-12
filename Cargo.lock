@@ -267,6 +267,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "minesweeper"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "ember-core",
+ "ember-stdlib",
+ "glam",
+ "macroquad",
+ "ron",
+ "serde",
+]
+
+[[package]]
 name = "miniquad"
 version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"

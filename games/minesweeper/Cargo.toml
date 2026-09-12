@@ -1,0 +1,21 @@
+[package]
+name = "minesweeper"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ember-core.workspace = true
+ember-stdlib.workspace = true
+macroquad.workspace = true
+glam.workspace = true
+serde.workspace = true
+ron.workspace = true
+dotenvy.workspace = true
+
+[lib]
+name = "minesweeper"
+path = "src/lib.rs"
+
+[[bin]]
+name = "minesweeper"
+path = "src/main.rs"
