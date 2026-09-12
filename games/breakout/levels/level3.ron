@@ -1,0 +1,31 @@
+(
+    bricks: [
+        // Trois lignes avec des briques à 2 vies
+        (x: 30.0, y: 60.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.0, color_b: 0.0, color_a: 1.0, health: 2),
+        (x: 110.0, y: 60.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.5, color_b: 0.0, color_a: 1.0, health: 2),
+        (x: 190.0, y: 60.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 1.0, color_b: 0.0, color_a: 1.0, health: 1),
+        (x: 270.0, y: 60.0, width: 70.0, height: 25.0, color_r: 0.0, color_g: 1.0, color_b: 0.0, color_a: 1.0, health: 2),
+        (x: 350.0, y: 60.0, width: 70.0, height: 25.0, color_r: 0.0, color_g: 0.0, color_b: 1.0, color_a: 1.0, health: 1),
+        (x: 430.0, y: 60.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.0, color_b: 1.0, color_a: 1.0, health: 2),
+        (x: 510.0, y: 60.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.5, color_b: 0.0, color_a: 1.0, health: 1),
+        (x: 590.0, y: 60.0, width: 70.0, height: 25.0, color_r: 0.0, color_g: 1.0, color_b: 1.0, color_a: 1.0, health: 2),
+        (x: 670.0, y: 60.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.0, color_b: 0.0, color_a: 1.0, health: 1),
+        // 2e ligne
+        (x: 30.0, y: 95.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 1.0, color_b: 0.0, color_a: 1.0, health: 2),
+        (x: 110.0, y: 95.0, width: 70.0, height: 25.0, color_r: 0.0, color_g: 1.0, color_b: 0.0, color_a: 1.0, health: 1),
+        (x: 190.0, y: 95.0, width: 70.0, height: 25.0, color_r: 0.0, color_g: 0.0, color_b: 1.0, color_a: 1.0, health: 2),
+        (x: 270.0, y: 95.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.0, color_b: 1.0, color_a: 1.0, health: 1),
+        (x: 350.0, y: 95.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.5, color_b: 0.0, color_a: 1.0, health: 2),
+        (x: 430.0, y: 95.0, width: 70.0, height: 25.0, color_r: 0.0, color_g: 1.0, color_b: 1.0, color_a: 1.0, health: 1),
+        (x: 510.0, y: 95.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.0, color_b: 0.0, color_a: 1.0, health: 2),
+        (x: 590.0, y: 95.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.5, color_b: 0.0, color_a: 1.0, health: 1),
+        (x: 670.0, y: 95.0, width: 70.0, height: 25.0, color_r: 0.0, color_g: 1.0, color_b: 0.0, color_a: 1.0, health: 2),
+        // 3e ligne
+        (x: 30.0, y: 130.0, width: 70.0, height: 25.0, color_r: 0.0, color_g: 0.0, color_b: 1.0, color_a: 1.0, health: 2),
+        (x: 110.0, y: 130.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.0, color_b: 1.0, color_a: 1.0, health: 1),
+        (x: 190.0, y: 130.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.5, color_b: 0.0, color_a: 1.0, health: 2),
+        (x: 270.0, y: 130.0, width: 70.0, height: 25.0, color_r: 0.0, color_g: 1.0, color_b: 1.0, color_a: 1.0, health: 1),
+        (x: 350.0, y: 130.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 0.0, color_b: 0.0, color_a: 1.0, health: 2),
+        (x: 430.0, y: 130.0, width: 70.0, height: 25.0, color_r: 1.0, color_g: 1.0, color_b: 0.0, color_a: 1.0, health: 1),
+    ]
+)

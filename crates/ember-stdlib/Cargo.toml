@@ -1,0 +1,12 @@
+[package]
+name = "ember-stdlib"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ember-core.workspace = true
+glam.workspace = true
+macroquad.workspace = true
+serde.workspace = true
+ron.workspace = true
+dotenvy.workspace = true

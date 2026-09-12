@@ -1,0 +1,27 @@
+# Rust
+/target/
+**/target/
+*.rs.bk
+
+# IDE / editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Debug / logs
+*.log
+*.pdb
+
+# Local env overrides (game .env files ARE tracked — they're config, not secrets)
+.env.local
+.env.*.local
+
+# Runtime-generated file
+games/asteroids/highscore.txt
+
+# Local build artifacts
+*.tmp
+/tmp/

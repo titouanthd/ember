@@ -1,0 +1,21 @@
+[package]
+name = "asteroids"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+macroquad.workspace = true
+glam.workspace = true
+dotenvy.workspace = true
+serde.workspace = true
+ron.workspace = true
+ember-core.workspace = true
+ember-stdlib.workspace = true
+
+[lib]
+name = "asteroids"
+path = "src/lib.rs"
+
+[[bin]]
+name = "asteroids"
+path = "src/main.rs"

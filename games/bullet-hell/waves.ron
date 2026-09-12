@@ -1,0 +1,62 @@
+[
+  (
+    duration: 18.0,
+    enemies: [
+      (kind: "grunt", entry: Static,
+       pos: (400.0, 120.0), hp: 8,
+       emitter: Radial(count: 8, speed: 80.0, cooldown: 1.8)),
+    ],
+  ),
+  (
+    duration: 22.0,
+    enemies: [
+      (kind: "grunt", entry: Sine(amplitude: 90.0, frequency: 0.6, base_y: 110.0),
+       pos: (250.0, 110.0), hp: 8,
+       emitter: Aimed(count: 3, spread: 0.35, speed: 150.0, cooldown: 1.4)),
+      (kind: "grunt", entry: Sine(amplitude: 90.0, frequency: 0.6, base_y: 110.0),
+       pos: (550.0, 110.0), hp: 8,
+       emitter: Aimed(count: 3, spread: 0.35, speed: 150.0, cooldown: 1.4)),
+    ],
+  ),
+  (
+    duration: 24.0,
+    enemies: [
+      (kind: "grunt", entry: Drift(vel: (60.0, 0.0)),
+       pos: (150.0, 90.0), hp: 10,
+       emitter: Spiral(arms: 2, speed: 110.0, cooldown: 0.28, rotation_rate: 0.9)),
+      (kind: "grunt", entry: Drift(vel: (-60.0, 0.0)),
+       pos: (650.0, 90.0), hp: 10,
+       emitter: Spiral(arms: 2, speed: 110.0, cooldown: 0.28, rotation_rate: -0.9)),
+    ],
+  ),
+  (
+    duration: 26.0,
+    enemies: [
+      (kind: "tank", entry: Static,
+       pos: (400.0, 140.0), hp: 40,
+       emitter: Wall(gap_x: 400.0, gap_w: 120.0, speed: 130.0, cooldown: 1.1)),
+      (kind: "grunt", entry: Sine(amplitude: 60.0, frequency: 0.8, base_y: 260.0),
+       pos: (200.0, 260.0), hp: 8,
+       emitter: Radial(count: 6, speed: 90.0, cooldown: 2.0)),
+    ],
+  ),
+  (
+    duration: 28.0,
+    enemies: [
+      (kind: "grunt", entry: Static, pos: (200.0, 100.0), hp: 12,
+       emitter: Aimed(count: 5, spread: 0.7, speed: 170.0, cooldown: 1.6)),
+      (kind: "grunt", entry: Static, pos: (400.0, 80.0), hp: 12,
+       emitter: Radial(count: 12, speed: 100.0, cooldown: 1.8)),
+      (kind: "grunt", entry: Static, pos: (600.0, 100.0), hp: 12,
+       emitter: Aimed(count: 5, spread: 0.7, speed: 170.0, cooldown: 1.6)),
+    ],
+  ),
+  (
+    duration: 45.0,
+    enemies: [
+      (kind: "boss", entry: Static,
+       pos: (400.0, 140.0), hp: 200,
+       emitter: Spiral(arms: 5, speed: 130.0, cooldown: 0.14, rotation_rate: 0.7)),
+    ],
+  ),
+]

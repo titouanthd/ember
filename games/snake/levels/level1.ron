@@ -1,0 +1,12 @@
+// levels/level1.ron
+// Niveau 1 : pas d'obstacles internes.
+// Le serpent commence en (3, 3) et va vers la droite.
+// Objectif : manger 5 pommes.
+(
+    name: "Level 1 - Open Field",
+    spawn: (3, 3),
+    spawn_direction: "Right",
+    walls: [],
+    initial_length: 3,
+    target_score: 5,
+)

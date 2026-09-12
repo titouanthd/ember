@@ -1,0 +1,21 @@
+[package]
+name = "bullet-hell"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ember-core.workspace = true
+ember-stdlib.workspace = true
+macroquad.workspace = true
+glam.workspace = true
+serde.workspace = true
+ron.workspace = true
+dotenvy.workspace = true
+
+[lib]
+name = "bullet_hell"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bullet-hell"
+path = "src/main.rs"

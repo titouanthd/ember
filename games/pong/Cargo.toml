@@ -1,0 +1,11 @@
+[package]
+name = "pong"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ember-core.workspace = true
+ember-stdlib.workspace = true
+macroquad.workspace = true
+dotenvy.workspace = true
+glam.workspace = true
