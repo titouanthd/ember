@@ -2,12 +2,11 @@
 //! Logique du jeu : input, physique, spawn, collisions.
 
 use crate::components::{Asteroid, Bullet, Ship};
+use crate::persistence::{self, HighScore};
 use ember_stdlib::collider::collides;
 use glam::Vec2;
 use macroquad::prelude::Color;
 use ember_core::app::GameState;
-use std::fs;
-use std::path::PathBuf;
 
 pub use crate::config::GameContext;
 
@@ -17,10 +16,7 @@ pub use crate::config::GameContext;
 
 /// All mutable state for one Asteroids run.
 ///
-/// This is the 3rd "state struct" convention in the workspace (after Pong's
-/// `MatchState` and Snake's `SnakeWorld`). Extraction is deferred per the
-/// Rule of Three: we codify the *shape* (one struct per game owns all
-/// mutable state, exposed to `main.rs` as a single `&mut`), not a shared type.
+/// Same convention as the other games: one struct owns everything mutable.
 pub struct GameWorld {
     pub ship: Ship,
     pub bullets: Vec<Bullet>,
@@ -33,12 +29,17 @@ pub struct GameWorld {
     pub state: GameState,
     /// Seconds remaining in the LevelCleared transition.
     pub level_cleared_timer: f32,
+    /// In-memory high score, kept in sync with `high_score_handle`.
     pub high_score: i32,
+    /// Typed handle to `highscore.ron`.
+    pub high_score_handle: HighScore,
 }
 
 impl GameWorld {
     /// Fresh world, in `Start` state, centered ship, no entities.
     pub fn new(ctx: &GameContext) -> Self {
+        let high_score_handle = persistence::default();
+        let high_score = high_score_handle.load_or(0);
         Self {
             ship: Ship::new(
                 Vec2::new(ctx.screen_w / 2.0, ctx.screen_h / 2.0),
@@ -54,7 +55,21 @@ impl GameWorld {
             shoot_cooldown: 0.0,
             state: GameState::Start,
             level_cleared_timer: 0.0,
-            high_score: load_high_score(),
+            high_score,
+            high_score_handle,
+        }
+    }
+
+    /// Record the current score as the new high score if it beats the
+    /// previous one. Persists to disk on improvement. Returns `true` if
+    /// a new record was written.
+    fn record_high_score_if_needed(&mut self) -> bool {
+        if self.score > self.high_score {
+            self.high_score = self.score;
+            self.high_score_handle.save(&self.high_score);
+            true
+        } else {
+            false
         }
     }
 
@@ -98,10 +113,7 @@ impl GameWorld {
     pub fn on_ship_hit(&mut self, ctx: &GameContext) -> bool {
         self.lives = self.lives.saturating_sub(1);
         if self.lives == 0 {
-            if self.score > self.high_score {
-                self.high_score = self.score;
-                save_high_score(self.high_score);
-            }
+            self.record_high_score_if_needed();
             self.state = GameState::GameOver;
             return true;
         }
@@ -119,10 +131,7 @@ impl GameWorld {
     /// timer, or transitions to `Win` if this was the last wave.
     pub fn on_wave_cleared(&mut self, ctx: &GameContext) {
         if self.wave >= ctx.max_waves {
-            if self.score > self.high_score {
-                self.high_score = self.score;
-                save_high_score(self.high_score);
-            }
+            self.record_high_score_if_needed();
             self.state = GameState::Win;
         } else {
             self.state = GameState::LevelCleared;
@@ -140,10 +149,13 @@ impl GameWorld {
     }
 
     /// Full reset back to the Start screen (R key from GameOver/Win).
+    /// Preserves the high score and the handle.
     pub fn reset_to_start(&mut self, ctx: &GameContext) {
         let high = self.high_score;
+        let handle = self.high_score_handle.clone();
         *self = Self::new(ctx);
         self.high_score = high;
+        self.high_score_handle = handle;
     }
 }
 
@@ -193,28 +205,6 @@ pub fn asteroid_color_for_size(size: u8, base: Color) -> Color {
         base.b * factor,
         base.a,
     )
-}
-
-// ============================================================================
-// High score (persistance)
-// ============================================================================
-
-/// Chemin du fichier high score.
-fn high_score_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("highscore.txt")
-}
-
-/// Charge le high score depuis le fichier. Retourne 0 si absent/invalide.
-pub fn load_high_score() -> i32 {
-    fs::read_to_string(high_score_path())
-        .ok()
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(0)
-}
-
-/// Sauvegarde le high score. Ignore les erreurs silencieusement.
-pub fn save_high_score(score: i32) {
-    let _ = fs::write(high_score_path(), score.to_string());
 }
 
 // ============================================================================

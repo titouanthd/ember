@@ -29,5 +29,7 @@ pub use input::Input;
 
 pub mod ui;
 
+pub mod persistence;
+
 pub mod audio;
 pub use audio::AudioClip;

@@ -2,14 +2,13 @@
 //! and the top-level `Game` state struct.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use glam::Vec2;
 
 use crate::components::{Board, BoardState, CellState};
 use crate::config::{load_config, GameContext};
 use crate::difficulties::{load_difficulties, DifficultyData};
-use crate::persistence;
+use crate::persistence::{self, BestTimes};
 use ember_core::app::GameState;
 use ember_core::rng::Rng;
 use ember_stdlib::ui::button::Button;
@@ -36,8 +35,11 @@ pub struct Game {
     pub rng: Rng,
 
     // Persistence
+    /// In-memory cache of best times, kept in sync with `best_handle`.
+    /// Used by the menu for display (no I/O per frame).
     pub best_times: HashMap<String, f32>,
-    pub best_times_path: PathBuf,
+    /// Typed handle to `best_times.ron`.
+    pub best_handle: BestTimes,
     pub was_new_best: bool,
 
     // Widgets — persisted so update() and draw() share the same instance
@@ -52,8 +54,8 @@ impl Game {
     pub fn new() -> Self {
         let ctx = load_config();
         let difficulties = load_difficulties();
-        let path = persistence::default_path();
-        let best_times = persistence::load_best_times(&path);
+        let best_handle = persistence::default();
+        let best_times = best_handle.load_or(HashMap::new());
         let mut g = Self {
             state: GameState::Start,
             difficulties,
@@ -65,7 +67,7 @@ impl Game {
             timer_running: false,
             rng: Rng::new(0xDEAD_BEEF),
             best_times,
-            best_times_path: path,
+            best_handle,
             was_new_best: false,
             // Placeholder rect — immediately overwritten by update_menu_layout.
             start_btn: Button::new(0.0, 0.0, 200.0, 50.0, "START"),
@@ -148,7 +150,7 @@ impl Game {
     pub fn record_best_if_needed(&mut self) {
         let name = self.current_difficulty().name.clone();
         if persistence::update_if_better(&mut self.best_times, &name, self.elapsed) {
-            persistence::save_best_times(&self.best_times_path, &self.best_times);
+            self.best_handle.save(&self.best_times);
             self.was_new_best = true;
         }
     }

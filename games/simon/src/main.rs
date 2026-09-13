@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use simon::components::{button_centers, SimonColor};
 use simon::config::{load_config, GameContext};
-use simon::persistence;
+use simon::persistence::{self, BestScore};
 use simon::systems::{
     handle_click, tick_playback, ClickResult, GameWorld, PlayPhase,
 };
@@ -38,7 +38,7 @@ fn sound_path(name: &str) -> PathBuf {
 struct App {
     state: GameState,
     world: GameWorld,
-    best_path: PathBuf,
+    best: BestScore,
     sounds: Vec<AudioClip>,
     /// Tracks which button was lit last frame, to trigger a sound only on
     /// transitions (lit → not lit → lit), not every frame.
@@ -52,24 +52,28 @@ impl App {
         self.last_lit = None;
     }
 
-    fn on_round_complete(&mut self) {
-        let prev_best = persistence::load_best(&self.best_path);
-        let new_best = persistence::max_best(prev_best, self.world.score);
+    /// Save the best score if the current run beats it. Returns `true`
+    /// if a new record was written to disk.
+    fn record_best_if_needed(&mut self) -> bool {
+        let prev_best = self.best.load_or(0);
+        let new_best = self.world.best.max(self.world.score);
         if new_best > prev_best {
-            persistence::save_best(&self.best_path, new_best);
+            self.best.save(&new_best);
             self.world.best = new_best;
+            true
+        } else {
+            false
         }
+    }
+
+    fn on_round_complete(&mut self) {
+        self.record_best_if_needed();
         self.world.next_round();
         self.last_lit = None;
     }
 
     fn on_game_over(&mut self) {
-        let prev_best = persistence::load_best(&self.best_path);
-        let new_best = persistence::max_best(prev_best, self.world.score);
-        if new_best > prev_best {
-            persistence::save_best(&self.best_path, new_best);
-            self.world.best = new_best;
-        }
+        self.record_best_if_needed();
         self.state = GameState::GameOver;
         self.last_lit = None;
     }
@@ -94,13 +98,13 @@ async fn main() {
     let buttons: [CircleButton; 4] =
         std::array::from_fn(|i| CircleButton::new(centers[i], ctx.button_radius));
 
-    let best_path = persistence::default_path();
-    let best = persistence::load_best(&best_path);
+    let best = persistence::default();
+    let best_value = best.load_or(0);
 
     let mut app = App {
         state: GameState::Start,
-        world: GameWorld::new(0xDEAD_BEEF, best),
-        best_path,
+        world: GameWorld::new(0xDEAD_BEEF, best_value),
+        best,
         sounds,
         last_lit: None,
     };
