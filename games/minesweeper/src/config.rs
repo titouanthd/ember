@@ -28,6 +28,9 @@ pub struct GameContext {
     pub color_btn_idle: Color,
     pub color_btn_hover: Color,
     pub color_btn_pressed: Color,
+
+    pub color_menu_selected: Color,
+    pub color_menu_hover: Color,
 }
 
 impl GameContext {
@@ -76,6 +79,9 @@ pub fn load_config() -> GameContext {
         color_btn_idle: env_color("COLOR_BTN_IDLE", Color::new(0.25, 0.27, 0.32, 1.0)),
         color_btn_hover: env_color("COLOR_BTN_HOVER", Color::new(0.35, 0.38, 0.44, 1.0)),
         color_btn_pressed: env_color("COLOR_BTN_PRESSED", Color::new(0.20, 0.22, 0.26, 1.0)),
+
+        color_menu_selected: env_color("COLOR_MENU_SELECTED", Color::new(0.30, 0.55, 0.90, 1.0)),
+        color_menu_hover: env_color("COLOR_MENU_HOVER", Color::new(0.25, 0.30, 0.38, 1.0)),
     }
 }
 

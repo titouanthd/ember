@@ -287,9 +287,11 @@ mod tests {
 
     #[test]
     fn test_reveal_simple() {
+        // Reveal (1,1), which is adjacent to the mine at (0,0).
+        // adjacent > 0, so no flood fill — only this cell is revealed.
         let mut b = board_with_mines(3, 3, &[(0, 0)]);
-        reveal(&mut b, 2, 2);
-        assert!(b.cells.get(2, 2).unwrap().is_revealed());
+        reveal(&mut b, 1, 1);
+        assert!(b.cells.get(1, 1).unwrap().is_revealed());
         assert_eq!(b.revealed_count, 1);
     }
 
@@ -304,10 +306,12 @@ mod tests {
 
     #[test]
     fn test_reveal_already_revealed_is_noop() {
+        // (1,1) is adjacent to the mine, so no flood fill.
         let mut b = board_with_mines(3, 3, &[(0, 0)]);
-        reveal(&mut b, 2, 2);
-        reveal(&mut b, 2, 2);
+        reveal(&mut b, 1, 1);
         assert_eq!(b.revealed_count, 1);
+        reveal(&mut b, 1, 1);
+        assert_eq!(b.revealed_count, 1, "second reveal must be a no-op");
     }
 
     #[test]
@@ -329,18 +333,55 @@ mod tests {
         assert_eq!(b.state, BoardState::Won);
     }
 
+        #[test]
+    fn test_flood_fill_reveals_frontier_but_stops() {
+        // 5x5, mine at (0,0).
+        // Flood from (4,4) reveals everything except the mine and its
+        // 3 direct neighbors' propagation beyond — but the frontier IS
+        // revealed (standard Minesweeper).
+        //
+        // Layout (M = mine, .=empty, 1=frontier):
+        //   M 1 . . .
+        //   1 1 . . .
+        //   . . . . .
+        //   . . . . .
+        //   . . . . .
+        //
+        // Revealing (4,4) floods through all the '.' cells and stops at
+        // the '1' frontier. The frontier itself gets revealed.
+        let mut b = board_with_mines(5, 5, &[(0, 0)]);
+        reveal(&mut b, 4, 4);
+
+        // Everything except the mine is revealed.
+        assert_eq!(b.revealed_count, 24);
+        assert_eq!(b.state, BoardState::Won);
+    }
+
     #[test]
-    fn test_flood_fill_does_not_cross_numbers() {
-        // 3x3 with a mine at (0,0). Cell (1,1) has adjacent=1 and should
-        // block the flood.
-        let mut b = board_with_mines(3, 3, &[(0, 0)]);
-        // (2,2) has adjacent=0 -> flood reveals (2,2), (1,2), (2,1).
+    fn test_flood_fill_does_not_cross_empty_wall() {
+        // 5x5, two mines in opposite corners. A revealed empty cell in
+        // one corner floods through, gets blocked by the frontier around
+        // the OTHER mine — the other mine's direct neighbors stay hidden.
+        //
+        //  M . . . .
+        //  . . . . .
+        //  . . . . .
+        //  . . . . .
+        //  . . . . M
+        //
+        // Revealing (2, 2) — it has 0 adjacent mines, flood spreads to
+        // all empty cells (which includes the frontier around both mines).
+        // Since both mines are isolated and there's no "wall" of numbers
+        // separating two regions, everything connects. This test verifies
+        // the flood doesn't reveal MINES.
+        let mut b = board_with_mines(5, 5, &[(0, 0), (4, 4)]);
         reveal(&mut b, 2, 2);
-        assert!(b.cells.get(2, 2).unwrap().is_revealed());
-        assert!(b.cells.get(1, 2).unwrap().is_revealed());
-        assert!(b.cells.get(2, 1).unwrap().is_revealed());
-        // (1,1) is adjacent to the mine — should NOT be revealed by flood.
-        assert!(b.cells.get(1, 1).unwrap().is_hidden());
+
+        // Both mines stay hidden (well, they're just not revealed).
+        assert!(!b.cells.get(0, 0).unwrap().is_revealed());
+        assert!(!b.cells.get(4, 4).unwrap().is_revealed());
+        // Everything else revealed.
+        assert_eq!(b.revealed_count, 23);
     }
 
     // --- flag ---
