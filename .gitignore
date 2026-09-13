@@ -20,9 +20,9 @@
 .env.*.local
 
 # Runtime-generated file
-games/asteroids/highscore.txt
-games/minesweeper/best_times.ron
-games/simon/best_score.ron
+**/highscore.ron
+**/best_score.ron
+**/best_times.ron
 
 # Local build artifacts
 *.tmp
