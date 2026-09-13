@@ -2,8 +2,8 @@
 
 Document destiné au prochain agent qui reprendra le projet.
 
-Dernière mise à jour : après migration .workspace = true généralisée et fin du 5e jeu (Session 6).
-État du workspace : 5 jeux fonctionnels, moteur ember stable, 198 tests verts, Clippy clean.
+Dernière mise à jour : après Session 9 (Simon — audio subsystem).
+État du workspace : 7 jeux fonctionnels, moteur ember stable, 309 tests verts, Clippy clean.
 
 ---
 
@@ -11,13 +11,13 @@ Dernière mise à jour : après migration .workspace = true généralisée et fi
 
 Ember est un moteur de jeu 2D en Rust, avec une architecture en 3 couches :
 
-1. ember_core — Primitives pures, cible : sans dépendance graphique (voir dette).
+1. ember_core — Primitives pures, aucune dépendance graphique.
 2. ember_stdlib — Briques de jeu réutilisables, dépend de macroquad.
 3. games/* — Jeux spécifiques, chacun dans son dossier.
 
 Stack technique :
-- Langage : Rust, edition 2024 partout (y compris Asteroids depuis Session 5).
-- Rendu / input / fenêtre : macroquad 0.4.
+- Langage : Rust, edition 2024 partout.
+- Rendu / input / fenêtre : macroquad 0.4 avec feature "audio" activée.
 - Math : glam 0.27 (aligné sur macroquad 0.4.16).
 - Sérialisation : serde + ron.
 - Config : dotenvy (fichiers .env).
@@ -33,11 +33,17 @@ Conventions clés :
 - La stratégie est "Rule of Three" : on n'extrait dans le moteur qu'après avoir vu le pattern 3 fois.
 - Crates externes : tirets dans Cargo.toml (ember-core, bullet-hell), underscores dans le code (ember_core, bullet_hell).
 - cargo clippy --workspace --all-targets -- -D warnings est le gate de qualité. Il doit rester vert.
-- State structs : chaque jeu expose un unique struct qui possède tout l'état mutable (MatchState, SnakeWorld, GameWorld, World pour Bullet Hell). main.rs tient une seule variable de ce type. C'est une convention, pas un type partagé — la 3e occurrence (Asteroids GameWorld, Session 5) a confirmé le pattern, elle n'a pas déclenché d'extraction dans le moteur.
-- .env colors : env_color("PREFIX", default) lit quatre variables séparées PREFIX_R, PREFIX_G, PREFIX_B, PREFIX_A, chacune un f32 dans [0.0, 1.0]. Jamais une chaîne r,g,b,a. Préférer le préfixe COLOR_<ROLE>_ (Bullet Hell), même si Pong utilise encore PLAYER_COLOR_.
-- draw_text vs draw_centered :
-  - draw_text(format!(...), ...) — macroquad accepte impl AsRef<str>, donc pas de &.
+- State structs : chaque jeu expose un unique struct qui possède tout l'état mutable (MatchState, SnakeWorld, GameWorld, World pour Bullet Hell, Game pour Minesweeper, App + GameWorld pour Simon). main.rs tient une seule variable de ce type. C'est une convention, pas un type partagé.
+- Séparation BoardState / GameState (Minesweeper) : l'état interne du plateau (Ready/Playing/Won/Lost) est distinct de l'état d'écran (Start/Playing/Win/GameOver). Transitions explicites.
+- Boutons UI : update() et draw() doivent être appelés sur la MÊME instance. Si le bouton est recréé dans le rendu, l'event de clic est perdu. Conserver les boutons dans le state struct du jeu.
+- .env colors : env_color("PREFIX", default) lit quatre variables séparées PREFIX_R, PREFIX_G, PREFIX_B, PREFIX_A, chacune un f32 dans [0.0, 1.0]. Jamais une chaîne r,g,b,a. Préférer le préfixe COLOR_<ROLE>_.
+- draw_text vs draw_centered vs Label::new :
+  - draw_text(format!(...), ...) — macroquad accepte impl AsRef<str>, donc PAS de &.
   - draw_centered(&format!(...), ...) — signature prend &str, donc le & est nécessaire.
+  - Label::new(format!(...), ...) — prend impl Into<String>, donc PAS de &.
+  Règle générale : si la fonction prend impl AsRef<str> ou impl Into<String>, retirer le &. Clippy râle (needless_borrows_for_generic_args) sinon.
+- TextDimensions : macroquad::draw_text retourne TextDimensions, pas (). Pour ignorer, terminer par ;.
+- manual_range_contains : écrire (a..=b).contains(&x) au lieu de x >= a && x <= b.
 
 ---
 
@@ -47,6 +53,7 @@ ember-workspace/
 ├── Cargo.toml                      # workspace racine ([workspace.package] + [workspace.dependencies], resolver = "3")
 ├── Cargo.lock
 ├── version.txt
+├── README.md
 ├── crates/
 │   ├── ember-core/                 # primitives pures
 │   │   ├── Cargo.toml
@@ -64,27 +71,42 @@ ember-workspace/
 │   │       ├── sprite.rs
 │   │       ├── collider.rs
 │   │       ├── config.rs
-│   │       └── graphics/{mod,text}.rs
+│   │       ├── grid.rs             # Grid<T> (Session 7)
+│   │       ├── input.rs            # Input snapshot (Session 7)
+│   │       ├── audio.rs            # AudioClip (Session 9)
+│   │       ├── graphics/{mod,text}.rs
+│   │       └── ui/                 # UI minimal (Session 7)
+│   │           ├── mod.rs
+│   │           ├── button.rs
+│   │           ├── circle_button.rs  # (Session 9)
+│   │           ├── label.rs
+│   │           ├── panel.rs
+│   │           └── timer.rs
 │   └── ember-editor/               # placeholder (1 test)
 └── games/
     ├── pong/
     ├── breakout/
     ├── snake/
     ├── asteroids/
-    └── bullet-hell/
-        ├── waves.ron               # 6 vagues hand-authored (grunt/tank/boss)
+    ├── bullet-hell/
+    │   ├── waves.ron
+    │   └── ...
+    ├── minesweeper/
+    │   ├── difficulties.ron
+    │   └── ...
+    └── simon/
+        ├── sounds/{green,red,yellow,blue}.wav
         └── ...
 
-Total : 5 jeux (Pong, Breakout, Snake, Asteroids, Bullet Hell).
+Total : 7 jeux (Pong, Breakout, Snake, Asteroids, Bullet Hell, Minesweeper, Simon).
 
 ---
 
 ## ember_core — Détail
 
-Crate pur : cible = aucune dépendance graphique.
-Dette : dépend encore de macroquad (types Color/Rect) et slotmap (futur ECS). Audit à faire : si l'un des deux n'est pas utilisé dans src/, le retirer.
+Crate pur : aucune dépendance graphique (audit Session 7, macroquad et slotmap retirés).
 
-Dépendances (via .workspace = true) : glam, serde, ron, macroquad, slotmap.
+Dépendances (via .workspace = true) : glam, serde, ron.
 
 ### io.rs
 
@@ -93,14 +115,14 @@ Chargement/sauvegarde RON génériques.
   pub fn save_to_file<T: Serialize>(path: &Path, data: &T) -> Result<(), String>;
   pub fn load_from_file<T: DeserializeOwned>(path: &Path) -> Result<T, String>;
 
-Utilisé par : Breakout (niveaux), Snake (niveaux), Bullet Hell (waves.ron), Asteroids (high score).
+Utilisé par : Breakout (niveaux), Snake (niveaux), Bullet Hell (waves.ron), Minesweeper (difficultés, best_times), Simon (best_score), Asteroids (high score).
 
 ### math/aabb.rs — Aabb
 
 Struct : { min: Vec2, max: Vec2 }.
 
 Constructeurs : from_corners, from_center_half, from_top_left_size.
-Méthodes : center(), size(), half_size(), width(), height(), contains, contains_strict, overlaps, overlaps_strict, penetration, closest_point, distance_to_point.
+Méthodes : center, size, half_size, width, height, contains, contains_strict, overlaps, overlaps_strict, penetration, closest_point, distance_to_point.
 
 Tests : 15.
 
@@ -134,7 +156,7 @@ Tests : 11.
 
 Tests : 3.
 
-Important : ajouter une variante oblige à mettre à jour tous les match state dans les 5 jeux.
+Important : ajouter une variante oblige à mettre à jour tous les match state dans les 7 jeux.
 
 Ré-exporté par : chaque jeu.
 
@@ -176,6 +198,109 @@ Format .env couleur : env_color lit quatre variables {prefix}_R, {prefix}_G, {pr
 
 Tests : 4.
 
+### grid.rs — Grid<T> (Session 7)
+
+Grille 2D générique, indexée (col, row), stockage row-major.
+
+  pub fn new(width, height, init: T) -> Self where T: Clone;
+  pub fn from_vec(width, height, cells: Vec<T>) -> Self;
+  pub fn width(&self) -> usize;
+  pub fn height(&self) -> usize;
+  pub fn in_bounds(&self, col: isize, row: isize) -> bool;
+  pub fn get(&self, col, row) -> Option<&T>;
+  pub fn get_mut(&mut self, col, row) -> Option<&mut T>;
+  pub fn iter(&self) -> impl Iterator<Item = (usize, usize, &T)>;
+  pub fn iter_mut(&mut self) -> impl Iterator<Item = (usize, usize, &mut T)>;
+  pub fn neighbors_8(&self, col, row) -> Vec<(usize, usize, &T)>;
+  pub fn neighbors_4(&self, col, row) -> Vec<(usize, usize, &T)>;
+  pub fn neighbor_coords_8(&self, col, row) -> Vec<(usize, usize)>;
+  pub fn for_each(&self, f);
+  pub fn for_each_mut(&mut self, f);
+
+Utilisé par : Minesweeper (Board). Réutilisable pour Snake, Match-3, Tetris, Roguelike.
+
+Astuce borrow checker : neighbors_8 retourne des &T, ce qui empêche de muter la grille pendant l'itération. Utiliser neighbor_coords_8 (retourne juste les coordonnées) puis get_mut par coord.
+
+Tests : 13.
+
+### input.rs — Input (Session 7)
+
+Snapshot input par frame, découplé de macroquad.
+
+  pub struct Input {
+      pub mouse_pos: Vec2,
+      pub mouse_left_pressed/down/released: bool,
+      pub mouse_right_pressed/down/released: bool,
+      pub mouse_middle_pressed/down/released: bool,
+      pub keys_pressed/down/released: Vec<KeyCode>,
+  }
+
+  pub fn from_macroquad() -> Self;    // à appeler dans main.rs
+  pub fn is_key_pressed(&self, key: KeyCode) -> bool;
+  pub fn is_key_down(&self, key: KeyCode) -> bool;
+  pub fn is_key_released(&self, key: KeyCode) -> bool;
+  pub fn pressed_or_down(&self, key: KeyCode) -> bool;
+
+Note : from_macroquad() ne remplit PAS les vecteurs de touches. C'est main.rs qui doit explicitement ajouter les touches qui l'intéressent :
+  if is_key_pressed(KeyCode::R) { input.keys_pressed.push(KeyCode::R); }
+Les tests construisent un Input directement avec Default::default().
+
+Tests : 4.
+
+### audio.rs — AudioClip (Session 9)
+
+  pub struct AudioClip { ... }
+  pub async fn load(path: &Path) -> Result<Self, String>;
+  pub fn play(&self);                    // volume 1.0
+  pub fn play_at(&self, volume: f32);    // volume clampé [0, 1]
+
+Wraps macroquad::audio. IMPORTANT : macroquad 0.4 n'a PAS l'audio activé par défaut. Il faut dans le Cargo.toml racine :
+  macroquad = { version = "0.4", features = ["audio"] }
+Sinon, tout appel à play_sound imprime "warn: macroquad's audio feature disabled." et ne joue rien.
+
+Pas de tests unitaires : load_sound nécessite un contexte macroquad actif.
+
+Utilisé par : Simon.
+
+### ui/ — UI minimal (Session 7, étendu Session 9)
+
+Widgets : Button, CircleButton, Label, Panel, TimerDisplay.
+
+  // Button (rectangulaire)
+  pub struct Button { pub rect: (f32, f32, f32, f32), pub label: String, pub enabled: bool }
+  pub enum ButtonEvent { None, Hovered, Held, Clicked }
+  pub fn update(&self, input: &Input) -> ButtonEvent;
+  pub fn draw(&self, input, idle, hover, pressed, text);
+
+  // CircleButton (Session 9)
+  pub struct CircleButton { pub center: Vec2, pub radius: f32, pub enabled: bool }
+  pub enum CircleButtonEvent { None, Hovered, Held, Clicked }
+  pub fn update(&self, input: &Input) -> CircleButtonEvent;
+  pub fn draw(&self, lit_color, dim_color, lit: bool);
+  // Tessellation custom : fill et border partagent les mêmes vertices
+  // (macroquad draw_circle et draw_circle_lines ont des counts différents)
+
+  // Label
+  pub struct Label { pub text, pub x, pub y, pub size, pub align, pub color }
+  pub enum Align { Left, Center, Right }
+  pub fn centered(self) -> Self;
+  pub fn right(self) -> Self;
+  pub fn draw(&self) -> TextDimensions;
+
+  // Panel
+  pub struct Panel { pub x, pub y, pub w, pub h, pub bg, pub border }
+  pub fn with_border(self, color) -> Self;
+  pub fn draw(&self);
+
+  // TimerDisplay
+  pub struct TimerDisplay { pub x, pub y, pub size, pub color }
+  pub fn format(seconds: f32) -> String;   // "MM:SS" ou "HH:MM:SS"
+  pub fn draw(&self, seconds: f32);
+
+IMPORTANT (piège) : un widget doit être update() ET draw() sur la MÊME instance. Sinon l'event Clicked n'arrive jamais. Stocker les widgets dans le state struct du jeu.
+
+Tests : 21 (button 8, circle_button 10, timer 4, moins quelques chevauchements).
+
 ### graphics/text.rs
 
   pub fn draw_centered(text: &str, center_x: f32, y: f32, font_size: u16, color: Color);
@@ -200,51 +325,57 @@ Placeholder avec 1 test it_works. Pas utilisé.
 | Snake | 3 | Grille logique, TickTimer, GameState étendu, SnakeWorld | 32 |
 | Asteroids | 2 (+tests S3, +GameWorld S5) | Rotation, inertie, wrap-around, Vec<Bullet>, persistance, tests d'intégration, GameWorld | 29 |
 | Bullet Hell | 5 (Sessions A–F) | Waves RON, 4 émetteurs data-driven, graze + multiplicateur, juice (shake, hitstop, particles), World 3e occurrence, HP par assombrissement | ~48 |
+| Minesweeper | 7 (Sessions A–C) | Grid<T>, Input, UI (Button/Label/Panel/Timer), first-click safe, flood fill, chord, best times persistants, menu de difficultés | ~40 |
+| Simon | 9 (Sessions A–B) | AudioClip (macroquad audio feature), CircleButton (custom tessellation), sequence playback avec timers, best score persisté | ~24 |
 
-Total : 5 jeux, ~15 sessions, 198 tests verts, Clippy clean.
+Total : 7 jeux, ~22 sessions, 309 tests verts, Clippy clean.
 
 ---
 
-## games/bullet-hell — Détail (dernier jeu en date)
+## games/simon — Détail (dernier jeu en date)
 
 ### Concept
 
-Shmup vertical, 6 vagues hand-authored, hitbox minuscule (2.5 px), focus mode, graze + multiplicateur.
-
-Contrôles : flèches/WASD pour bouger (pas d'inertie), Shift pour focus, Espace pour tirer (maintien), R pour restart.
+Simon (jeu de mémoire électronique de 1978). 4 boutons colorés. Le jeu allume une séquence, le joueur la reproduit. Chaque round réussi allonge la séquence. Erreur = game over. Best score persisté.
 
 ### Structure
 
-games/bullet-hell/
-├── Cargo.toml          # edition + deps via .workspace = true
-├── .env                # COLOR_* en {PREFIX}_R/G/B/A
-├── waves.ron           # 6 vagues
+games/simon/
+├── Cargo.toml
+├── .env                  # COLOR_* en {PREFIX}_R/G/B/A + BUTTON_RADIUS, BUTTON_GAP
+├── best_score.ron        # créé au runtime, gitignored
+├── sounds/
+│   ├── generate_sounds.py   # one-shot, génère les .wav
+│   ├── green.wav            # 415 Hz, 400ms, 44.1kHz mono
+│   ├── red.wav              # 310 Hz
+│   ├── yellow.wav           # 252 Hz
+│   └── blue.wav             # 209 Hz
 ├── src/
-│   ├── main.rs         # boucle, input, match GameState, render
+│   ├── main.rs           # App struct, boucle, input, rendu
 │   ├── lib.rs
-│   ├── config.rs       # GameContext
-│   ├── components.rs   # Player, Bullet, Enemy, Emitter, EntryMotion, Particle, rand01
-│   ├── waves.rs        # WaveData, EnemyData, load_waves, enemy_style, pos_vec
-│   └── systems.rs      # World, update, update_*, spawn_wave, resolve_*, reset
-└── tests/
-    └── game_scenarios.rs   # 11 tests d'intégration
+│   ├── config.rs         # GameContext
+│   ├── components.rs     # SimonColor (Green/Red/Yellow/Blue), button_centers()
+│   ├── persistence.rs    # best_score, Path paramétrable (testable)
+│   ├── rng.rs            # xorshift32 (3e copie)
+│   └── systems.rs        # Sequence, PlayPhase, GameWorld, tick_playback, handle_click
+└── tests/                # (pas encore de tests d'intégration)
 
 ### Détail technique
 
-- Transform.position = centre (déviation documentée).
-- Pas de wrap-around : playfield = fenêtre moins HUD strip de 20 px.
-- 4 émetteurs : Radial, Aimed, Spiral, Wall (data-driven dans waves.ron).
-- 3 entrées : Static, Drift, Sine.
-- 3 kinds : grunt, tank, boss.
-- Graze : ring de 12 px autour de la hitbox (2.5 px). Multiplicateur 1.0 → 8.0, décroît de 0.5/s, reset à 1.0 sur mort.
-- Juice game-local : screen shake, hitstop (80 ms), particles, HP par assombrissement (pas d'anneau/arc).
-- World state struct (3e occurrence après MatchState, SnakeWorld).
+- 4 couleurs dans l'ordre historique : Green (haut-gauche), Red (haut-droit), Yellow (bas-gauche), Blue (bas-droit).
+- Rendu : CircleButton avec tessellation custom (polygon fan + polyline partageant les vertices).
+- Son : joué lors des transitions de couleur allumée, tracké par last_lit: Option<SimonColor> dans App.
+- Séquence : Vec<SimonColor>, agrandie de 1 à chaque round via extend_random.
+- PlayPhase : PreRound (délai 800ms) → Showing (lit 400ms, gap 200ms par élément) → Waiting (input joueur, pause 300ms après le dernier élément).
+- tick_playback BOUCLE jusqu'à épuisement de dt. Sinon, un frame drop > 400ms saute des éléments visuels.
+- handle_click valide l'input contre la séquence. Correct / Wrong / RoundComplete / Ignored.
+- Best score persisté sur round complete et sur game over.
 
 ### Pièges connus
 
-- draw_arc macroquad 0.4.16 : signature est (x, y, segments: u8, start, end, radius, thickness, color). segments en 3e position, radius en 6e. Le compilateur suggère le swap.
-- HP indicators dans un shmup : préférer l'assombrissement par hp/max_hp aux anneaux/arcs. L'arc partiel donne un artefact de "trait blanc" à HP quasi-plein.
-- Tests de collision : le graze ring est player_graze_radius + bullet_radius depuis le centre du joueur (pas player_graze_radius seul). Idem pour hitbox : player_hitbox_radius + bullet_radius.
+- Audio macroquad : feature "audio" non activée par défaut. Sans elle, tout play_sound imprime un warning et ne joue rien.
+- CircleButton tessellation : macroquad draw_circle et draw_circle_lines utilisent des nombres de segments différents, ce qui produit un gap visible entre fill et border. Tesseller manuellement avec circle_segments(radius) qui scale avec le rayon (32 à 128 segments).
+- tick_playback : si tu implémentes "une transition par appel", un dt plus grand que le timer de la phase courante saute des états. Boucler avec while remaining > 0.
 
 ---
 
@@ -280,35 +411,52 @@ Généralisé depuis Snake.
 - Bugs résolus : .env color format, draw_arc signature, HP ring → assombrissement.
 
 ### Phase 8 — GameWorld Asteroids (Session 5, Session E)
-Extraction de GameWorld { ship, bullets, asteroids, score, lives, wave, invincible_until, shoot_cooldown, state, level_cleared_timer, high_score }. #[allow(clippy::too_many_arguments)] supprimés. main.rs tient une seule variable world: GameWorld.
+Extraction de GameWorld. #[allow(clippy::too_many_arguments)] supprimés.
 
 ### Phase 9 — .workspace = true généralisé (Session 6)
-Tous les membres migrés : edition.workspace = true, version.workspace = true, dep.workspace = true. slotmap = "1.0" ajouté au root. Vérifié : cargo tree -i glam et -i macroquad → une seule version pour tout le workspace.
+Tous les membres migrés. slotmap ajouté au root puis retiré en Session 7.
+
+### Phase 10 — Minesweeper + UI subsystem (Session 7)
+- 6e jeu = Minesweeper.
+- Audit ember-core : macroquad et slotmap retirés. Le crate est enfin pur.
+- 3 nouveaux modules ember-stdlib : Grid<T>, Input, ui/ (Button, Label, Panel, TimerDisplay).
+- Minesweeper : difficultés RON, first-click safe, flood fill, chord, best times, menu.
+
+### Phase 11 — Simon + audio subsystem (Session 9)
+- 7e jeu = Simon.
+- Nouveau module ember-stdlib : audio::AudioClip.
+- Nouveau widget : ui::CircleButton (tessellation custom).
+- Root Cargo.toml : feature "audio" de macroquad activée.
+- Simon : 4 sons générés (sinusoïdes), séquence data-driven, machine à états PreRound/Showing/Waiting.
+- 4 .wav commités dans games/simon/sounds/.
 
 ---
 
 ## Décisions à prendre
 
 1. Sprite : renommer en Tint ou assumer qu'on ajoutera des textures ? (Reporté depuis Session 2.)
-2. Breakout::update (7 args) : extraire un BreakoutWorld comme Pong/Snake/Asteroids ?
+2. Breakout::update (7 args) : extraire un BreakoutWorld comme Pong/Snake/Asteroids/Minesweeper ?
 3. SnakeState::new(duration) : paramètre vestigial (écrasé par update). Le retirer ou le documenter ?
 4. Shape::as_aabb / as_circle : inutilisés. Supprimer ou utiliser ?
-5. ember-core purity : auditer macroquad et slotmap, retirer si inutilisés.
-6. 6e jeu : voir "Pistes" ci-dessous.
+5. 8e jeu : voir "Pistes" ci-dessous.
 
 ---
 
 ## Dette technique
 
-1. ember-core dépend de macroquad (types Color/Rect) et slotmap (futur ECS). Contredit la doc "primitives pures". Audit à faire.
-2. Tests d'intégration Pong fragiles : positions exactes, à améliorer.
-3. ember-editor : placeholder vide.
-4. Asteroids load_high_score / save_high_score : pas testés (touchent le FS). Refactor Path en paramètre si besoin.
+1. Tests d'intégration Pong fragiles : positions exactes, à améliorer.
+2. ember-editor : placeholder vide.
+3. Asteroids load_high_score / save_high_score : pas testés (touchent le FS directement, sans Path paramétrable). Refactor comme Minesweeper::persistence et Simon::persistence.
+4. Button UI : pas de vrai UiContext frame-level. L'utilisateur doit gérer lui-même la cohérence update/draw. À renforcer si un jeu a beaucoup de widgets.
+5. xorshift32 : 3 copies (Bullet Hell components.rs, Minesweeper rng.rs, Simon rng.rs). Rule of Three FRANCHIE. À extraire dans ember_core::rng lors d'un refactor global.
+6. Simon : pas de tests d'intégration. À ajouter si le jeu évolue.
+7. tick_playback dans Simon : boucle jusqu'à épuisement de dt. Le pattern "loops until dt exhausted" devrait probablement être un helper dans TickTimer ou une fonction générique.
 
 Résolus :
 - ~~glam désalignement~~ → structurellement impossible depuis Session 6.
 - ~~Asteroids too_many_arguments~~ → GameWorld Session 5.
 - ~~.workspace = true non utilisé~~ → Session 6.
+- ~~ember-core purity (macroquad + slotmap)~~ → Session 7, retirés.
 
 ---
 
@@ -317,36 +465,51 @@ Résolus :
 Ne généralise pas avant d'avoir vu le pattern 3 fois.
 
 Aujourd'hui :
-- Chargement RON : 3x (Breakout, Snake, Bullet Hell) → extrait.
-- Config env : 5x → extrait.
-- draw_centered : 5x → extrait.
-- GameState : 5x → extrait.
-- State structs : 4x (MatchState, SnakeWorld, GameWorld, World) → convention confirmée, mais pas de type partagé (les champs diffèrent trop).
+- Chargement RON : 6x (Breakout, Snake, Bullet Hell, Minesweeper, Simon, Asteroids) → extrait.
+- Config env : 7x → extrait.
+- draw_centered : 7x → extrait.
+- GameState : 7x → extrait.
+- State structs : 6x (MatchState, SnakeWorld, GameWorld, World, Game, App+GameWorld) → convention confirmée.
+- Grid 2D : 1x (Minesweeper) → extrait quand même (Grid<T>).
+- Input snapshot : 1x → extrait (Input).
+- UI widgets : 2x (Minesweeper, Simon) → extrait.
+- Audio : 1x (Simon) → extrait (AudioClip).
+- xorshift32 : 3x → À EXTRAIRE. Refactor global à planifier.
 - wrap_position : 1x (Asteroids) → local.
-- Juice (shake, hitstop, particles) : 1x (Bullet Hell) → local, à extraire à la 3e occurrence.
+- Juice (shake, hitstop, particles) : 1x (Bullet Hell) → local.
 - Cooldown f32 : 2x (Asteroids, Bullet Hell) → surveiller.
 
 ---
 
-## Pistes pour le 6e jeu
+## Pistes pour le 8e jeu
+
+Le moteur a maintenant : collisions, grille, input souris + clavier, UI (Button, CircleButton, Label, Panel, Timer), audio, persistance, data-driven, machine à états.
+
+Ce qui MANQUE encore :
+- Drag-and-drop (pour Solitaire, Mahjong)
+- Caméra / scroll (pour platformer, exploration, RPG top-down)
+- Procédural (roguelike, génération de niveaux)
+- Pathfinding (Tower Defense, roguelike)
+- Animation / tween / easing (Match-3, transitions riches)
+- Tour par tour structuré (Card Battler, roguelike)
 
 ### Recommandations fortes
 
-1. Tower Defense — UI (boutons, tooltips, sélection), ciblage, waypoints, économie. Déclenche le subsystem UI qui manque à tout le reste. Prépare Mahjong et Card Battler.
-2. Card Battler — main, deck, tour par tour. Prépare Mahjong.
-3. Bullet Hell 2 / Bullet Hell variant — pour déclencher l'extraction "juice" à la 3e occurrence. Peu probable comme choix.
+1. Solitaire (Klondike) — déclenche DRAG-AND-DROP, brique UI majeure. Réutilise Button/Label/Panel/Grid.
+2. Match-3 — déclenche ANIMATIONS / TWEEN / EASING. Utilise Grid + Input + UI.
+3. Plateformer — déclenche CAMÉRA + scroll + collisions multi-axes solides. Test de robustesse du collider.
 
 ### Recommandations moyennes
 
-4. Match-3 — animations, cascade, easing.
-5. Tetris — rotation, lignes, drop.
-6. Plateformer — saut, caméra, collisions multi-axes.
-7. Roguelike — procédural, FOV, tour par tour, inventaire.
+4. Tower Defense — pathfinding, ciblage, économie.
+5. Roguelike minimal — procédural, FOV, tour par tour, inventaire, sauvegarde.
+6. Card Battler — main, deck, tour par tour, graphe narratif.
+7. Tetris — rotation, lignes, drop.
 
 ### Recommandations faibles
 
-8. Mahjong Solitaire — puzzle d'algorithme, peu de moteur.
-9. Rhythm Game — nécessite audio, pas prêt.
+8. Mahjong Solitaire — 3D iso + clic (nécessite un peu de boulot graphique).
+9. Bomberman-like — grille destructible, IA (réutilise beaucoup).
 
 ---
 
@@ -357,20 +520,25 @@ Aujourd'hui :
 2. Shape::as_aabb / as_circle : supprimer ou utiliser ?
 3. SnakeState::new : retirer le paramètre duration ?
 4. BreakoutWorld : extraire comme les autres ?
-5. Auditer ember-core (macroquad, slotmap).
-6. Choisir le 6e jeu.
+5. Choisir le 8e jeu.
 
 ### Bugs potentiels / fragilités
 1. Pong : tests d'intégration fragiles (positions exactes).
 2. Breakout : update à 7 args — à la limite du lint.
 3. Asteroids : step_collision dans game_scenarios.rs duplique la logique de main.rs.
+4. Minesweeper : flood fill non testé sur 30x16 (Expert).
+5. Simon : pas de tests d'intégration.
 
-### Refactors à considérer
-1. Transform : ajouter apply, apply_inverse, matrix.
-2. Aabb : ajouter overlaps_with_rotation ?
-3. Collider : ajouter contains_point ?
-4. ember_stdlib::graphics::shapes : draw_rotated_rect, draw_polygon.
-5. BreakoutWorld : même pattern que MatchState/SnakeWorld/GameWorld.
+### Refactors à considérer (à regrouper dans une session dédiée)
+1. Extraire ember_core::rng (xorshift32) — 3 occurrences.
+2. Extraire un helper "loops until dt exhausted" (voir Simon tick_playback).
+3. Transform : ajouter apply, apply_inverse, matrix.
+4. Aabb : ajouter overlaps_with_rotation ?
+5. Collider : ajouter contains_point ?
+6. ember_stdlib::graphics::shapes : draw_rotated_rect, draw_polygon.
+7. BreakoutWorld : même pattern que MatchState/SnakeWorld/GameWorld.
+8. UiContext frame-level : hot/active ID, résoudrait le piège button update/draw.
+9. Asteroids persistence : Path paramétrable comme Minesweeper/Simon.
 
 ---
 
@@ -386,12 +554,29 @@ Aujourd'hui :
 8. env_color format : {PREFIX}_R/_G/_B/_A, pas r,g,b,a.
 9. draw_arc macroquad 0.4.16 : segments: u8 en 3e position, radius en 6e.
 10. HP indicators : préférer l'assombrissement par hp/max_hp aux anneaux partiels.
+11. Button UI : update() et draw() sur la MÊME instance.
+12. TextDimensions : draw_text retourne TextDimensions.
+13. field_reassign_with_default (clippy) : X { field: value, ..Default::default() }.
+14. Grid : neighbors_8 retourne des &T (borrow). Utiliser neighbor_coords_8 pour muter.
+15. Flood fill Démineur : révèle la frontière chiffrée, pas seulement les cases vides.
+16. BoardState vs GameState : deux enums séparés.
+17. needless_borrows_for_generic_args (clippy) : pas de & devant format!() passé à draw_text, Label::new, etc. MAIS & requis pour draw_centered (signature &str).
+18. manual_range_contains (clippy) : (a..=b).contains(&x) au lieu de x >= a && x <= b.
+19. macroquad audio feature : à activer dans Cargo.toml racine, sinon silence total.
+20. CircleButton tessellation : tesseller manuellement avec circle_segments(radius) pour aligner fill et border.
+21. tick_playback en boucle : un dt plus grand que le timer de la phase courante doit traverser plusieurs phases, pas sauter à la suivante une seule fois.
 
 ---
 
 ## Prochaines étapes suggérées
 
-1. Audit ember-core (10 min) : grep macroquad et slotmap dans src/. Si inutilisés, retirer. Sinon, mettre à jour la doc.
-2. Décider du 6e jeu (probablement Tower Defense → déclenche UI).
-3. Session design doc pour le 6e jeu, avant de coder.
-4. Appliquer le state-struct pattern dès le début du 6e jeu.
+1. Session doc-sync (celle-ci, terminée).
+2. Décider du 8e jeu parmi Solitaire / Match-3 / Plateformer (fortes recommandations).
+3. Session design doc pour le 8e jeu, avant de coder.
+4. Appliquer les patterns :
+   - State struct (Game/World) dès le début.
+   - Widgets dans le state struct, update + draw sur la même instance.
+   - Input snapshot construit dans main.rs.
+   - Data-driven (RON) pour tout contenu configurable.
+   - Si audio : ne pas oublier la feature macroquad "audio".
+5. Planifier une session refactor global (RNG extraction, etc.) après 1-2 jeux supplémentaires.
