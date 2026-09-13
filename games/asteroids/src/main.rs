@@ -136,11 +136,6 @@ async fn main() {
                     world.shoot_cooldown = ctx.bullet_cooldown_ms as f32 / 1000.0;
                 }
 
-                if world.invincible_until > 0.0 {
-                    world.invincible_until = (world.invincible_until - dt).max(0.0);
-                }
-                let invincible = world.invincible_until > 0.0;
-
                 systems::update_bullets(&mut world.bullets, &ctx, dt);
                 systems::update_asteroids(&mut world.asteroids, &ctx, dt);
 
@@ -151,11 +146,8 @@ async fn main() {
                 );
                 world.score += destroyed as i32 * 10;
 
-                if !invincible
-                    && systems::resolve_ship_asteroid_collision(&world.ship, &world.asteroids)
-                {
-                    world.on_ship_hit(&ctx);
-                }
+                // Ship↔asteroid collision + invincibility tick, in one call.
+                world.step_ship_asteroid_collision(&ctx, dt);
 
                 if world.asteroids.is_empty() && world.state == GameState::Playing {
                     world.on_wave_cleared(&ctx);

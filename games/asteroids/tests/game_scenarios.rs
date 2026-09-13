@@ -141,24 +141,6 @@ fn test_ship_away_from_asteroid_is_safe() {
 // Scénario : machine à états — perte de vie, invincibilité, GameOver
 // ============================================================================
 
-/// Reproduit le bloc "collision vaisseau ↔ astéroïde" de `main.rs`,
-/// mais sur le `GameWorld` qui possède désormais l'état.
-fn step_collision(world: &mut GameWorld, ctx: &GameContext, dt: f32) -> bool {
-    if world.invincible_until > 0.0 {
-        world.invincible_until = (world.invincible_until - dt).max(0.0);
-    }
-    let invincible = world.invincible_until > 0.0;
-
-    if !invincible
-        && systems::resolve_ship_asteroid_collision(&world.ship, &world.asteroids)
-    {
-        world.on_ship_hit(ctx);
-        true
-    } else {
-        false
-    }
-}
-
 #[test]
 fn test_ship_hit_loses_one_life() {
     let cx = test_ctx();
@@ -169,7 +151,7 @@ fn test_ship_hit_loses_one_life() {
     world.lives = 3;
     world.invincible_until = 0.0;
 
-    let hit = step_collision(&mut world, &cx, 0.016);
+    let hit = world.step_ship_asteroid_collision(&cx, 0.016);
 
     assert!(hit);
     assert_eq!(world.lives, 2);
@@ -185,7 +167,7 @@ fn test_invincibility_blocks_life_loss() {
     world.lives = 3;
     world.invincible_until = 1.5;
 
-    let hit = step_collision(&mut world, &cx, 0.016);
+    let hit = world.step_ship_asteroid_collision(&cx, 0.016);
 
     assert!(!hit, "invincible → pas de perte de vie");
     assert_eq!(world.lives, 3);
@@ -201,7 +183,7 @@ fn test_third_hit_triggers_game_over() {
     world.lives = 1;
     world.invincible_until = 0.0;
 
-    let hit = step_collision(&mut world, &cx, 0.016);
+    let hit = world.step_ship_asteroid_collision(&cx, 0.016);
 
     assert!(hit);
     assert_eq!(world.lives, 0);

@@ -50,13 +50,21 @@ where
         }
     }
 
-    /// Build a handle for a file next to the crate manifest.
+    /// Build a handle for a file next to `manifest_dir`.
     ///
-    /// Must be called from a game crate: `env!("CARGO_MANIFEST_DIR")` is
-    /// resolved at the call site (same gotcha as `config::load_dotenv_once`).
-    pub fn in_manifest_dir(filename: &str) -> Self {
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(filename);
-        Self::new(path)
+    /// The caller must pass `env!("CARGO_MANIFEST_DIR")` from **its own
+    /// crate**, not from this one. If you pass a `PathBuf` built from
+    /// ember-stdlib's manifest dir, the file will be created in
+    /// `crates/ember-stdlib/` instead of the game's folder.
+    ///
+    /// # Example
+    /// ```ignore
+    /// // In games/simon/src/persistence.rs:
+    /// let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    /// let p = Persistence::<u32>::in_manifest_dir(&manifest, "best_score.ron");
+    /// ```
+    pub fn in_manifest_dir(manifest_dir: &Path, filename: &str) -> Self {
+        Self::new(manifest_dir.join(filename))
     }
 
     /// Load the value from disk. Returns `None` if the file is missing or
@@ -244,5 +252,11 @@ mod tests {
         let p: Persistence<u32> = Persistence::new("/tmp/foo.ron");
         let q = p.clone();
         assert_eq!(p.path(), q.path());
+    }
+
+    #[test]
+    fn test_in_manifest_dir_uses_provided_path() {
+        let p: Persistence<u32> = Persistence::in_manifest_dir(Path::new("/tmp/test_manifest"), "foo.ron");
+        assert_eq!(p.path(), Path::new("/tmp/test_manifest/foo.ron"));
     }
 }

@@ -2,8 +2,8 @@
 
 Document destiné au prochain agent qui reprendra le projet.
 
-Dernière mise à jour : après Session 4 (persistance générique).
-État du workspace : 7 jeux fonctionnels, moteur ember stable, 324 tests verts, Clippy clean.
+Dernière mise à jour : après Session 5 (bugs et tests restants).
+État du workspace : 7 jeux fonctionnels, moteur ember stable, 335 tests verts, Clippy clean.
 
 ---
 
@@ -235,7 +235,7 @@ load_dotenv_once encapsule le pattern `OnceLock` + `load_dotenv_from` (7 jeux). 
 
 Tests : 4 + 1 (`test_load_dotenv_once_is_idempotent`).
 
-### persistence.rs — Persistence<T> (Phase 15)
+### persistence.rs — Persistence<T> (Phase 15, fixé Phase 16)
 
 Persistance typée, format RON. Unifie les 3 implémentations locales (Asteroids, Minesweeper, Simon).
 
@@ -244,7 +244,7 @@ Persistance typée, format RON. Unifie les 3 implémentations locales (Asteroids
 
   impl<T: Serialize + DeserializeOwned> Persistence<T> {
       pub fn new(path: impl Into<PathBuf>) -> Self;
-      pub fn in_manifest_dir(filename: &str) -> Self;
+      pub fn in_manifest_dir(manifest_dir: &Path, filename: &str) -> Self;
       pub fn load(&self) -> Option<T>;
       pub fn load_or(&self, default: T) -> T;
       pub fn save(&self, value: &T) -> bool;
@@ -255,7 +255,9 @@ Persistance typée, format RON. Unifie les 3 implémentations locales (Asteroids
   pub fn update_if_higher<T: PartialOrd + Copy>(current: &mut T, candidate: T) -> bool;
   pub fn update_if_lower<T: PartialOrd + Copy>(current: &mut T, candidate: T) -> bool;
 
-Tests : 14. Doctest ignoré (comme les autres).
+Tests : 15 (Phase 16 a ajouté `test_in_manifest_dir_uses_provided_path`). Doctest ignoré (comme les autres).
+
+**Important (Phase 16)** : `in_manifest_dir` prend `manifest_dir: &Path` en paramètre, parce que `env!("CARGO_MANIFEST_DIR")` est évalué **là où la macro est écrite** (donc dans la stdlib), pas au point d'appel. Les 3 jeux passent leur propre `env!("CARGO_MANIFEST_DIR")`.
 
 Utilisé par : Asteroids (`HighScore = Persistence<i32>`), Minesweeper (`BestTimes = Persistence<HashMap<String, f32>>`), Simon (`BestScore = Persistence<u32>`).
 
@@ -382,15 +384,15 @@ Placeholder avec 1 test it_works. Pas utilisé.
 
 | Jeu | Sessions | Nouveautés moteur | Tests |
 |---|---|---|---|
-| Pong | 1 (+refactor S3) | Collisions AABB, IA simple, boucle, MatchState | 14 |
+| Pong | 1 (+refactor S3, +fix S5) | Collisions AABB, IA simple, boucle, MatchState | 14 |
 | Breakout | 2 (+refactor S3) | Niveaux RON, substepping, rebond angulaire, BreakoutWorld | 18 |
 | Snake | 3 | Grille logique, TickTimer, GameState étendu, SnakeWorld | 32 |
-| Asteroids | 2 (+tests S3, +GameWorld S5, +persistence S4) | Rotation, inertie, wrap-around, Vec<Bullet>, persistance RON testable, tests d'intégration, GameWorld, HighScore handle | 29 |
+| Asteroids | 2 (+tests S3, +GameWorld S5, +persistence S4, +fix S5) | Rotation, inertie, wrap-around, Vec<Bullet>, persistance RON testable, tests d'intégration, GameWorld, HighScore handle, step_ship_asteroid_collision | 29 |
 | Bullet Hell | 5 (Sessions A–F) | Waves RON, 4 émetteurs data-driven, graze + multiplicateur, juice (shake, hitstop, particles), World 3e occurrence, HP par assombrissement | ~45 |
-| Minesweeper | 7 (Sessions A–C) | Grid<T>, Input, UI (Button/Label/Panel/Timer), first-click safe, flood fill, chord, best times persistants, menu de difficultés, Game dans systems.rs | ~36 |
-| Simon | 9 (Sessions A–B) | AudioClip (macroquad audio feature), CircleButton (custom tessellation), sequence playback avec timers, best score persisté | ~21 |
+| Minesweeper | 7 (Sessions A–C, +tests S5) | Grid<T>, Input, UI (Button/Label/Panel/Timer), first-click safe, flood fill (testé 30x16), chord, best times persistants, menu de difficultés, Game dans systems.rs | ~39 |
+| Simon | 9 (Sessions A–B, +tests S5) | AudioClip (macroquad audio feature), CircleButton (custom tessellation), sequence playback avec timers, best score persisté, tests d'intégration | ~29 |
 
-Total : 7 jeux, ~26 sessions, 324 tests verts, Clippy clean.
+Total : 7 jeux, ~27 sessions, 335 tests verts, Clippy clean.
 
 ---
 
@@ -419,10 +421,12 @@ games/simon/
 │   ├── components.rs     # SimonColor (Green/Red/Yellow/Blue), button_centers()
 │   ├── persistence.rs    # façade : BestScore = Persistence<u32> (Phase 15)
 │   └── systems.rs        # Sequence, PlayPhase, GameWorld, tick_playback, handle_click
-└── tests/                # (pas encore de tests d'intégration)
+└── tests/
+    └── game_scenarios.rs # 8 tests d'intégration (Phase 16)
 
 Note Phase 12 : `rng.rs` supprimé, utilise `ember_core::rng::Rng`.
 Note Phase 15 : `persistence.rs` réduit à une façade.
+Note Phase 16 : tests d'intégration ajoutés.
 
 ### Détail technique
 
@@ -581,6 +585,34 @@ Dette résolue : #5 (xorshift32 3 copies).
 
 Dette résolue : #3 (Asteroids persistence non testable).
 
+### Phase 16 — Session 5 : Bugs et tests restants
+- **Asteroids** : `GameWorld::step_ship_asteroid_collision(ctx, dt) -> bool`
+  extrait dans `systems.rs`. Encapsule la décrémentation d'invincibilité,
+  la détection de collision vaisseau↔astéroïde, et l'appel à `on_ship_hit`.
+  `main.rs` : 6 lignes → 1 appel. `tests/game_scenarios.rs` : suppression
+  de la fonction locale `step_collision` (dupliquait la logique de main.rs).
+- **Minesweeper** : 3 tests d'intégration ajoutés pour le flood fill sur
+  Expert (30x16) — `test_flood_fill_on_expert_30x16` (479 cellules révélées),
+  `test_flood_fill_on_expert_with_real_density` (99 mines, premier clic
+  safe), `test_flood_fill_performance_on_expert` (garde-fou perf < 100 ms).
+- **Simon** : 8 tests d'intégration ajoutés dans `tests/game_scenarios.rs`
+  (nouveau fichier). Couvrent : playthrough complet, clic ignoré pendant
+  Showing, wrong click → game over, croissance de séquence sur 3 rounds,
+  restart après game over, `lit_color` sur un round complet, flash après
+  clic correct, déterminisme du RNG.
+- **Pong** : 4 tests d'intégration rendus robustes. Les `assert_eq!` sur
+  positions exactes `f32` sont remplacés par des assertions directionnelles
+  (`vx` change de signe) + de contenance (balle pas dans le paddle) +
+  de proximité (`EPS = 1e-3` pour le reset au centre).
+- **Bonus** : bug `Persistence::in_manifest_dir` corrigé. `env!` est
+  évalué **là où la macro est écrite**, pas au point d'appel — donc
+  l'ancien code créait tous les fichiers `.ron` dans `crates/ember-stdlib/`
+  au lieu du dossier du jeu. La signature prend maintenant `manifest_dir:
+  &Path` en paramètre, et les 3 jeux (Simon, Minesweeper, Asteroids)
+  passent leur propre `env!("CARGO_MANIFEST_DIR")`. +1 test.
+
+Dette résolue : #1 (Pong tests fragiles), #6 (Simon tests d'intégration).
+
 ---
 
 ## Décisions à prendre
@@ -598,12 +630,12 @@ Dette résolue : #3 (Asteroids persistence non testable).
 
 ## Dette technique
 
-1. Tests d'intégration Pong fragiles : positions exactes, à améliorer.
+1. ~~Tests d'intégration Pong fragiles~~ → **résolu** Phase 16 (assertions directionnelles + tolérance EPS).
 2. ember-editor : placeholder vide.
 3. ~~Asteroids load_high_score / save_high_score : pas testés~~ → **résolu** Phase 15 (`Persistence<i32>` avec `Path` paramétrable).
 4. Button UI : pas de vrai UiContext frame-level. L'utilisateur doit gérer lui-même la cohérence update/draw. À renforcer si un jeu a beaucoup de widgets.
 5. ~~xorshift32 : 3 copies~~ → **résolu** Phase 12 (`ember_core::rng::Rng`).
-6. Simon : pas de tests d'intégration. À ajouter si le jeu évolue.
+6. ~~Simon : pas de tests d'intégration~~ → **résolu** Phase 16 (8 tests d'intégration ajoutés).
 7. tick_playback dans Simon : boucle jusqu'à épuisement de dt. Le pattern "loops until dt exhausted" devrait probablement être un helper dans TickTimer ou une fonction générique.
 
 Résolus :
@@ -616,6 +648,9 @@ Résolus :
 - ~~Minesweeper Game dans main.rs~~ → Phase 14.
 - ~~GameContext location incohérente~~ → Phase 14.
 - ~~Asteroids persistence non testable~~ → Phase 15.
+- ~~Pong tests fragiles~~ → Phase 16.
+- ~~Simon tests d'intégration manquants~~ → Phase 16.
+- ~~in_manifest_dir crée les fichiers au mauvais endroit~~ → Phase 16.
 
 ---
 
@@ -639,6 +674,7 @@ Aujourd'hui :
 - Cooldown f32 : 2x (Asteroids, Bullet Hell) → surveiller.
 - Ball::clamp_speed : 2x (Pong, Breakout) → surveiller. À extraire si 3e jeu.
 - Persistance best score : 3x → **EXTRAIT** (Phase 15, `ember_stdlib::persistence`).
+- step_ship_asteroid_collision : 1x (Asteroids) → local (extrait de la duplication main.rs/test).
 
 ---
 
@@ -686,11 +722,11 @@ Ce qui MANQUE encore :
 7. Uniformiser UpdateEvent : Snake/Breakout en ont, Pong/Bullet Hell non. (À débattre.)
 
 ### Bugs potentiels / fragilités
-1. Pong : tests d'intégration fragiles (positions exactes).
+1. ~~Pong : tests d'intégration fragiles~~ → **résolu** Phase 16.
 2. ~~Breakout : update à 7 args~~ → **résolu** Phase 14.
-3. Asteroids : step_collision dans game_scenarios.rs duplique la logique de main.rs. (Toujours présent, à traiter en même temps qu'une éventuelle refonte Asteroids.)
-4. Minesweeper : flood fill non testé sur 30x16 (Expert).
-5. Simon : pas de tests d'intégration.
+3. ~~Asteroids : step_collision dupliqué dans game_scenarios.rs~~ → **résolu** Phase 16 (méthode extraite).
+4. ~~Minesweeper : flood fill non testé sur 30x16 (Expert)~~ → **résolu** Phase 16 (3 tests ajoutés).
+5. ~~Simon : pas de tests d'intégration~~ → **résolu** Phase 16.
 
 ### Refactors à considérer (à regrouper dans une session dédiée)
 1. Extraire un helper "loops until dt exhausted" (voir Simon tick_playback).
@@ -731,6 +767,7 @@ Ce qui MANQUE encore :
 24. `GameContext` uniformisé dans `config.rs` pour les 7 jeux (Phase 14). `systems.rs` fait `pub use` pour la compat.
 25. `Persistence<T>` a `Clone` mais **pas** `Copy` (PathBuf). Si un jeu doit cloner le handle (comme `Asteroids::reset_to_start`), utiliser `.clone()` explicitement. (Phase 15)
 26. Migration `.txt` → `.ron` (Asteroids) : l'ancien fichier n'est plus lu. Acceptable pour un projet perso, mais à noter. (Phase 15)
+27. `env!("CARGO_MANIFEST_DIR")` dans une fonction de la stdlib pointe vers le manifest de la **stdlib**, pas du jeu appelant. Toujours passer `manifest_dir` en paramètre. (Phase 15, fixé Phase 16)
 
 ---
 
@@ -738,7 +775,7 @@ Ce qui MANQUE encore :
 
 1. Session doc-sync (celle-ci, terminée).
 2. ~~Session 4 — Persistance~~ → **fait** (Phase 15).
-3. Session 5 — Bugs restants : Asteroids `step_collision` dupliqué dans `game_scenarios.rs`, Pong tests fragiles, Minesweeper flood fill 30x16 (Expert), Simon tests d'intégration.
+3. ~~Session 5 — Bugs restants~~ → **fait** (Phase 16).
 4. Décider du 8e jeu parmi Solitaire / Match-3 / Plateformer (fortes recommandations).
 5. Session design doc pour le 8e jeu, avant de coder.
 6. Appliquer les patterns :
@@ -747,7 +784,7 @@ Ce qui MANQUE encore :
    - Widgets dans le state struct, update + draw sur la même instance.
    - Input snapshot construit dans main.rs.
    - Data-driven (RON) pour tout contenu configurable.
-   - Persistance via `ember_stdlib::persistence::Persistence<T>`.
+   - Persistance via `ember_stdlib::persistence::Persistence<T>` (passer `manifest_dir` explicitement).
    - Si audio : ne pas oublier la feature macroquad "audio".
-7. ~~Planifier une session refactor global (RNG extraction, etc.)~~ → Sessions 1-4 faites (Phases 12-15).
+7. ~~Planifier une session refactor global (RNG extraction, etc.)~~ → Sessions 1-5 faites (Phases 12-16).
 8. ~~Session 3 — Architecture~~ → **fait** (Phase 14).

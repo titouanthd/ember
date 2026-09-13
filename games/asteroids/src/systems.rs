@@ -148,6 +148,33 @@ impl GameWorld {
         }
     }
 
+    /// Advance invincibility by `dt`, then check ship↔asteroid collision.
+    /// Calls `on_ship_hit` if the ship is hit and not invincible.
+    ///
+    /// Returns `true` if the ship took a hit this frame.
+    ///
+    /// Order matters: the invincibility timer is decremented first, so a
+    /// ship whose invincibility just expired **can** be hit on the same
+    /// frame. This matches the previous inline logic in `main.rs` (and
+    /// keeps tests honest).
+    pub fn step_ship_asteroid_collision(
+        &mut self,
+        ctx: &GameContext,
+        dt: f32,
+    ) -> bool {
+        if self.invincible_until > 0.0 {
+            self.invincible_until = (self.invincible_until - dt).max(0.0);
+        }
+        let invincible = self.invincible_until > 0.0;
+
+        if !invincible && resolve_ship_asteroid_collision(&self.ship, &self.asteroids) {
+            self.on_ship_hit(ctx);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Full reset back to the Start screen (R key from GameOver/Win).
     /// Preserves the high score and the handle.
     pub fn reset_to_start(&mut self, ctx: &GameContext) {

@@ -1,27 +1,21 @@
 //! Minesweeper persistence — best times per difficulty.
-//!
-//! The heavy lifting lives in [`ember_stdlib::persistence`]. This module
-//! names the type, the default file, and the "lower is better" record
-//! logic for the `HashMap<String, f32>` shape.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use ember_stdlib::persistence::Persistence;
 
 /// Typed handle to Minesweeper's best-times file.
 pub type BestTimes = Persistence<HashMap<String, f32>>;
 
-/// Build the default handle: `best_times.ron` next to the manifest.
+/// Build the default handle: `best_times.ron` next to Minesweeper's manifest.
 pub fn default() -> BestTimes {
-    BestTimes::in_manifest_dir("best_times.ron")
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    BestTimes::in_manifest_dir(&manifest_dir, "best_times.ron")
 }
 
 /// Update the map with a new time for `name` if it beats the existing one.
 /// Returns `true` if the map was updated.
-///
-/// A faster time is "better" (lower is better), so this uses
-/// [`ember_stdlib::persistence::update_if_lower`] once the entry exists.
-/// Inserts the entry if missing.
 pub fn update_if_better(
     times: &mut HashMap<String, f32>,
     name: &str,
