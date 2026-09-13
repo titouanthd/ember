@@ -277,7 +277,7 @@ fn render_game(ctx: &GameContext, game: &Game, input: &Input) {
     let time_size = 20u16;
     let time_dims = measure_text(&time_str, None, time_size, 1.0);
     let label_dims = measure_text(label_str, None, time_size, 1.0);
-    let time_right = ctx.window_w - 260.0; // 20 px before Restart (660)
+    let time_right = ctx.window_w - 260.0;
     let x_label = time_right - time_dims.width - label_dims.width;
     let y = ctx.hud_h * 0.5 + 7.0;
     draw_text(label_str, x_label, y, time_size as f32, ctx.color_text_dim);
@@ -322,8 +322,9 @@ fn render_game(ctx: &GameContext, game: &Game, input: &Input) {
             let card = *game.board.get(col, row).unwrap();
             let r = game.card_rect(col, row, ctx);
             let hovered = matches!(hovered_cell, Some((c, rr)) if c == col && rr == row);
+            let error = game.is_resolving_at(col, row);
 
-            draw_card(ctx, &card, r, hovered);
+            draw_card(ctx, &card, r, hovered, error);
         }
     }
 
@@ -347,7 +348,7 @@ fn render_game(ctx: &GameContext, game: &Game, input: &Input) {
     .draw();
 }
 
-fn draw_card(ctx: &GameContext, card: &Card, r: Rect, hovered: bool) {
+fn draw_card(ctx: &GameContext, card: &Card, r: Rect, hovered: bool, error: bool) {
     let (bg, border) = match card.state {
         CardState::Hidden => {
             let bg = if hovered {
@@ -357,7 +358,13 @@ fn draw_card(ctx: &GameContext, card: &Card, r: Rect, hovered: bool) {
             };
             (bg, ctx.color_hidden_border)
         }
-        CardState::Flipped => (ctx.color_flipped, ctx.color_flipped_border),
+        CardState::Flipped => {
+            if error {
+                (ctx.color_flipped, Color::new(1.0, 0.30, 0.35, 1.0))
+            } else {
+                (ctx.color_flipped, ctx.color_flipped_border)
+            }
+        }
         CardState::Matched => (ctx.color_matched, ctx.color_matched_border),
     };
 

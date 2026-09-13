@@ -137,13 +137,13 @@ impl Game {
             card_size: 0.0,
             start_btn: Button::new(0.0, 0.0, 200.0, 50.0, "START"),
             restart_btn: Button::new(
-                ctx.window_w - 240.0,  // 900 - 240 = 660
+                ctx.window_w - 240.0,
                 10.0,
                 100.0,
                 30.0,
                 "Restart",
             ),
-            menu_btn: Button::new(ctx.window_w - 120.0, 10.0, 100.0, 30.0, "Menu"),//                 900 - 120 = 780
+            menu_btn: Button::new(ctx.window_w - 120.0, 10.0, 100.0, 30.0, "Menu"),
         };
         g.update_menu_layout(&ctx);
         g
@@ -210,6 +210,23 @@ impl Game {
     pub fn is_playable(&self) -> bool {
         self.state == GameState::Playing
             && !matches!(self.selection, SelectionPhase::Resolving { .. })
+    }
+
+    /// True if the given card is currently in the "wrong pair" state
+    /// (waiting for the no-match delay to elapse before flipping back).
+    ///
+    /// Used by the renderer to show a red border on mismatched cards.
+    pub fn is_resolving_at(&self, col: usize, row: usize) -> bool {
+        match self.selection {
+            SelectionPhase::Resolving {
+                col_a,
+                row_a,
+                col_b,
+                row_b,
+                ..
+            } => (col == col_a && row == row_a) || (col == col_b && row == row_b),
+            _ => false,
+        }
     }
 
     /// Screen-space rect (x, y, w, h) for a card at (col, row).
@@ -584,8 +601,14 @@ mod tests {
 
         let selection_before = g.selection.clone();
         g.reveal(c3, r3, &cx);
-        assert_eq!(g.selection, selection_before, "click during Resolving is ignored");
-        assert!(g.board.get(c3, r3).unwrap().is_hidden(), "third card not flipped");
+        assert_eq!(
+            g.selection, selection_before,
+            "click during Resolving is ignored"
+        );
+        assert!(
+            g.board.get(c3, r3).unwrap().is_hidden(),
+            "third card not flipped"
+        );
     }
 
     #[test]
@@ -690,5 +713,50 @@ mod tests {
         assert_eq!(g.pairs_found, 2);
         assert_eq!(g.state, GameState::Win);
         assert!(!g.timer_running);
+    }
+
+    // --- resolving render helper ---
+
+    #[test]
+    fn test_is_resolving_at() {
+        let cx = ctx();
+        let mut g = game_with(8, 42, &cx);
+        // Initially nothing is resolving.
+        assert!(!g.is_resolving_at(0, 0));
+
+        // Find two different cards.
+        let mut pair: Option<((usize, usize), (usize, usize))> = None;
+        'outer: for r1 in 0..g.board.height() {
+            for c1 in 0..g.board.width() {
+                let s1 = g.board.get(c1, r1).unwrap().symbol;
+                for r2 in 0..g.board.height() {
+                    for c2 in 0..g.board.width() {
+                        if (c1, r1) == (c2, r2) {
+                            continue;
+                        }
+                        let s2 = g.board.get(c2, r2).unwrap().symbol;
+                        if s1 != s2 {
+                            pair = Some(((c1, r1), (c2, r2)));
+                            break 'outer;
+                        }
+                    }
+                }
+            }
+        }
+        let ((c1, r1), (c2, r2)) = pair.unwrap();
+        g.reveal(c1, r1, &cx);
+        g.reveal(c2, r2, &cx);
+
+        // Both cards are resolving.
+        assert!(g.is_resolving_at(c1, r1));
+        assert!(g.is_resolving_at(c2, r2));
+        // A third card is not.
+        for r in 0..g.board.height() {
+            for c in 0..g.board.width() {
+                if (c, r) != (c1, r1) && (c, r) != (c2, r2) {
+                    assert!(!g.is_resolving_at(c, r));
+                }
+            }
+        }
     }
 }
