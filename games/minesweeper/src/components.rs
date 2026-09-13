@@ -1,4 +1,4 @@
-//! Board data model. Session A : types only, no rules yet.
+//! Board data model.
 
 use ember_stdlib::Grid;
 
@@ -29,6 +29,18 @@ impl Default for Cell {
     }
 }
 
+impl Cell {
+    pub fn is_revealed(&self) -> bool {
+        self.state == CellState::Revealed
+    }
+    pub fn is_hidden(&self) -> bool {
+        self.state == CellState::Hidden
+    }
+    pub fn is_flagged(&self) -> bool {
+        self.state == CellState::Flagged
+    }
+}
+
 /// High-level state of the board itself.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BoardState {
@@ -39,7 +51,7 @@ pub enum BoardState {
     Lost,
 }
 
-/// The entire board. Session A : constructed but never modified after init.
+/// The entire board.
 pub struct Board {
     pub cells: Grid<Cell>,
     pub width: usize,
@@ -54,6 +66,11 @@ pub struct Board {
 impl Board {
     /// Create an empty board (no mines yet — first-click safety).
     pub fn new(width: usize, height: usize, mine_count: usize) -> Self {
+        assert!(width > 0 && height > 0, "board must be non-empty");
+        assert!(
+            mine_count < width * height,
+            "cannot fill the whole board with mines"
+        );
         Self {
             cells: Grid::new(width, height, Cell::default()),
             width,
@@ -104,5 +121,18 @@ mod tests {
             assert_eq!(c.state, CellState::Hidden);
             assert!(!c.is_mine);
         });
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot fill the whole board")]
+    fn test_too_many_mines_panics() {
+        let _ = Board::new(3, 3, 9);
+    }
+
+    #[test]
+    fn test_mines_remaining_can_go_negative() {
+        let mut b = Board::new(3, 3, 2);
+        b.flagged_count = 5;
+        assert_eq!(b.mines_remaining(), -3);
     }
 }
