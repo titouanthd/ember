@@ -1,10 +1,9 @@
 use std::path::PathBuf;
-use std::sync::OnceLock;
 
 use glam::Vec2;
 use macroquad::prelude::Color;
 
-use ember_stdlib::config::{env_color, env_f32, load_dotenv_from};
+use ember_stdlib::config::{env_color, env_f32};
 
 #[derive(Debug, Clone)]
 pub struct GameContext {
@@ -48,11 +47,8 @@ impl GameContext {
 }
 
 pub fn load_config() -> GameContext {
-    static ENV_LOADED: OnceLock<()> = OnceLock::new();
-    ENV_LOADED.get_or_init(|| {
-        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        load_dotenv_from(&manifest_dir, "Simon");
-    });
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    ember_stdlib::config::load_dotenv_once(&manifest_dir, "Simon");
 
     GameContext {
         window_w: env_f32("WINDOW_W", 700.0),

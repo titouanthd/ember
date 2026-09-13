@@ -7,6 +7,7 @@
 use glam::Vec2;
 
 use ember_core::app::GameState;
+use ember_core::rng::Rng;
 
 use crate::components::{Bullet, Emitter, Enemy, EntryMotion, Particle, Player};
 use crate::config::GameContext;
@@ -49,7 +50,7 @@ pub struct World {
     pub shake_magnitude: f32,
     pub shake_decay: f32,
     pub hitstop_until: f32,
-    pub rng: u32,
+    pub rng: Rng,
 
     // --- Scoring ---
     pub graze_count: u32,
@@ -76,7 +77,7 @@ impl World {
             shake_magnitude: 0.0,
             shake_decay: 6.0,
             hitstop_until: 0.0,
-            rng: 0xDEAD_BEEF,
+            rng: Rng::new(0xDEAD_BEEF),
             graze_count: 0,
             multiplier: 1.0,
         }
@@ -99,7 +100,7 @@ impl World {
         self.level_cleared_until = 0.0;
         self.shake_magnitude = 0.0;
         self.hitstop_until = 0.0;
-        self.rng = 0xDEAD_BEEF;
+        self.rng = Rng::new(0xDEAD_BEEF);
         self.graze_count = 0;
         self.multiplier = 1.0;
     }

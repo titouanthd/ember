@@ -37,6 +37,14 @@ impl Transform {
     pub fn set_scale(&mut self, scale: Vec2) {
         self.scale = scale;
     }
+
+    /// Centre de la transform : `position + scale / 2.0`.
+    ///
+    /// Convention top-left (sauf Bullet Hell qui utilise position = centre,
+    /// auquel cas cette méthode n'est pas utilisée).
+    pub fn center(&self) -> Vec2 {
+        self.position + self.scale / 2.0
+    }
 }
 
 #[cfg(test)]
@@ -78,5 +86,17 @@ mod tests {
         assert_eq!(t.position, Vec2::new(10.0, 20.0));
         assert_eq!(t.rotation, 0.5);
         assert_eq!(t.scale, Vec2::new(2.0, 2.0));
+    }
+
+    #[test]
+    fn test_center_top_left_convention() {
+        let t = Transform::new(Vec2::new(100.0, 200.0), 0.0, Vec2::new(20.0, 80.0));
+        assert_eq!(t.center(), Vec2::new(110.0, 240.0));
+    }
+
+    #[test]
+    fn test_center_identity() {
+        let t = Transform::identity();
+        assert_eq!(t.center(), Vec2::new(0.5, 0.5));
     }
 }

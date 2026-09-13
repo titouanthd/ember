@@ -1,9 +1,8 @@
 use std::path::PathBuf;
-use std::sync::OnceLock;
 
 use macroquad::prelude::{Color, Vec2};
 
-use ember_stdlib::config::{env_color, env_f32, load_dotenv_from};
+use ember_stdlib::config::{env_color, env_f32};
 
 /// Immutable per-run config, loaded once from `.env`.
 #[derive(Debug, Clone)]
@@ -54,11 +53,8 @@ impl GameContext {
 }
 
 pub fn load_config() -> GameContext {
-    static ENV_LOADED: OnceLock<()> = OnceLock::new();
-    ENV_LOADED.get_or_init(|| {
-        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        load_dotenv_from(&manifest_dir, "Minesweeper");
-    });
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    ember_stdlib::config::load_dotenv_once(&manifest_dir, "Minesweeper");
 
     GameContext {
         window_w: env_f32("WINDOW_W", 900.0),

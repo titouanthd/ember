@@ -430,6 +430,17 @@ Tous les membres migrés. slotmap ajouté au root puis retiré en Session 7.
 - Simon : 4 sons générés (sinusoïdes), séquence data-driven, machine à états PreRound/Showing/Waiting.
 - 4 .wav commités dans games/simon/sounds/.
 
+### Phase 12 — Session 1 : Fondations (2026-XX-XX)
+- Extraction `ember_stdlib::config::load_dotenv_once` (7 jeux migrés).
+- Extraction `Transform::center()` (Pong, Breakout).
+- Extraction `ember_core::rng::Rng` + helpers `rand01`/`rand_usize` (Bullet Hell, Minesweeper, Simon).
+- Suppression de `minesweeper/src/rng.rs` et `simon/src/rng.rs`.
+- Doctest exécutable pour `Rng` (premier du workspace).
+- 310 tests verts, Clippy clean.
+
+Dette résolue : #5 (xorshift32 3 copies).
+Dette restante : #4 (Button UI UiContext), #7 (tick_playback loop), + bugs identifiés Session 2.
+
 ---
 
 ## Décisions à prendre

@@ -119,7 +119,7 @@ pub fn reset_game(
 
 /// IA du paddle adverse.
 pub fn ai_move(ai: &mut Paddle, ball_y: f32, dt: f32, screen_h: f32) {
-    let center = ai.center().y;
+    let center = ai.transform.center().y;
     if center < ball_y - 5.0 {
         ai.move_down(dt, screen_h);
     } else if center > ball_y + 5.0 {
@@ -160,9 +160,9 @@ pub fn update(
 
     // Collision raquette joueur
     if collides(
-        player.center(),
+        player.transform.center(),
         &player.collider,
-        match_state.ball.center(),
+        match_state.ball.transform.center(),
         &match_state.ball.collider,
     ) {
         match_state.ball.bounce_x();
@@ -172,9 +172,9 @@ pub fn update(
 
     // Collision raquette IA
     if collides(
-        ai.center(),
+        ai.transform.center(),
         &ai.collider,
-        match_state.ball.center(),
+        match_state.ball.transform.center(),
         &match_state.ball.collider,
     ) {
         match_state.ball.bounce_x();

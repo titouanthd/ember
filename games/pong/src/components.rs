@@ -26,11 +26,6 @@ impl Paddle {
         }
     }
 
-    /// Centre du paddle en coordonnées monde.
-    pub fn center(&self) -> Vec2 {
-        self.transform.position + self.transform.scale / 2.0
-    }
-
     pub fn rect(&self) -> Rect {
         Rect::new(
             self.transform.position.x,
@@ -78,11 +73,6 @@ impl Ball {
             vx: speed,
             vy: speed,
         }
-    }
-
-    /// Centre de la balle en coordonnées monde.
-    pub fn center(&self) -> Vec2 {
-        self.transform.position + self.transform.scale / 2.0
     }
 
     pub fn rect(&self) -> Rect {
@@ -154,17 +144,5 @@ mod tests {
         let screen_h = 600.0;
         paddle.move_down(dt, screen_h);
         assert_eq!(paddle.transform.position.y, 550.0);
-    }
-
-    #[test]
-    fn test_paddle_center() {
-        let paddle = Paddle::new(100.0, 200.0, 20.0, 80.0, 100.0, Color::new(1.0, 1.0, 1.0, 1.0));
-        assert_eq!(paddle.center(), Vec2::new(110.0, 240.0));
-    }
-
-    #[test]
-    fn test_ball_center() {
-        let ball = Ball::new(100.0, 200.0, 20.0, 100.0, Color::new(1.0, 1.0, 1.0, 1.0));
-        assert_eq!(ball.center(), Vec2::new(110.0, 210.0));
     }
 }

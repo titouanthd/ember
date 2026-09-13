@@ -9,6 +9,7 @@ use minesweeper::persistence;
 use minesweeper::systems;
 use minesweeper::GameState;
 
+use ember_core::rng::Rng;
 use ember_stdlib::input::Input;
 use ember_stdlib::ui::button::{Button, ButtonEvent};
 use ember_stdlib::ui::label::Label;
@@ -44,7 +45,7 @@ struct Game {
     grid_origin: Vec2,
     elapsed: f32,
     timer_running: bool,
-    rng: u32,
+    rng: Rng,
 
     // Persistence
     best_times: HashMap<String, f32>,
@@ -72,7 +73,7 @@ impl Game {
             grid_origin: Vec2::ZERO,
             elapsed: 0.0,
             timer_running: false,
-            rng: 0xDEAD_BEEF,
+            rng: Rng::new(0xDEAD_BEEF),
             best_times,
             best_times_path: path,
             was_new_best: false,
@@ -99,7 +100,8 @@ impl Game {
         self.elapsed = 0.0;
         self.timer_running = false;
         self.was_new_best = false;
-        self.rng = self.rng.wrapping_add(0x9E37_79B9);
+        // Advance the RNG state so each game gets a different mine layout.
+        self.rng.set_state(self.rng.state().wrapping_add(0x9E37_79B9));
         self.update_layout();
         self.state = GameState::Playing;
     }
@@ -265,9 +267,7 @@ fn handle_playing_input(game: &mut Game, ctx: &GameContext, input: &Input, dt: f
         if let Some((col, row)) = cell_hit {
             if input.mouse_left_pressed {
                 if !game.board.mines_placed {
-                    let mut rng = game.rng;
-                    systems::place_mines(&mut game.board, col, row, &mut rng);
-                    game.rng = rng;
+                    systems::place_mines(&mut game.board, col, row, &mut game.rng);
                     game.timer_running = true;
                     systems::reveal(&mut game.board, col, row);
                 } else {

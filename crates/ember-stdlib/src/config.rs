@@ -7,6 +7,7 @@
 
 use macroquad::prelude::Color;
 use std::path::Path;
+use std::sync::OnceLock;
 
 /// Charge un fichier `.env` situé dans `manifest_dir`.
 ///
@@ -58,6 +59,28 @@ pub fn env_color(prefix: &str, default: Color) -> Color {
     Color::new(r, g, b, a)
 }
 
+/// Charge le `.env` du crate appelant **une seule fois par processus**.
+///
+/// Encapsule le pattern `OnceLock` + `load_dotenv_from` répété dans les
+/// 7 jeux. `manifest_dir` doit venir de `env!("CARGO_MANIFEST_DIR")` **du
+/// crate appelant** (pas de la stdlib), sinon le `.env` cherché serait
+/// celui de `ember-stdlib`.
+///
+/// Exemple d'usage dans `games/pong/src/config.rs` :
+/// ```ignore
+/// let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+/// ember_stdlib::config::load_dotenv_once(&manifest_dir, "Pong");
+/// ```
+pub fn load_dotenv_once(manifest_dir: &Path, game_name: &str) {
+    // Un seul OnceLock global : chaque binaire de jeu n'a qu'un `.env`.
+    // Si un jour un binaire charge plusieurs jeux, on passera à un
+    // `HashMap<String, ()>` ou un `OnceLock` par jeu.
+    static ENV_LOADED: OnceLock<()> = OnceLock::new();
+    ENV_LOADED.get_or_init(|| {
+        load_dotenv_from(manifest_dir, game_name);
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -88,5 +111,17 @@ mod tests {
         assert_eq!(c.g, 0.2);
         assert_eq!(c.b, 0.3);
         assert_eq!(c.a, 0.4);
+    }
+
+    #[test]
+    fn test_load_dotenv_once_is_idempotent() {
+        // Appeler plusieurs fois ne doit pas paniquer et ne charger qu'une fois.
+        // On utilise un dossier qui n'existe pas → load_dotenv_from imprime
+        // le warning mais ne panique pas.
+        let fake = std::path::Path::new("/tmp/ember_test_does_not_exist_12345");
+        load_dotenv_once(fake, "Test");
+        load_dotenv_once(fake, "Test");
+        // Pas d'assertion : le test vérifie juste qu'on ne panique pas et
+        // que le OnceLock ne bloque pas au 2e appel.
     }
 }

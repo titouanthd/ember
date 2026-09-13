@@ -1,14 +1,14 @@
 //! Game logic: mine placement, reveal, flag, chord, win/lose detection.
 
 use crate::components::{Board, BoardState, CellState};
-use crate::rng::rand_usize;
+use ember_core::rng::Rng;
 
 /// Place `board.mine_count` mines on the board, excluding the safe zone
 /// around `(safe_col, safe_row)` (that cell + its 8 neighbors). Then
 /// compute the `adjacent` count for every non-mine cell.
 ///
 /// Called once, on the first reveal.
-pub fn place_mines(board: &mut Board, safe_col: usize, safe_row: usize, rng: &mut u32) {
+pub fn place_mines(board: &mut Board, safe_col: usize, safe_row: usize, rng: &mut Rng) {
     let mut safe: Vec<(usize, usize)> = vec![(safe_col, safe_row)];
     for (c, r) in board.cells.neighbor_coords_8(safe_col, safe_row) {
         safe.push((c, r));
@@ -27,8 +27,8 @@ pub fn place_mines(board: &mut Board, safe_col: usize, safe_row: usize, rng: &mu
         if attempts > total * 20 {
             break;
         }
-        let c = rand_usize(rng, board.width);
-        let r = rand_usize(rng, board.height);
+        let c = rng.next_range(board.width);
+        let r = rng.next_range(board.height);
         if safe.contains(&(c, r)) {
             continue;
         }
@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn test_place_mines_count() {
         let mut b = b9();
-        let mut rng = 42u32;
+        let mut rng = Rng::new(42);
         place_mines(&mut b, 4, 4, &mut rng);
         let count = b.cells.iter().filter(|(_, _, c)| c.is_mine).count();
         assert_eq!(count, 10);
@@ -241,7 +241,7 @@ mod tests {
     #[test]
     fn test_place_mines_first_click_safe() {
         let mut b = b9();
-        let mut rng = 7u32;
+        let mut rng = Rng::new(7);
         place_mines(&mut b, 4, 4, &mut rng);
         assert!(!b.cells.get(4, 4).unwrap().is_mine);
         for (c, r) in b.cells.neighbor_coords_8(4, 4) {
@@ -252,7 +252,7 @@ mod tests {
     #[test]
     fn test_place_mines_corner_first_click_safe() {
         let mut b = b9();
-        let mut rng = 7u32;
+        let mut rng = Rng::new(7);
         place_mines(&mut b, 0, 0, &mut rng);
         assert!(!b.cells.get(0, 0).unwrap().is_mine);
         for (c, r) in b.cells.neighbor_coords_8(0, 0) {
@@ -263,7 +263,7 @@ mod tests {
     #[test]
     fn test_place_mines_adjacent_counts() {
         let mut b = b9();
-        let mut rng = 99u32;
+        let mut rng = Rng::new(99);
         place_mines(&mut b, 4, 4, &mut rng);
         // Every non-mine cell's `adjacent` must match a fresh count.
         for row in 0..9 {

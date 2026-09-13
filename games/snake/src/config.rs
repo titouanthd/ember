@@ -1,17 +1,12 @@
 // games/snake/src/config.rs
 use crate::systems::GameContext;
-use ember_stdlib::config::{env_f32, env_u32, load_dotenv_from};
+use ember_stdlib::config::{env_f32, env_u32};
 use macroquad::prelude::Color;
 use std::path::PathBuf;
-use std::sync::OnceLock;
 
 pub fn load_config() -> GameContext {
-    // Charge le .env une seule fois par processus.
-    static ENV_LOADED: OnceLock<()> = OnceLock::new();
-    ENV_LOADED.get_or_init(|| {
-        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        load_dotenv_from(&manifest_dir, "Snake");
-    });
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    ember_stdlib::config::load_dotenv_once(&manifest_dir, "Snake");
 
     GameContext {
         grid_cols: env_u32("GRID_COLS", 20),

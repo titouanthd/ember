@@ -2,6 +2,7 @@ use glam::Vec2;
 use macroquad::prelude::Color;
 use serde::Deserialize;
 
+use ember_core::rng::Rng;
 use ember_stdlib::collider::{Collider, Shape};
 use ember_stdlib::transform::Transform;
 
@@ -298,38 +299,23 @@ pub struct Particle {
 
 impl Particle {
     /// Radial burst of `count` particles from `pos`.
-    pub fn burst(pos: Vec2, count: u32, color: Color, rng: &mut u32) -> Vec<Particle> {
+    pub fn burst(pos: Vec2, count: u32, color: Color, rng: &mut Rng) -> Vec<Particle> {
         let mut out = Vec::with_capacity(count as usize);
         for _ in 0..count {
-            let a = rand01(rng) * std::f32::consts::TAU;
-            let speed = 40.0 + rand01(rng) * 120.0;
-            let ttl = 0.3 + rand01(rng) * 0.35;
+            let a = rng.next_f32() * std::f32::consts::TAU;
+            let speed = 40.0 + rng.next_f32() * 120.0;
+            let ttl = 0.3 + rng.next_f32() * 0.35;
             out.push(Particle {
                 pos,
                 vel: Vec2::new(a.cos(), a.sin()) * speed,
                 ttl,
                 max_ttl: ttl,
-                radius: 1.5 + rand01(rng) * 2.0,
+                radius: 1.5 + rng.next_f32() * 2.0,
                 color,
             });
         }
         out
     }
-}
-
-/// Tiny xorshift32. Seeded per-run in `World::new`. Deterministic given
-/// the same seed; used only for cosmetic jitter, never for gameplay.
-pub fn rand01(state: &mut u32) -> f32 {
-    let mut x = *state;
-    if x == 0 {
-        x = 0x1234_5678;
-    }
-    x ^= x << 13;
-    x ^= x >> 17;
-    x ^= x << 5;
-    *state = x;
-    // Top 24 bits → [0, 1).
-    (x >> 8) as f32 / (1u32 << 24) as f32
 }
 
 // ---------------------------------------------------------------------------
@@ -365,31 +351,15 @@ mod tests {
     }
 
     #[test]
-    fn test_rand01_in_unit_range() {
-        let mut state = 0xDEAD_BEEF;
-        for _ in 0..1000 {
-            let v = rand01(&mut state);
-            assert!((0.0..1.0).contains(&v), "got {v}");
-        }
-    }
-
-    #[test]
-    fn test_rand01_nonzero_seed_is_stable() {
-        let mut a = 42u32;
-        let mut b = 42u32;
-        assert_eq!(rand01(&mut a), rand01(&mut b));
-    }
-
-    #[test]
     fn test_particle_burst_count() {
-        let mut rng = 1u32;
+        let mut rng = Rng::new(1);
         let ps = Particle::burst(Vec2::ZERO, 7, Color::new(1.0, 0.0, 0.0, 1.0), &mut rng);
         assert_eq!(ps.len(), 7);
     }
 
     #[test]
     fn test_particle_burst_all_alive() {
-        let mut rng = 12345u32;
+        let mut rng = Rng::new(12345);
         let ps = Particle::burst(Vec2::ZERO, 20, Color::new(1.0, 1.0, 1.0, 1.0), &mut rng);
         assert!(ps.iter().all(|p| p.ttl > 0.0));
         assert!(ps.iter().all(|p| p.max_ttl > 0.0));

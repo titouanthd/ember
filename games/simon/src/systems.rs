@@ -1,7 +1,8 @@
 //! Simon game logic. Sequences, phases, input validation.
 
+use ember_core::rng::Rng;
+
 use crate::components::SimonColor;
-use crate::rng::Rng;
 
 /// Duration (seconds) each sequence element stays lit during playback.
 pub const ELEMENT_LIT_SECS: f32 = 0.4;
@@ -306,7 +307,6 @@ pub fn handle_click(world: &mut GameWorld, clicked: SimonColor) -> ClickResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rng::Rng;
 
     fn fresh_world() -> GameWorld {
         let mut w = GameWorld::new(42, 0);
@@ -481,11 +481,5 @@ mod tests {
         w.restart();
         assert_eq!(w.score, 0);
         assert_eq!(w.sequence.len(), 1);
-    }
-
-    // Silence the unused Rng import warning in case it's only used in one test.
-    #[allow(dead_code)]
-    fn _use_rng() {
-        let _ = Rng::new(0);
     }
 }

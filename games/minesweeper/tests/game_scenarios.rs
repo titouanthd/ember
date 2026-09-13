@@ -1,5 +1,6 @@
 //! Integration scenarios for Minesweeper.
 
+use ember_core::rng::Rng;
 use minesweeper::components::{Board, BoardState};
 use minesweeper::systems;
 
@@ -76,7 +77,7 @@ fn test_flag_then_chord_sequence() {
 fn test_first_click_never_hits_mine() {
     for seed in 0..200u32 {
         let mut b = Board::new(9, 9, 10);
-        let mut rng = seed.wrapping_mul(2654435761).wrapping_add(1);
+        let mut rng = Rng::new(seed.wrapping_mul(2654435761).wrapping_add(1));
         let (c, r) = (4, 4);
         systems::place_mines(&mut b, c, r, &mut rng);
         assert!(
