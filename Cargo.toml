@@ -8,7 +8,7 @@ members = [
     "games/breakout",
     "games/snake",
     "games/asteroids", 
-    "games/bullet-hell", "games/minesweeper",
+    "games/bullet-hell", "games/minesweeper", "games/simon",
 ]
 
 [workspace.package]
@@ -22,7 +22,7 @@ serde  = { version = "1", features = ["derive"] }
 ron    = "0.8"
 
 # --- Tier 2 : stdlib (graphique) ---
-macroquad = "0.4"
+macroquad = { version = "0.4", features = ["audio"] }
 dotenvy   = "0.15"
 
 # --- Crates internes ---
