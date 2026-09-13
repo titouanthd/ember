@@ -78,7 +78,9 @@ fn resolve_brick_collision(ball: &mut Ball, brick: &mut Brick, ctx: &GameContext
     let ball_center = ball.center();
     let ball_half = ctx.ball_size / 2.0;
     let brick_center = brick.center();
-    let brick_half = Vec2::new(ctx.brick_width / 2.0, ctx.brick_height / 2.0);
+    // Use the brick's own transform.scale, not the context. Bricks can have
+    // custom sizes (see level3.ron), and the collision must respect them.
+    let brick_half = brick.transform.scale / 2.0;
 
     let dx = ball_center.x - brick_center.x;
     let dy = ball_center.y - brick_center.y;
@@ -92,7 +94,6 @@ fn resolve_brick_collision(ball: &mut Ball, brick: &mut Brick, ctx: &GameContext
 
     // Resolve along the axis of least penetration.
     if overlap_x < overlap_y {
-        // Push ball center to just outside brick on X.
         let new_center_x = if dx < 0.0 {
             brick_center.x - brick_half.x - ball_half
         } else {
@@ -329,5 +330,53 @@ mod tests {
             1.0 / 60.0,
         );
         assert_eq!(score, 1, "la balle très rapide ne doit PAS traverser la brique");
+    }
+
+    #[test]
+    fn test_collision_uses_brick_transform_scale_not_context() {
+        let cx = ctx();
+        let brick_width = 200.0;
+        let brick_height = 50.0;
+        let mut brick = Brick::new(
+            500.0 - brick_width / 2.0,   // top-left = 400
+            300.0 - brick_height / 2.0,  // top-left = 275
+            brick_width,
+            brick_height,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+            1,
+        );
+        assert_eq!(brick.transform.scale, Vec2::new(brick_width, brick_height));
+
+        // Balle centrée à (415, 300), taille 20 → occupe [405..425] x [290..310].
+        //
+        // Contre la brique CUSTOM (500, 300, demi-taille 100×25) :
+        //   dx = -85, dy = 0
+        //   overlap_x = (10 + 100) - 85 = 25
+        //   overlap_y = (10 + 25)  - 0  = 35
+        //   25 < 35 → axe X (horizontal) → bounce_x()
+        //
+        // Contre la brique CTX (demi-largeur 35, bord gauche 465) :
+        //   La balle [405..425] ne touche pas [465..535] → pas de collision.
+        //   Donc si le code utilisait ctx.brick_width, `hit` serait false.
+        let mut ball = Ball::new(
+            405.0,  // top-left x → center = 415
+            290.0,  // top-left y → center = 300
+            cx.ball_size,
+            cx.ball_speed,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+        );
+        ball.vx = 100.0;  // va vers la droite
+        ball.vy = 0.0;
+
+        let hit = resolve_brick_collision(&mut ball, &mut brick, &cx);
+
+        assert!(
+            hit,
+            "la balle doit toucher la brique custom (bord gauche = 400, balle 405..425)"
+        );
+        assert!(
+            ball.vx < 0.0,
+            "hit horizontal attendu : overlap_x (25) < overlap_y (35)"
+        );
     }
 }

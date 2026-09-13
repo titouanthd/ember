@@ -4,7 +4,10 @@
 //! game systems. Tests construct one directly.
 
 use glam::Vec2;
-use macroquad::prelude::{is_mouse_button_down, is_mouse_button_pressed, is_mouse_button_released, mouse_position, KeyCode, MouseButton};
+use macroquad::prelude::{
+    is_key_pressed, is_mouse_button_down, is_mouse_button_pressed, is_mouse_button_released,
+    mouse_position, KeyCode, MouseButton,
+};
 
 /// Snapshot of all relevant input for one frame.
 #[derive(Debug, Clone, Default)]
@@ -26,6 +29,10 @@ pub struct Input {
 
 impl Input {
     /// Build from macroquad's global state. Call once per frame.
+    ///
+    /// **Does not populate `keys_pressed`, `keys_down`, or `keys_released`.**
+    /// The caller must push the keys it cares about explicitly, or use
+    /// [`Self::from_macroquad_with_keys`] instead.
     pub fn from_macroquad() -> Self {
         let (mx, my) = mouse_position();
         Self {
@@ -39,10 +46,38 @@ impl Input {
             mouse_middle_pressed: is_mouse_button_pressed(MouseButton::Middle),
             mouse_middle_down: is_mouse_button_down(MouseButton::Middle),
             mouse_middle_released: is_mouse_button_released(MouseButton::Middle),
-            keys_pressed: Vec::new(),  // populated by caller if needed
+            keys_pressed: Vec::new(), // populated by caller if needed
             keys_down: Vec::new(),
             keys_released: Vec::new(),
         }
+    }
+
+    /// Like [`Self::from_macroquad`], but also populates `keys_pressed`
+    /// with the keys from `keys` that were pressed this frame.
+    ///
+    /// `keys_down` and `keys_released` are **not** populated (no game needs
+    /// them via `Input` right now). Games that need `is_key_down` can call
+    /// `macroquad::prelude::is_key_down` directly.
+    ///
+    /// **Not unit-testable**: macroquad's input functions require an active
+    /// macroquad context (a `#[macroquad::main]` or equivalent). This is the
+    /// same constraint as [`AudioClip::load`](crate::audio::AudioClip::load).
+    ///
+    /// # Example
+    /// ```ignore
+    /// let input = Input::from_macroquad_with_keys(&[
+    ///     KeyCode::R, KeyCode::Escape, KeyCode::Enter,
+    /// ]);
+    /// if input.is_key_pressed(KeyCode::R) { /* ... */ }
+    /// ```
+    pub fn from_macroquad_with_keys(keys: &[KeyCode]) -> Self {
+        let mut input = Self::from_macroquad();
+        for &k in keys {
+            if is_key_pressed(k) {
+                input.keys_pressed.push(k);
+            }
+        }
+        input
     }
 
     pub fn is_key_pressed(&self, key: KeyCode) -> bool {

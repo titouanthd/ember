@@ -108,20 +108,11 @@ async fn main() {
     loop {
         let dt = get_frame_time().min(1.0 / 30.0);
 
-        let mut input = Input::from_macroquad();
-        if is_key_pressed(KeyCode::Space) {
-            input.keys_pressed.push(KeyCode::Space);
-        }
-        if is_key_pressed(KeyCode::R) {
-            input.keys_pressed.push(KeyCode::R);
-        }
-        if is_key_pressed(KeyCode::Escape) {
-            input.keys_pressed.push(KeyCode::Escape);
-        }
-
-        if input.is_key_pressed(KeyCode::Escape) {
-            break;
-        }
+        let input = Input::from_macroquad_with_keys(&[
+            KeyCode::Space,
+            KeyCode::R,
+            KeyCode::Escape,
+        ]);
 
         match app.state {
             GameState::Start => {

@@ -4,6 +4,11 @@ use ember_core::app::GameState;
 use ember_stdlib::collides;
 use macroquad::prelude::Color;
 
+/// Maximum speed magnitude for the ball. Prevents runaway acceleration
+/// from repeated paddle hits (each hit multiplies vx by
+/// `ctx.ball_speed_increment`). Same value as Breakout's MAX_BALL_SPEED.
+const MAX_BALL_SPEED: f32 = 1200.0;
+
 pub struct GameContext {
     pub screen_w: f32,
     pub screen_h: f32,
@@ -201,4 +206,8 @@ pub fn update(
             match_state.reset_ball(ctx, -1.0);
         }
     }
+
+    // Clamp once at the end — covers both paddle collisions and any other
+    // path that could have modified vx/vy this frame.
+    match_state.ball.clamp_speed(MAX_BALL_SPEED);
 }

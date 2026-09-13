@@ -52,8 +52,10 @@ struct Game {
     best_times_path: std::path::PathBuf,
     was_new_best: bool,
 
-    // Header buttons — persisted so update() and draw() share the same
-    // instance and hover/pressed states stay consistent.
+    // Widgets — persisted so update() and draw() share the same instance
+    // and hover/pressed states stay consistent.
+    // (Piège documenté : un Button recréé chaque frame perd son event Clicked.)
+    start_btn: Button,
     restart_btn: Button,
     menu_btn: Button,
 }
@@ -77,6 +79,8 @@ impl Game {
             best_times,
             best_times_path: path,
             was_new_best: false,
+            // Placeholder rect — immediately overwritten by update_menu_layout.
+            start_btn: Button::new(0.0, 0.0, 200.0, 50.0, "START"),
             restart_btn: Button::new(
                 ctx.window_w - 220.0,
                 10.0,
@@ -87,6 +91,7 @@ impl Game {
             menu_btn: Button::new(ctx.window_w - 110.0, 10.0, 100.0, 30.0, "Menu"),
         };
         g.update_layout();
+        g.update_menu_layout(&ctx);
         g
     }
 
@@ -113,6 +118,21 @@ impl Game {
         let w = self.board.width as f32 * self.cell_size;
         let h = self.board.height as f32 * self.cell_size;
         self.grid_origin = ctx.grid_origin(w, h);
+    }
+
+    /// Recompute the START button rect. Called once at startup; the layout
+    /// only depends on `difficulties.len()`, which is fixed for the process.
+    fn update_menu_layout(&mut self, ctx: &GameContext) {
+        let cx = ctx.window_w * 0.5;
+
+        let btn_h = 60.0;
+        let gap = 16.0;
+        let n = self.difficulties.len() as f32;
+        let total_h = n * btn_h + (n - 1.0).max(0.0) * gap;
+        let first_y = ctx.window_h * 0.5 - total_h * 0.5 + 40.0;
+
+        let start_y = first_y + total_h + 30.0;
+        self.start_btn.rect = (cx - 100.0, start_y, 200.0, 50.0);
     }
 
     fn cell_at(&self, mouse: Vec2) -> Option<(usize, usize)> {
@@ -158,25 +178,14 @@ async fn main() {
     loop {
         let dt = get_frame_time().min(1.0 / 30.0);
 
-        let mut input = Input::from_macroquad();
-        if is_key_pressed(KeyCode::R) {
-            input.keys_pressed.push(KeyCode::R);
-        }
-        if is_key_pressed(KeyCode::Escape) {
-            input.keys_pressed.push(KeyCode::Escape);
-        }
-        if is_key_pressed(KeyCode::Enter) {
-            input.keys_pressed.push(KeyCode::Enter);
-        }
-        if is_key_pressed(KeyCode::Key1) {
-            input.keys_pressed.push(KeyCode::Key1);
-        }
-        if is_key_pressed(KeyCode::Key2) {
-            input.keys_pressed.push(KeyCode::Key2);
-        }
-        if is_key_pressed(KeyCode::Key3) {
-            input.keys_pressed.push(KeyCode::Key3);
-        }
+        let input = Input::from_macroquad_with_keys(&[
+            KeyCode::R,
+            KeyCode::Escape,
+            KeyCode::Enter,
+            KeyCode::Key1,
+            KeyCode::Key2,
+            KeyCode::Key3,
+        ]);
 
         match game.state {
             GameState::Start => handle_menu_input(&mut game, &ctx, &input),
@@ -218,7 +227,7 @@ fn handle_menu_input(game: &mut Game, ctx: &GameContext, input: &Input) {
         game.selected_difficulty = 2;
     }
 
-    let (rects, start_btn) = menu_layout(ctx, game);
+    let rects = difficulty_rects(ctx, game);
 
     // Click on a difficulty entry.
     for (i, rect) in rects.iter().enumerate() {
@@ -227,8 +236,8 @@ fn handle_menu_input(game: &mut Game, ctx: &GameContext, input: &Input) {
         }
     }
 
-    // Click start button.
-    if start_btn.update(input) == ButtonEvent::Clicked
+    // Click start button — same instance as the one drawn in render_menu.
+    if game.start_btn.update(input) == ButtonEvent::Clicked
         || input.is_key_pressed(KeyCode::Enter)
     {
         game.start_game(ctx);
@@ -323,7 +332,10 @@ fn rect_contains(r: Rect, p: Vec2) -> bool {
     p.x >= r.0 && p.x <= r.0 + r.2 && p.y >= r.1 && p.y <= r.1 + r.3
 }
 
-fn menu_layout(ctx: &GameContext, game: &Game) -> (Vec<Rect>, Button) {
+/// Compute the difficulty entry rects. The START button lives in `Game`
+/// (see `Game::update_menu_layout` and `Game::start_btn`) so that
+/// `update()` and `draw()` are called on the same instance.
+fn difficulty_rects(ctx: &GameContext, game: &Game) -> Vec<Rect> {
     let cx = ctx.window_w * 0.5;
     let mut rects = Vec::new();
 
@@ -339,9 +351,7 @@ fn menu_layout(ctx: &GameContext, game: &Game) -> (Vec<Rect>, Button) {
         rects.push((cx - btn_w * 0.5, y, btn_w, btn_h));
     }
 
-    let start_y = first_y + total_h + 30.0;
-    let start_btn = Button::new(cx - 100.0, start_y, 200.0, 50.0, "START");
-    (rects, start_btn)
+    rects
 }
 
 fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
@@ -355,7 +365,7 @@ fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
     .centered()
     .draw();
 
-    let (rects, start_btn) = menu_layout(ctx, game);
+    let rects = difficulty_rects(ctx, game);
 
     for (i, rect) in rects.iter().enumerate() {
         let d = &game.difficulties[i];
@@ -392,7 +402,8 @@ fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
         );
     }
 
-    start_btn.draw(
+    // Same instance as the one updated in handle_menu_input.
+    game.start_btn.draw(
         input,
         ctx.color_btn_idle,
         ctx.color_btn_hover,

@@ -96,6 +96,20 @@ impl Ball {
         self.transform.position.x += self.vx * dt;
         self.transform.position.y += self.vy * dt;
     }
+
+    /// Clamp the ball's speed to `max` (preserving direction).
+    ///
+    /// Guards against runaway acceleration from repeated paddle hits.
+    /// Breakout has the same pattern locally; we keep them separate until
+    /// a third game needs it (Rule of Three).
+    pub fn clamp_speed(&mut self, max: f32) {
+        let speed_sq = self.vx * self.vx + self.vy * self.vy;
+        if speed_sq > max * max {
+            let k = max / speed_sq.sqrt();
+            self.vx *= k;
+            self.vy *= k;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -144,5 +158,26 @@ mod tests {
         let screen_h = 600.0;
         paddle.move_down(dt, screen_h);
         assert_eq!(paddle.transform.position.y, 550.0);
+    }
+
+    #[test]
+    fn test_ball_clamp_speed_caps_magnitude() {
+        let mut ball = Ball::new(0.0, 0.0, 10.0, 5.0, Color::new(1.0, 1.0, 1.0, 1.0));
+        ball.vx = 10000.0;
+        ball.vy = 10000.0;
+        ball.clamp_speed(1000.0);
+        let speed = (ball.vx * ball.vx + ball.vy * ball.vy).sqrt();
+        assert!((speed - 1000.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn test_ball_clamp_speed_below_max_is_noop() {
+        let mut ball = Ball::new(0.0, 0.0, 10.0, 5.0, Color::new(1.0, 1.0, 1.0, 1.0));
+        ball.vx = 100.0;
+        ball.vy = 100.0;
+        let (vx0, vy0) = (ball.vx, ball.vy);
+        ball.clamp_speed(1000.0);
+        assert_eq!(ball.vx, vx0);
+        assert_eq!(ball.vy, vy0);
     }
 }

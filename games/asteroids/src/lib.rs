@@ -6,4 +6,4 @@ pub mod config;
 // Ré-export de GameState du core pour cohérence avec les autres jeux.
 pub use ember_core::app::GameState;
 pub use components::{Asteroid, Bullet, Ship};
-pub use systems::{GameContext, GameWorld, ShipInput, UpdateEvent};
+pub use systems::{GameContext, GameWorld, ShipInput};
