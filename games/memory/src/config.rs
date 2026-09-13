@@ -68,7 +68,7 @@ pub fn load_config() -> GameContext {
     load_dotenv_once(&manifest_dir, "Memory");
 
     GameContext {
-        window_w: env_f32("WINDOW_W", 700.0),
+        window_w: env_f32("WINDOW_W", 900.0),
         window_h: env_f32("WINDOW_H", 700.0),
         hud_h: env_f32("HUD_H", 50.0),
         footer_h: env_f32("FOOTER_H", 30.0),

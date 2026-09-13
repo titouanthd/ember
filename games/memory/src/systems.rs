@@ -7,6 +7,7 @@ use macroquad::prelude::Rect;
 use ember_core::app::GameState;
 use ember_core::rng::Rng;
 use ember_stdlib::grid::Grid;
+use ember_stdlib::ui::button::Button;
 
 use crate::components::{Card, CardState, Symbol};
 use crate::config::GameContext;
@@ -99,10 +100,18 @@ pub struct Game {
     // Layout cache: computed on start_game.
     pub board_origin: (f32, f32),
     pub card_size: f32,
+
+    // Widgets — persisted so update() and draw() share the same instance
+    // and hover/pressed states stay consistent.
+    // (Piège documenté : un Button recréé chaque frame perd son event Clicked.)
+    pub start_btn: Button,
+    pub restart_btn: Button,
+    pub menu_btn: Button,
 }
 
 impl Game {
     pub fn new() -> Self {
+        let ctx = crate::config::load_config();
         let difficulties = crate::difficulties::load_difficulties();
         let best_handle = persistence::default();
         let best_times = best_handle.load_or(HashMap::new());
@@ -110,7 +119,7 @@ impl Game {
         // Placeholder board, replaced by `start_game`.
         let board = Grid::new(1, 1, Card::new(Symbol('?')));
 
-        Self {
+        let mut g = Self {
             state: GameState::Start,
             difficulties,
             selected_difficulty: 0,
@@ -126,7 +135,31 @@ impl Game {
             was_new_best: false,
             board_origin: (0.0, 0.0),
             card_size: 0.0,
-        }
+            start_btn: Button::new(0.0, 0.0, 200.0, 50.0, "START"),
+            restart_btn: Button::new(
+                ctx.window_w - 240.0,  // 900 - 240 = 660
+                10.0,
+                100.0,
+                30.0,
+                "Restart",
+            ),
+            menu_btn: Button::new(ctx.window_w - 120.0, 10.0, 100.0, 30.0, "Menu"),//                 900 - 120 = 780
+        };
+        g.update_menu_layout(&ctx);
+        g
+    }
+
+    /// Test-only constructor: build a game with an explicit best-times
+    /// handle (typically a temp file) so tests don't touch the project's
+    /// `best_times.ron`.
+    ///
+    /// Always available (not `#[cfg(test)]`) because integration tests
+    /// live in `tests/` and don't see `cfg(test)` items.
+    pub fn with_best_handle(handle: BestTimes) -> Self {
+        let mut g = Self::new();
+        g.best_times = handle.load_or(HashMap::new());
+        g.best_handle = handle;
+        g
     }
 
     pub fn current_difficulty(&self) -> &DifficultyData {
@@ -156,6 +189,21 @@ impl Game {
         let origin = ctx.grid_origin(board_w, board_h);
         self.board_origin = (origin.x, origin.y);
         self.card_size = card;
+    }
+
+    /// Recompute the START button rect. Called once at startup; the menu
+    /// layout only depends on `difficulties.len()`.
+    pub fn update_menu_layout(&mut self, ctx: &GameContext) {
+        let cx = ctx.window_w * 0.5;
+
+        let btn_h = 60.0;
+        let gap = 16.0;
+        let n = self.difficulties.len() as f32;
+        let total_h = n * btn_h + (n - 1.0).max(0.0) * gap;
+        let first_y = ctx.window_h * 0.5 - total_h * 0.5 + 40.0;
+
+        let start_y = first_y + total_h + 30.0;
+        self.start_btn.rect = (cx - 100.0, start_y, 200.0, 50.0);
     }
 
     /// Is the game currently accepting clicks on cards?
