@@ -22,6 +22,7 @@
 # Runtime-generated file
 games/asteroids/highscore.txt
 games/minesweeper/best_times.ron
+games/simon/best_score.ron
 
 # Local build artifacts
 *.tmp

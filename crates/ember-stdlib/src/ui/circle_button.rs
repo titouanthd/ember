@@ -190,6 +190,6 @@ mod tests {
         assert_eq!(circle_segments(1000.0), 128);
         // Mid-size: proportional.
         let s = circle_segments(100.0);
-        assert!(s >= 32 && s <= 128);
+        assert!((32..=128).contains(&s));
     }
 }
