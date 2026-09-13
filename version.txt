@@ -2,8 +2,8 @@
 
 Document destiné au prochain agent qui reprendra le projet.
 
-Dernière mise à jour : après Session 5 (bugs et tests restants).
-État du workspace : 7 jeux fonctionnels, moteur ember stable, 335 tests verts, Clippy clean.
+Dernière mise à jour : après Session 10 (Memory — 8e jeu, polish).
+État du workspace : 8 jeux fonctionnels, moteur ember stable, 362 tests verts, Clippy clean.
 
 ---
 
@@ -33,7 +33,7 @@ Conventions clés :
 - La stratégie est "Rule of Three" : on n'extrait dans le moteur qu'après avoir vu le pattern 3 fois.
 - Crates externes : tirets dans Cargo.toml (ember-core, bullet-hell), underscores dans le code (ember_core, bullet_hell).
 - cargo clippy --workspace --all-targets -- -D warnings est le gate de qualité. Il doit rester vert.
-- State structs : chaque jeu expose un unique struct qui possède tout l'état mutable (MatchState, BreakoutWorld, SnakeWorld, GameWorld, World pour Bullet Hell, Game pour Minesweeper, App + GameWorld pour Simon). main.rs tient une seule variable de ce type. C'est une convention, pas un type partagé.
+- State structs : chaque jeu expose un unique struct qui possède tout l'état mutable (MatchState, BreakoutWorld, SnakeWorld, GameWorld, World pour Bullet Hell, Game pour Minesweeper, App + GameWorld pour Simon, Game pour Memory). main.rs tient une seule variable de ce type. C'est une convention, pas un type partagé.
 - **Layout uniforme (Phase 14)** : le state struct vit dans `systems.rs`, `GameContext` vit dans `config.rs`, `lib.rs` fait les réexports. `systems.rs` fait `pub use crate::config::GameContext;` pour compat.
 - Séparation BoardState / GameState (Minesweeper) : l'état interne du plateau (Ready/Playing/Won/Lost) est distinct de l'état d'écran (Start/Playing/Win/GameOver). Transitions explicites.
 - Boutons UI : update() et draw() doivent être appelés sur la MÊME instance. Si le bouton est recréé dans le rendu, l'event de clic est perdu. Conserver les boutons dans le state struct du jeu.
@@ -45,6 +45,7 @@ Conventions clés :
   Règle générale : si la fonction prend impl AsRef<str> ou impl Into<String>, retirer le &. Clippy râle (needless_borrows_for_generic_args) sinon.
 - TextDimensions : macroquad::draw_text retourne TextDimensions, pas (). Pour ignorer, terminer par ;.
 - manual_range_contains : écrire (a..=b).contains(&x) au lieu de x >= a && x <= b.
+- **Design docs (Phase 17)** : chaque nouveau jeu doit avoir un `DESIGN.md` dans son dossier. Le premier est `games/memory/DESIGN.md`. À faire rétroactivement pour les 7 autres jeux.
 
 ---
 
@@ -100,12 +101,17 @@ ember-workspace/
     │   ├── difficulties.ron
     │   ├── best_times.ron
     │   └── ...
-    └── simon/
-        ├── sounds/{green,red,yellow,blue}.wav
-        ├── best_score.ron
+    ├── simon/
+    │   ├── sounds/{green,red,yellow,blue}.wav
+    │   ├── best_score.ron
+    │   └── ...
+    └── memory/
+        ├── DESIGN.md               # design doc (Phase 17)
+        ├── difficulties.ron
+        ├── best_times.ron
         └── ...
 
-Total : 7 jeux (Pong, Breakout, Snake, Asteroids, Bullet Hell, Minesweeper, Simon).
+Total : 8 jeux (Pong, Breakout, Snake, Asteroids, Bullet Hell, Minesweeper, Simon, Memory).
 
 ---
 
@@ -122,7 +128,7 @@ Chargement/sauvegarde RON génériques.
   pub fn save_to_file<T: Serialize>(path: &Path, data: &T) -> Result<(), String>;
   pub fn load_from_file<T: DeserializeOwned>(path: &Path) -> Result<T, String>;
 
-Utilisé par : Breakout (niveaux), Snake (niveaux), Bullet Hell (waves.ron), Minesweeper (difficultés, best_times), Simon (best_score), Asteroids (high score).
+Utilisé par : Breakout (niveaux), Snake (niveaux), Bullet Hell (waves.ron), Minesweeper (difficultés, best_times), Simon (best_score), Asteroids (high score), Memory (best_times).
 
 ### rng.rs — Rng (Phase 12)
 
@@ -147,7 +153,7 @@ xorshift32 unifié, extrait des 3 copies locales (Bullet Hell, Minesweeper, Simo
 
 Tests : 10. Doctest exécuté (le seul du workspace, les autres sont ignored).
 
-Utilisé par : Bullet Hell, Minesweeper, Simon.
+Utilisé par : Bullet Hell, Minesweeper, Simon, Memory (deck shuffle).
 
 ### math/aabb.rs — Aabb
 
@@ -188,7 +194,7 @@ Tests : 11.
 
 Tests : 3.
 
-Important : ajouter une variante oblige à mettre à jour tous les match state dans les 7 jeux.
+Important : ajouter une variante oblige à mettre à jour tous les match state dans les 8 jeux.
 
 Ré-exporté par : chaque jeu.
 
@@ -231,13 +237,13 @@ Tests : 12.
 
 Format .env couleur : env_color lit quatre variables {prefix}_R, {prefix}_G, {prefix}_B, {prefix}_A, chacune un f32 dans [0.0, 1.0]. Jamais une chaîne r,g,b,a.
 
-load_dotenv_once encapsule le pattern `OnceLock` + `load_dotenv_from` (7 jeux). `manifest_dir` doit venir de `env!("CARGO_MANIFEST_DIR")` **du crate appelant**.
+load_dotenv_once encapsule le pattern `OnceLock` + `load_dotenv_from` (8 jeux). `manifest_dir` doit venir de `env!("CARGO_MANIFEST_DIR")` **du crate appelant**.
 
 Tests : 4 + 1 (`test_load_dotenv_once_is_idempotent`).
 
 ### persistence.rs — Persistence<T> (Phase 15, fixé Phase 16)
 
-Persistance typée, format RON. Unifie les 3 implémentations locales (Asteroids, Minesweeper, Simon).
+Persistance typée, format RON. Unifie les 3 implémentations locales (Asteroids, Minesweeper, Simon). Réutilisée par Memory.
 
   pub struct Persistence<T> { ... }
   impl<T> Clone for Persistence<T> { ... }   // manuel, sans bound T: Clone
@@ -257,9 +263,9 @@ Persistance typée, format RON. Unifie les 3 implémentations locales (Asteroids
 
 Tests : 15 (Phase 16 a ajouté `test_in_manifest_dir_uses_provided_path`). Doctest ignoré (comme les autres).
 
-**Important (Phase 16)** : `in_manifest_dir` prend `manifest_dir: &Path` en paramètre, parce que `env!("CARGO_MANIFEST_DIR")` est évalué **là où la macro est écrite** (donc dans la stdlib), pas au point d'appel. Les 3 jeux passent leur propre `env!("CARGO_MANIFEST_DIR")`.
+**Important (Phase 16)** : `in_manifest_dir` prend `manifest_dir: &Path` en paramètre, parce que `env!("CARGO_MANIFEST_DIR")` est évalué **là où la macro est écrite** (donc dans la stdlib), pas au point d'appel. Les 4 jeux (Asteroids, Minesweeper, Simon, Memory) passent leur propre `env!("CARGO_MANIFEST_DIR")`.
 
-Utilisé par : Asteroids (`HighScore = Persistence<i32>`), Minesweeper (`BestTimes = Persistence<HashMap<String, f32>>`), Simon (`BestScore = Persistence<u32>`).
+Utilisé par : Asteroids (`HighScore = Persistence<i32>`), Minesweeper (`BestTimes = Persistence<HashMap<String, f32>>`), Simon (`BestScore = Persistence<u32>`), Memory (`BestTimes = Persistence<HashMap<String, f32>>`).
 
 ### grid.rs — Grid<T> (Session 7)
 
@@ -280,7 +286,7 @@ Grille 2D générique, indexée (col, row), stockage row-major.
   pub fn for_each(&self, f);
   pub fn for_each_mut(&mut self, f);
 
-Utilisé par : Minesweeper (Board). Réutilisable pour Snake, Match-3, Tetris, Roguelike.
+Utilisé par : Minesweeper (Board), Memory (board).
 
 Astuce borrow checker : neighbors_8 retourne des &T, ce qui empêche de muter la grille pendant l'itération. Utiliser neighbor_coords_8 (retourne juste les coordonnées) puis get_mut par coord.
 
@@ -391,59 +397,58 @@ Placeholder avec 1 test it_works. Pas utilisé.
 | Bullet Hell | 5 (Sessions A–F) | Waves RON, 4 émetteurs data-driven, graze + multiplicateur, juice (shake, hitstop, particles), World 3e occurrence, HP par assombrissement | ~45 |
 | Minesweeper | 7 (Sessions A–C, +tests S5) | Grid<T>, Input, UI (Button/Label/Panel/Timer), first-click safe, flood fill (testé 30x16), chord, best times persistants, menu de difficultés, Game dans systems.rs | ~39 |
 | Simon | 9 (Sessions A–B, +tests S5) | AudioClip (macroquad audio feature), CircleButton (custom tessellation), sequence playback avec timers, best score persisté, tests d'intégration | ~29 |
+| Memory | 7-10 | Grid<T> cliquable, sélection à 2 temps, persistance best time, symboles ASCII terminal, Design doc | 27 |
 
-Total : 7 jeux, ~27 sessions, 335 tests verts, Clippy clean.
+Total : 8 jeux, ~30 sessions, 362 tests verts, Clippy clean.
 
 ---
 
-## games/simon — Détail (dernier jeu en date)
+## games/memory — Détail (dernier jeu en date)
 
 ### Concept
 
-Simon (jeu de mémoire électronique de 1978). 4 boutons colorés. Le jeu allume une séquence, le joueur la reproduit. Chaque round réussi allonge la séquence. Erreur = game over. Best score persisté.
+Memory (jeu de paires) sur le thème du **terminal du développeur**. Le
+joueur retourne deux cartes ; si les symboles ASCII correspondent, la
+paire reste visible. Sinon, les cartes se retournent après un délai.
+Objectif : trouver toutes les paires en un minimum de temps.
 
 ### Structure
 
-games/simon/
+games/memory/
 ├── Cargo.toml
-├── .env                  # COLOR_* en {PREFIX}_R/G/B/A + BUTTON_RADIUS, BUTTON_GAP
-├── best_score.ron        # créé au runtime, gitignored
-├── sounds/
-│   ├── generate_sounds.py   # one-shot, génère les .wav
-│   ├── green.wav            # 415 Hz, 400ms, 44.1kHz mono
-│   ├── red.wav              # 310 Hz
-│   ├── yellow.wav           # 252 Hz
-│   └── blue.wav             # 209 Hz
+├── .env                       # couleurs terminal, layout
+├── DESIGN.md                  # design doc (premier sauvegardé dans le projet)
+├── difficulties.ron           # Easy 4x4, Medium 6x6, Hard 8x8
+├── best_times.ron             # créé au runtime, gitignored
 ├── src/
-│   ├── main.rs           # App struct, boucle, input, rendu
+│   ├── main.rs                # boucle, input, rendu
 │   ├── lib.rs
-│   ├── config.rs         # GameContext
-│   ├── components.rs     # SimonColor (Green/Red/Yellow/Blue), button_centers()
-│   ├── persistence.rs    # façade : BestScore = Persistence<u32> (Phase 15)
-│   └── systems.rs        # Sequence, PlayPhase, GameWorld, tick_playback, handle_click
+│   ├── config.rs              # GameContext
+│   ├── components.rs          # Card, CardState, Symbol
+│   ├── difficulties.rs        # DifficultyData + load_difficulties
+│   ├── persistence.rs         # façade BestTimes (comme Minesweeper)
+│   └── systems.rs             # Game, SelectionPhase, build_deck, reveal, tick
 └── tests/
-    └── game_scenarios.rs # 8 tests d'intégration (Phase 16)
-
-Note Phase 12 : `rng.rs` supprimé, utilise `ember_core::rng::Rng`.
-Note Phase 15 : `persistence.rs` réduit à une façade.
-Note Phase 16 : tests d'intégration ajoutés.
+    └── game_scenarios.rs      # 4 tests d'intégration
 
 ### Détail technique
 
-- 4 couleurs dans l'ordre historique : Green (haut-gauche), Red (haut-droit), Yellow (bas-gauche), Blue (bas-droit).
-- Rendu : CircleButton avec tessellation custom (polygon fan + polyline partageant les vertices).
-- Son : joué lors des transitions de couleur allumée, tracké par last_lit: Option<SimonColor> dans App.
-- Séquence : Vec<SimonColor>, agrandie de 1 à chaque round via extend_random.
-- PlayPhase : PreRound (délai 800ms) → Showing (lit 400ms, gap 200ms par élément) → Waiting (input joueur, pause 300ms après le dernier élément).
-- tick_playback BOUCLE jusqu'à épuisement de dt. Sinon, un frame drop > 400ms saute des éléments visuels.
-- handle_click valide l'input contre la séquence. Correct / Wrong / RoundComplete / Ignored.
-- Best score persisté sur round complete et sur game over.
+- **Symboles** : 25 caractères ASCII/ponctuation (`$ § > { } [ ] ( ) * & # @ % ! ? / \ | ~ ^ = + - <`). Pas d'émojis (rendu macroquad).
+- **Difficultés** : Easy 4×4 (8 paires), Medium 6×6 (18 paires), Hard 8×8 (32 paires).
+- **Logique** : `Game` (state struct) + `SelectionPhase` (Idle / FirstPick / Resolving) + `build_deck` (Fisher-Yates déterministe avec `Rng`).
+- **Rendu** : cartes rectangles, symboles centrés. Feedback visuel par couleur de bordure :
+  - Hidden → grise (hover : éclaircie)
+  - Flipped (1er pick) → cyan
+  - Flipped (no-match en cours) → rouge
+  - Matched → verte
+- **Timer** : démarre au premier clic, s'arrête à la victoire, dim quand arrêté.
+- **Persistance** : `BestTimes = Persistence<HashMap<String, f32>>` par difficulté.
+- **Tests** : 23 unitaires + 4 intégration = **27 tests**.
 
 ### Pièges connus
 
-- Audio macroquad : feature "audio" non activée par défaut. Sans elle, tout play_sound imprime un warning et ne joue rien.
-- CircleButton tessellation : macroquad draw_circle et draw_circle_lines utilisent des nombres de segments différents, ce qui produit un gap visible entre fill et border. Tesseller manuellement avec circle_segments(radius) qui scale avec le rayon (32 à 128 segments).
-- tick_playback : si tu implémentes "une transition par appel", un dt plus grand que le timer de la phase courante saute des états. Boucler avec while remaining > 0.
+- Certains symboles ASCII (`§`, `\`) peuvent ne pas rendre avec la police par défaut de macroquad. À vérifier visuellement avant d'en ajouter.
+- `NO_MATCH_DELAY` : < 0.5s = frustration, > 1.5s = lenteur. 0.8s est un bon compromis.
 
 ---
 
@@ -526,36 +531,21 @@ Dette résolue : #5 (xorshift32 3 copies).
   `ctx.brick_height/2` au lieu de `brick.transform.scale/2`. Bug latent
   visible dès qu'une brique a une taille custom (level3.ron passe en 50×20).
   Corrigé + 1 test de régression (`test_collision_uses_brick_transform_scale_not_context`).
-  Note : le test utilise une brique 200×50 avec `x` placé à la limite de la
-  zone de collision custom pour discriminer le bug (position critique :
-  `overlap_x < overlap_y` pour forcer la branche X).
 - **Minesweeper** : le `Button` START était recréé chaque frame dans
-  `menu_layout`, appelé deux fois (une dans `handle_menu_input`, une dans
-  `render_menu`). Violation du piège #11 (update/draw sur la même instance).
-  Corrigé : `start_btn` déplacé dans `struct Game`, positionné par
-  `Game::update_menu_layout(ctx)`. `menu_layout` renommé `difficulty_rects`
-  et ne retourne plus qu'un `Vec<Rect>`.
-- **Pong** : pas de clamp de vitesse. `vx *= 1.05` à chaque hit raquette
-  → explosion en partie longue. Ajout de `Ball::clamp_speed(max)` +
-  `MAX_BALL_SPEED = 1200.0` (constante locale, même valeur que Breakout).
-  Appel en fin d'`update` pour couvrir tous les cas. +2 tests.
-- **Asteroids** : `enum UpdateEvent { None, ShipDestroyed, LevelCleared }`
-  défini mais jamais référencé (logique inline dans `main.rs` via
-  `world.on_ship_hit` / `world.on_wave_cleared`). Supprimé, réexport retiré
-  de `lib.rs`.
+  `menu_layout`. Corrigé : `start_btn` déplacé dans `struct Game`,
+  positionné par `Game::update_menu_layout(ctx)`.
+- **Pong** : pas de clamp de vitesse. Ajout de `Ball::clamp_speed(max)` +
+  `MAX_BALL_SPEED = 1200.0`. +2 tests.
+- **Asteroids** : `enum UpdateEvent` défini mais jamais référencé. Supprimé.
 
 ### Phase 14 — Session 3 : Architecture (uniformisation)
 - **BreakoutWorld** extrait. `update` passe de 7 args à 3 (`world, ctx, dt`).
   `load_level` / `generate_fallback_level` déplacés de `main.rs` vers
-  `systems.rs`. Méthodes du World : `new`, `start_new_game`, `apply_level`,
-  `advance_level`, `on_ball_lost`, `reset_ball`, `reset_paddle`. +5 tests.
-- **Minesweeper Game** déplacé de `main.rs` vers `systems.rs`. Champs `pub`,
-  réexport via `lib.rs` (`pub use systems::Game;`). `main.rs` perd ~140
-  lignes. `impl Default for Game` ajouté (Clippy `new_without_default`).
-- **GameContext uniformisé** dans `config.rs` pour les 7 jeux. Pong,
-  Breakout, Asteroids migrés (les 4 autres y étaient déjà). `systems.rs`
+  `systems.rs`. +5 tests.
+- **Minesweeper Game** déplacé de `main.rs` vers `systems.rs`. `main.rs`
+  perd ~140 lignes. `impl Default for Game` ajouté.
+- **GameContext uniformisé** dans `config.rs` pour les 7 jeux. `systems.rs`
   fait `pub use crate::config::GameContext;` pour la compat des imports.
-  `lib.rs` réexporte `GameContext` depuis `config`.
 - **État final** : chaque jeu expose une API cohérente — state struct dans
   `systems.rs`, `GameContext` dans `config.rs`, réexports dans `lib.rs`.
 
@@ -565,53 +555,42 @@ Dette résolue : #5 (xorshift32 3 copies).
   API : `new`, `in_manifest_dir`, `load() -> Option<T>`, `load_or(default)`,
   `save(&value) -> bool`, `path()`. Helpers `update_if_higher` /
   `update_if_lower` (records « higher wins » / « lower wins »).
-  +14 tests dans le stdlib (67 → 81). 1 doctest ignoré (comme les autres).
-- **Simon** migré : `persistence.rs` devient une façade de 10 lignes
-  (`pub type BestScore = Persistence<u32>` + `default()`). `App.best_path:
-  PathBuf` → `App.best: BestScore`. `record_best_if_needed` factorisé
-  (appelé par `on_round_complete` et `on_game_over`). 26 → 21 tests
-  (5 migrés vers le stdlib).
+  +14 tests dans le stdlib (67 → 81).
+- **Simon** migré : `persistence.rs` devient une façade de 10 lignes.
+  `App.best_path: PathBuf` → `App.best: BestScore`. 26 → 21 tests.
 - **Minesweeper** migré : `best_times_path: PathBuf` → `best_handle:
-  BestTimes`. `update_if_better` local délègue à `update_if_lower` du
-  stdlib (insert-on-missing spécifique au `HashMap`). Cache `best_times:
-  HashMap<String, f32>` conservé en mémoire pour l'affichage du menu
-  (pas d'I/O par frame). 33 → 31 tests (2 migrés). 3 tests locaux pour
-  `update_if_better` conservés (comportement insert-on-missing).
-- **Asteroids** migré : format `.txt` → `.ron` (rupture de compat
-  assumée, `highscore.txt` n'est plus lu). `GameWorld.high_score_handle:
-  HighScore` ajouté. `record_high_score_if_needed` factorisé. `reset_to_start`
-  clone le handle avant `*self = Self::new()`. `use std::fs;` et
-  `use std::path::PathBuf;` retirés.
+  BestTimes`. 33 → 31 tests.
+- **Asteroids** migré : format `.txt` → `.ron`. `GameWorld.high_score_handle:
+  HighScore` ajouté.
 
 Dette résolue : #3 (Asteroids persistence non testable).
 
 ### Phase 16 — Session 5 : Bugs et tests restants
 - **Asteroids** : `GameWorld::step_ship_asteroid_collision(ctx, dt) -> bool`
-  extrait dans `systems.rs`. Encapsule la décrémentation d'invincibilité,
-  la détection de collision vaisseau↔astéroïde, et l'appel à `on_ship_hit`.
-  `main.rs` : 6 lignes → 1 appel. `tests/game_scenarios.rs` : suppression
-  de la fonction locale `step_collision` (dupliquait la logique de main.rs).
+  extrait dans `systems.rs`. `main.rs` : 6 lignes → 1 appel.
+  `tests/game_scenarios.rs` : suppression de la fonction locale `step_collision`.
 - **Minesweeper** : 3 tests d'intégration ajoutés pour le flood fill sur
-  Expert (30x16) — `test_flood_fill_on_expert_30x16` (479 cellules révélées),
-  `test_flood_fill_on_expert_with_real_density` (99 mines, premier clic
-  safe), `test_flood_fill_performance_on_expert` (garde-fou perf < 100 ms).
-- **Simon** : 8 tests d'intégration ajoutés dans `tests/game_scenarios.rs`
-  (nouveau fichier). Couvrent : playthrough complet, clic ignoré pendant
-  Showing, wrong click → game over, croissance de séquence sur 3 rounds,
-  restart après game over, `lit_color` sur un round complet, flash après
-  clic correct, déterminisme du RNG.
-- **Pong** : 4 tests d'intégration rendus robustes. Les `assert_eq!` sur
-  positions exactes `f32` sont remplacés par des assertions directionnelles
-  (`vx` change de signe) + de contenance (balle pas dans le paddle) +
-  de proximité (`EPS = 1e-3` pour le reset au centre).
-- **Bonus** : bug `Persistence::in_manifest_dir` corrigé. `env!` est
-  évalué **là où la macro est écrite**, pas au point d'appel — donc
-  l'ancien code créait tous les fichiers `.ron` dans `crates/ember-stdlib/`
-  au lieu du dossier du jeu. La signature prend maintenant `manifest_dir:
-  &Path` en paramètre, et les 3 jeux (Simon, Minesweeper, Asteroids)
-  passent leur propre `env!("CARGO_MANIFEST_DIR")`. +1 test.
+  Expert (30x16).
+- **Simon** : 8 tests d'intégration ajoutés dans `tests/game_scenarios.rs`.
+- **Pong** : 4 tests d'intégration rendus robustes (assertions
+  directionnelles + EPS).
+- **Bonus** : bug `Persistence::in_manifest_dir` corrigé.
 
 Dette résolue : #1 (Pong tests fragiles), #6 (Simon tests d'intégration).
+
+### Phase 17 — Memory (8e jeu)
+- 8e jeu = Memory (jeu de paires, thème terminal du dev).
+- **DESIGN.md** dans `games/memory/` : premier design doc sauvegardé dans
+  le projet. Documente concept, mécaniques, API pressentie, roadmap,
+  pièges anticipés. Précédent pour les futurs jeux.
+- **Symboles** : 25 caractères ASCII/ponctuation. Pas d'émojis (rendu macroquad).
+- **Difficultés** : Easy 4×4 (8 paires), Medium 6×6 (18 paires), Hard 8×8 (32 paires). `difficulties.ron`.
+- **Logique** : `Game` (state struct) + `SelectionPhase` (Idle / FirstPick / Resolving) + `build_deck` (Fisher-Yates déterministe avec `Rng`).
+- **Rendu** : cartes rectangles, symboles centrés. Feedback visuel par couleur de bordure (grise / cyan / rouge / verte).
+- **Timer** : démarre au premier clic, s'arrête à la victoire, dim quand arrêté.
+- **Persistance** : `BestTimes = Persistence<HashMap<String, f32>>` par difficulté.
+- **Tests** : 23 unitaires + 4 intégration = **27 tests**.
+- **Patterns reportés** : drag-and-drop (FreeCell / Mahjong), tween/easing (Match-3).
 
 ---
 
@@ -621,7 +600,7 @@ Dette résolue : #1 (Pong tests fragiles), #6 (Simon tests d'intégration).
 2. ~~Breakout::update (7 args)~~ → **résolu** Phase 14 (BreakoutWorld).
 3. SnakeState::new(duration) : paramètre vestigial (écrasé par update). Le retirer ou le documenter ?
 4. Shape::as_aabb / as_circle : inutilisés. Supprimer ou utiliser ?
-5. 8e jeu : voir "Pistes" ci-dessous.
+5. ~~8e jeu~~ → **résolu** Phase 17 (Memory). Voir "Pistes" pour le 9e.
 6. ~~Uniformiser GameContext location~~ → **résolu** Phase 14 (tous dans `config.rs`).
 7. Uniformiser UpdateEvent : Snake/Breakout en ont, Pong/Bullet Hell non. (À débattre.)
 8. ~~Extraire ember_stdlib::persistence~~ → **résolu** Phase 15.
@@ -630,13 +609,14 @@ Dette résolue : #1 (Pong tests fragiles), #6 (Simon tests d'intégration).
 
 ## Dette technique
 
-1. ~~Tests d'intégration Pong fragiles~~ → **résolu** Phase 16 (assertions directionnelles + tolérance EPS).
+1. ~~Tests d'intégration Pong fragiles~~ → **résolu** Phase 16.
 2. ember-editor : placeholder vide.
-3. ~~Asteroids load_high_score / save_high_score : pas testés~~ → **résolu** Phase 15 (`Persistence<i32>` avec `Path` paramétrable).
+3. ~~Asteroids load_high_score / save_high_score : pas testés~~ → **résolu** Phase 15.
 4. Button UI : pas de vrai UiContext frame-level. L'utilisateur doit gérer lui-même la cohérence update/draw. À renforcer si un jeu a beaucoup de widgets.
-5. ~~xorshift32 : 3 copies~~ → **résolu** Phase 12 (`ember_core::rng::Rng`).
-6. ~~Simon : pas de tests d'intégration~~ → **résolu** Phase 16 (8 tests d'intégration ajoutés).
+5. ~~xorshift32 : 3 copies~~ → **résolu** Phase 12.
+6. ~~Simon : pas de tests d'intégration~~ → **résolu** Phase 16.
 7. tick_playback dans Simon : boucle jusqu'à épuisement de dt. Le pattern "loops until dt exhausted" devrait probablement être un helper dans TickTimer ou une fonction générique.
+8. Memory : pas de "pairs attempted" counter (nb de tentatives). Nice-to-have pour un score secondaire.
 
 Résolus :
 - ~~glam désalignement~~ → structurellement impossible depuis Session 6.
@@ -659,31 +639,34 @@ Résolus :
 Ne généralise pas avant d'avoir vu le pattern 3 fois.
 
 Aujourd'hui :
-- Chargement RON : 6x (Breakout, Snake, Bullet Hell, Minesweeper, Simon, Asteroids) → extrait.
-- Config env : 7x → extrait.
-- draw_centered : 7x → extrait.
-- GameState : 7x → extrait.
-- State structs : 7x (MatchState, BreakoutWorld, SnakeWorld, GameWorld, World, Game, App+GameWorld) → convention confirmée.
-- Grid 2D : 1x (Minesweeper) → extrait quand même (Grid<T>).
-- Input snapshot : 1x → extrait (Input).
-- UI widgets : 2x (Minesweeper, Simon) → extrait.
+- Chargement RON : 7x (Breakout, Snake, Bullet Hell, Minesweeper, Simon, Asteroids, Memory) → extrait.
+- Config env : 8x → extrait.
+- draw_centered : 8x → extrait.
+- GameState : 8x → extrait.
+- State structs : 8x (MatchState, BreakoutWorld, SnakeWorld, GameWorld, World, Game, App+GameWorld, Game) → convention confirmée.
+- Grid 2D : 2x (Minesweeper, Memory) → extrait (Grid<T>).
+- Input snapshot : 8x → extrait (Input).
+- UI widgets : 3x (Minesweeper, Simon, Memory) → extrait.
 - Audio : 1x (Simon) → extrait (AudioClip).
 - xorshift32 : 3x → EXTRAIT (Phase 12, `ember_core::rng::Rng`).
 - wrap_position : 1x (Asteroids) → local.
 - Juice (shake, hitstop, particles) : 1x (Bullet Hell) → local.
 - Cooldown f32 : 2x (Asteroids, Bullet Hell) → surveiller.
 - Ball::clamp_speed : 2x (Pong, Breakout) → surveiller. À extraire si 3e jeu.
-- Persistance best score : 3x → **EXTRAIT** (Phase 15, `ember_stdlib::persistence`).
-- step_ship_asteroid_collision : 1x (Asteroids) → local (extrait de la duplication main.rs/test).
+- Persistance best score : 4x (Asteroids, Minesweeper, Simon, Memory) → **EXTRAIT** (Phase 15, `ember_stdlib::persistence`).
+- step_ship_asteroid_collision : 1x (Asteroids) → local.
+- SelectionPhase (Idle/FirstPick/Resolving) : 1x (Memory) → local. À surveiller si un 2e jeu en a besoin (Match-3 ?).
+- is_resolving_at : 1x (Memory) → local.
+- feedback_border_by_state (couleur de bordure selon état) : 1x (Memory) → local.
 
 ---
 
-## Pistes pour le 8e jeu
+## Pistes pour le 9e jeu
 
-Le moteur a maintenant : collisions, grille, input souris + clavier, UI (Button, CircleButton, Label, Panel, Timer), audio, persistance typée, data-driven, machine à états.
+Le moteur a maintenant : collisions, grille, input souris + clavier, UI (Button, CircleButton, Label, Panel, Timer), audio, persistance typée, data-driven, machine à états, sélection à 2 temps, design docs.
 
 Ce qui MANQUE encore :
-- Drag-and-drop (pour Solitaire, Mahjong)
+- Drag-and-drop (pour FreeCell, Mahjong, Solitaire)
 - Caméra / scroll (pour platformer, exploration, RPG top-down)
 - Procédural (roguelike, génération de niveaux)
 - Pathfinding (Tower Defense, roguelike)
@@ -692,8 +675,8 @@ Ce qui MANQUE encore :
 
 ### Recommandations fortes
 
-1. Solitaire (Klondike) — déclenche DRAG-AND-DROP, brique UI majeure. Réutilise Button/Label/Panel/Grid.
-2. Match-3 — déclenche ANIMATIONS / TWEEN / EASING. Utilise Grid + Input + UI.
+1. FreeCell / Mahjong / Solitaire — déclenche DRAG-AND-DROP, brique UI majeure toujours manquante. Reporté depuis Memory.
+2. Match-3 — déclenche ANIMATIONS / TWEEN / EASING. Utilise Grid + Input + UI. À faire après Memory (qui a déjà Grid cliquable).
 3. Plateformer — déclenche CAMÉRA + scroll + collisions multi-axes solides. Test de robustesse du collider.
 
 ### Recommandations moyennes
@@ -705,8 +688,7 @@ Ce qui MANQUE encore :
 
 ### Recommandations faibles
 
-8. Mahjong Solitaire — 3D iso + clic (nécessite un peu de boulot graphique).
-9. Bomberman-like — grille destructible, IA (réutilise beaucoup).
+8. Bomberman-like — grille destructible, IA (réutilise beaucoup).
 
 ---
 
@@ -717,15 +699,16 @@ Ce qui MANQUE encore :
 2. Shape::as_aabb / as_circle : supprimer ou utiliser ?
 3. SnakeState::new : retirer le paramètre duration ?
 4. ~~BreakoutWorld : extraire comme les autres ?~~ → **résolu** Phase 14.
-5. Choisir le 8e jeu.
+5. ~~Choisir le 8e jeu~~ → **résolu** Phase 17 (Memory).
 6. ~~Uniformiser GameContext location~~ → **résolu** Phase 14.
 7. Uniformiser UpdateEvent : Snake/Breakout en ont, Pong/Bullet Hell non. (À débattre.)
+8. Design docs rétroactifs pour les 7 jeux précédents.
 
 ### Bugs potentiels / fragilités
 1. ~~Pong : tests d'intégration fragiles~~ → **résolu** Phase 16.
 2. ~~Breakout : update à 7 args~~ → **résolu** Phase 14.
-3. ~~Asteroids : step_collision dupliqué dans game_scenarios.rs~~ → **résolu** Phase 16 (méthode extraite).
-4. ~~Minesweeper : flood fill non testé sur 30x16 (Expert)~~ → **résolu** Phase 16 (3 tests ajoutés).
+3. ~~Asteroids : step_collision dupliqué dans game_scenarios.rs~~ → **résolu** Phase 16.
+4. ~~Minesweeper : flood fill non testé sur 30x16 (Expert)~~ → **résolu** Phase 16.
 5. ~~Simon : pas de tests d'intégration~~ → **résolu** Phase 16.
 
 ### Refactors à considérer (à regrouper dans une session dédiée)
@@ -764,10 +747,13 @@ Ce qui MANQUE encore :
 21. tick_playback en boucle : un dt plus grand que le timer de la phase courante doit traverser plusieurs phases, pas sauter à la suivante une seule fois.
 22. `load_dotenv_once` : `manifest_dir` doit venir de `env!("CARGO_MANIFEST_DIR")` **du crate appelant**, pas de la stdlib. (Phase 12)
 23. `from_macroquad*` : nécessite un contexte macroquad actif, non testable unitairement. (Phase 12)
-24. `GameContext` uniformisé dans `config.rs` pour les 7 jeux (Phase 14). `systems.rs` fait `pub use` pour la compat.
+24. `GameContext` uniformisé dans `config.rs` pour les 8 jeux (Phase 14). `systems.rs` fait `pub use` pour la compat.
 25. `Persistence<T>` a `Clone` mais **pas** `Copy` (PathBuf). Si un jeu doit cloner le handle (comme `Asteroids::reset_to_start`), utiliser `.clone()` explicitement. (Phase 15)
 26. Migration `.txt` → `.ron` (Asteroids) : l'ancien fichier n'est plus lu. Acceptable pour un projet perso, mais à noter. (Phase 15)
 27. `env!("CARGO_MANIFEST_DIR")` dans une fonction de la stdlib pointe vers le manifest de la **stdlib**, pas du jeu appelant. Toujours passer `manifest_dir` en paramètre. (Phase 15, fixé Phase 16)
+28. Memory : certains symboles ASCII (`§`, `\`) peuvent ne pas rendre avec la police par défaut de macroquad. À vérifier visuellement avant d'en ajouter. (Phase 17)
+29. Memory : `NO_MATCH_DELAY` doit laisser le temps de voir les symboles. < 0.5s = frustration, > 1.5s = lenteur. 0.8s est un bon compromis. (Phase 17)
+30. `cargo new --lib games/<name>` ajoute automatiquement le crate au workspace. Vérifier ensuite le `Cargo.toml` pour aligner sur les conventions (`version.workspace = true`, `edition.workspace = true`, deps `.workspace = true`). (Phase 17)
 
 ---
 
@@ -776,9 +762,10 @@ Ce qui MANQUE encore :
 1. Session doc-sync (celle-ci, terminée).
 2. ~~Session 4 — Persistance~~ → **fait** (Phase 15).
 3. ~~Session 5 — Bugs restants~~ → **fait** (Phase 16).
-4. Décider du 8e jeu parmi Solitaire / Match-3 / Plateformer (fortes recommandations).
-5. Session design doc pour le 8e jeu, avant de coder.
-6. Appliquer les patterns :
+4. ~~Décider du 8e jeu~~ → **fait** (Phase 17, Memory).
+5. Décider du 9e jeu parmi FreeCell/Mahjong (drag-and-drop), Match-3 (tween/easing), Plateformer (camera/scroll).
+6. Session design doc pour le 9e jeu, avant de coder.
+7. Appliquer les patterns :
    - State struct (Game/World) dans `systems.rs` dès le début.
    - `GameContext` dans `config.rs`.
    - Widgets dans le state struct, update + draw sur la même instance.
@@ -786,5 +773,11 @@ Ce qui MANQUE encore :
    - Data-driven (RON) pour tout contenu configurable.
    - Persistance via `ember_stdlib::persistence::Persistence<T>` (passer `manifest_dir` explicitement).
    - Si audio : ne pas oublier la feature macroquad "audio".
-7. ~~Planifier une session refactor global (RNG extraction, etc.)~~ → Sessions 1-5 faites (Phases 12-16).
-8. ~~Session 3 — Architecture~~ → **fait** (Phase 14).
+   - **Design doc** (`DESIGN.md`) dès le début, avant le code.
+8. ~~Planifier une session refactor global (RNG extraction, etc.)~~ → Sessions 1-5 faites (Phases 12-16).
+9. ~~Session 3 — Architecture~~ → **fait** (Phase 14).
+10. Session refactor moteur (optionnelle, quand la friction se fait sentir) :
+    - UiContext frame-level
+    - loops-until-dt-exhausted helper
+    - graphics::shapes
+    - Design docs rétroactifs pour les 7 jeux précédents
