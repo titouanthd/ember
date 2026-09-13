@@ -1,17 +1,14 @@
 //! Minesweeper — Session C: difficulties, menu, persistence.
 
-use std::collections::HashMap;
-
-use minesweeper::components::{Board, BoardState, Cell, CellState};
+use minesweeper::components::{BoardState, Cell, CellState};
 use minesweeper::config::{load_config, GameContext};
-use minesweeper::difficulties::{load_difficulties, DifficultyData};
-use minesweeper::persistence;
+use minesweeper::difficulties::DifficultyData;
 use minesweeper::systems;
+use minesweeper::Game;
 use minesweeper::GameState;
 
-use ember_core::rng::Rng;
 use ember_stdlib::input::Input;
-use ember_stdlib::ui::button::{Button, ButtonEvent};
+use ember_stdlib::ui::button::ButtonEvent;
 use ember_stdlib::ui::label::Label;
 use ember_stdlib::ui::panel::Panel;
 use ember_stdlib::ui::timer::TimerDisplay;
@@ -27,142 +24,6 @@ fn window_conf() -> Conf {
         window_height: ctx.window_h as i32,
         window_resizable: false,
         ..Default::default()
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Game state
-// ---------------------------------------------------------------------------
-
-struct Game {
-    state: GameState,
-    difficulties: Vec<DifficultyData>,
-    selected_difficulty: usize,
-
-    // Active board (valid when state == Playing / Win / GameOver)
-    board: Board,
-    cell_size: f32,
-    grid_origin: Vec2,
-    elapsed: f32,
-    timer_running: bool,
-    rng: Rng,
-
-    // Persistence
-    best_times: HashMap<String, f32>,
-    best_times_path: std::path::PathBuf,
-    was_new_best: bool,
-
-    // Widgets — persisted so update() and draw() share the same instance
-    // and hover/pressed states stay consistent.
-    // (Piège documenté : un Button recréé chaque frame perd son event Clicked.)
-    start_btn: Button,
-    restart_btn: Button,
-    menu_btn: Button,
-}
-
-impl Game {
-    fn new() -> Self {
-        let ctx = load_config();
-        let difficulties = load_difficulties();
-        let path = persistence::default_path();
-        let best_times = persistence::load_best_times(&path);
-        let mut g = Self {
-            state: GameState::Start,
-            difficulties,
-            selected_difficulty: 0,
-            board: Board::new(9, 9, 10),
-            cell_size: 32.0,
-            grid_origin: Vec2::ZERO,
-            elapsed: 0.0,
-            timer_running: false,
-            rng: Rng::new(0xDEAD_BEEF),
-            best_times,
-            best_times_path: path,
-            was_new_best: false,
-            // Placeholder rect — immediately overwritten by update_menu_layout.
-            start_btn: Button::new(0.0, 0.0, 200.0, 50.0, "START"),
-            restart_btn: Button::new(
-                ctx.window_w - 220.0,
-                10.0,
-                100.0,
-                30.0,
-                "Restart",
-            ),
-            menu_btn: Button::new(ctx.window_w - 110.0, 10.0, 100.0, 30.0, "Menu"),
-        };
-        g.update_layout();
-        g.update_menu_layout(&ctx);
-        g
-    }
-
-    fn current_difficulty(&self) -> &DifficultyData {
-        &self.difficulties[self.selected_difficulty]
-    }
-
-    fn start_game(&mut self, _ctx: &GameContext) {
-        let d = self.current_difficulty().clone();
-        self.board = Board::new(d.width, d.height, d.mines);
-        self.elapsed = 0.0;
-        self.timer_running = false;
-        self.was_new_best = false;
-        // Advance the RNG state so each game gets a different mine layout.
-        self.rng.set_state(self.rng.state().wrapping_add(0x9E37_79B9));
-        self.update_layout();
-        self.state = GameState::Playing;
-    }
-
-    fn update_layout(&mut self) {
-        let ctx = load_config();
-        let d = self.current_difficulty().clone();
-        self.cell_size = d.cell_size(&ctx);
-        let w = self.board.width as f32 * self.cell_size;
-        let h = self.board.height as f32 * self.cell_size;
-        self.grid_origin = ctx.grid_origin(w, h);
-    }
-
-    /// Recompute the START button rect. Called once at startup; the layout
-    /// only depends on `difficulties.len()`, which is fixed for the process.
-    fn update_menu_layout(&mut self, ctx: &GameContext) {
-        let cx = ctx.window_w * 0.5;
-
-        let btn_h = 60.0;
-        let gap = 16.0;
-        let n = self.difficulties.len() as f32;
-        let total_h = n * btn_h + (n - 1.0).max(0.0) * gap;
-        let first_y = ctx.window_h * 0.5 - total_h * 0.5 + 40.0;
-
-        let start_y = first_y + total_h + 30.0;
-        self.start_btn.rect = (cx - 100.0, start_y, 200.0, 50.0);
-    }
-
-    fn cell_at(&self, mouse: Vec2) -> Option<(usize, usize)> {
-        let gx = mouse.x - self.grid_origin.x;
-        let gy = mouse.y - self.grid_origin.y;
-        if gx < 0.0 || gy < 0.0 {
-            return None;
-        }
-        let col = (gx / self.cell_size) as usize;
-        let row = (gy / self.cell_size) as usize;
-        if col >= self.board.width || row >= self.board.height {
-            return None;
-        }
-        Some((col, row))
-    }
-
-    fn is_playable(&self) -> bool {
-        self.state == GameState::Playing
-            && matches!(
-                self.board.state,
-                BoardState::Ready | BoardState::Playing
-            )
-    }
-
-    fn record_best_if_needed(&mut self) {
-        let name = self.current_difficulty().name.clone();
-        if persistence::update_if_better(&mut self.best_times, &name, self.elapsed) {
-            persistence::save_best_times(&self.best_times_path, &self.best_times);
-            self.was_new_best = true;
-        }
     }
 }
 
@@ -368,7 +229,7 @@ fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
     let rects = difficulty_rects(ctx, game);
 
     for (i, rect) in rects.iter().enumerate() {
-        let d = &game.difficulties[i];
+        let d: &DifficultyData = &game.difficulties[i];
         let selected = i == game.selected_difficulty;
         let hovered = rect_contains(*rect, input.mouse_pos);
 

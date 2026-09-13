@@ -7,3 +7,4 @@ pub mod persistence;
 pub mod systems;
 
 pub use ember_core::app::GameState;
+pub use systems::Game;

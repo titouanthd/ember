@@ -5,4 +5,5 @@ pub mod config;
 
 pub use components::{Paddle, Ball};
 pub use ember_core::app::GameState;
-pub use systems::{update, reset_game, GameContext, MatchState};
+pub use config::GameContext;
+pub use systems::{update, reset_game, MatchState};

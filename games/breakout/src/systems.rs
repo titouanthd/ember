@@ -1,54 +1,13 @@
-// systems.rs
+// games/breakout/src/systems.rs
 use crate::components::{Ball, Brick, Paddle};
+use crate::levels::Level;
 use ember_core::app::GameState;
+use ember_core::io::load_from_file;
 use glam::Vec2;
 use macroquad::prelude::Color;
+use std::path::PathBuf;
 
-pub struct GameContext {
-    pub screen_w: f32,
-    pub screen_h: f32,
-    pub paddle_width: f32,
-    pub paddle_height: f32,
-    pub ball_size: f32,
-    pub ball_speed: f32,
-    pub brick_rows: usize,
-    pub brick_cols: usize,
-    pub brick_width: f32,
-    pub brick_height: f32,
-    pub brick_padding: f32,
-    pub win_score: i32,
-    pub paddle_color: Color,
-    pub ball_color: Color,
-    pub brick_colors: Vec<Color>,
-}
-
-impl Default for GameContext {
-    fn default() -> Self {
-        Self {
-            screen_w: 800.0,
-            screen_h: 600.0,
-            paddle_width: 80.0,
-            paddle_height: 20.0,
-            ball_size: 20.0,
-            ball_speed: 400.0,
-            brick_rows: 5,
-            brick_cols: 8,
-            brick_width: 70.0,
-            brick_height: 25.0,
-            brick_padding: 10.0,
-            win_score: 10,
-            paddle_color: Color::new(1.0, 1.0, 1.0, 1.0),
-            ball_color: Color::new(1.0, 0.65, 0.0, 1.0),
-            brick_colors: vec![
-                Color::new(1.0, 0.0, 0.0, 1.0),
-                Color::new(1.0, 0.5, 0.0, 1.0),
-                Color::new(1.0, 1.0, 0.0, 1.0),
-                Color::new(0.0, 1.0, 0.0, 1.0),
-                Color::new(0.0, 0.0, 1.0, 1.0),
-            ],
-        }
-    }
-}
+pub use crate::config::GameContext;
 
 /// Maximum speed magnitude for the ball. Prevents runaway acceleration
 /// and keeps substepping cheap.
@@ -63,12 +22,166 @@ pub enum UpdateEvent {
     LevelCleared,
 }
 
-pub fn reset_ball(ball: &mut Ball, ctx: &GameContext) {
-    ball.transform.position.x = ctx.screen_w / 2.0 - ctx.ball_size / 2.0;
-    ball.transform.position.y = ctx.screen_h / 2.0;
-    ball.vx = ctx.ball_speed;
-    ball.vy = -ctx.ball_speed;
+// ============================================================================
+// BreakoutWorld — owns all mutable game state
+// ============================================================================
+
+/// All mutable state for one Breakout run.
+///
+/// Same convention as Pong's `MatchState`, Snake's `SnakeWorld`, Asteroids'
+/// `GameWorld`, Bullet Hell's `World`, and Minesweeper's `Game`: one struct
+/// owns everything that changes. `GameContext` and `dt` stay as `update`
+/// parameters — they describe the world, they aren't part of it.
+pub struct BreakoutWorld {
+    pub paddle: Paddle,
+    pub ball: Ball,
+    pub bricks: Vec<Brick>,
+    pub score: i32,
+    pub lives: i32,
+    pub current_level: usize,
+    pub max_levels: usize,
+    pub state: GameState,
 }
+
+impl BreakoutWorld {
+    /// Build a world in `Start` state with the given first level.
+    pub fn new(bricks: Vec<Brick>, ctx: &GameContext, max_levels: usize) -> Self {
+        let paddle = Paddle::new(
+            ctx.screen_w / 2.0 - ctx.paddle_width / 2.0,
+            ctx.screen_h - 50.0,
+            ctx.paddle_width,
+            ctx.paddle_height,
+            400.0,
+            ctx.paddle_color,
+        );
+        let ball = Ball::new(
+            ctx.screen_w / 2.0 - ctx.ball_size / 2.0,
+            ctx.screen_h / 2.0,
+            ctx.ball_size,
+            ctx.ball_speed,
+            ctx.ball_color,
+        );
+        Self {
+            paddle,
+            ball,
+            bricks,
+            score: 0,
+            lives: 3,
+            current_level: 0,
+            max_levels,
+            state: GameState::Start,
+        }
+    }
+
+    /// Start a fresh game: reset score, lives, level, and load level 0.
+    /// Does NOT set `state` (the caller decides).
+    pub fn start_new_game(&mut self, bricks: Vec<Brick>, ctx: &GameContext) {
+        self.score = 0;
+        self.lives = 3;
+        self.current_level = 0;
+        self.bricks = bricks;
+        self.reset_paddle(ctx);
+        self.reset_ball(ctx);
+    }
+
+    /// Apply a loaded level without touching score or lives.
+    pub fn apply_level(&mut self, bricks: Vec<Brick>, ctx: &GameContext) {
+        self.bricks = bricks;
+        self.reset_paddle(ctx);
+        self.reset_ball(ctx);
+    }
+
+    /// Advance to the next level (bricks already loaded by caller).
+    /// Increments `current_level` and repositions paddle / ball.
+    pub fn advance_level(&mut self, bricks: Vec<Brick>, ctx: &GameContext) {
+        self.current_level += 1;
+        self.apply_level(bricks, ctx);
+    }
+
+    /// Handle the ball falling below the screen. Decrements lives; if zero,
+    /// transitions to `GameOver`. Otherwise respawns paddle + ball.
+    pub fn on_ball_lost(&mut self, ctx: &GameContext) {
+        self.lives -= 1;
+        if self.lives <= 0 {
+            self.state = GameState::GameOver;
+        } else {
+            self.reset_ball(ctx);
+            self.reset_paddle(ctx);
+        }
+    }
+
+    /// Reset the paddle to horizontal center at the bottom.
+    pub fn reset_paddle(&mut self, ctx: &GameContext) {
+        self.paddle.transform.position.x = ctx.screen_w / 2.0 - ctx.paddle_width / 2.0;
+    }
+
+    /// Reset the ball to screen center with the base speed.
+    pub fn reset_ball(&mut self, ctx: &GameContext) {
+        self.ball.transform.position.x = ctx.screen_w / 2.0 - ctx.ball_size / 2.0;
+        self.ball.transform.position.y = ctx.screen_h / 2.0;
+        self.ball.vx = ctx.ball_speed;
+        self.ball.vy = -ctx.ball_speed;
+    }
+}
+
+// ============================================================================
+// Level loading
+// ============================================================================
+
+/// Load a level from `levels/levelN.ron` (1-indexed file names).
+/// Falls back to a procedurally-generated level if the file can't be read.
+pub fn load_level(level_index: usize, ctx: &GameContext) -> Vec<Brick> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let level_path = manifest_dir.join(format!("levels/level{}.ron", level_index + 1));
+
+    match load_from_file::<Level>(&level_path) {
+        Ok(level) => {
+            println!("✅ Niveau {} chargé depuis {:?}", level_index + 1, level_path);
+            let mut bricks = Vec::new();
+            for data in level.bricks {
+                let color = Color::new(data.color_r, data.color_g, data.color_b, data.color_a);
+                bricks.push(Brick::new(
+                    data.x,
+                    data.y,
+                    data.width,
+                    data.height,
+                    color,
+                    data.health,
+                ));
+            }
+            bricks
+        }
+        Err(e) => {
+            println!("⚠️  Chargement niveau {} échoué : {}", level_index + 1, e);
+            println!("🔨 Génération programmatique de secours...");
+            generate_fallback_level(ctx)
+        }
+    }
+}
+
+/// Procedurally generate a fallback level if the RON file is missing.
+pub fn generate_fallback_level(ctx: &GameContext) -> Vec<Brick> {
+    let mut bricks = Vec::new();
+    let total_width = ctx.brick_cols as f32 * (ctx.brick_width + ctx.brick_padding)
+        - ctx.brick_padding;
+    let start_x = (ctx.screen_w - total_width) / 2.0;
+    let start_y = 60.0;
+
+    for row in 0..ctx.brick_rows {
+        for col in 0..ctx.brick_cols {
+            let x = start_x + col as f32 * (ctx.brick_width + ctx.brick_padding);
+            let y = start_y + row as f32 * (ctx.brick_height + ctx.brick_padding);
+            let color = ctx.brick_colors[row % ctx.brick_colors.len()];
+            let health = if row < 2 { 2 } else { 1 };
+            bricks.push(Brick::new(x, y, ctx.brick_width, ctx.brick_height, color, health));
+        }
+    }
+    bricks
+}
+
+// ============================================================================
+// Physics
+// ============================================================================
 
 /// Resolve ball vs. one brick. Returns true if a hit occurred.
 ///
@@ -196,33 +309,32 @@ fn step_ball(
     UpdateEvent::None
 }
 
-/// Advance the ball for `dt`, substepping so fast motion can't tunnel
+/// Advance the world by `dt`. Substep the ball so fast motion can't tunnel
 /// through bricks. Returns the first terminal event encountered.
-pub fn update(
-    paddle: &mut Paddle,
-    ball: &mut Ball,
-    bricks: &mut [Brick],
-    score: &mut i32,
-    _state: &mut GameState,
-    ctx: &GameContext,
-    dt: f32,
-) -> UpdateEvent {
+pub fn update(world: &mut BreakoutWorld, ctx: &GameContext, dt: f32) -> UpdateEvent {
     // Clamp speed to avoid runaway acceleration from repeated hits.
-    let speed = (ball.vx * ball.vx + ball.vy * ball.vy).sqrt();
+    let speed = (world.ball.vx * world.ball.vx + world.ball.vy * world.ball.vy).sqrt();
     if speed > MAX_BALL_SPEED {
         let k = MAX_BALL_SPEED / speed;
-        ball.vx *= k;
-        ball.vy *= k;
+        world.ball.vx *= k;
+        world.ball.vy *= k;
     }
 
     // Substep so each step moves at most ~half a brick height.
-    let current_speed = (ball.vx * ball.vx + ball.vy * ball.vy).sqrt();
+    let current_speed = (world.ball.vx * world.ball.vx + world.ball.vy * world.ball.vy).sqrt();
     let max_step = (ctx.brick_height.min(ctx.brick_width) * 0.5).max(1.0);
     let steps = ((current_speed * dt) / max_step).ceil().max(1.0) as usize;
     let sub_dt = dt / steps as f32;
 
     for _ in 0..steps {
-        match step_ball(paddle, ball, bricks, score, ctx, sub_dt) {
+        match step_ball(
+            &mut world.paddle,
+            &mut world.ball,
+            &mut world.bricks,
+            &mut world.score,
+            ctx,
+            sub_dt,
+        ) {
             UpdateEvent::None => {}
             ev => return ev,
         }
@@ -233,7 +345,7 @@ pub fn update(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::components::{Ball, Brick, Paddle};
+    use crate::components::{Ball, Brick};
 
     fn ctx() -> GameContext {
         GameContext::default()
@@ -297,39 +409,24 @@ mod tests {
     #[test]
     fn test_ball_does_not_tunnel_through_brick() {
         let cx = ctx();
-        let mut paddle = Paddle::new(
-            0.0, 0.0,
-            cx.paddle_width, cx.paddle_height,
-            0.0,
-            Color::new(1.0, 1.0, 1.0, 1.0),
-        );
-        let mut ball = make_ball(&cx);
-        // Configuration où, SANS substepping, la balle traverserait complètement.
-        // Brique fine : on force une petite hauteur via une brique "logique" (mais
-        // on garde la taille standard pour le test, car `resolve_brick_collision`
-        // utilise ctx.brick_height).
-        // On place la balle juste au-dessus, avec une vitesse telle que
-        // le déplacement dépasse la hauteur de la brique + taille balle.
-        // Brique [400..470] x [300..325]. Balle [410..430] x [270..290].
-        // Vitesse 6000 px/s * 1/60 s = 100 px → la balle finirait à y=370,
-        // donc complètement sous la brique. Sans substep, elle traverserait.
-        ball.transform.position = Vec2::new(410.0, 270.0);
-        ball.vx = 0.0;
-        ball.vy = 6000.0;
-        let mut bricks = vec![Brick::new(
+        let bricks = vec![Brick::new(
             400.0, 300.0,
             cx.brick_width, cx.brick_height,
             Color::new(1.0, 1.0, 1.0, 1.0),
             1,
         )];
-        let mut score = 0;
-        let mut state = GameState::Playing;
-        let _ = update(
-            &mut paddle, &mut ball, &mut bricks,
-            &mut score, &mut state, &cx,
-            1.0 / 60.0,
-        );
-        assert_eq!(score, 1, "la balle très rapide ne doit PAS traverser la brique");
+        let mut world = BreakoutWorld::new(bricks, &cx, 3);
+        world.state = GameState::Playing;
+        // Configuration où, SANS substepping, la balle traverserait complètement.
+        // Brique [400..470] x [300..325]. Balle [410..430] x [270..290].
+        // Vitesse 6000 px/s * 1/60 s = 100 px → la balle finirait à y=370,
+        // donc complètement sous la brique. Sans substep, elle traverserait.
+        world.ball.transform.position = Vec2::new(410.0, 270.0);
+        world.ball.vx = 0.0;
+        world.ball.vy = 6000.0;
+
+        let _ = update(&mut world, &cx, 1.0 / 60.0);
+        assert_eq!(world.score, 1, "la balle très rapide ne doit PAS traverser la brique");
     }
 
     #[test]
@@ -365,7 +462,7 @@ mod tests {
             cx.ball_speed,
             Color::new(1.0, 1.0, 1.0, 1.0),
         );
-        ball.vx = 100.0;  // va vers la droite
+        ball.vx = 100.0; // va vers la droite
         ball.vy = 0.0;
 
         let hit = resolve_brick_collision(&mut ball, &mut brick, &cx);
@@ -378,5 +475,89 @@ mod tests {
             ball.vx < 0.0,
             "hit horizontal attendu : overlap_x (25) < overlap_y (35)"
         );
+    }
+
+    #[test]
+    fn test_world_new_starts_at_start_state() {
+        let cx = ctx();
+        let bricks = vec![Brick::new(
+            400.0, 100.0,
+            cx.brick_width, cx.brick_height,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+            1,
+        )];
+        let world = BreakoutWorld::new(bricks, &cx, 3);
+        assert_eq!(world.state, GameState::Start);
+        assert_eq!(world.score, 0);
+        assert_eq!(world.lives, 3);
+        assert_eq!(world.current_level, 0);
+        assert_eq!(world.max_levels, 3);
+    }
+
+    #[test]
+    fn test_on_ball_lost_decrements_lives() {
+        let cx = ctx();
+        let bricks = vec![Brick::new(
+            400.0, 100.0,
+            cx.brick_width, cx.brick_height,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+            1,
+        )];
+        let mut world = BreakoutWorld::new(bricks, &cx, 3);
+        world.state = GameState::Playing;
+        world.on_ball_lost(&cx);
+        assert_eq!(world.lives, 2);
+        assert_eq!(world.state, GameState::Playing);
+    }
+
+    #[test]
+    fn test_on_ball_lost_at_zero_lives_triggers_game_over() {
+        let cx = ctx();
+        let bricks = vec![Brick::new(
+            400.0, 100.0,
+            cx.brick_width, cx.brick_height,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+            1,
+        )];
+        let mut world = BreakoutWorld::new(bricks, &cx, 3);
+        world.state = GameState::Playing;
+        world.lives = 1;
+        world.on_ball_lost(&cx);
+        assert_eq!(world.lives, 0);
+        assert_eq!(world.state, GameState::GameOver);
+    }
+
+    #[test]
+    fn test_start_new_game_resets_state() {
+        let cx = ctx();
+        let bricks = vec![Brick::new(
+            400.0, 100.0,
+            cx.brick_width, cx.brick_height,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+            1,
+        )];
+        let mut world = BreakoutWorld::new(bricks.clone(), &cx, 3);
+        world.score = 42;
+        world.lives = 1;
+        world.current_level = 2;
+        world.start_new_game(bricks, &cx);
+        assert_eq!(world.score, 0);
+        assert_eq!(world.lives, 3);
+        assert_eq!(world.current_level, 0);
+    }
+
+    #[test]
+    fn test_advance_level_increments() {
+        let cx = ctx();
+        let bricks = vec![Brick::new(
+            400.0, 100.0,
+            cx.brick_width, cx.brick_height,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+            1,
+        )];
+        let mut world = BreakoutWorld::new(bricks.clone(), &cx, 3);
+        world.state = GameState::Playing;
+        world.advance_level(bricks, &cx);
+        assert_eq!(world.current_level, 1);
     }
 }

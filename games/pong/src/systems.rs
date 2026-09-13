@@ -1,49 +1,15 @@
 // games/pong/src/systems.rs
 use crate::components::{Ball, Paddle};
+
 use ember_core::app::GameState;
 use ember_stdlib::collides;
-use macroquad::prelude::Color;
 
 /// Maximum speed magnitude for the ball. Prevents runaway acceleration
 /// from repeated paddle hits (each hit multiplies vx by
 /// `ctx.ball_speed_increment`). Same value as Breakout's MAX_BALL_SPEED.
 const MAX_BALL_SPEED: f32 = 1200.0;
 
-pub struct GameContext {
-    pub screen_w: f32,
-    pub screen_h: f32,
-    pub paddle_w: f32,
-    pub paddle_h: f32,
-    pub ball_size: f32,
-    pub base_speed: f32,
-    pub win_score: i32,
-    pub player_color: Color,
-    pub ai_color: Color,
-    pub ball_color: Color,
-    pub ball_speed_increment: f32,
-    pub player_speed: f32,
-    pub ai_speed: f32,
-}
-
-impl Default for GameContext {
-    fn default() -> Self {
-        Self {
-            screen_w: 800.0,
-            screen_h: 600.0,
-            paddle_w: 15.0,
-            paddle_h: 80.0,
-            ball_size: 20.0,
-            base_speed: 400.0,
-            win_score: 5,
-            player_color: Color::new(1.0, 1.0, 1.0, 1.0),
-            ai_color: Color::new(1.0, 1.0, 1.0, 1.0),
-            ball_color: Color::new(1.0, 0.65, 0.0, 1.0),
-            ball_speed_increment: 1.05,
-            player_speed: 350.0,
-            ai_speed: 300.0,
-        }
-    }
-}
+pub use crate::config::GameContext;
 
 /// État d'un match Pong : la balle, les scores, l'état de la partie.
 ///
