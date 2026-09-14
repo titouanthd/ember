@@ -1,6 +1,10 @@
-//! Game logic: rules, moves, super-moves, undo/redo, win detection.
+//! Game logic: rules, moves, super-moves, undo/redo, win detection,
+//! and drag state machine.
 
 use std::collections::HashMap;
+
+use glam::Vec2;
+use macroquad::prelude::Rect;
 
 use ember_core::app::GameState;
 
@@ -8,11 +12,13 @@ use crate::components::{Card, Rank, Zone};
 use crate::config::GameContext;
 use crate::deck;
 use crate::drag::DragState;
+use crate::layout;
 use crate::persistence::{self, BestTimes};
 
+/// Pixels the mouse must move before a Pressing becomes a Dragging.
+const DRAG_THRESHOLD: f32 = 5.0;
+
 /// Snapshot of the mutable game state, used for undo/redo.
-///
-/// `Clone` is cheap: 52 cards + 4 options + 4 foundations lengths.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GameSnapshot {
     pub columns: [Vec<Card>; 8],
@@ -22,8 +28,6 @@ pub struct GameSnapshot {
 }
 
 /// Top-level state for one FreeCell session.
-///
-/// Same convention as the other games: one struct owns everything mutable.
 pub struct Game {
     pub state: GameState,
 
@@ -99,7 +103,6 @@ impl Game {
         g
     }
 
-    /// Test helper: build a game with a custom best-times handle.
     pub fn with_best_handle(handle: BestTimes) -> Self {
         let mut g = Self::new();
         g.best_times = handle.load_or(HashMap::new());
@@ -112,8 +115,6 @@ impl Game {
         self.start_btn.rect = (cx - 100.0, ctx.window_h * 0.5 + 100.0, 200.0, 50.0);
     }
 
-    /// Deal a new game from the given seed. Resets moves, timer, and
-    /// undo/redo history.
     pub fn start_game(&mut self, seed: u32, _ctx: &GameContext) {
         self.seed = seed;
         let cards = deck::deal(seed);
@@ -128,15 +129,12 @@ impl Game {
         self.state = GameState::Playing;
     }
 
-    /// Distribute 52 cards into the 8 columns: 4 columns of 7, then
-    /// 4 columns of 6, in canonical order.
     fn deal_cards(&mut self, cards: Vec<Card>) {
         assert_eq!(cards.len(), 52);
         self.columns = Default::default();
         self.free_cells = Default::default();
         self.foundations = Default::default();
 
-        // Deal: 7 rounds for columns 0..4, 6 rounds for columns 4..8.
         let mut i = 0;
         for col in 0..8 {
             let count = if col < 4 { 7 } else { 6 };
@@ -149,14 +147,9 @@ impl Game {
     }
 
     // ----------------------------------------------------------------
-    // Rules
+    // Rules (Session 13)
     // ----------------------------------------------------------------
 
-    /// Can `card` be placed on top of column `col`?
-    ///
-    /// Valid if:
-    /// - the column is empty, OR
-    /// - the top card has rank `card.rank + 1` and opposite color.
     pub fn can_place_on_column(&self, card: Card, col: usize) -> bool {
         if col >= 8 {
             return false;
@@ -169,11 +162,6 @@ impl Game {
         }
     }
 
-    /// Can `card` be placed on foundation `foundation`?
-    ///
-    /// `foundation` is indexed by `suit.index()`. Valid if:
-    /// - the foundation is empty and the card is the Ace of that suit, OR
-    /// - the top card has rank `card.rank - 1` and the same suit.
     pub fn can_place_on_foundation(&self, card: Card, foundation: usize) -> bool {
         if foundation >= 4 {
             return false;
@@ -187,14 +175,10 @@ impl Game {
         }
     }
 
-    /// Can the given free cell receive a card? (Must be empty.)
     pub fn can_place_in_cell(&self, cell: usize) -> bool {
         cell < 4 && self.free_cells[cell].is_none()
     }
 
-    /// Maximum number of cards that can be moved at once in a super-move.
-    ///
-    /// Formula: `(1 + empty_cells) * 2^empty_columns`.
     pub fn max_super_move(&self) -> usize {
         let empty_cells = self.free_cells.iter().filter(|c| c.is_none()).count();
         let empty_columns = self.columns.iter().filter(|c| c.is_empty()).count();
@@ -202,15 +186,9 @@ impl Game {
     }
 
     // ----------------------------------------------------------------
-    // Moves
+    // Moves (Session 13)
     // ----------------------------------------------------------------
 
-    /// Attempt a move of `cards` from `from` to `to`. Returns `true` if
-    /// the move was applied, `false` otherwise (invalid move).
-    ///
-    /// `cards` must be given in **visual order**: the first element is
-    /// the card that ends up on top of the destination. For a single
-    /// card move, `cards` has length 1.
     pub fn try_drop(&mut self, from: Zone, to: Zone, cards: &[Card]) -> bool {
         if cards.is_empty() {
             return false;
@@ -222,14 +200,10 @@ impl Game {
             return false;
         }
 
-        // Take a snapshot before mutating.
         self.history.push(self.snapshot());
         self.future.clear();
 
-        // Remove from source.
         self.remove_cards(from, cards.len());
-
-        // Add to destination.
         self.push_cards(to, cards);
 
         self.moves += 1;
@@ -241,16 +215,12 @@ impl Game {
         true
     }
 
-    /// Validate a move without applying it.
     fn validate_move(&self, from: Zone, to: Zone, cards: &[Card]) -> bool {
-        // 1. Source must contain `cards` as the top `cards.len()` cards.
         let top = self.top_of(from, cards.len());
         if top != cards {
             return false;
         }
 
-        // 2. If moving more than one card, it must be a valid sequence
-        //    (descending, alternating colors) and within the super-move limit.
         if cards.len() > 1 {
             if !is_valid_sequence(cards) {
                 return false;
@@ -260,22 +230,14 @@ impl Game {
             }
         }
 
-        // 3. Destination must accept the first card.
         let first = cards[0];
         match to {
             Zone::Column(col) => self.can_place_on_column(first, col),
-            Zone::Foundation(f) => {
-                // Foundation accepts only a single card.
-                cards.len() == 1 && self.can_place_on_foundation(first, f)
-            }
-            Zone::FreeCell(c) => {
-                // Cell accepts only a single card, and only if empty.
-                cards.len() == 1 && self.can_place_in_cell(c)
-            }
+            Zone::Foundation(f) => cards.len() == 1 && self.can_place_on_foundation(first, f),
+            Zone::FreeCell(c) => cards.len() == 1 && self.can_place_in_cell(c),
         }
     }
 
-    /// Return the top `n` cards of a zone, in visual order (top first).
     fn top_of(&self, zone: Zone, n: usize) -> Vec<Card> {
         match zone {
             Zone::Column(col) => {
@@ -303,8 +265,6 @@ impl Game {
         }
     }
 
-    /// Remove `n` cards from the top of a zone. Returns the removed cards
-    /// in visual order (top first).
     fn remove_cards(&mut self, zone: Zone, n: usize) -> Vec<Card> {
         let mut out = Vec::with_capacity(n);
         match zone {
@@ -333,13 +293,9 @@ impl Game {
         out
     }
 
-    /// Push `cards` (in visual order, top first) onto the destination.
-    /// The destination receives them bottom-to-top: the LAST card in
-    /// `cards` is pushed first (becomes the bottom of the new stack).
     fn push_cards(&mut self, zone: Zone, cards: &[Card]) {
         match zone {
             Zone::Column(col) => {
-                // Push in reverse so the first card ends up on top.
                 for c in cards.iter().rev() {
                     self.columns[col].push(*c);
                 }
@@ -358,11 +314,9 @@ impl Game {
     }
 
     // ----------------------------------------------------------------
-    // Win / score
+    // Win / score (Session 13)
     // ----------------------------------------------------------------
 
-    /// If all four foundations have 13 cards, transition to `Win` and
-    /// record the best time.
     fn check_win(&mut self) {
         if self.foundations.iter().all(|f| f.len() == 13) {
             self.state = GameState::Win;
@@ -371,7 +325,6 @@ impl Game {
         }
     }
 
-    /// Persist the current time if it beats the record for the current seed.
     pub fn record_best_if_needed(&mut self) {
         if persistence::update_if_better(&mut self.best_times, self.seed, self.elapsed) {
             self.best_handle.save(&self.best_times);
@@ -380,10 +333,9 @@ impl Game {
     }
 
     // ----------------------------------------------------------------
-    // Undo / redo
+    // Undo / redo (Session 13)
     // ----------------------------------------------------------------
 
-    /// Snapshot the current mutable state.
     fn snapshot(&self) -> GameSnapshot {
         GameSnapshot {
             columns: self.columns.clone(),
@@ -393,7 +345,6 @@ impl Game {
         }
     }
 
-    /// Restore a snapshot into the current state.
     fn restore(&mut self, snap: GameSnapshot) {
         self.columns = snap.columns;
         self.free_cells = snap.free_cells;
@@ -401,12 +352,10 @@ impl Game {
         self.moves = snap.moves;
     }
 
-    /// Undo the last move. Returns `true` if there was something to undo.
     pub fn undo(&mut self) -> bool {
         if let Some(prev) = self.history.pop() {
             self.future.push(self.snapshot());
             self.restore(prev);
-            // Win state can be undone (rare, but possible).
             if self.state == GameState::Win {
                 self.state = GameState::Playing;
             }
@@ -416,8 +365,6 @@ impl Game {
         }
     }
 
-    /// Redo the last undone move. Returns `true` if there was something
-    /// to redo.
     pub fn redo(&mut self) -> bool {
         if let Some(next) = self.future.pop() {
             self.history.push(self.snapshot());
@@ -430,12 +377,237 @@ impl Game {
     }
 
     // ----------------------------------------------------------------
-    // Time
+    // Time (Session 13)
     // ----------------------------------------------------------------
 
     pub fn tick(&mut self, dt: f32) {
         if self.timer_running {
             self.elapsed += dt;
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // Hit testing (Session 14.1)
+    // ----------------------------------------------------------------
+
+    /// Convert a screen position to a zone, whether the zone has cards or
+    /// not. Used for drop targets.
+    pub fn zone_at(&self, mouse: Vec2, ctx: &GameContext) -> Option<Zone> {
+        // Free cells (4).
+        for i in 0..4 {
+            let r = layout::free_cell_rect(i, ctx);
+            if point_in_rect(mouse, r) {
+                return Some(Zone::FreeCell(i));
+            }
+        }
+        // Foundations (4).
+        for i in 0..4 {
+            let r = layout::foundation_rect(i, ctx);
+            if point_in_rect(mouse, r) {
+                return Some(Zone::Foundation(i));
+            }
+        }
+        // Columns (8) — bounds only, not the stacked cards.
+        for col in 0..8 {
+            let r = layout::column_bounds(col, ctx);
+            if point_in_rect(mouse, r) {
+                return Some(Zone::Column(col));
+            }
+        }
+        None
+    }
+
+    /// Find the topmost card under the mouse, if any.
+    ///
+    /// Returns `(zone, index_from_top)` where `index_from_top == 0` means
+    /// the top card of the zone's stack.
+    ///
+    /// Order of precedence:
+    /// 1. Free cells (single card each).
+    /// 2. Foundations (single card each).
+    /// 3. Columns: top card first, then deeper.
+    pub fn hit_test(&self, mouse: Vec2, ctx: &GameContext) -> Option<(Zone, usize)> {
+        // Free cells.
+        for i in 0..4 {
+            if self.free_cells[i].is_some() {
+                let r = layout::free_cell_rect(i, ctx);
+                if point_in_rect(mouse, r) {
+                    return Some((Zone::FreeCell(i), 0));
+                }
+            }
+        }
+        // Foundations.
+        for i in 0..4 {
+            if !self.foundations[i].is_empty() {
+                let r = layout::foundation_rect(i, ctx);
+                if point_in_rect(mouse, r) {
+                    return Some((Zone::Foundation(i), 0));
+                }
+            }
+        }
+        // Columns: iterate from top (last) to bottom (first).
+        for col in 0..8 {
+            let len = self.columns[col].len();
+            for idx_from_top in 0..len {
+                let card_index = len - 1 - idx_from_top;
+                let r = layout::card_rect_in_column(col, card_index, ctx);
+                if point_in_rect(mouse, r) {
+                    return Some((Zone::Column(col), idx_from_top));
+                }
+            }
+        }
+        None
+    }
+
+    /// Compute the maximal valid sequence starting at `(zone, idx_from_top)`.
+    ///
+    /// For a single card (free cell or foundation), returns just that card.
+    /// For a column, walks down the column from `idx_from_top` and returns
+    /// the longest descending alternating-color run.
+    pub fn drag_cards(&self, zone: Zone, idx_from_top: usize) -> Vec<Card> {
+        match zone {
+            Zone::FreeCell(i) => self.free_cells[i].into_iter().collect(),
+            Zone::Foundation(i) => self.foundations[i].last().copied().into_iter().collect(),
+            Zone::Column(col) => {
+                let c = &self.columns[col];
+                let len = c.len();
+                if idx_from_top >= len {
+                    return Vec::new();
+                }
+                let start = len - 1 - idx_from_top;
+                let mut seq = vec![c[start]];
+                for i in (0..start).rev() {
+                    let top = *seq.last().unwrap();
+                    let below = c[i];
+                    if below.rank.value() == top.rank.value() + 1
+                        && below.color() != top.color()
+                    {
+                        seq.push(below);
+                    } else {
+                        break;
+                    }
+                }
+                seq
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // Drag state machine (Session 14.1)
+    // ----------------------------------------------------------------
+
+    /// Handle `mouse_left_pressed`. Transitions Idle → Pressing if the
+    /// mouse is over a draggable card.
+    pub fn start_drag(&mut self, mouse: Vec2, ctx: &GameContext) {
+        if self.state != GameState::Playing {
+            return;
+        }
+        if !self.drag.is_idle() {
+            return;
+        }
+        let Some((zone, idx_from_top)) = self.hit_test(mouse, ctx) else {
+            return;
+        };
+
+        // Foundations are not draggable.
+        if let Zone::Foundation(_) = zone {
+            return;
+        }
+
+        // Only the top card of a free cell is draggable (obviously it's the
+        // only card). For a column, the clicked card must be the top of a
+        // valid sequence (guaranteed by drag_cards).
+        let cards = self.drag_cards(zone, idx_from_top);
+        if cards.is_empty() {
+            return;
+        }
+
+        self.drag = DragState::Pressing {
+            origin: zone,
+            card: cards[0],
+            press_pos: mouse,
+        };
+    }
+
+    /// Handle `mouse_left_down`. Transitions Pressing → Dragging when the
+    /// mouse moves beyond DRAG_THRESHOLD.
+    pub fn update_drag(&mut self, mouse: Vec2, ctx: &GameContext) {
+        if let DragState::Pressing {
+            origin,
+            card,
+            press_pos,
+        } = self.drag
+        {
+            let dist = (mouse - press_pos).length();
+            if dist >= DRAG_THRESHOLD {
+                let idx_from_top = self.index_from_top_for(origin, card, ctx);
+                let cards = self.drag_cards(origin, idx_from_top);
+                if cards.is_empty() {
+                    self.drag = DragState::Idle;
+                    return;
+                }
+                let r = self.card_rect_for(origin, idx_from_top, ctx);
+                let offset = press_pos - Vec2::new(r.x, r.y);
+                self.drag = DragState::Dragging {
+                    origin,
+                    cards,
+                    offset,
+                };
+            }
+        }
+    }
+
+    /// Handle `mouse_left_released`. Attempts a drop if Dragging, then
+    /// resets to Idle.
+    pub fn end_drag(&mut self, mouse: Vec2, ctx: &GameContext) {
+        let dragging = std::mem::replace(&mut self.drag, DragState::Idle);
+        if let DragState::Dragging { origin, cards, .. } = dragging
+            && let Some(target) = self.zone_at(mouse, ctx)
+        {
+            // try_drop takes `&[Card]`; pass the whole slice so
+            // super-moves work.
+            self.try_drop(origin, target, &cards);
+        }
+        // Pressing without dragging: treat as a no-op (click without move).
+        // Could be used later for click-to-select.
+    }
+
+    /// Cancel a drag without attempting a drop.
+    pub fn cancel_drag(&mut self) {
+        self.drag = DragState::Idle;
+    }
+
+    // ----------------------------------------------------------------
+    // Helpers for drag
+    // ----------------------------------------------------------------
+
+    /// The screen rect of the card at `(zone, idx_from_top)`.
+    fn card_rect_for(&self, zone: Zone, idx_from_top: usize, ctx: &GameContext) -> Rect {
+        match zone {
+            Zone::FreeCell(i) => layout::free_cell_rect(i, ctx),
+            Zone::Foundation(i) => layout::foundation_rect(i, ctx),
+            Zone::Column(col) => {
+                let len = self.columns[col].len();
+                let card_index = len.saturating_sub(1 + idx_from_top);
+                layout::card_rect_in_column(col, card_index, ctx)
+            }
+        }
+    }
+
+    /// Find the `idx_from_top` of a given card in a zone. Returns 0 if not
+    /// found (fallback).
+    fn index_from_top_for(&self, zone: Zone, card: Card, _ctx: &GameContext) -> usize {
+        match zone {
+            Zone::FreeCell(_) | Zone::Foundation(_) => 0,
+            Zone::Column(col) => {
+                let c = &self.columns[col];
+                for (i, cc) in c.iter().rev().enumerate() {
+                    if *cc == card {
+                        return i;
+                    }
+                }
+                0
+            }
         }
     }
 }
@@ -450,8 +622,6 @@ impl Default for Game {
 // Helpers
 // ============================================================================
 
-/// True if `cards` (top first) form a valid FreeCell sequence:
-/// descending ranks, alternating colors.
 fn is_valid_sequence(cards: &[Card]) -> bool {
     if cards.is_empty() {
         return false;
@@ -466,6 +636,10 @@ fn is_valid_sequence(cards: &[Card]) -> bool {
         }
     }
     true
+}
+
+fn point_in_rect(p: Vec2, r: Rect) -> bool {
+    p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h
 }
 
 // ============================================================================
@@ -733,17 +907,9 @@ mod tests {
                 g.foundations[f].push(Card::new(suit, Rank(r)));
             }
         }
-        // Nothing to move, just trigger check via a dummy valid move?
-        // Instead call check_win indirectly by moving a card.
-        // Simpler: use the public API. Since all cards are in foundations,
-        // we need to call check_win. It's private, so we cheat: push a
-        // snapshot, call try_drop with a no-op, then inspect.
-        // Actually try_drop requires a valid move. Let's just verify the
-        // helper condition directly through a fresh game with mocked
-        // foundations.
-        let _ = &mut g;
         // Direct assertion via the condition the game uses.
         assert!(g.foundations.iter().all(|f| f.len() == 13));
+        let _ = &mut g;
     }
 
     // --- undo / redo ---
@@ -837,5 +1003,171 @@ mod tests {
         g.timer_running = true;
         g.tick(1.0);
         assert!((g.elapsed - 1.0).abs() < 1e-5);
+    }
+
+    // --- hit testing ---
+
+    #[test]
+    fn test_hit_test_finds_top_card_of_column() {
+        let g = game_with_seed(1);
+        let cx = ctx();
+        let len = g.columns[0].len();
+        let r = layout::card_rect_in_column(0, len - 1, &cx);
+        let center = Vec2::new(r.x + r.w * 0.5, r.y + r.h * 0.5);
+        let hit = g.hit_test(center, &cx);
+        assert_eq!(hit, Some((Zone::Column(0), 0)));
+    }
+
+    #[test]
+    fn test_hit_test_outside_returns_none() {
+        let g = game_with_seed(1);
+        let cx = ctx();
+        let hit = g.hit_test(Vec2::new(-100.0, -100.0), &cx);
+        assert_eq!(hit, None);
+    }
+
+    #[test]
+    fn test_zone_at_empty_column() {
+        let mut g = game_with_seed(1);
+        g.columns[0].clear();
+        let cx = ctx();
+        let r = layout::column_bounds(0, &cx);
+        let center = Vec2::new(r.x + r.w * 0.5, r.y + 10.0);
+        assert_eq!(g.zone_at(center, &cx), Some(Zone::Column(0)));
+    }
+
+    // --- drag_cards ---
+
+    #[test]
+    fn test_drag_cards_top_of_column_returns_valid_run() {
+        let mut g = game_with_seed(1);
+        g.columns[0].clear();
+        g.columns[0].push(Card::new(Suit::Spade, Rank(8)));
+        g.columns[0].push(Card::new(Suit::Heart, Rank(7)));
+        g.columns[0].push(Card::new(Suit::Club, Rank(6)));
+        let cards = g.drag_cards(Zone::Column(0), 0);
+        assert_eq!(cards.len(), 3);
+        assert_eq!(cards[0], Card::new(Suit::Club, Rank(6)));
+        assert_eq!(cards[1], Card::new(Suit::Heart, Rank(7)));
+        assert_eq!(cards[2], Card::new(Suit::Spade, Rank(8)));
+    }
+
+    #[test]
+    fn test_drag_cards_stops_at_break() {
+        let mut g = game_with_seed(1);
+        g.columns[0].clear();
+        // Build: K♠, Q♥, 7♣, 6♦ (bottom → top).
+        g.columns[0].push(Card::new(Suit::Spade, Rank(13)));  // K♠
+        g.columns[0].push(Card::new(Suit::Heart, Rank(12)));  // Q♥
+        g.columns[0].push(Card::new(Suit::Club, Rank(7)));    // 7♣
+        g.columns[0].push(Card::new(Suit::Diamond, Rank(6))); // 6♦
+        let cards = g.drag_cards(Zone::Column(0), 0);
+        // 6♦ and 7♣ form a valid run; Q♥ breaks it.
+        assert_eq!(cards.len(), 2);
+        assert_eq!(cards[0], Card::new(Suit::Diamond, Rank(6)));
+        assert_eq!(cards[1], Card::new(Suit::Club, Rank(7)));
+    }
+
+    // --- drag state machine ---
+
+    #[test]
+    fn test_start_drag_on_empty_space_does_nothing() {
+        let mut g = game_with_seed(1);
+        let cx = ctx();
+        g.start_drag(Vec2::new(-100.0, -100.0), &cx);
+        assert!(g.drag.is_idle());
+    }
+
+    #[test]
+    fn test_start_drag_on_top_card_sets_pressing() {
+        let mut g = game_with_seed(1);
+        let cx = ctx();
+        let len = g.columns[0].len();
+        let r = layout::card_rect_in_column(0, len - 1, &cx);
+        let center = Vec2::new(r.x + r.w * 0.5, r.y + r.h * 0.5);
+        g.start_drag(center, &cx);
+        assert!(g.drag.is_pressing());
+    }
+
+    #[test]
+    fn test_start_drag_on_foundation_is_ignored() {
+        let mut g = game_with_seed(1);
+        let cx = ctx();
+        g.foundations[0].push(Card::new(Suit::Spade, Rank::ACE));
+        let r = layout::foundation_rect(0, &cx);
+        let center = Vec2::new(r.x + r.w * 0.5, r.y + r.h * 0.5);
+        g.start_drag(center, &cx);
+        assert!(g.drag.is_idle(), "foundations are not draggable");
+    }
+
+    #[test]
+    fn test_update_drag_below_threshold_stays_pressing() {
+        let mut g = game_with_seed(1);
+        let cx = ctx();
+        let len = g.columns[0].len();
+        let r = layout::card_rect_in_column(0, len - 1, &cx);
+        let center = Vec2::new(r.x + r.w * 0.5, r.y + r.h * 0.5);
+        g.start_drag(center, &cx);
+        g.update_drag(center + Vec2::new(1.0, 1.0), &cx);
+        assert!(g.drag.is_pressing());
+    }
+
+    #[test]
+    fn test_update_drag_beyond_threshold_becomes_dragging() {
+        let mut g = game_with_seed(1);
+        let cx = ctx();
+        let len = g.columns[0].len();
+        let r = layout::card_rect_in_column(0, len - 1, &cx);
+        let center = Vec2::new(r.x + r.w * 0.5, r.y + r.h * 0.5);
+        g.start_drag(center, &cx);
+        g.update_drag(center + Vec2::new(20.0, 20.0), &cx);
+        assert!(g.drag.is_dragging());
+    }
+
+    #[test]
+    fn test_end_drag_without_dragging_does_nothing() {
+        let mut g = game_with_seed(1);
+        let cx = ctx();
+        let len = g.columns[0].len();
+        let r = layout::card_rect_in_column(0, len - 1, &cx);
+        let center = Vec2::new(r.x + r.w * 0.5, r.y + r.h * 0.5);
+        g.start_drag(center, &cx);
+        let moves_before = g.moves;
+        g.end_drag(center, &cx);
+        assert_eq!(g.moves, moves_before);
+        assert!(g.drag.is_idle());
+    }
+
+    #[test]
+    fn test_cancel_drag_resets_to_idle() {
+        let mut g = game_with_seed(1);
+        let cx = ctx();
+        let len = g.columns[0].len();
+        let r = layout::card_rect_in_column(0, len - 1, &cx);
+        let center = Vec2::new(r.x + r.w * 0.5, r.y + r.h * 0.5);
+        g.start_drag(center, &cx);
+        g.cancel_drag();
+        assert!(g.drag.is_idle());
+    }
+
+    #[test]
+    fn test_full_drag_drop_to_free_cell() {
+        let mut g = game_with_seed(1);
+        let cx = ctx();
+        let len = g.columns[0].len();
+        let card = g.columns[0][len - 1];
+        let card_rect = layout::card_rect_in_column(0, len - 1, &cx);
+        let center = Vec2::new(card_rect.x + card_rect.w * 0.5, card_rect.y + card_rect.h * 0.5);
+
+        g.start_drag(center, &cx);
+        g.update_drag(center + Vec2::new(20.0, 20.0), &cx);
+
+        let cell_rect = layout::free_cell_rect(0, &cx);
+        let cell_center = Vec2::new(cell_rect.x + cell_rect.w * 0.5, cell_rect.y + cell_rect.h * 0.5);
+        g.end_drag(cell_center, &cx);
+
+        assert_eq!(g.free_cells[0], Some(card));
+        assert_eq!(g.moves, 1);
+        assert!(g.drag.is_idle());
     }
 }
