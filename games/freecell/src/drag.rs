@@ -1,4 +1,4 @@
-//! Drag-and-drop state machine. Skeleton for Session 14.
+//! Drag-and-drop state machine.
 
 use glam::Vec2;
 
@@ -10,10 +10,29 @@ pub enum DragState {
     /// Nothing in progress.
     #[default]
     Idle,
-    /// Mouse is down on a card, but not yet dragging.
-    Pressing { origin: Zone, card: Card, press_pos: Vec2 },
+    /// Mouse is down on a card, but not yet dragging. Used to
+    /// distinguish a click from a drag.
+    Pressing {
+        origin: Zone,
+        card: Card,
+        press_pos: Vec2,
+    },
     /// Mouse is moving with a stack of cards.
-    Dragging { origin: Zone, cards: Vec<Card>, offset: Vec2 },
+    ///
+    /// `start_index` is the index of the **bottom-most** dragged card in
+    /// its origin zone. For a column of length `len`, if `cards.len()`
+    /// cards are dragged, they occupy the indices
+    /// `[start_index, start_index + cards.len())`.
+    ///
+    /// `offset` is the difference between `press_pos` and the top-left of
+    /// the clicked card's rect. It keeps the cards glued to the cursor
+    /// during the drag.
+    Dragging {
+        origin: Zone,
+        start_index: usize,
+        cards: Vec<Card>,
+        offset: Vec2,
+    },
 }
 
 impl DragState {
@@ -58,6 +77,7 @@ mod tests {
     fn test_dragging_state() {
         let d = DragState::Dragging {
             origin: Zone::Column(0),
+            start_index: 5,
             cards: vec![Card::new(Suit::Heart, Rank(5))],
             offset: Vec2::new(10.0, 10.0),
         };
