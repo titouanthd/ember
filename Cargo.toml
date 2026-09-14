@@ -8,7 +8,11 @@ members = [
     "games/breakout",
     "games/snake",
     "games/asteroids", 
-    "games/bullet-hell", "games/minesweeper", "games/simon", "games/memory",
+    "games/bullet-hell", 
+    "games/minesweeper", 
+    "games/simon", 
+    "games/memory", 
+    "games/freecell",
 ]
 
 [workspace.package]
