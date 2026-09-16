@@ -1,6 +1,6 @@
 //! Simple text label with alignment.
 
-use macroquad::prelude::{draw_text, Color};
+use macroquad::prelude::{Color, draw_text};
 use macroquad::text::TextDimensions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,9 +44,7 @@ impl Label {
 
     pub fn draw(&self) -> TextDimensions {
         match self.align {
-            Align::Left => {
-                draw_text(&self.text, self.x, self.y, self.size as f32, self.color)
-            }
+            Align::Left => draw_text(&self.text, self.x, self.y, self.size as f32, self.color),
             Align::Center => {
                 let dims = macroquad::text::measure_text(&self.text, None, self.size, 1.0);
                 let tx = self.x - dims.width * 0.5;

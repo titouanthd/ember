@@ -44,7 +44,13 @@ pub struct Snake {
 }
 
 impl Snake {
-    pub fn new(start: Cell, length: u32, direction: Direction, color_head: Color, color_body: Color) -> Self {
+    pub fn new(
+        start: Cell,
+        length: u32,
+        direction: Direction,
+        color_head: Color,
+        color_body: Color,
+    ) -> Self {
         let mut body = std::collections::VecDeque::new();
         // La tête est à `start`, le corps s'étend derrière selon la direction opposée.
         let back = match direction {
@@ -137,7 +143,9 @@ impl Wall {
 mod tests {
     use super::*;
 
-    fn c(x: i32, y: i32) -> Cell { Cell::new(x, y) }
+    fn c(x: i32, y: i32) -> Cell {
+        Cell::new(x, y)
+    }
 
     #[test]
     fn test_direction_delta() {
@@ -156,9 +164,13 @@ mod tests {
 
     #[test]
     fn test_snake_initial_length_and_head() {
-        let s = Snake::new(c(5, 5), 3, Direction::Right,
-                           Color::new(0.0, 1.0, 0.0, 1.0),
-                           Color::new(0.0, 0.5, 0.0, 1.0));
+        let s = Snake::new(
+            c(5, 5),
+            3,
+            Direction::Right,
+            Color::new(0.0, 1.0, 0.0, 1.0),
+            Color::new(0.0, 0.5, 0.0, 1.0),
+        );
         assert_eq!(s.len(), 3);
         assert_eq!(s.head(), c(5, 5));
         // Le corps s'étend vers la gauche.
@@ -168,9 +180,13 @@ mod tests {
 
     #[test]
     fn test_snake_advance_without_grow_keeps_length() {
-        let mut s = Snake::new(c(5, 5), 3, Direction::Right,
-                               Color::new(0.0, 1.0, 0.0, 1.0),
-                               Color::new(0.0, 0.5, 0.0, 1.0));
+        let mut s = Snake::new(
+            c(5, 5),
+            3,
+            Direction::Right,
+            Color::new(0.0, 1.0, 0.0, 1.0),
+            Color::new(0.0, 0.5, 0.0, 1.0),
+        );
         s.advance(false);
         assert_eq!(s.len(), 3);
         assert_eq!(s.head(), c(6, 5));
@@ -178,9 +194,13 @@ mod tests {
 
     #[test]
     fn test_snake_advance_with_grow_increases_length() {
-        let mut s = Snake::new(c(5, 5), 3, Direction::Right,
-                               Color::new(0.0, 1.0, 0.0, 1.0),
-                               Color::new(0.0, 0.5, 0.0, 1.0));
+        let mut s = Snake::new(
+            c(5, 5),
+            3,
+            Direction::Right,
+            Color::new(0.0, 1.0, 0.0, 1.0),
+            Color::new(0.0, 0.5, 0.0, 1.0),
+        );
         s.advance(true);
         assert_eq!(s.len(), 4);
         assert_eq!(s.head(), c(6, 5));
@@ -188,9 +208,13 @@ mod tests {
 
     #[test]
     fn test_snake_cannot_reverse_instantly() {
-        let mut s = Snake::new(c(5, 5), 3, Direction::Right,
-                               Color::new(0.0, 1.0, 0.0, 1.0),
-                               Color::new(0.0, 0.5, 0.0, 1.0));
+        let mut s = Snake::new(
+            c(5, 5),
+            3,
+            Direction::Right,
+            Color::new(0.0, 1.0, 0.0, 1.0),
+            Color::new(0.0, 0.5, 0.0, 1.0),
+        );
         s.request_direction(Direction::Left); // opposé → refusé
         s.apply_pending_direction();
         assert_eq!(s.direction, Direction::Right);
@@ -198,9 +222,13 @@ mod tests {
 
     #[test]
     fn test_snake_accepts_perpendicular_turn() {
-        let mut s = Snake::new(c(5, 5), 3, Direction::Right,
-                               Color::new(0.0, 1.0, 0.0, 1.0),
-                               Color::new(0.0, 0.5, 0.0, 1.0));
+        let mut s = Snake::new(
+            c(5, 5),
+            3,
+            Direction::Right,
+            Color::new(0.0, 1.0, 0.0, 1.0),
+            Color::new(0.0, 0.5, 0.0, 1.0),
+        );
         s.request_direction(Direction::Up);
         s.apply_pending_direction();
         assert_eq!(s.direction, Direction::Up);

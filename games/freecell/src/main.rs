@@ -1,12 +1,12 @@
 //! FreeCell — terminal-themed solitaire.
 
-use freecell::components::{Card, Color as CardColor, Zone};
-use freecell::config::{load_config, GameContext};
+use freecell::GameState;
+use freecell::components::{Card, Color as CardColor, Suit, Zone};
+use freecell::config::{GameContext, load_config};
 use freecell::drag::DragState;
 use freecell::font;
 use freecell::layout;
 use freecell::systems::Game;
-use freecell::GameState;
 
 use ember_stdlib::input::Input;
 use ember_stdlib::ui::button::ButtonEvent;
@@ -27,16 +27,10 @@ fn window_conf() -> Conf {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Main loop
-// ---------------------------------------------------------------------------
-
 #[macroquad::main(window_conf)]
 async fn main() {
     let ctx = load_config();
-
     let _font = font::load_default_font().await;
-
     let mut game = Game::new();
 
     loop {
@@ -48,11 +42,12 @@ async fn main() {
             KeyCode::Enter,
             KeyCode::R,
             KeyCode::N,
-            KeyCode::M,
+            KeyCode::Tab,
             KeyCode::Z,
+            KeyCode::W,
             KeyCode::Y,
-            KeyCode::LeftControl,
-            KeyCode::RightControl,
+            KeyCode::M,
+            KeyCode::Semicolon,
         ]);
 
         if input.is_key_pressed(KeyCode::Escape) {
@@ -87,10 +82,6 @@ async fn main() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Input handlers
-// ---------------------------------------------------------------------------
-
 fn handle_start_input(game: &mut Game, ctx: &GameContext, input: &Input) {
     if input.is_key_pressed(KeyCode::N) {
         let seed = random_seed();
@@ -101,14 +92,36 @@ fn handle_start_input(game: &mut Game, ctx: &GameContext, input: &Input) {
     }
 }
 
+fn render_drop_target(ctx: &GameContext, game: &Game, input: &Input) {
+    if !game.drag.is_dragging() {
+        return;
+    }
+    let Some(target) = game.zone_at(input.mouse_pos, ctx) else {
+        return;
+    };
+    let rect = match target {
+        Zone::FreeCell(i) => layout::free_cell_rect(i, ctx),
+        Zone::Foundation(i) => layout::foundation_rect(i, ctx),
+        Zone::Column(i) => {
+            // Highlight the whole column, not just the top card.
+            layout::column_bounds(i, ctx)
+        }
+    };
+    let valid = game.can_drop_at(target);
+    let color = if valid {
+        Color::new(0.30, 0.90, 0.45, 0.65)
+    } else {
+        Color::new(0.95, 0.30, 0.35, 0.55)
+    };
+    draw_rectangle_lines(rect.x - 2.0, rect.y - 2.0, rect.w + 4.0, rect.h + 4.0, 3.0, color);
+}
+
 fn handle_playing_input(game: &mut Game, ctx: &GameContext, input: &Input) {
-    let ctrl = input.is_key_down(KeyCode::LeftControl)
-        || input.is_key_down(KeyCode::RightControl);
-    if ctrl && input.is_key_pressed(KeyCode::Z) {
+    if input.is_key_pressed(KeyCode::Z) || input.is_key_pressed(KeyCode::W) {
         game.undo();
         return;
     }
-    if ctrl && input.is_key_pressed(KeyCode::Y) {
+    if input.is_key_pressed(KeyCode::Y) {
         game.redo();
         return;
     }
@@ -122,11 +135,17 @@ fn handle_playing_input(game: &mut Game, ctx: &GameContext, input: &Input) {
         game.start_game(game.seed, ctx);
         return;
     }
-    if input.is_key_pressed(KeyCode::M) {
+
+    if input.is_key_pressed(KeyCode::Tab) {
         game.state = GameState::Start;
+        game.hint = None;
         return;
     }
 
+    if game.hint_btn.update(input) == ButtonEvent::Clicked {
+        game.hint = game.find_hint();
+        return;
+    }
     if game.restart_btn.update(input) == ButtonEvent::Clicked {
         game.start_game(game.seed, ctx);
         return;
@@ -138,10 +157,10 @@ fn handle_playing_input(game: &mut Game, ctx: &GameContext, input: &Input) {
     }
     if game.menu_btn.update(input) == ButtonEvent::Clicked {
         game.state = GameState::Start;
+        game.hint = None;
         return;
     }
 
-    // Drag-and-drop.
     if input.mouse_left_pressed {
         game.start_drag(input.mouse_pos, ctx);
     }
@@ -151,8 +170,6 @@ fn handle_playing_input(game: &mut Game, ctx: &GameContext, input: &Input) {
     if input.mouse_left_released {
         game.end_drag(input.mouse_pos, ctx);
     }
-    // Safety: if the mouse is not down but we're still dragging (mouse
-    // left the window, focus lost, etc.), cancel.
     if !input.mouse_left_down && game.drag.is_dragging() {
         game.cancel_drag();
     }
@@ -168,8 +185,12 @@ fn handle_win_input(game: &mut Game, ctx: &GameContext, input: &Input) {
         game.start_game(seed, ctx);
         return;
     }
-    if input.is_key_pressed(KeyCode::M) {
+    if input.is_key_pressed(KeyCode::Tab)
+        || input.is_key_pressed(KeyCode::M)
+        || input.is_key_pressed(KeyCode::Semicolon)
+    {
         game.state = GameState::Start;
+        game.hint = None;
     }
 }
 
@@ -180,10 +201,6 @@ fn random_seed() -> u32 {
         .map(|d| d.as_nanos() as u32)
         .unwrap_or(1)
 }
-
-// ---------------------------------------------------------------------------
-// Start screen
-// ---------------------------------------------------------------------------
 
 fn render_start(ctx: &GameContext, game: &Game) {
     let cx = ctx.window_w * 0.5;
@@ -216,7 +233,7 @@ fn render_start(ctx: &GameContext, game: &Game) {
         .draw();
 
     Label::new(
-        "Drag cards to move them. Ctrl+Z / Ctrl+Y for undo / redo.",
+        "Drag cards to move them. Z / Y for undo / redo.",
         cx,
         520.0,
         18,
@@ -225,10 +242,6 @@ fn render_start(ctx: &GameContext, game: &Game) {
     .centered()
     .draw();
 }
-
-// ---------------------------------------------------------------------------
-// Game rendering
-// ---------------------------------------------------------------------------
 
 fn render_game(ctx: &GameContext, game: &Game, input: &Input) {
     render_header(ctx, game, input);
@@ -239,13 +252,13 @@ fn render_game(ctx: &GameContext, game: &Game, input: &Input) {
     for i in 0..4 {
         render_foundation(ctx, game, i);
     }
-
     for col in 0..8 {
         render_column(ctx, game, col);
     }
 
+    render_drop_target(ctx, game, input);
+    render_hint_overlay(ctx, game);
     render_drag_overlay(ctx, game, input);
-
     render_footer(ctx);
 }
 
@@ -254,11 +267,10 @@ fn render_header(ctx: &GameContext, game: &Game, input: &Input) {
 
     let cy = ctx.hud_h * 0.5 + 7.0;
 
-    // Seed.
+    // --- Colonne de gauche : seed + moves ---
     let seed_str = format!("Seed: {}", game.seed);
     Label::new(&seed_str, 12.0, cy, 20, ctx.color_text).draw();
 
-    // Moves, right after seed.
     let seed_dims = measure_text(&seed_str, None, 20, 1.0);
     Label::new(
         format!("Moves: {}", game.moves),
@@ -269,7 +281,7 @@ fn render_header(ctx: &GameContext, game: &Game, input: &Input) {
     )
     .draw();
 
-    // Time, right-aligned before the buttons.
+    // --- Timer : juste à gauche du bouton Hint ---
     let time_str = format!("Time: {}", TimerDisplay::format(game.elapsed));
     let time_color = if game.timer_running {
         ctx.color_text
@@ -277,10 +289,20 @@ fn render_header(ctx: &GameContext, game: &Game, input: &Input) {
         ctx.color_text_dim
     };
     let time_dims = measure_text(&time_str, None, 20, 1.0);
-    let time_x = ctx.window_w - 380.0 - time_dims.width;
+
+    // `Button::rect` est un tuple (x, y, w, h) dans ember-stdlib.
+    let (hint_x, _, _, _) = game.hint_btn.rect;
+    let time_x = (hint_x - time_dims.width - 20.0).max(0.0);
     Label::new(&time_str, time_x, cy, 20, time_color).draw();
 
-    // Buttons.
+    // --- Boutons (dessinés en dernier pour rester au-dessus) ---
+    game.hint_btn.draw(
+        input,
+        ctx.color_btn_idle,
+        ctx.color_btn_hover,
+        ctx.color_btn_pressed,
+        ctx.color_text,
+    );
     game.restart_btn.draw(
         input,
         ctx.color_btn_idle,
@@ -314,7 +336,7 @@ fn render_footer(ctx: &GameContext) {
     )
     .draw();
     Label::new(
-        "Drag cards · N new · R restart · M menu · Ctrl+Z undo · Ctrl+Y redo · Esc quit",
+        "Drag cards · Hint shows a move · N new · R restart · Tab menu · Z undo · Y redo · Esc quit",
         ctx.window_w * 0.5,
         ctx.window_h - ctx.footer_h * 0.5 + 5.0,
         14,
@@ -323,10 +345,6 @@ fn render_footer(ctx: &GameContext) {
     .centered()
     .draw();
 }
-
-// ---------------------------------------------------------------------------
-// Free cells and foundations
-// ---------------------------------------------------------------------------
 
 fn render_free_cell(ctx: &GameContext, game: &Game, i: usize) {
     let r = layout::free_cell_rect(i, ctx);
@@ -340,7 +358,31 @@ fn render_foundation(ctx: &GameContext, game: &Game, i: usize) {
     let r = layout::foundation_rect(i, ctx);
     match game.foundations[i].last() {
         Some(card) => draw_card(ctx, *card, r, false),
-        None => draw_empty_slot(ctx, r),
+        None => {
+            draw_empty_slot(ctx, r);
+
+            let suit = Suit::ALL[i];
+            let symbol = suit.symbol().to_string();
+
+            // Fond sombre → un noir à alpha 0.20 est invisible.
+            // On utilise une couleur claire pour les deux, et on monte
+            // l'alpha pour que le placeholder soit lisible.
+            let base = match suit.color() {
+                CardColor::Red => ctx.color_card_red,
+                CardColor::Black => Color::new(0.55, 0.60, 0.68, 1.0),
+            };
+            let color = Color::new(base.r, base.g, base.b, 0.45);
+
+            let font_size = (r.w * 0.55) as u16;
+            let dims = measure_text(&symbol, None, font_size, 1.0);
+
+            // `draw_text` prend une baseline, pas un top. Pour centrer
+            // verticalement, on part du centre du rect et on rajoute
+            // ~35 % de la hauteur du glyphe (descente + centrage optique).
+            let x = r.x + (r.w - dims.width) * 0.5;
+            let y = r.y + r.h * 0.5 + dims.height * 0.35;
+            draw_text(&symbol, x, y, font_size as f32, color);
+        }
     }
 }
 
@@ -348,10 +390,6 @@ fn draw_empty_slot(ctx: &GameContext, r: Rect) {
     draw_rectangle(r.x, r.y, r.w, r.h, ctx.color_slot_empty);
     draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, ctx.color_slot_border);
 }
-
-// ---------------------------------------------------------------------------
-// Columns
-// ---------------------------------------------------------------------------
 
 fn render_column(ctx: &GameContext, game: &Game, col: usize) {
     let len = game.columns[col].len();
@@ -371,10 +409,6 @@ fn render_column(ctx: &GameContext, game: &Game, col: usize) {
     }
 }
 
-/// True if the given card is part of the current drag stack.
-///
-/// Uses `start_index` and `cards.len()` to identify the exact range of
-/// dragged indices in the origin column.
 fn is_being_dragged(game: &Game, col: usize, card_index: usize) -> bool {
     if let DragState::Dragging {
         origin,
@@ -389,10 +423,6 @@ fn is_being_dragged(game: &Game, col: usize, card_index: usize) -> bool {
     }
     false
 }
-
-// ---------------------------------------------------------------------------
-// Card rendering
-// ---------------------------------------------------------------------------
 
 fn draw_card(ctx: &GameContext, card: Card, r: Rect, hovered: bool) {
     let bg = if hovered {
@@ -423,8 +453,59 @@ fn draw_card(ctx: &GameContext, card: Card, r: Rect, hovered: bool) {
 }
 
 // ---------------------------------------------------------------------------
-// Drag overlay
+// Hint overlay
 // ---------------------------------------------------------------------------
+
+fn render_hint_overlay(ctx: &GameContext, game: &Game) {
+    let Some(hint) = game.hint else {
+        return;
+    };
+
+    draw_hint_zone(ctx, game, hint.from);
+    draw_hint_zone(ctx, game, hint.to);
+
+    let from = card_display(&hint.card);
+    let destination = zone_display(hint.to);
+    let text = format!("Hint: {} → {}", from, destination);
+    Label::new(
+        &text,
+        ctx.window_w * 0.5,
+        ctx.hud_h + 28.0,
+        18,
+        ctx.color_accent,
+    )
+    .centered()
+    .draw();
+}
+
+fn draw_hint_zone(ctx: &GameContext, game: &Game, zone: Zone) {
+    let r = match zone {
+        Zone::FreeCell(i) => layout::free_cell_rect(i, ctx),
+        Zone::Foundation(i) => layout::foundation_rect(i, ctx),
+        Zone::Column(i) => {
+            if let Some(card_index) = game.columns[i].len().checked_sub(1) {
+                layout::card_rect_in_column(i, card_index, ctx)
+            } else {
+                let top = layout::column_top(i, ctx);
+                Rect::new(top.x, top.y, ctx.card_w, ctx.card_h)
+            }
+        }
+    };
+
+    draw_rectangle_lines(r.x, r.y, r.w, r.h, 4.0, ctx.color_accent);
+}
+
+fn card_display(card: &Card) -> String {
+    format!("{}{}", card.rank_label(), card.symbol())
+}
+
+fn zone_display(zone: Zone) -> String {
+    match zone {
+        Zone::Column(i) => format!("column {}", i + 1),
+        Zone::FreeCell(i) => format!("free cell {}", i + 1),
+        Zone::Foundation(i) => format!("foundation {}", i + 1),
+    }
+}
 
 fn render_drag_overlay(ctx: &GameContext, game: &Game, input: &Input) {
     let DragState::Dragging { cards, offset, .. } = &game.drag else {
@@ -442,10 +523,6 @@ fn render_drag_overlay(ctx: &GameContext, game: &Game, input: &Input) {
         draw_card(ctx, *card, r, false);
     }
 }
-
-// ---------------------------------------------------------------------------
-// Win banner
-// ---------------------------------------------------------------------------
 
 fn render_win_banner(ctx: &GameContext, game: &Game) {
     let line1 = format!("SOLVED in {}", TimerDisplay::format(game.elapsed));
@@ -485,7 +562,7 @@ fn render_win_banner(ctx: &GameContext, game: &Game) {
     }
 
     Label::new(
-        "R / Space: play again · N: new seed · M: menu",
+        "R / Space: play again · N: new seed · Tab: menu",
         cx,
         box_y + box_h + 30.0,
         16,

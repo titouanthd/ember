@@ -60,9 +60,17 @@ pub enum PlayPhase {
     /// Playing back the sequence. `index` is the element currently lit
     /// (or about to be shown). `lit_timer` counts down the current element's
     /// "on" phase; when it hits 0, we move to a gap and then to the next.
-    Showing { index: usize, lit_timer: f32, gap_timer: f32 },
+    Showing {
+        index: usize,
+        lit_timer: f32,
+        gap_timer: f32,
+    },
     /// Sequence fully shown, waiting for the player's first input.
-    Waiting { expected_index: usize, lit_index: Option<usize>, lit_timer: f32 },
+    Waiting {
+        expected_index: usize,
+        lit_index: Option<usize>,
+        lit_timer: f32,
+    },
 }
 
 impl PlayPhase {
@@ -89,7 +97,9 @@ impl GameWorld {
     pub fn new(seed: u32, best: u32) -> Self {
         Self {
             sequence: Sequence::new(),
-            phase: PlayPhase::PreRound { timer: PRE_ROUND_DELAY_SECS },
+            phase: PlayPhase::PreRound {
+                timer: PRE_ROUND_DELAY_SECS,
+            },
             rng: Rng::new(seed),
             score: 0,
             best,
@@ -103,27 +113,37 @@ impl GameWorld {
         self.sequence.extend_random(&mut self.rng);
         self.score = 0;
         self.elapsed = 0.0;
-        self.phase = PlayPhase::PreRound { timer: PRE_ROUND_DELAY_SECS };
+        self.phase = PlayPhase::PreRound {
+            timer: PRE_ROUND_DELAY_SECS,
+        };
     }
 
     /// Begin the next round: extend the sequence and start playback.
     pub fn next_round(&mut self) {
         self.sequence.extend_random(&mut self.rng);
-        self.phase = PlayPhase::PreRound { timer: PRE_ROUND_DELAY_SECS };
+        self.phase = PlayPhase::PreRound {
+            timer: PRE_ROUND_DELAY_SECS,
+        };
     }
 
     /// Which button is currently lit, if any.
     pub fn lit_color(&self) -> Option<SimonColor> {
         match &self.phase {
             PlayPhase::PreRound { .. } => None,
-            PlayPhase::Showing { index, lit_timer, .. } => {
+            PlayPhase::Showing {
+                index, lit_timer, ..
+            } => {
                 if *lit_timer > 0.0 {
                     self.sequence.get(*index)
                 } else {
                     None
                 }
             }
-            PlayPhase::Waiting { lit_index, lit_timer, .. } => {
+            PlayPhase::Waiting {
+                lit_index,
+                lit_timer,
+                ..
+            } => {
                 if *lit_timer > 0.0 {
                     lit_index.and_then(SimonColor::from_index)
                 } else {
@@ -180,7 +200,11 @@ pub fn tick_playback(world: &mut GameWorld, dt: f32) -> bool {
                     remaining = 0.0;
                 }
             }
-            PlayPhase::Showing { index, lit_timer, gap_timer } => {
+            PlayPhase::Showing {
+                index,
+                lit_timer,
+                gap_timer,
+            } => {
                 if lit_timer > 0.0 {
                     let next = lit_timer - remaining;
                     if next <= 0.0 {
@@ -228,7 +252,11 @@ pub fn tick_playback(world: &mut GameWorld, dt: f32) -> bool {
                     }
                 }
             }
-            PlayPhase::Waiting { expected_index, lit_index, lit_timer } => {
+            PlayPhase::Waiting {
+                expected_index,
+                lit_index,
+                lit_timer,
+            } => {
                 let next = lit_timer - remaining;
                 if next <= 0.0 {
                     remaining = 0.0;
@@ -468,8 +496,14 @@ mod tests {
             lit_index: None,
             lit_timer: 0.0,
         };
-        assert_eq!(handle_click(&mut w, SimonColor::Green), ClickResult::Correct);
-        assert_eq!(handle_click(&mut w, SimonColor::Blue), ClickResult::RoundComplete);
+        assert_eq!(
+            handle_click(&mut w, SimonColor::Green),
+            ClickResult::Correct
+        );
+        assert_eq!(
+            handle_click(&mut w, SimonColor::Blue),
+            ClickResult::RoundComplete
+        );
         assert_eq!(w.score, 1);
     }
 

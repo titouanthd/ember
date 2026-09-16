@@ -1,9 +1,9 @@
 // games/pong/src/lib.rs
 pub mod components;
-pub mod systems;
 pub mod config;
+pub mod systems;
 
-pub use components::{Paddle, Ball};
-pub use ember_core::app::GameState;
+pub use components::{Ball, Paddle};
 pub use config::GameContext;
-pub use systems::{update, reset_game, MatchState};
+pub use ember_core::app::GameState;
+pub use systems::{MatchState, reset_game, update};

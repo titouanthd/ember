@@ -8,7 +8,7 @@
 //! border share the exact same vertices.
 
 use glam::Vec2;
-use macroquad::prelude::{draw_line, draw_triangle, Color};
+use macroquad::prelude::{Color, draw_line, draw_triangle};
 
 use crate::input::Input;
 

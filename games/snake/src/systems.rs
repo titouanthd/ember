@@ -23,8 +23,7 @@ pub fn load_level(index: usize) -> Result<SnakeLevel, String> {
     let path = manifest_dir.join(format!("levels/level{}.ron", index + 1));
     let content = std::fs::read_to_string(&path)
         .map_err(|e| format!("Lecture {:?} échouée : {}", path, e))?;
-    ron::de::from_str(&content)
-        .map_err(|e| format!("Désérialisation {:?} échouée : {}", path, e))
+    ron::de::from_str(&content).map_err(|e| format!("Désérialisation {:?} échouée : {}", path, e))
 }
 
 /// Convertit une direction textuelle en `Direction`.
@@ -80,19 +79,22 @@ impl Default for GameContext {
 }
 
 impl GameContext {
-    pub fn screen_w(&self) -> f32 { self.grid_cols as f32 * self.cell_size }
-    pub fn screen_h(&self) -> f32 { self.grid_rows as f32 * self.cell_size }
+    pub fn screen_w(&self) -> f32 {
+        self.grid_cols as f32 * self.cell_size
+    }
+    pub fn screen_h(&self) -> f32 {
+        self.grid_rows as f32 * self.cell_size
+    }
 
     pub fn is_inside(&self, c: Cell) -> bool {
-        c.x >= 0 && c.y >= 0
-            && (c.x as u32) < self.grid_cols
-            && (c.y as u32) < self.grid_rows
+        c.x >= 0 && c.y >= 0 && (c.x as u32) < self.grid_cols && (c.y as u32) < self.grid_rows
     }
 
     /// Durée du tick courant, en secondes, selon le score.
     pub fn current_tick_secs(&self, food_eaten: u32) -> f32 {
         let steps = food_eaten / self.food_per_speedup;
-        let ms = self.initial_tick_ms
+        let ms = self
+            .initial_tick_ms
             .saturating_sub(steps * self.tick_speedup_ms)
             .max(self.min_tick_ms);
         ms as f32 / 1000.0
@@ -168,12 +170,7 @@ impl SnakeWorld {
     /// Utile pour les tests (pas besoin de fabriquer un `SnakeLevel`),
     /// et pour tout appelant qui veut contrôler chaque élément.
     /// L'état résultant est `Start`, timer basé sur `ctx.initial_tick_ms`.
-    pub fn new(
-        snake: Snake,
-        food: Food,
-        walls: Vec<Wall>,
-        ctx: &GameContext,
-    ) -> Self {
+    pub fn new(snake: Snake, food: Food, walls: Vec<Wall>, ctx: &GameContext) -> Self {
         let tick_duration = ctx.initial_tick_ms as f32 / 1000.0;
         Self {
             snake,
@@ -241,7 +238,8 @@ impl SnakeWorld {
 
         self.walls.clear();
         for (x, y) in &level.walls {
-            self.walls.push(Wall::new(Cell::new(*x, *y), ctx.wall_color));
+            self.walls
+                .push(Wall::new(Cell::new(*x, *y), ctx.wall_color));
         }
 
         self.food = spawn_food_avoiding(&self.snake, &self.walls, ctx);
@@ -280,9 +278,8 @@ pub fn spawn_food(snake: &Snake, ctx: &GameContext) -> Food {
 pub fn spawn_food_avoiding(snake: &Snake, walls: &[Wall], ctx: &GameContext) -> Food {
     use macroquad::rand::gen_range;
 
-    let is_occupied = |c: Cell| -> bool {
-        snake.body.contains(&c) || walls.iter().any(|w| w.cell == c)
-    };
+    let is_occupied =
+        |c: Cell| -> bool { snake.body.contains(&c) || walls.iter().any(|w| w.cell == c) };
 
     for _ in 0..200 {
         let c = Cell::new(
@@ -452,7 +449,8 @@ mod tests {
     fn test_tick_self_collision() {
         let cx = ctx();
         let mut s = Snake::new(
-            Cell::new(5, 5), 1,
+            Cell::new(5, 5),
+            1,
             Direction::Left,
             Color::new(0.0, 1.0, 0.0, 1.0),
             Color::new(0.0, 0.5, 0.0, 1.0),
@@ -482,7 +480,8 @@ mod tests {
     fn test_spawn_food_not_on_snake() {
         let _cx = ctx();
         let s = Snake::new(
-            Cell::new(0, 0), 1,
+            Cell::new(0, 0),
+            1,
             Direction::Right,
             Color::new(0.0, 1.0, 0.0, 1.0),
             Color::new(0.0, 0.5, 0.0, 1.0),
@@ -520,7 +519,9 @@ mod tests {
             ..Default::default()
         };
         let s = Snake::new(
-            Cell::new(0, 0), 1, Direction::Right,
+            Cell::new(0, 0),
+            1,
+            Direction::Right,
             Color::new(0.0, 1.0, 0.0, 1.0),
             Color::new(0.0, 0.5, 0.0, 1.0),
         );

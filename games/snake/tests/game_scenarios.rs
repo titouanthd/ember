@@ -10,8 +10,8 @@
 //! désormais un `SnakeWorld`.
 
 use macroquad::prelude::Color;
-use snake::components::{Cell, Direction, Food, Snake, Wall};
 use snake::GameState;
+use snake::components::{Cell, Direction, Food, Snake, Wall};
 use snake::systems::{self, GameContext, SnakeState, SnakeWorld, TickEvent};
 
 /// Crée un contexte de test sur une petite grille.
@@ -144,7 +144,8 @@ fn test_hitting_internal_wall_kills_snake() {
 fn test_self_collision_kills_snake() {
     let ctx = test_ctx();
     let mut snake = Snake::new(
-        Cell::new(5, 5), 1,
+        Cell::new(5, 5),
+        1,
         Direction::Left,
         Color::new(0.0, 1.0, 0.0, 1.0),
         Color::new(0.0, 0.5, 0.0, 1.0),
@@ -176,7 +177,7 @@ fn test_death_sets_game_over_state() {
         food_at(0, 0),
         Vec::new(),
         &mut ctx,
-        10,   // tick très rapide
+        10, // tick très rapide
         10,
     );
 
@@ -262,7 +263,11 @@ fn test_multiple_ticks_in_one_frame() {
     // dt = 0.25 → 2 ticks consommés.
     systems::update(&mut world, &ctx, 0.25);
 
-    assert_eq!(world.snake.head(), Cell::new(7, 5), "deux ticks = deux cases");
+    assert_eq!(
+        world.snake.head(),
+        Cell::new(7, 5),
+        "deux ticks = deux cases"
+    );
 }
 
 // ============================================================================
@@ -303,8 +308,20 @@ fn test_spawn_food_never_on_snake_or_wall() {
 
     for _ in 0..50 {
         let f = systems::spawn_food_avoiding(&snake, &walls, &ctx);
-        assert!(!snake.body.contains(&f.cell), "nourriture sur serpent : {:?}", f.cell);
-        assert!(!walls.iter().any(|w| w.cell == f.cell), "nourriture sur mur : {:?}", f.cell);
-        assert!(ctx.is_inside(f.cell), "nourriture hors grille : {:?}", f.cell);
+        assert!(
+            !snake.body.contains(&f.cell),
+            "nourriture sur serpent : {:?}",
+            f.cell
+        );
+        assert!(
+            !walls.iter().any(|w| w.cell == f.cell),
+            "nourriture sur mur : {:?}",
+            f.cell
+        );
+        assert!(
+            ctx.is_inside(f.cell),
+            "nourriture hors grille : {:?}",
+            f.cell
+        );
     }
 }

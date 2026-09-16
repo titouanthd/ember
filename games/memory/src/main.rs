@@ -1,9 +1,9 @@
 //! Memory — terminal-themed pair matching game.
 
-use memory::components::{Card, CardState};
-use memory::config::{load_config, GameContext};
-use memory::systems::Game;
 use memory::GameState;
+use memory::components::{Card, CardState};
+use memory::config::{GameContext, load_config};
+use memory::systems::Game;
 
 use ember_stdlib::input::Input;
 use ember_stdlib::ui::button::ButtonEvent;
@@ -225,7 +225,13 @@ fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
         };
 
         draw_text(&line1, rect.0 + 20.0, rect.1 + 26.0, 24.0, ctx.color_text);
-        draw_text(&line2, rect.0 + 20.0, rect.1 + 46.0, 16.0, ctx.color_text_dim);
+        draw_text(
+            &line2,
+            rect.0 + 20.0,
+            rect.1 + 46.0,
+            16.0,
+            ctx.color_text_dim,
+        );
         let dims = measure_text(&line3, None, 16, 1.0);
         draw_text(
             &line3,
@@ -376,10 +382,7 @@ fn draw_card(ctx: &GameContext, card: &Card, r: Rect, hovered: bool, error: bool
     let (text, color) = match card.state {
         CardState::Hidden => ("?".to_string(), ctx.color_hidden_symbol),
         CardState::Flipped => (card.symbol.as_char().to_string(), ctx.color_symbol),
-        CardState::Matched => (
-            card.symbol.as_char().to_string(),
-            ctx.color_matched_border,
-        ),
+        CardState::Matched => (card.symbol.as_char().to_string(), ctx.color_matched_border),
     };
 
     let font_size = (r.w * 0.55).clamp(16.0, 48.0) as u16;
@@ -413,14 +416,7 @@ fn render_win_banner(ctx: &GameContext, game: &Game) {
     let box_y = cy - box_h * 0.5;
 
     draw_rectangle(box_x, box_y, box_w, box_h, Color::new(0.0, 0.0, 0.0, 0.85));
-    draw_rectangle_lines(
-        box_x,
-        box_y,
-        box_w,
-        box_h,
-        2.0,
-        ctx.color_matched_border,
-    );
+    draw_rectangle_lines(box_x, box_y, box_w, box_h, 2.0, ctx.color_matched_border);
 
     draw_text(
         &line1,

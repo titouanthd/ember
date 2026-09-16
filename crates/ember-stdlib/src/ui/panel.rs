@@ -1,6 +1,6 @@
 //! Rectangular container with a background and optional border.
 
-use macroquad::prelude::{draw_rectangle, draw_rectangle_lines, Color};
+use macroquad::prelude::{Color, draw_rectangle, draw_rectangle_lines};
 
 #[derive(Debug, Clone)]
 pub struct Panel {
@@ -14,7 +14,14 @@ pub struct Panel {
 
 impl Panel {
     pub fn new(x: f32, y: f32, w: f32, h: f32, bg: Color) -> Self {
-        Self { x, y, w, h, bg, border: None }
+        Self {
+            x,
+            y,
+            w,
+            h,
+            bg,
+            border: None,
+        }
     }
 
     pub fn with_border(mut self, color: Color) -> Self {

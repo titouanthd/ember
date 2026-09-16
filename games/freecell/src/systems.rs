@@ -27,6 +27,16 @@ pub struct GameSnapshot {
     pub moves: u32,
 }
 
+/// A visual hint for the player.
+///
+/// A hint describes a legal move but never executes it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Hint {
+    pub from: Zone,
+    pub to: Zone,
+    pub card: Card,
+}
+
 /// Top-level state for one FreeCell session.
 ///
 /// **Column representation (canonical)**:
@@ -69,7 +79,10 @@ pub struct Game {
     pub best_handle: BestTimes,
     pub was_new_best: bool,
 
+    pub hint: Option<Hint>,
+
     pub start_btn: ember_stdlib::ui::button::Button,
+    pub hint_btn: ember_stdlib::ui::button::Button,
     pub restart_btn: ember_stdlib::ui::button::Button,
     pub menu_btn: ember_stdlib::ui::button::Button,
     pub new_game_btn: ember_stdlib::ui::button::Button,
@@ -96,7 +109,15 @@ impl Game {
             best_times,
             best_handle,
             was_new_best: false,
+            hint: None,
             start_btn: ember_stdlib::ui::button::Button::new(0.0, 0.0, 200.0, 50.0, "START"),
+            hint_btn: ember_stdlib::ui::button::Button::new(
+                ctx.window_w - 480.0,
+                10.0,
+                100.0,
+                30.0,
+                "Hint",
+            ),
             restart_btn: ember_stdlib::ui::button::Button::new(
                 ctx.window_w - 360.0,
                 10.0,
@@ -145,6 +166,7 @@ impl Game {
         self.history.clear();
         self.future.clear();
         self.was_new_best = false;
+        self.hint = None;
         self.drag = DragState::Idle;
         self.state = GameState::Playing;
     }
@@ -166,6 +188,22 @@ impl Game {
         assert_eq!(i, 52);
     }
 
+    /// Check whether the currently dragged stack could be dropped on `target`.
+    ///
+    /// Used for the drag overlay's visual feedback. Does not mutate anything.
+    pub fn can_drop_at(&self, target: Zone) -> bool {
+        if let DragState::Dragging {
+            origin,
+            start_index,
+            cards,
+            ..
+        } = &self.drag
+        {
+            return self.validate_move(*origin, target, cards, *start_index);
+        }
+        false
+    }
+
     // ----------------------------------------------------------------
     // Rules
     // ----------------------------------------------------------------
@@ -176,9 +214,7 @@ impl Game {
         }
         match self.columns[col].last() {
             None => true,
-            Some(top) => {
-                top.rank.value() == card.rank.value() + 1 && top.color() != card.color()
-            }
+            Some(top) => top.rank.value() == card.rank.value() + 1 && top.color() != card.color(),
         }
     }
 
@@ -229,13 +265,7 @@ impl Game {
     // Moves
     // ----------------------------------------------------------------
 
-    pub fn try_drop(
-        &mut self,
-        from: Zone,
-        to: Zone,
-        cards: &[Card],
-        start_idx: usize,
-    ) -> bool {
+    pub fn try_drop(&mut self, from: Zone, to: Zone, cards: &[Card], start_idx: usize) -> bool {
         if cards.is_empty() || from == to {
             return false;
         }
@@ -250,6 +280,7 @@ impl Game {
         self.push_cards(to, cards);
 
         self.moves += 1;
+        self.hint = None;
         if !self.timer_running {
             self.timer_running = true;
         }
@@ -258,13 +289,7 @@ impl Game {
         true
     }
 
-    fn validate_move(
-        &self,
-        from: Zone,
-        to: Zone,
-        cards: &[Card],
-        start_idx: usize,
-    ) -> bool {
+    fn validate_move(&self, from: Zone, to: Zone, cards: &[Card], start_idx: usize) -> bool {
         // 1. Cards must be accessible (bottom-most run of the source).
         if !self.is_accessible(from, start_idx, cards.len()) {
             return false;
@@ -290,9 +315,7 @@ impl Game {
         let first = cards[0];
         match to {
             Zone::Column(col) => self.can_place_on_column(first, col),
-            Zone::Foundation(f) => {
-                cards.len() == 1 && self.can_place_on_foundation(first, f)
-            }
+            Zone::Foundation(f) => cards.len() == 1 && self.can_place_on_foundation(first, f),
             Zone::FreeCell(c) => cards.len() == 1 && self.can_place_in_cell(c),
         }
     }
@@ -371,6 +394,67 @@ impl Game {
     }
 
     // ----------------------------------------------------------------
+    // Hint
+    // ----------------------------------------------------------------
+
+    /// Finds one useful legal move without changing the game state.
+    /// The hint is only an indicator for the player; it is never executed.
+    pub fn find_hint(&self) -> Option<Hint> {
+        if self.state != GameState::Playing {
+            return None;
+        }
+
+        // 1. Prefer a move to a foundation.
+        for from in 0..8 {
+            let Some(card) = self.columns[from].last().copied() else {
+                continue;
+            };
+            let foundation = card.suit.index();
+            if self.can_place_on_foundation(card, foundation) {
+                return Some(Hint {
+                    from: Zone::Column(from),
+                    to: Zone::Foundation(foundation),
+                    card,
+                });
+            }
+        }
+
+        // 2. Then a move to another column.
+        for from in 0..8 {
+            let Some(card) = self.columns[from].last().copied() else {
+                continue;
+            };
+            for to in 0..8 {
+                if from != to && self.can_place_on_column(card, to) {
+                    return Some(Hint {
+                        from: Zone::Column(from),
+                        to: Zone::Column(to),
+                        card,
+                    });
+                }
+            }
+        }
+
+        // 3. Finally, suggest an empty free cell.
+        for from in 0..8 {
+            let Some(card) = self.columns[from].last().copied() else {
+                continue;
+            };
+            for cell in 0..4 {
+                if self.can_place_in_cell(cell) {
+                    return Some(Hint {
+                        from: Zone::Column(from),
+                        to: Zone::FreeCell(cell),
+                        card,
+                    });
+                }
+            }
+        }
+
+        None
+    }
+
+    // ----------------------------------------------------------------
     // Win / score
     // ----------------------------------------------------------------
 
@@ -413,6 +497,7 @@ impl Game {
         if let Some(prev) = self.history.pop() {
             self.future.push(self.snapshot());
             self.restore(prev);
+            self.hint = None;
             if self.state == GameState::Win {
                 self.state = GameState::Playing;
             }
@@ -426,6 +511,7 @@ impl Game {
         if let Some(next) = self.future.pop() {
             self.history.push(self.snapshot());
             self.restore(next);
+            self.hint = None;
             self.check_win();
             true
         } else {
@@ -519,9 +605,7 @@ impl Game {
                 let mut seq = vec![c[idx]];
                 for &below in c.iter().skip(idx + 1) {
                     let top = *seq.last().unwrap();
-                    if below.rank.value() + 1 == top.rank.value()
-                        && below.color() != top.color()
-                    {
+                    if below.rank.value() + 1 == top.rank.value() && below.color() != top.color() {
                         seq.push(below);
                     } else {
                         break;
@@ -951,10 +1035,10 @@ mod tests {
         let ok = g.try_drop(Zone::Column(0), Zone::Column(1), &cards, 2);
         assert!(ok);
         assert_eq!(g.columns[0].len(), 2);
-        assert_eq!(g.columns[0][0], Card::new(Suit::Spade, Rank(13)));   // K♠
-        assert_eq!(g.columns[0][1], Card::new(Suit::Heart, Rank(12)));   // Q♥
+        assert_eq!(g.columns[0][0], Card::new(Suit::Spade, Rank(13))); // K♠
+        assert_eq!(g.columns[0][1], Card::new(Suit::Heart, Rank(12))); // Q♥
         assert_eq!(g.columns[1].len(), 2);
-        assert_eq!(g.columns[1][0], Card::new(Suit::Club, Rank(11)));    // J♣
+        assert_eq!(g.columns[1][0], Card::new(Suit::Club, Rank(11))); // J♣
         assert_eq!(g.columns[1][1], Card::new(Suit::Diamond, Rank(10))); // T♦
     }
 
@@ -1196,9 +1280,9 @@ mod tests {
     fn test_drag_cards_stops_at_break() {
         let mut g = game_with_seed(1);
         g.columns[0].clear();
-        g.columns[0].push(Card::new(Suit::Spade, Rank(13)));  // K♠
-        g.columns[0].push(Card::new(Suit::Heart, Rank(12)));  // Q♥
-        g.columns[0].push(Card::new(Suit::Club, Rank(7)));    // 7♣
+        g.columns[0].push(Card::new(Suit::Spade, Rank(13))); // K♠
+        g.columns[0].push(Card::new(Suit::Heart, Rank(12))); // Q♥
+        g.columns[0].push(Card::new(Suit::Club, Rank(7))); // 7♣
         g.columns[0].push(Card::new(Suit::Diamond, Rank(6))); // 6♦
         let cards = g.drag_cards(Zone::Column(0), 0);
         assert_eq!(cards.len(), 2);
@@ -1356,8 +1440,8 @@ mod tests {
         let mut g = game_with_seed(1);
         g.columns[0].clear();
         g.columns[1].clear();
-        g.columns[0].push(Card::new(Suit::Spade, Rank(13)));  // K♠ top
-        g.columns[0].push(Card::new(Suit::Heart, Rank(12)));  // Q♥ bottom
+        g.columns[0].push(Card::new(Suit::Spade, Rank(13))); // K♠ top
+        g.columns[0].push(Card::new(Suit::Heart, Rank(12))); // Q♥ bottom
         let cards = g.drag_cards(Zone::Column(0), 0);
         assert_eq!(cards.len(), 2);
         let ok = g.try_drop(Zone::Column(0), Zone::Column(1), &cards, 0);
@@ -1366,5 +1450,31 @@ mod tests {
         assert_eq!(g.columns[1].len(), 2);
         assert_eq!(g.columns[1][0], Card::new(Suit::Spade, Rank(13))); // K♠ top
         assert_eq!(g.columns[1][1], Card::new(Suit::Heart, Rank(12))); // Q♥ bottom
+    }
+
+    // --- hint ---
+
+    #[test]
+    fn test_find_hint_returns_foundation_move_without_changing_state() {
+        let mut g = game_with_seed(1);
+        g.columns[0].clear();
+        let ace = Card::new(Suit::Heart, Rank::ACE);
+        g.columns[0].push(ace);
+        let before = g.snapshot();
+
+        let hint = g.find_hint().expect("expected foundation hint");
+
+        assert_eq!(hint.from, Zone::Column(0));
+        assert_eq!(hint.to, Zone::Foundation(Suit::Heart.index()));
+        assert_eq!(hint.card, ace);
+        assert_eq!(g.snapshot(), before);
+        assert_eq!(g.moves, 0);
+        assert!(!g.timer_running);
+    }
+
+    #[test]
+    fn test_find_hint_returns_none_when_not_playing() {
+        let g = Game::new();
+        assert_eq!(g.find_hint(), None);
     }
 }

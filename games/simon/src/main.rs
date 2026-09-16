@@ -2,13 +2,11 @@
 
 use std::path::PathBuf;
 
-use simon::components::{button_centers, SimonColor};
-use simon::config::{load_config, GameContext};
-use simon::persistence::{self, BestScore};
-use simon::systems::{
-    handle_click, tick_playback, ClickResult, GameWorld, PlayPhase,
-};
 use simon::GameState;
+use simon::components::{SimonColor, button_centers};
+use simon::config::{GameContext, load_config};
+use simon::persistence::{self, BestScore};
+use simon::systems::{ClickResult, GameWorld, PlayPhase, handle_click, tick_playback};
 
 use ember_stdlib::audio::AudioClip;
 use ember_stdlib::input::Input;
@@ -112,11 +110,7 @@ async fn main() {
     loop {
         let dt = get_frame_time().min(1.0 / 30.0);
 
-        let input = Input::from_macroquad_with_keys(&[
-            KeyCode::Space,
-            KeyCode::R,
-            KeyCode::Escape,
-        ]);
+        let input = Input::from_macroquad_with_keys(&[KeyCode::Space, KeyCode::R, KeyCode::Escape]);
 
         match app.state {
             GameState::Start => {
@@ -233,12 +227,7 @@ fn render_start(ctx: &GameContext, app: &App) {
     .draw();
 }
 
-fn render_playfield(
-    ctx: &GameContext,
-    app: &App,
-    buttons: &[CircleButton; 4],
-    input: &Input,
-) {
+fn render_playfield(ctx: &GameContext, app: &App, buttons: &[CircleButton; 4], input: &Input) {
     // Header
     Panel::new(0.0, 0.0, ctx.window_w, ctx.hud_h, ctx.color_header_bg).draw();
     Label::new(

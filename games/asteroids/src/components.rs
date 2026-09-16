@@ -162,7 +162,11 @@ mod tests {
 
     #[test]
     fn test_ship_nose_is_ahead() {
-        let mut ship = Ship::new(Vec2::new(100.0, 100.0), 10.0, Color::new(1.0, 1.0, 1.0, 1.0));
+        let mut ship = Ship::new(
+            Vec2::new(100.0, 100.0),
+            10.0,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+        );
         ship.transform.rotation = 0.0;
         let nose = ship.nose();
         assert!((nose.x - 110.0).abs() < 1e-5);
@@ -171,20 +175,39 @@ mod tests {
 
     #[test]
     fn test_bullet_is_alive() {
-        let b = Bullet::new(Vec2::ZERO, Vec2::new(100.0, 0.0), 3.0, 1.0, Color::new(1.0, 1.0, 1.0, 1.0));
+        let b = Bullet::new(
+            Vec2::ZERO,
+            Vec2::new(100.0, 0.0),
+            3.0,
+            1.0,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+        );
         assert!(b.is_alive());
     }
 
     #[test]
     fn test_bullet_dies_when_lifetime_zero() {
-        let mut b = Bullet::new(Vec2::ZERO, Vec2::new(100.0, 0.0), 3.0, 1.0, Color::new(1.0, 1.0, 1.0, 1.0));
+        let mut b = Bullet::new(
+            Vec2::ZERO,
+            Vec2::new(100.0, 0.0),
+            3.0,
+            1.0,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+        );
         b.lifetime = 0.0;
         assert!(!b.is_alive());
     }
 
     #[test]
     fn test_asteroid_radius() {
-        let a = Asteroid::new(Vec2::ZERO, Vec2::ZERO, 0.0, 3, 40.0, Color::new(1.0, 1.0, 1.0, 1.0));
+        let a = Asteroid::new(
+            Vec2::ZERO,
+            Vec2::ZERO,
+            0.0,
+            3,
+            40.0,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+        );
         assert_eq!(a.radius(), 40.0);
     }
 }

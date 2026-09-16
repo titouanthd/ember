@@ -7,9 +7,9 @@
 //! assertions were the previous source of fragility (they coupled the
 //! tests to the current reset / rebond implementation).
 
+use pong::GameState;
 use pong::components::{Ball, Paddle};
 use pong::systems::{self, GameContext, MatchState};
-use pong::GameState;
 
 /// Tolerance for f32 position comparisons. Positions in these tests are
 /// computed from a few additions/multiplications, so 1e-3 is plenty.
@@ -187,13 +187,7 @@ fn test_ball_collides_with_ai_paddle() {
     let mut match_state = MatchState::new(&ctx);
     match_state.state = GameState::Playing;
     // Balle qui chevauche déjà le paddle IA de 5 px, allant vers la droite
-    match_state.ball = Ball::new(
-        ai.rect().x + 5.0 - 20.0,
-        120.0,
-        20.0,
-        400.0,
-        ctx.ball_color,
-    );
+    match_state.ball = Ball::new(ai.rect().x + 5.0 - 20.0, 120.0, 20.0, 400.0, ctx.ball_color);
     match_state.ball.vx = 100.0;
     match_state.ball.vy = 0.0;
     let dt = 0.1;

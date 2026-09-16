@@ -153,7 +153,14 @@ mod tests {
 
     #[test]
     fn test_paddle_move_down_does_not_go_below_screen() {
-        let mut paddle = Paddle::new(0.0, 500.0, 10.0, 50.0, 100.0, Color::new(1.0, 1.0, 1.0, 1.0));
+        let mut paddle = Paddle::new(
+            0.0,
+            500.0,
+            10.0,
+            50.0,
+            100.0,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+        );
         let dt = 0.5;
         let screen_h = 600.0;
         paddle.move_down(dt, screen_h);

@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use glam::Vec2;
 
 use crate::components::{Board, BoardState, CellState};
-use crate::config::{load_config, GameContext};
-use crate::difficulties::{load_difficulties, DifficultyData};
+use crate::config::{GameContext, load_config};
+use crate::difficulties::{DifficultyData, load_difficulties};
 use crate::persistence::{self, BestTimes};
 use ember_core::app::GameState;
 use ember_core::rng::Rng;
@@ -71,13 +71,7 @@ impl Game {
             was_new_best: false,
             // Placeholder rect — immediately overwritten by update_menu_layout.
             start_btn: Button::new(0.0, 0.0, 200.0, 50.0, "START"),
-            restart_btn: Button::new(
-                ctx.window_w - 220.0,
-                10.0,
-                100.0,
-                30.0,
-                "Restart",
-            ),
+            restart_btn: Button::new(ctx.window_w - 220.0, 10.0, 100.0, 30.0, "Restart"),
             menu_btn: Button::new(ctx.window_w - 110.0, 10.0, 100.0, 30.0, "Menu"),
         };
         g.update_layout();
@@ -96,7 +90,8 @@ impl Game {
         self.timer_running = false;
         self.was_new_best = false;
         // Advance the RNG state so each game gets a different mine layout.
-        self.rng.set_state(self.rng.state().wrapping_add(0x9E37_79B9));
+        self.rng
+            .set_state(self.rng.state().wrapping_add(0x9E37_79B9));
         self.update_layout();
         self.state = GameState::Playing;
     }
@@ -141,10 +136,7 @@ impl Game {
 
     pub fn is_playable(&self) -> bool {
         self.state == GameState::Playing
-            && matches!(
-                self.board.state,
-                BoardState::Ready | BoardState::Playing
-            )
+            && matches!(self.board.state, BoardState::Ready | BoardState::Playing)
     }
 
     pub fn record_best_if_needed(&mut self) {
@@ -496,7 +488,7 @@ mod tests {
         assert_eq!(b.state, BoardState::Won);
     }
 
-        #[test]
+    #[test]
     fn test_flood_fill_reveals_frontier_but_stops() {
         // 5x5, mine at (0,0).
         // Flood from (4,4) reveals everything except the mine and its

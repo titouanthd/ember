@@ -1,7 +1,7 @@
 //! Clickable button widget.
 
 use glam::Vec2;
-use macroquad::prelude::{draw_rectangle, draw_rectangle_lines, draw_text, Color};
+use macroquad::prelude::{Color, draw_rectangle, draw_rectangle_lines, draw_text};
 
 use crate::input::Input;
 

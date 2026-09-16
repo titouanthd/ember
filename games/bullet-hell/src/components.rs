@@ -7,7 +7,7 @@ use ember_stdlib::collider::{Collider, Shape};
 use ember_stdlib::transform::Transform;
 
 use crate::config::GameContext;
-use crate::waves::{enemy_style, pos_vec, EnemyData};
+use crate::waves::{EnemyData, enemy_style, pos_vec};
 
 // ---------------------------------------------------------------------------
 // Player

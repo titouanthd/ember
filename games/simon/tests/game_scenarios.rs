@@ -6,8 +6,8 @@
 
 use simon::components::SimonColor;
 use simon::systems::{
-    handle_click, tick_playback, ClickResult, GameWorld, PlayPhase,
-    ELEMENT_GAP_SECS, ELEMENT_LIT_SECS, POST_SEQUENCE_PAUSE_SECS, PRE_ROUND_DELAY_SECS,
+    ClickResult, ELEMENT_GAP_SECS, ELEMENT_LIT_SECS, GameWorld, POST_SEQUENCE_PAUSE_SECS,
+    PRE_ROUND_DELAY_SECS, PlayPhase, handle_click, tick_playback,
 };
 
 /// Build a fresh `GameWorld` in a known state (Playing, sequence started).

@@ -13,9 +13,9 @@
 //! - 0 vies → GameOver + high score sauvegardé.
 //! - Invincibilité : pas de perte de vie pendant le délai.
 
+use asteroids::GameState;
 use asteroids::components::{Asteroid, Bullet, Ship};
 use asteroids::systems::{self, GameContext, GameWorld, ShipInput};
-use asteroids::GameState;
 use glam::Vec2;
 use macroquad::prelude::Color;
 
@@ -60,8 +60,7 @@ fn test_bullet_destroys_big_asteroid_and_splits_in_two() {
     )];
     let mut asteroids = vec![asteroid_at(Vec2::new(100.0, 100.0), 3)];
 
-    let destroyed =
-        systems::resolve_bullet_asteroid_collisions(&mut bullets, &mut asteroids, &cx);
+    let destroyed = systems::resolve_bullet_asteroid_collisions(&mut bullets, &mut asteroids, &cx);
     let score = destroyed as i32 * 10;
 
     assert_eq!(destroyed, 1, "un astéroïde taille 3 doit être détruit");
@@ -83,8 +82,7 @@ fn test_small_asteroid_destroyed_without_split() {
     )];
     let mut asteroids = vec![asteroid_at(Vec2::new(100.0, 100.0), 1)];
 
-    let destroyed =
-        systems::resolve_bullet_asteroid_collisions(&mut bullets, &mut asteroids, &cx);
+    let destroyed = systems::resolve_bullet_asteroid_collisions(&mut bullets, &mut asteroids, &cx);
 
     assert_eq!(destroyed, 1);
     assert_eq!(asteroids.len(), 0, "un taille 1 disparaît, pas de split");

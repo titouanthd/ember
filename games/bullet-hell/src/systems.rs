@@ -11,7 +11,7 @@ use ember_core::rng::Rng;
 
 use crate::components::{Bullet, Emitter, Enemy, EntryMotion, Particle, Player};
 use crate::config::GameContext;
-use crate::waves::{load_waves, WaveData};
+use crate::waves::{WaveData, load_waves};
 use macroquad::prelude::Color;
 
 /// Input snapshot for one frame. Decoupled from macroquad so tests can drive
@@ -246,8 +246,12 @@ pub fn update_bullets(world: &mut World, ctx: &GameContext, dt: f32) {
         p.x >= -margin && p.x <= w + margin && p.y >= -margin && p.y <= h + margin
     };
 
-    world.player_bullets.retain(|b| b.is_alive() && in_bounds(b.pos));
-    world.enemy_bullets.retain(|b| b.is_alive() && in_bounds(b.pos));
+    world
+        .player_bullets
+        .retain(|b| b.is_alive() && in_bounds(b.pos));
+    world
+        .enemy_bullets
+        .retain(|b| b.is_alive() && in_bounds(b.pos));
 }
 
 // ---------------------------------------------------------------------------
@@ -287,8 +291,8 @@ pub fn update_enemies(world: &mut World, ctx: &GameContext, dt: f32) {
                 base_y,
             } => {
                 e.center.y = base_y;
-                e.center.x = e.base_center.x
-                    + (e.age * frequency * std::f32::consts::TAU).sin() * amplitude;
+                e.center.x =
+                    e.base_center.x + (e.age * frequency * std::f32::consts::TAU).sin() * amplitude;
             }
         }
 
@@ -587,8 +591,18 @@ mod tests {
         w1.player.transform.position = start;
         w2.player.transform.position = start;
 
-        let normal = ShipInput { dx: 1.0, dy: 0.0, focus: false, fire: false };
-        let focused = ShipInput { dx: 1.0, dy: 0.0, focus: true, fire: false };
+        let normal = ShipInput {
+            dx: 1.0,
+            dy: 0.0,
+            focus: false,
+            fire: false,
+        };
+        let focused = ShipInput {
+            dx: 1.0,
+            dy: 0.0,
+            focus: true,
+            fire: false,
+        };
 
         update_player(&mut w1, normal, &ctx, 0.1);
         update_player(&mut w2, focused, &ctx, 0.1);
@@ -605,7 +619,12 @@ mod tests {
         let ctx = ctx();
         let mut w = play_world(&ctx);
         // Try to shove the player far outside.
-        let input = ShipInput { dx: -1.0, dy: 0.0, focus: false, fire: false };
+        let input = ShipInput {
+            dx: -1.0,
+            dy: 0.0,
+            focus: false,
+            fire: false,
+        };
         for _ in 0..1000 {
             update_player(&mut w, input, &ctx, 0.016);
         }
@@ -616,7 +635,12 @@ mod tests {
     fn test_fire_spawns_bullet() {
         let ctx = ctx();
         let mut w = play_world(&ctx);
-        let input = ShipInput { dx: 0.0, dy: 0.0, focus: false, fire: true };
+        let input = ShipInput {
+            dx: 0.0,
+            dy: 0.0,
+            focus: false,
+            fire: true,
+        };
         try_fire_player(&mut w, input, &ctx);
         assert_eq!(w.player_bullets.len(), 1);
     }
@@ -625,17 +649,27 @@ mod tests {
     fn test_fire_respects_cooldown() {
         let ctx = ctx();
         let mut w = play_world(&ctx);
-        let input = ShipInput { dx: 0.0, dy: 0.0, focus: false, fire: true };
+        let input = ShipInput {
+            dx: 0.0,
+            dy: 0.0,
+            focus: false,
+            fire: true,
+        };
         try_fire_player(&mut w, input, &ctx);
         try_fire_player(&mut w, input, &ctx);
-        assert_eq!(w.player_bullets.len(), 1, "cooldown should block second shot");
+        assert_eq!(
+            w.player_bullets.len(),
+            1,
+            "cooldown should block second shot"
+        );
     }
 
     #[test]
     fn test_bullet_ttl_culls() {
         let ctx = ctx();
         let mut w = play_world(&ctx);
-        w.player_bullets.push(Bullet::player(Vec2::ZERO, Vec2::ZERO, &ctx));
+        w.player_bullets
+            .push(Bullet::player(Vec2::ZERO, Vec2::ZERO, &ctx));
         w.player_bullets[0].ttl = 0.0;
         update_bullets(&mut w, &ctx, 0.016);
         assert!(w.player_bullets.is_empty());
@@ -645,11 +679,8 @@ mod tests {
     fn test_bullet_off_screen_culls() {
         let ctx = ctx();
         let mut w = play_world(&ctx);
-        w.player_bullets.push(Bullet::player(
-            Vec2::new(-1000.0, 0.0),
-            Vec2::ZERO,
-            &ctx,
-        ));
+        w.player_bullets
+            .push(Bullet::player(Vec2::new(-1000.0, 0.0), Vec2::ZERO, &ctx));
         update_bullets(&mut w, &ctx, 0.016);
         assert!(w.player_bullets.is_empty());
     }
@@ -685,8 +716,7 @@ mod tests {
         let ctx = ctx();
         let mut w = play_world(&ctx);
         let pp = w.player.transform.position;
-        w.enemy_bullets
-            .push(Bullet::enemy(pp, Vec2::ZERO, &ctx));
+        w.enemy_bullets.push(Bullet::enemy(pp, Vec2::ZERO, &ctx));
         resolve_enemy_bullet_vs_player(&mut w, &ctx);
         assert_eq!(w.lives, 2);
     }
@@ -697,8 +727,7 @@ mod tests {
         let mut w = play_world(&ctx);
         w.player.invincible_until = w.now + 10.0;
         let pp = w.player.transform.position;
-        w.enemy_bullets
-            .push(Bullet::enemy(pp, Vec2::ZERO, &ctx));
+        w.enemy_bullets.push(Bullet::enemy(pp, Vec2::ZERO, &ctx));
         resolve_enemy_bullet_vs_player(&mut w, &ctx);
         assert_eq!(w.lives, 3);
     }
@@ -737,8 +766,7 @@ mod tests {
         let mut w = play_world(&ctx);
         w.lives = 1;
         let pp = w.player.transform.position;
-        w.enemy_bullets
-            .push(Bullet::enemy(pp, Vec2::ZERO, &ctx));
+        w.enemy_bullets.push(Bullet::enemy(pp, Vec2::ZERO, &ctx));
         resolve_enemy_bullet_vs_player(&mut w, &ctx);
         assert_eq!(w.state, GameState::GameOver);
         assert!(!w.player.alive);
@@ -753,10 +781,7 @@ mod tests {
         // Advance without any input — just checking transition.
         let input = ShipInput::default();
         update(&mut w, input, &ctx, 0.016);
-        assert!(matches!(
-            w.state,
-            GameState::LevelCleared | GameState::Win
-        ));
+        assert!(matches!(w.state, GameState::LevelCleared | GameState::Win));
     }
 
     #[test]

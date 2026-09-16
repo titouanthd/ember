@@ -38,7 +38,13 @@ pub fn draw_centered_shadowed(
 ) {
     let size = measure_text(text, None, font_size, 1.0);
     let x = center_x - size.width / 2.0;
-    draw_text(text, x + shadow_offset, y + shadow_offset, font_size as f32, shadow_color);
+    draw_text(
+        text,
+        x + shadow_offset,
+        y + shadow_offset,
+        font_size as f32,
+        shadow_color,
+    );
     draw_text(text, x, y, font_size as f32, color);
 }
 

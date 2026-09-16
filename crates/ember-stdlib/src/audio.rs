@@ -9,7 +9,7 @@
 
 use std::path::Path;
 
-use macroquad::audio::{load_sound, play_sound, PlaySoundParams, Sound};
+use macroquad::audio::{PlaySoundParams, Sound, load_sound, play_sound};
 
 /// A loaded sound. Cheap to play repeatedly.
 pub struct AudioClip {

@@ -1,7 +1,7 @@
 //! Simon persistence — typed handle to `best_score.ron`.
 
-use std::path::PathBuf;
 use ember_stdlib::persistence::Persistence;
+use std::path::PathBuf;
 
 /// Typed handle to Simon's best-score file.
 pub type BestScore = Persistence<u32>;

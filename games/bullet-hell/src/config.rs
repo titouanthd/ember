@@ -81,14 +81,8 @@ pub fn load_config() -> GameContext {
         color_player_focus: env_color("COLOR_PLAYER_FOCUS", Color::new(1.0, 1.0, 1.0, 1.0)),
         color_hitbox: env_color("COLOR_HITBOX", Color::new(1.0, 0.2, 0.4, 1.0)),
         color_hud: env_color("COLOR_HUD", Color::new(0.85, 0.9, 1.0, 1.0)),
-        color_bullet_player: env_color(
-            "COLOR_BULLET_PLAYER",
-            Color::new(1.0, 1.0, 0.4, 1.0),
-        ),
-        color_bullet_enemy: env_color(
-            "COLOR_BULLET_ENEMY",
-            Color::new(1.0, 0.35, 0.6, 1.0),
-        ),
+        color_bullet_player: env_color("COLOR_BULLET_PLAYER", Color::new(1.0, 1.0, 0.4, 1.0)),
+        color_bullet_enemy: env_color("COLOR_BULLET_ENEMY", Color::new(1.0, 0.35, 0.6, 1.0)),
         color_enemy: env_color("COLOR_ENEMY", Color::new(0.9, 0.3, 0.5, 1.0)),
     }
 }

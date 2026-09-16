@@ -1,23 +1,21 @@
 use breakout::components::Brick;
 
-use breakout::systems::{self, BreakoutWorld, GameContext};
 use breakout::GameState;
+use breakout::systems::{self, BreakoutWorld, GameContext};
 use macroquad::prelude::Color;
 
 #[test]
 fn test_brick_destroyed_on_ball_collision() {
     let ctx = GameContext::default();
 
-    let bricks = vec![
-        Brick::new(
-            ctx.screen_w / 2.0 - ctx.brick_width / 2.0,
-            100.0,
-            ctx.brick_width,
-            ctx.brick_height,
-            Color::new(1.0, 0.0, 0.0, 1.0),
-            1,
-        ),
-    ];
+    let bricks = vec![Brick::new(
+        ctx.screen_w / 2.0 - ctx.brick_width / 2.0,
+        100.0,
+        ctx.brick_width,
+        ctx.brick_height,
+        Color::new(1.0, 0.0, 0.0, 1.0),
+        1,
+    )];
 
     let mut world = BreakoutWorld::new(bricks, &ctx, 3);
     world.state = GameState::Playing;

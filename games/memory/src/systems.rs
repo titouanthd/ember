@@ -19,8 +19,8 @@ use crate::persistence::{self, BestTimes};
 /// 25 symbols — enough for Hard (32 pairs) with a bit of variety; Medium
 /// uses 18, Easy uses 8. Always the first N in order (deterministic).
 pub const SYMBOLS: &[char] = &[
-    '$', '§', '>', '{', '}', '[', ']', '(', ')', '*', '&', '#', '@', '%', '!', '?', '/', '\\',
-    '|', '~', '^', '=', '+', '-', '<',
+    '$', '§', '>', '{', '}', '[', ']', '(', ')', '*', '&', '#', '@', '%', '!', '?', '/', '\\', '|',
+    '~', '^', '=', '+', '-', '<',
 ];
 
 // ============================================================================
@@ -136,13 +136,7 @@ impl Game {
             board_origin: (0.0, 0.0),
             card_size: 0.0,
             start_btn: Button::new(0.0, 0.0, 200.0, 50.0, "START"),
-            restart_btn: Button::new(
-                ctx.window_w - 240.0,
-                10.0,
-                100.0,
-                30.0,
-                "Restart",
-            ),
+            restart_btn: Button::new(ctx.window_w - 240.0, 10.0, 100.0, 30.0, "Restart"),
             menu_btn: Button::new(ctx.window_w - 120.0, 10.0, 100.0, 30.0, "Menu"),
         };
         g.update_menu_layout(&ctx);
@@ -244,10 +238,7 @@ impl Game {
         for row in 0..rows {
             for col in 0..cols {
                 let r = self.card_rect(col, row, ctx);
-                if mouse.x >= r.x
-                    && mouse.x <= r.x + r.w
-                    && mouse.y >= r.y
-                    && mouse.y <= r.y + r.h
+                if mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h
                 {
                     return Some((col, row));
                 }
@@ -421,8 +412,7 @@ mod tests {
         assert_eq!(cards.len(), 16);
 
         // Count occurrences of each symbol.
-        let mut counts: std::collections::HashMap<char, usize> =
-            std::collections::HashMap::new();
+        let mut counts: std::collections::HashMap<char, usize> = std::collections::HashMap::new();
         for c in &cards {
             *counts.entry(c.symbol.as_char()).or_insert(0) += 1;
         }

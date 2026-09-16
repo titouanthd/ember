@@ -68,10 +68,7 @@ impl Aabb {
 
     /// Vrai si le point est strictement à l'intérieur (bords exclus).
     pub fn contains_strict(&self, point: Vec2) -> bool {
-        point.x > self.min.x
-            && point.x < self.max.x
-            && point.y > self.min.y
-            && point.y < self.max.y
+        point.x > self.min.x && point.x < self.max.x && point.y > self.min.y && point.y < self.max.y
     }
 
     /// Vrai si le point est à l'intérieur ou sur les bords.
@@ -174,7 +171,7 @@ mod tests {
     fn test_contains_strict_excludes_borders() {
         let a = Aabb::from_top_left_size(Vec2::ZERO, Vec2::new(10.0, 10.0));
         assert!(a.contains_strict(Vec2::new(5.0, 5.0)));
-        assert!(!a.contains_strict(Vec2::new(0.0, 5.0)));  // bord gauche
+        assert!(!a.contains_strict(Vec2::new(0.0, 5.0))); // bord gauche
         assert!(!a.contains_strict(Vec2::new(10.0, 5.0))); // bord droit
     }
 
@@ -200,7 +197,10 @@ mod tests {
     fn test_overlaps_touching_borders_is_true() {
         let a = Aabb::from_top_left_size(Vec2::ZERO, Vec2::new(10.0, 10.0));
         let b = Aabb::from_top_left_size(Vec2::new(10.0, 0.0), Vec2::new(10.0, 10.0));
-        assert!(a.overlaps(&b), "les bords qui se touchent comptent comme overlap");
+        assert!(
+            a.overlaps(&b),
+            "les bords qui se touchent comptent comme overlap"
+        );
     }
 
     #[test]

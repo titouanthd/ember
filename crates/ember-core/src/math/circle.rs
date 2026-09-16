@@ -83,8 +83,8 @@ mod tests {
     fn test_contains_strict() {
         let c = Circle::new(Vec2::ZERO, 5.0);
         assert!(c.contains_strict(Vec2::new(3.0, 0.0)));
-        assert!(!c.contains_strict(Vec2::new(5.0, 0.0)));   // sur le bord
-        assert!(!c.contains_strict(Vec2::new(6.0, 0.0)));   // dehors
+        assert!(!c.contains_strict(Vec2::new(5.0, 0.0))); // sur le bord
+        assert!(!c.contains_strict(Vec2::new(6.0, 0.0))); // dehors
     }
 
     #[test]
@@ -98,8 +98,8 @@ mod tests {
     #[test]
     fn test_circle_overlaps_circle() {
         let a = Circle::new(Vec2::ZERO, 5.0);
-        let b = Circle::new(Vec2::new(8.0, 0.0), 5.0);   // dist 8, somme 10
-        let c = Circle::new(Vec2::new(15.0, 0.0), 5.0);  // dist 15, somme 10
+        let b = Circle::new(Vec2::new(8.0, 0.0), 5.0); // dist 8, somme 10
+        let c = Circle::new(Vec2::new(15.0, 0.0), 5.0); // dist 15, somme 10
         assert!(a.overlaps(&b));
         assert!(!a.overlaps(&c));
     }

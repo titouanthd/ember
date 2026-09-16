@@ -136,7 +136,11 @@ pub fn load_level(level_index: usize, ctx: &GameContext) -> Vec<Brick> {
 
     match load_from_file::<Level>(&level_path) {
         Ok(level) => {
-            println!("✅ Niveau {} chargé depuis {:?}", level_index + 1, level_path);
+            println!(
+                "✅ Niveau {} chargé depuis {:?}",
+                level_index + 1,
+                level_path
+            );
             let mut bricks = Vec::new();
             for data in level.bricks {
                 let color = Color::new(data.color_r, data.color_g, data.color_b, data.color_a);
@@ -162,8 +166,8 @@ pub fn load_level(level_index: usize, ctx: &GameContext) -> Vec<Brick> {
 /// Procedurally generate a fallback level if the RON file is missing.
 pub fn generate_fallback_level(ctx: &GameContext) -> Vec<Brick> {
     let mut bricks = Vec::new();
-    let total_width = ctx.brick_cols as f32 * (ctx.brick_width + ctx.brick_padding)
-        - ctx.brick_padding;
+    let total_width =
+        ctx.brick_cols as f32 * (ctx.brick_width + ctx.brick_padding) - ctx.brick_padding;
     let start_x = (ctx.screen_w - total_width) / 2.0;
     let start_y = 60.0;
 
@@ -173,7 +177,14 @@ pub fn generate_fallback_level(ctx: &GameContext) -> Vec<Brick> {
             let y = start_y + row as f32 * (ctx.brick_height + ctx.brick_padding);
             let color = ctx.brick_colors[row % ctx.brick_colors.len()];
             let health = if row < 2 { 2 } else { 1 };
-            bricks.push(Brick::new(x, y, ctx.brick_width, ctx.brick_height, color, health));
+            bricks.push(Brick::new(
+                x,
+                y,
+                ctx.brick_width,
+                ctx.brick_height,
+                color,
+                health,
+            ));
         }
     }
     bricks
@@ -281,7 +292,9 @@ fn step_ball(
         // Normalized impact position in [-1, 1].
         let rel = ((ball_center_x - paddle_center_x) / half_w).clamp(-1.0, 1.0);
 
-        let speed = (ball.vx * ball.vx + ball.vy * ball.vy).sqrt().max(ctx.ball_speed);
+        let speed = (ball.vx * ball.vx + ball.vy * ball.vy)
+            .sqrt()
+            .max(ctx.ball_speed);
         let max_angle = std::f32::consts::FRAC_PI_3; // 60°
         let angle = rel * max_angle;
         ball.vx = speed * angle.sin();
@@ -375,8 +388,10 @@ mod tests {
         ball.vx = 300.0;
         ball.vy = 0.0;
         let mut brick = Brick::new(
-            400.0, 100.0,
-            cx.brick_width, cx.brick_height,
+            400.0,
+            100.0,
+            cx.brick_width,
+            cx.brick_height,
             Color::new(1.0, 1.0, 1.0, 1.0),
             1,
         );
@@ -396,8 +411,10 @@ mod tests {
         ball.vx = 0.0;
         ball.vy = 300.0;
         let mut brick = Brick::new(
-            400.0, 100.0,
-            cx.brick_width, cx.brick_height,
+            400.0,
+            100.0,
+            cx.brick_width,
+            cx.brick_height,
             Color::new(1.0, 1.0, 1.0, 1.0),
             1,
         );
@@ -410,8 +427,10 @@ mod tests {
     fn test_ball_does_not_tunnel_through_brick() {
         let cx = ctx();
         let bricks = vec![Brick::new(
-            400.0, 300.0,
-            cx.brick_width, cx.brick_height,
+            400.0,
+            300.0,
+            cx.brick_width,
+            cx.brick_height,
             Color::new(1.0, 1.0, 1.0, 1.0),
             1,
         )];
@@ -426,7 +445,10 @@ mod tests {
         world.ball.vy = 6000.0;
 
         let _ = update(&mut world, &cx, 1.0 / 60.0);
-        assert_eq!(world.score, 1, "la balle très rapide ne doit PAS traverser la brique");
+        assert_eq!(
+            world.score, 1,
+            "la balle très rapide ne doit PAS traverser la brique"
+        );
     }
 
     #[test]
@@ -435,8 +457,8 @@ mod tests {
         let brick_width = 200.0;
         let brick_height = 50.0;
         let mut brick = Brick::new(
-            500.0 - brick_width / 2.0,   // top-left = 400
-            300.0 - brick_height / 2.0,  // top-left = 275
+            500.0 - brick_width / 2.0,  // top-left = 400
+            300.0 - brick_height / 2.0, // top-left = 275
             brick_width,
             brick_height,
             Color::new(1.0, 1.0, 1.0, 1.0),
@@ -456,8 +478,8 @@ mod tests {
         //   La balle [405..425] ne touche pas [465..535] → pas de collision.
         //   Donc si le code utilisait ctx.brick_width, `hit` serait false.
         let mut ball = Ball::new(
-            405.0,  // top-left x → center = 415
-            290.0,  // top-left y → center = 300
+            405.0, // top-left x → center = 415
+            290.0, // top-left y → center = 300
             cx.ball_size,
             cx.ball_speed,
             Color::new(1.0, 1.0, 1.0, 1.0),
@@ -481,8 +503,10 @@ mod tests {
     fn test_world_new_starts_at_start_state() {
         let cx = ctx();
         let bricks = vec![Brick::new(
-            400.0, 100.0,
-            cx.brick_width, cx.brick_height,
+            400.0,
+            100.0,
+            cx.brick_width,
+            cx.brick_height,
             Color::new(1.0, 1.0, 1.0, 1.0),
             1,
         )];
@@ -498,8 +522,10 @@ mod tests {
     fn test_on_ball_lost_decrements_lives() {
         let cx = ctx();
         let bricks = vec![Brick::new(
-            400.0, 100.0,
-            cx.brick_width, cx.brick_height,
+            400.0,
+            100.0,
+            cx.brick_width,
+            cx.brick_height,
             Color::new(1.0, 1.0, 1.0, 1.0),
             1,
         )];
@@ -514,8 +540,10 @@ mod tests {
     fn test_on_ball_lost_at_zero_lives_triggers_game_over() {
         let cx = ctx();
         let bricks = vec![Brick::new(
-            400.0, 100.0,
-            cx.brick_width, cx.brick_height,
+            400.0,
+            100.0,
+            cx.brick_width,
+            cx.brick_height,
             Color::new(1.0, 1.0, 1.0, 1.0),
             1,
         )];
@@ -531,8 +559,10 @@ mod tests {
     fn test_start_new_game_resets_state() {
         let cx = ctx();
         let bricks = vec![Brick::new(
-            400.0, 100.0,
-            cx.brick_width, cx.brick_height,
+            400.0,
+            100.0,
+            cx.brick_width,
+            cx.brick_height,
             Color::new(1.0, 1.0, 1.0, 1.0),
             1,
         )];
@@ -550,8 +580,10 @@ mod tests {
     fn test_advance_level_increments() {
         let cx = ctx();
         let bricks = vec![Brick::new(
-            400.0, 100.0,
-            cx.brick_width, cx.brick_height,
+            400.0,
+            100.0,
+            cx.brick_width,
+            cx.brick_height,
             Color::new(1.0, 1.0, 1.0, 1.0),
             1,
         )];

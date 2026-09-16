@@ -1,7 +1,7 @@
 // games/pong/src/main.rs
-use macroquad::prelude::*;
-use pong::{config, systems, GameState, MatchState, Paddle};
 use ember_stdlib::graphics::text::draw_centered;
+use macroquad::prelude::*;
+use pong::{GameState, MatchState, Paddle, config, systems};
 
 #[macroquad::main("Pong - Powered by Ember")]
 async fn main() {
@@ -43,12 +43,7 @@ async fn main() {
             GameState::Start => {
                 if is_key_pressed(KeyCode::Space) {
                     match_state.state = GameState::Playing;
-                    systems::reset_game(
-                        &mut player_paddle,
-                        &mut ai_paddle,
-                        &mut match_state,
-                        &ctx,
-                    );
+                    systems::reset_game(&mut player_paddle, &mut ai_paddle, &mut match_state, &ctx);
                 }
             }
 
@@ -72,12 +67,7 @@ async fn main() {
             GameState::GameOver | GameState::Win => {
                 if is_key_pressed(KeyCode::R) {
                     match_state.state = GameState::Start;
-                    systems::reset_game(
-                        &mut player_paddle,
-                        &mut ai_paddle,
-                        &mut match_state,
-                        &ctx,
-                    );
+                    systems::reset_game(&mut player_paddle, &mut ai_paddle, &mut match_state, &ctx);
                 }
             }
 
@@ -99,26 +89,29 @@ async fn main() {
             let ball_rect = match_state.ball.rect();
 
             draw_rectangle(
-                player_rect.x, player_rect.y,
-                player_rect.w, player_rect.h,
+                player_rect.x,
+                player_rect.y,
+                player_rect.w,
+                player_rect.h,
                 player_paddle.sprite.color,
             );
             draw_rectangle(
-                ai_rect.x, ai_rect.y,
-                ai_rect.w, ai_rect.h,
+                ai_rect.x,
+                ai_rect.y,
+                ai_rect.w,
+                ai_rect.h,
                 ai_paddle.sprite.color,
             );
             draw_rectangle(
-                ball_rect.x, ball_rect.y,
-                ball_rect.w, ball_rect.h,
+                ball_rect.x,
+                ball_rect.y,
+                ball_rect.w,
+                ball_rect.h,
                 match_state.ball.sprite.color,
             );
         }
 
-        let score_text = format!(
-            "{}  |  {}",
-            match_state.score_player, match_state.score_ai
-        );
+        let score_text = format!("{}  |  {}", match_state.score_player, match_state.score_ai);
         draw_centered(&score_text, screen_w / 2.0, 60.0, 60, WHITE);
 
         match match_state.state {
@@ -128,7 +121,10 @@ async fn main() {
                 draw_centered("W/S or Arrow keys to move", screen_w / 2.0, 360.0, 30, GRAY);
                 draw_centered(
                     &format!("First to {} wins !", ctx.win_score),
-                    screen_w / 2.0, 420.0, 30, GRAY,
+                    screen_w / 2.0,
+                    420.0,
+                    30,
+                    GRAY,
                 );
             }
             GameState::GameOver => {

@@ -1,12 +1,12 @@
 // games/snake/src/main.rs
+use ember_stdlib::graphics::text::draw_centered;
 use macroquad::prelude::*;
 use snake::{
-    config,
-    components::{Cell, Direction},
-    systems::{self, SnakeWorld, TickEvent},
     GameState,
+    components::{Cell, Direction},
+    config,
+    systems::{self, SnakeWorld, TickEvent},
 };
-use ember_stdlib::graphics::text::draw_centered;
 use std::time::Instant;
 
 const MAX_LEVELS: usize = 3;
@@ -48,7 +48,13 @@ fn draw_walls(walls: &[snake::components::Wall], ctx: &systems::GameContext) {
     let pad = 1.0;
     for w in walls {
         let r = cell_rect(w.cell, ctx);
-        draw_rectangle(r.x + pad, r.y + pad, r.w - 2.0 * pad, r.h - 2.0 * pad, w.color);
+        draw_rectangle(
+            r.x + pad,
+            r.y + pad,
+            r.w - 2.0 * pad,
+            r.h - 2.0 * pad,
+            w.color,
+        );
     }
 }
 
@@ -56,15 +62,31 @@ fn draw_snake(snake: &snake::components::Snake, ctx: &systems::GameContext) {
     let pad = 2.0;
     for (i, cell) in snake.body.iter().enumerate() {
         let r = cell_rect(*cell, ctx);
-        let color = if i == 0 { snake.color_head } else { snake.color_body };
-        draw_rectangle(r.x + pad, r.y + pad, r.w - 2.0 * pad, r.h - 2.0 * pad, color);
+        let color = if i == 0 {
+            snake.color_head
+        } else {
+            snake.color_body
+        };
+        draw_rectangle(
+            r.x + pad,
+            r.y + pad,
+            r.w - 2.0 * pad,
+            r.h - 2.0 * pad,
+            color,
+        );
     }
 }
 
 fn draw_food(food: &snake::components::Food, ctx: &systems::GameContext) {
     let r = cell_rect(food.cell, ctx);
     let pad = 4.0;
-    draw_rectangle(r.x + pad, r.y + pad, r.w - 2.0 * pad, r.h - 2.0 * pad, food.color);
+    draw_rectangle(
+        r.x + pad,
+        r.y + pad,
+        r.w - 2.0 * pad,
+        r.h - 2.0 * pad,
+        food.color,
+    );
 }
 
 #[macroquad::main(window_conf)]
@@ -174,44 +196,88 @@ async fn main() {
 
         // --- HUD permanent ---
         draw_text(format!("Score: {}", world.score), 12.0, 24.0, 28.0, WHITE);
-        draw_text(format!("Best: {}", best), screen_w - 130.0, 24.0, 28.0, WHITE);
+        draw_text(
+            format!("Best: {}", best),
+            screen_w - 130.0,
+            24.0,
+            28.0,
+            WHITE,
+        );
         let speed_level = world.snake_state.food_eaten / ctx.food_per_speedup;
-        draw_text(format!("Speed: {}", speed_level + 1), screen_w - 130.0, 52.0, 24.0, GRAY);
+        draw_text(
+            format!("Speed: {}", speed_level + 1),
+            screen_w - 130.0,
+            52.0,
+            24.0,
+            GRAY,
+        );
         draw_text(
             format!(
                 "Level {}/{}  -  {}/{}",
-                current_level + 1, MAX_LEVELS,
-                world.snake_state.food_eaten, world.snake_state.target_score,
+                current_level + 1,
+                MAX_LEVELS,
+                world.snake_state.food_eaten,
+                world.snake_state.target_score,
             ),
-            screen_w / 2.0 - 120.0, 24.0, 24.0, WHITE,
+            screen_w / 2.0 - 120.0,
+            24.0,
+            24.0,
+            WHITE,
         );
 
         // --- Overlays d'état ---
         match world.state {
             GameState::Start => {
                 draw_centered("SNAKE", screen_w / 2.0, screen_h / 2.0 - 40.0, 80, GREEN);
-                draw_centered("Press SPACE to start", screen_w / 2.0, screen_h / 2.0 + 20.0, 30, WHITE);
-                draw_centered("Arrows / WASD to move", screen_w / 2.0, screen_h / 2.0 + 60.0, 24, GRAY);
+                draw_centered(
+                    "Press SPACE to start",
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 20.0,
+                    30,
+                    WHITE,
+                );
+                draw_centered(
+                    "Arrows / WASD to move",
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 60.0,
+                    24,
+                    GRAY,
+                );
                 draw_centered(
                     &format!("Level {} - {} walls", current_level + 1, world.walls.len()),
-                    screen_w / 2.0, screen_h / 2.0 + 100.0, 20, GRAY,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 100.0,
+                    20,
+                    GRAY,
                 );
             }
 
             GameState::LevelCleared => {
                 draw_centered("LEVEL CLEARED!", screen_w / 2.0, screen_h / 2.0, 60, GREEN);
-                draw_centered("Next level...", screen_w / 2.0, screen_h / 2.0 + 50.0, 30, WHITE);
+                draw_centered(
+                    "Next level...",
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 50.0,
+                    30,
+                    WHITE,
+                );
             }
 
             GameState::GameOver => {
                 draw_centered("GAME OVER", screen_w / 2.0, screen_h / 2.0, 70, RED);
                 draw_centered(
                     &format!("Score: {}  |  Best: {}", world.score, best),
-                    screen_w / 2.0, screen_h / 2.0 + 50.0, 32, WHITE,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 50.0,
+                    32,
+                    WHITE,
                 );
                 draw_centered(
                     "Press R to restart",
-                    screen_w / 2.0, screen_h / 2.0 + 100.0, 30, WHITE,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 100.0,
+                    30,
+                    WHITE,
                 );
             }
 
@@ -219,11 +285,17 @@ async fn main() {
                 draw_centered("YOU WIN!", screen_w / 2.0, screen_h / 2.0, 80, GREEN);
                 draw_centered(
                     &format!("Final Score: {}", world.score),
-                    screen_w / 2.0, screen_h / 2.0 + 60.0, 40, WHITE,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 60.0,
+                    40,
+                    WHITE,
                 );
                 draw_centered(
                     "Press R to restart",
-                    screen_w / 2.0, screen_h / 2.0 + 120.0, 30, WHITE,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 120.0,
+                    30,
+                    WHITE,
                 );
             }
 

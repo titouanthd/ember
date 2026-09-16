@@ -3,8 +3,8 @@
 //! The heavy lifting lives in [`ember_stdlib::persistence`]. This module
 //! names the type and the default file for Asteroids.
 
-use std::path::PathBuf;
 use ember_stdlib::persistence::Persistence;
+use std::path::PathBuf;
 
 /// Typed handle to Asteroids' high-score file.
 pub type HighScore = Persistence<i32>;

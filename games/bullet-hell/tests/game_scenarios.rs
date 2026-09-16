@@ -5,9 +5,9 @@
 //! `systems.rs` by exercising cross-system interactions (fire → hit →
 //! score → multiplier → wave advance) rather than single functions.
 
-use bullet_hell::config::load_config;
-use bullet_hell::systems::{reset, update, ShipInput, World};
 use bullet_hell::GameState;
+use bullet_hell::config::load_config;
+use bullet_hell::systems::{ShipInput, World, reset, update};
 use glam::Vec2;
 
 /// Build a world in `Playing` state with wave 0 spawned.
@@ -45,7 +45,10 @@ fn test_start_run_spawns_wave_1() {
 #[test]
 fn test_fire_input_creates_player_bullet() {
     let (mut world, ctx) = play_world();
-    let input = ShipInput { fire: true, ..Default::default() };
+    let input = ShipInput {
+        fire: true,
+        ..Default::default()
+    };
     update(&mut world, input, &ctx, 0.016);
     assert!(!world.player_bullets.is_empty());
 }
@@ -56,9 +59,13 @@ fn test_bullet_hits_enemy_and_damages() {
     // Move player bullet to enemy position next frame.
     let e_pos = world.enemies[0].center;
     let hp_before = world.enemies[0].hp;
-    world.player_bullets.push(bullet_hell::components::Bullet::player(
-        e_pos, Vec2::ZERO, &ctx,
-    ));
+    world
+        .player_bullets
+        .push(bullet_hell::components::Bullet::player(
+            e_pos,
+            Vec2::ZERO,
+            &ctx,
+        ));
     update(&mut world, ShipInput::default(), &ctx, 0.016);
     let hp_after = world.enemies.first().map(|e| e.hp).unwrap_or(0);
     assert!(hp_after < hp_before);
@@ -88,9 +95,9 @@ fn test_level_cleared_advances_to_next_wave() {
 fn test_player_hit_costs_life_and_grants_invincibility() {
     let (mut world, ctx) = play_world();
     let pp = world.player.transform.position;
-    world.enemy_bullets.push(bullet_hell::components::Bullet::enemy(
-        pp, Vec2::ZERO, &ctx,
-    ));
+    world
+        .enemy_bullets
+        .push(bullet_hell::components::Bullet::enemy(pp, Vec2::ZERO, &ctx));
     update(&mut world, ShipInput::default(), &ctx, 0.016);
     assert_eq!(world.lives, 2);
     assert!(world.player.is_invincible(world.now));
@@ -102,9 +109,9 @@ fn test_zero_lives_triggers_game_over() {
     let (mut world, ctx) = play_world();
     world.lives = 1;
     let pp = world.player.transform.position;
-    world.enemy_bullets.push(bullet_hell::components::Bullet::enemy(
-        pp, Vec2::ZERO, &ctx,
-    ));
+    world
+        .enemy_bullets
+        .push(bullet_hell::components::Bullet::enemy(pp, Vec2::ZERO, &ctx));
     update(&mut world, ShipInput::default(), &ctx, 0.016);
     assert_eq!(world.lives, 0);
     assert_eq!(world.state, GameState::GameOver);
@@ -125,9 +132,13 @@ fn test_graze_builds_multiplier_over_multiple_frames() {
     // Several frames of the bullet sitting there — but bullets move. Use
     // a stationary bullet (zero velocity) so it grazes every frame.
     for _ in 0..5 {
-        world.enemy_bullets.push(bullet_hell::components::Bullet::enemy(
-            pp + offset, Vec2::ZERO, &ctx,
-        ));
+        world
+            .enemy_bullets
+            .push(bullet_hell::components::Bullet::enemy(
+                pp + offset,
+                Vec2::ZERO,
+                &ctx,
+            ));
         update(&mut world, ShipInput::default(), &ctx, 0.016);
     }
     assert!(world.graze_count >= 1);
@@ -154,7 +165,12 @@ fn test_reset_clears_everything() {
 #[test]
 fn test_player_cannot_leave_playfield_via_full_loop() {
     let (mut world, ctx) = play_world();
-    let input = ShipInput { dx: -1.0, dy: 0.0, focus: false, fire: false };
+    let input = ShipInput {
+        dx: -1.0,
+        dy: 0.0,
+        focus: false,
+        fire: false,
+    };
     for _ in 0..500 {
         update(&mut world, input, &ctx, 0.016);
     }

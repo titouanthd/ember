@@ -117,9 +117,9 @@ impl Card {
 /// A zone on the board. Used for drag-and-drop and move validation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Zone {
-    Column(usize),      // 0..8
-    FreeCell(usize),    // 0..4
-    Foundation(usize),  // 0..4
+    Column(usize),     // 0..8
+    FreeCell(usize),   // 0..4
+    Foundation(usize), // 0..4
 }
 
 #[cfg(test)]

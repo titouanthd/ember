@@ -21,7 +21,12 @@ impl Paddle {
         let collider = Collider::new(Shape::Aabb {
             half_size: Vec2::new(width / 2.0, height / 2.0),
         });
-        Self { transform, sprite, collider, speed }
+        Self {
+            transform,
+            sprite,
+            collider,
+            speed,
+        }
     }
 
     /// Center of the paddle in world space.
@@ -63,17 +68,29 @@ impl Ball {
         let collider = Collider::new(Shape::Aabb {
             half_size: Vec2::new(size / 2.0, size / 2.0),
         });
-        Self { transform, sprite, collider, vx: speed, vy: -speed }
+        Self {
+            transform,
+            sprite,
+            collider,
+            vx: speed,
+            vy: -speed,
+        }
     }
 
-    pub fn size(&self) -> f32 { self.transform.scale.x }
+    pub fn size(&self) -> f32 {
+        self.transform.scale.x
+    }
 
     pub fn center(&self) -> Vec2 {
         self.transform.position + self.transform.scale / 2.0
     }
 
-    pub fn bounce_x(&mut self) { self.vx = -self.vx; }
-    pub fn bounce_y(&mut self) { self.vy = -self.vy; }
+    pub fn bounce_x(&mut self) {
+        self.vx = -self.vx;
+    }
+    pub fn bounce_y(&mut self) {
+        self.vy = -self.vy;
+    }
 
     pub fn update(&mut self, dt: f32) {
         self.transform.position.x += self.vx * dt;
@@ -98,7 +115,12 @@ impl Brick {
         let collider = Collider::new(Shape::Aabb {
             half_size: Vec2::new(width / 2.0, height / 2.0),
         });
-        Self { transform, sprite, collider, health }
+        Self {
+            transform,
+            sprite,
+            collider,
+            health,
+        }
     }
 
     pub fn center(&self) -> Vec2 {
@@ -124,7 +146,14 @@ mod tests {
 
     #[test]
     fn test_paddle_move_left_stays_within_bounds() {
-        let mut paddle = Paddle::new(50.0, 100.0, 80.0, 20.0, 200.0, Color::new(1.0, 1.0, 1.0, 1.0));
+        let mut paddle = Paddle::new(
+            50.0,
+            100.0,
+            80.0,
+            20.0,
+            200.0,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+        );
         paddle.move_left(0.5);
         assert_eq!(paddle.transform.position.x, 0.0);
     }
@@ -132,9 +161,19 @@ mod tests {
     #[test]
     fn test_paddle_move_right_stays_within_bounds() {
         let screen_w = 800.0;
-        let mut paddle = Paddle::new(750.0, 100.0, 80.0, 20.0, 200.0, Color::new(1.0, 1.0, 1.0, 1.0));
+        let mut paddle = Paddle::new(
+            750.0,
+            100.0,
+            80.0,
+            20.0,
+            200.0,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+        );
         paddle.move_right(0.5, screen_w);
-        assert_eq!(paddle.transform.position.x, screen_w - paddle.transform.scale.x);
+        assert_eq!(
+            paddle.transform.position.x,
+            screen_w - paddle.transform.scale.x
+        );
     }
 
     #[test]

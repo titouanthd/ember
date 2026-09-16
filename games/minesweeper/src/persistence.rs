@@ -16,11 +16,7 @@ pub fn default() -> BestTimes {
 
 /// Update the map with a new time for `name` if it beats the existing one.
 /// Returns `true` if the map was updated.
-pub fn update_if_better(
-    times: &mut HashMap<String, f32>,
-    name: &str,
-    secs: f32,
-) -> bool {
+pub fn update_if_better(times: &mut HashMap<String, f32>, name: &str, secs: f32) -> bool {
     match times.get_mut(name) {
         Some(current) => ember_stdlib::persistence::update_if_lower(current, secs),
         None => {

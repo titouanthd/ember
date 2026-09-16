@@ -34,18 +34,14 @@ impl Shape {
     pub fn as_aabb(&self) -> Aabb {
         match self {
             Shape::Aabb { half_size } => Aabb::from_center_half(Vec2::ZERO, *half_size),
-            Shape::Circle { radius } => {
-                Aabb::from_center_half(Vec2::ZERO, Vec2::splat(*radius))
-            }
+            Shape::Circle { radius } => Aabb::from_center_half(Vec2::ZERO, Vec2::splat(*radius)),
         }
     }
 
     /// Convertit la forme en `Circle` (approximation pour AABB).
     pub fn as_circle(&self) -> Circle {
         match self {
-            Shape::Aabb { half_size } => {
-                Circle::new(Vec2::ZERO, half_size.min_element())
-            }
+            Shape::Aabb { half_size } => Circle::new(Vec2::ZERO, half_size.min_element()),
             Shape::Circle { radius } => Circle::new(Vec2::ZERO, *radius),
         }
     }
@@ -61,7 +57,10 @@ pub struct Collider {
 impl Collider {
     /// Crée un nouveau collider actif.
     pub fn new(shape: Shape) -> Self {
-        Self { shape, active: true }
+        Self {
+            shape,
+            active: true,
+        }
     }
 
     /// Active ou désactive le collider.
@@ -86,12 +85,7 @@ pub struct Contact {
 /// Test booléen de collision entre deux colliders.
 ///
 /// `pos_a` et `pos_b` sont les **centres** des colliders.
-pub fn collides(
-    pos_a: Vec2,
-    collider_a: &Collider,
-    pos_b: Vec2,
-    collider_b: &Collider,
-) -> bool {
+pub fn collides(pos_a: Vec2, collider_a: &Collider, pos_b: Vec2, collider_b: &Collider) -> bool {
     collide_contact(pos_a, collider_a, pos_b, collider_b).is_some()
 }
 
@@ -117,8 +111,10 @@ pub fn collide_contact(
         }
         (Shape::Circle { radius: r_a }, Shape::Aabb { half_size: hs_b }) => {
             // On inverse : AABB vs Circle, puis on inverse la normale.
-            aabb_vs_circle_contact(pos_b, hs_b, pos_a, r_a)
-                .map(|c| Contact { normal: -c.normal, penetration: c.penetration })
+            aabb_vs_circle_contact(pos_b, hs_b, pos_a, r_a).map(|c| Contact {
+                normal: -c.normal,
+                penetration: c.penetration,
+            })
         }
         (Shape::Circle { radius: r_a }, Shape::Circle { radius: r_b }) => {
             circle_vs_circle_contact(pos_a, r_a, pos_b, r_b)
@@ -148,7 +144,10 @@ fn aabb_vs_aabb_contact(
         (center_a.y - center_b.y).signum()
     };
     let normal = axis * dir;
-    Some(Contact { normal, penetration: depth })
+    Some(Contact {
+        normal,
+        penetration: depth,
+    })
 }
 
 /// AABB vs Cercle : normale pointe du cercle vers l'AABB.
@@ -186,13 +185,19 @@ fn aabb_vs_circle_contact(
         } else {
             Vec2::new(0.0, 1.0)
         };
-        return Some(Contact { normal, penetration: circle_radius + min });
+        return Some(Contact {
+            normal,
+            penetration: circle_radius + min,
+        });
     }
 
     let dist = dist_sq.sqrt();
     let normal = diff / dist;
     let penetration = circle_radius - dist;
-    Some(Contact { normal, penetration })
+    Some(Contact {
+        normal,
+        penetration,
+    })
 }
 
 /// Cercle vs Cercle.
@@ -217,7 +222,10 @@ fn circle_vs_circle_contact(
         diff / dist
     };
     let penetration = radius_sum - dist;
-    Some(Contact { normal, penetration })
+    Some(Contact {
+        normal,
+        penetration,
+    })
 }
 
 // ============================================================================
@@ -254,22 +262,33 @@ pub fn swept_circle_vs_aabb(
             let sign = if pos.y < 0.0 { -1.0 } else { 1.0 };
             (Vec2::new(0.0, sign), dy)
         };
-        return Some(Contact { normal, penetration });
+        return Some(Contact {
+            normal,
+            penetration,
+        });
     }
 
-    let inv_vx = if vel.x.abs() > 1e-8 { 1.0 / vel.x } else { f32::INFINITY };
-    let inv_vy = if vel.y.abs() > 1e-8 { 1.0 / vel.y } else { f32::INFINITY };
+    let inv_vx = if vel.x.abs() > 1e-8 {
+        1.0 / vel.x
+    } else {
+        f32::INFINITY
+    };
+    let inv_vy = if vel.y.abs() > 1e-8 {
+        1.0 / vel.y
+    } else {
+        f32::INFINITY
+    };
 
     let tx1 = (-expanded.x - pos.x) * inv_vx;
-    let tx2 = ( expanded.x - pos.x) * inv_vx;
+    let tx2 = (expanded.x - pos.x) * inv_vx;
     let (tx_near, tx_far) = if tx1 < tx2 { (tx1, tx2) } else { (tx2, tx1) };
 
     let ty1 = (-expanded.y - pos.y) * inv_vy;
-    let ty2 = ( expanded.y - pos.y) * inv_vy;
+    let ty2 = (expanded.y - pos.y) * inv_vy;
     let (ty_near, ty_far) = if ty1 < ty2 { (ty1, ty2) } else { (ty2, ty1) };
 
     let t_near = tx_near.max(ty_near);
-    let t_far  = tx_far.min(ty_far);
+    let t_far = tx_far.min(ty_far);
 
     if t_near > t_far || t_far < 0.0 || t_near > max_t {
         return None;
@@ -282,7 +301,10 @@ pub fn swept_circle_vs_aabb(
         Vec2::new(0.0, if vel.y > 0.0 { -1.0 } else { 1.0 })
     };
 
-    Some(Contact { normal, penetration: t })
+    Some(Contact {
+        normal,
+        penetration: t,
+    })
 }
 
 /// Swept collision : cercle en mouvement vs OBB (rectangle tourné).
@@ -301,12 +323,9 @@ pub fn swept_circle_vs_obb(
     let (s, c) = obb_angle.sin_cos();
 
     let rel = circle_pos - obb_center;
-    let local_pos = Vec2::new(
-         rel.x * c + rel.y * s,
-        -rel.x * s + rel.y * c,
-    );
+    let local_pos = Vec2::new(rel.x * c + rel.y * s, -rel.x * s + rel.y * c);
     let local_vel = Vec2::new(
-         circle_vel.x * c + circle_vel.y * s,
+        circle_vel.x * c + circle_vel.y * s,
         -circle_vel.x * s + circle_vel.y * c,
     );
 
@@ -333,7 +352,9 @@ mod tests {
 
     // --- Helpers ---
     fn aabb_collider(w: f32, h: f32) -> Collider {
-        Collider::new(Shape::Aabb { half_size: Vec2::new(w / 2.0, h / 2.0) })
+        Collider::new(Shape::Aabb {
+            half_size: Vec2::new(w / 2.0, h / 2.0),
+        })
     }
     fn circle_collider(r: f32) -> Collider {
         Collider::new(Shape::Circle { radius: r })
@@ -429,7 +450,10 @@ mod tests {
             1.0,
         )
         .expect("should collide");
-        assert!((c.normal.y + 1.0).abs() < 1e-3, "normale doit pointer vers le haut");
+        assert!(
+            (c.normal.y + 1.0).abs() < 1e-3,
+            "normale doit pointer vers le haut"
+        );
     }
 
     #[test]

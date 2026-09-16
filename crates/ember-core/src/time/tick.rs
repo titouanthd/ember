@@ -119,7 +119,7 @@ mod tests {
     fn test_accumulation_across_calls() {
         let mut t = TickTimer::new(0.1);
         assert_eq!(t.advance(0.05), 0);
-        assert_eq!(t.advance(0.05), 1);   // 0.05 + 0.05 = 0.1 → 1 tick
+        assert_eq!(t.advance(0.05), 1); // 0.05 + 0.05 = 0.1 → 1 tick
     }
 
     #[test]
@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn test_progress_wraps_after_tick() {
         let mut t = TickTimer::new(0.1);
-        t.advance(0.15);   // 1 tick consommé, 0.05 restant
+        t.advance(0.15); // 1 tick consommé, 0.05 restant
         assert!((t.progress() - 0.5).abs() < 1e-5);
     }
 

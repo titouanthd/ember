@@ -27,7 +27,11 @@ impl<T: Clone> Grid<T> {
     /// match `width * height`.
     pub fn from_vec(width: usize, height: usize, cells: Vec<T>) -> Self {
         assert_eq!(cells.len(), width * height, "Grid size mismatch");
-        Self { width, height, cells }
+        Self {
+            width,
+            height,
+            cells,
+        }
     }
 }
 

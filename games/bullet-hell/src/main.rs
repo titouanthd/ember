@@ -1,8 +1,8 @@
 //! Window, input, render loop. All game logic lives in `systems.rs`.
 
-use bullet_hell::config::{load_config, GameContext};
-use bullet_hell::systems::{reset, update, ShipInput, World};
 use bullet_hell::GameState;
+use bullet_hell::config::{GameContext, load_config};
+use bullet_hell::systems::{ShipInput, World, reset, update};
 
 use glam::Vec2;
 use macroquad::prelude::*;
@@ -111,10 +111,7 @@ fn render_hud(world: &World, ctx: &GameContext) {
 
 fn render_playfield(world: &World, ctx: &GameContext) {
     // The ship is only drawn when actively playing or between waves.
-    let show_gameplay = matches!(
-        world.state,
-        GameState::Playing | GameState::LevelCleared
-    );
+    let show_gameplay = matches!(world.state, GameState::Playing | GameState::LevelCleared);
     if !show_gameplay {
         return;
     }
@@ -133,7 +130,11 @@ fn render_playfield(world: &World, ctx: &GameContext) {
     };
 
     // --- Bullets (bottom layer) ---
-    for b in world.player_bullets.iter().chain(world.enemy_bullets.iter()) {
+    for b in world
+        .player_bullets
+        .iter()
+        .chain(world.enemy_bullets.iter())
+    {
         let wp = offset(b.pos);
         draw_circle(wp.x, wp.y, b.radius, b.color);
         // Faint outer ring for readability on dark backgrounds.
@@ -273,7 +274,10 @@ fn render_overlays(world: &World, ctx: &GameContext) {
                 WHITE,
             );
             ember_stdlib::graphics::text::draw_centered(
-                &format!("GRAZED {}   ·   MAX x{:.1}", world.graze_count, world.multiplier),
+                &format!(
+                    "GRAZED {}   ·   MAX x{:.1}",
+                    world.graze_count, world.multiplier
+                ),
                 cx,
                 cy + 50.0,
                 16,
@@ -305,7 +309,10 @@ fn render_overlays(world: &World, ctx: &GameContext) {
                 WHITE,
             );
             ember_stdlib::graphics::text::draw_centered(
-                &format!("GRAZED {}   ·   MULTIPLIER x{:.1}", world.graze_count, world.multiplier),
+                &format!(
+                    "GRAZED {}   ·   MULTIPLIER x{:.1}",
+                    world.graze_count, world.multiplier
+                ),
                 cx,
                 cy + 50.0,
                 16,

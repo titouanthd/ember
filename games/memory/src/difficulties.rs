@@ -26,10 +26,10 @@ impl DifficultyData {
         // Total width  = cols * card + (cols - 1) * gap
         // Total height = rows * card + (rows - 1) * gap
         // Solve for card_size on both axes, take the min.
-        let by_w = (avail_w - (self.cols.saturating_sub(1) as f32) * ctx.card_gap)
-            / self.cols as f32;
-        let by_h = (avail_h - (self.rows.saturating_sub(1) as f32) * ctx.card_gap)
-            / self.rows as f32;
+        let by_w =
+            (avail_w - (self.cols.saturating_sub(1) as f32) * ctx.card_gap) / self.cols as f32;
+        let by_h =
+            (avail_h - (self.rows.saturating_sub(1) as f32) * ctx.card_gap) / self.rows as f32;
         by_w.min(by_h).clamp(20.0, 120.0)
     }
 

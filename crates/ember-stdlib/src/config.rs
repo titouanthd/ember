@@ -22,7 +22,10 @@ pub fn load_dotenv_from(manifest_dir: &Path, game_name: &str) {
         dotenvy::from_path(&env_path).ok();
         println!("✅ Fichier .env chargé pour {}", game_name);
     } else {
-        println!("⚠️  Aucun .env trouvé pour {}, valeurs par défaut", game_name);
+        println!(
+            "⚠️  Aucun .env trouvé pour {}, valeurs par défaut",
+            game_name
+        );
     }
 }
 

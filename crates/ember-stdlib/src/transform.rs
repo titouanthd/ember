@@ -11,7 +11,11 @@ pub struct Transform {
 impl Transform {
     /// Crée un nouveau transformé.
     pub fn new(position: Vec2, rotation: f32, scale: Vec2) -> Self {
-        Self { position, rotation, scale }
+        Self {
+            position,
+            rotation,
+            scale,
+        }
     }
 
     /// Transformé identité (position (0,0), rotation 0, échelle (1,1)).

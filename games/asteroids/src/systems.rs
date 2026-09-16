@@ -3,10 +3,10 @@
 
 use crate::components::{Asteroid, Bullet, Ship};
 use crate::persistence::{self, HighScore};
+use ember_core::app::GameState;
 use ember_stdlib::collider::collides;
 use glam::Vec2;
 use macroquad::prelude::Color;
-use ember_core::app::GameState;
 
 pub use crate::config::GameContext;
 
@@ -157,11 +157,7 @@ impl GameWorld {
     /// ship whose invincibility just expired **can** be hit on the same
     /// frame. This matches the previous inline logic in `main.rs` (and
     /// keeps tests honest).
-    pub fn step_ship_asteroid_collision(
-        &mut self,
-        ctx: &GameContext,
-        dt: f32,
-    ) -> bool {
+    pub fn step_ship_asteroid_collision(&mut self, ctx: &GameContext, dt: f32) -> bool {
         if self.invincible_until > 0.0 {
             self.invincible_until = (self.invincible_until - dt).max(0.0);
         }
@@ -204,10 +200,7 @@ pub struct ShipInput {
 
 /// Wrap une position dans [0, screen_w] × [0, screen_h].
 pub fn wrap_position(p: Vec2, w: f32, h: f32) -> Vec2 {
-    Vec2::new(
-        ((p.x % w) + w) % w,
-        ((p.y % h) + h) % h,
-    )
+    Vec2::new(((p.x % w) + w) % w, ((p.y % h) + h) % h)
 }
 
 fn random_angle() -> f32 {
@@ -226,12 +219,7 @@ pub fn asteroid_color_for_size(size: u8, base: Color) -> Color {
         2 => 0.85,
         _ => 0.7,
     };
-    Color::new(
-        base.r * factor,
-        base.g * factor,
-        base.b * factor,
-        base.a,
-    )
+    Color::new(base.r * factor, base.g * factor, base.b * factor, base.a)
 }
 
 // ============================================================================
@@ -256,11 +244,7 @@ pub fn update_ship(ship: &mut Ship, input: &ShipInput, ctx: &GameContext, dt: f3
     }
 
     ship.transform.position += ship.velocity * dt;
-    ship.transform.position = wrap_position(
-        ship.transform.position,
-        ctx.screen_w,
-        ctx.screen_h,
-    );
+    ship.transform.position = wrap_position(ship.transform.position, ctx.screen_w, ctx.screen_h);
 }
 
 // ============================================================================
@@ -270,22 +254,14 @@ pub fn update_ship(ship: &mut Ship, input: &ShipInput, ctx: &GameContext, dt: f3
 pub fn update_bullets(bullets: &mut Vec<Bullet>, ctx: &GameContext, dt: f32) {
     for b in bullets.iter_mut() {
         b.transform.position += b.velocity * dt;
-        b.transform.position = wrap_position(
-            b.transform.position,
-            ctx.screen_w,
-            ctx.screen_h,
-        );
+        b.transform.position = wrap_position(b.transform.position, ctx.screen_w, ctx.screen_h);
         b.lifetime -= dt;
     }
     bullets.retain(|b| b.is_alive());
 }
 
 /// Tire une balle depuis le vaisseau. Ne gère PAS le cooldown.
-pub fn try_shoot(
-    ship: &Ship,
-    bullets: &mut Vec<Bullet>,
-    ctx: &GameContext,
-) {
+pub fn try_shoot(ship: &Ship, bullets: &mut Vec<Bullet>, ctx: &GameContext) {
     let dir = ship.forward();
     let spawn = ship.nose();
     let velocity = dir * ctx.bullet_speed + ship.velocity * 0.5;
@@ -306,11 +282,7 @@ pub fn try_shoot(
 pub fn update_asteroids(asteroids: &mut [Asteroid], ctx: &GameContext, dt: f32) {
     for a in asteroids.iter_mut() {
         a.transform.position += a.velocity * dt;
-        a.transform.position = wrap_position(
-            a.transform.position,
-            ctx.screen_w,
-            ctx.screen_h,
-        );
+        a.transform.position = wrap_position(a.transform.position, ctx.screen_w, ctx.screen_h);
         a.transform.rotation += a.spin * dt;
     }
 }
@@ -328,11 +300,7 @@ pub fn asteroid_radius(size: u8) -> f32 {
 }
 
 /// Spawn `count` astéroïdes de taille 3 (grands) sur les bords de l'écran.
-pub fn spawn_asteroid_wave(
-    asteroids: &mut Vec<Asteroid>,
-    count: u32,
-    ctx: &GameContext,
-) {
+pub fn spawn_asteroid_wave(asteroids: &mut Vec<Asteroid>, count: u32, ctx: &GameContext) {
     use macroquad::rand::gen_range;
 
     for _ in 0..count {
@@ -425,10 +393,7 @@ pub fn resolve_bullet_asteroid_collisions(
 }
 
 /// Détecte les collisions vaisseau ↔ astéroïde.
-pub fn resolve_ship_asteroid_collision(
-    ship: &Ship,
-    asteroids: &[Asteroid],
-) -> bool {
+pub fn resolve_ship_asteroid_collision(ship: &Ship, asteroids: &[Asteroid]) -> bool {
     for a in asteroids {
         if collides(
             ship.transform.position,
@@ -485,7 +450,10 @@ mod tests {
     #[test]
     fn test_ship_rotate_left() {
         let mut ship = Ship::new(Vec2::ZERO, 10.0, color());
-        let input = ShipInput { rotate_left: true, ..Default::default() };
+        let input = ShipInput {
+            rotate_left: true,
+            ..Default::default()
+        };
         update_ship(&mut ship, &input, &ctx(), 0.1);
         assert!(ship.transform.rotation < 0.0);
     }
@@ -494,7 +462,10 @@ mod tests {
     fn test_ship_thrust_accelerates() {
         let mut ship = Ship::new(Vec2::ZERO, 10.0, color());
         ship.transform.rotation = 0.0;
-        let input = ShipInput { thrust: true, ..Default::default() };
+        let input = ShipInput {
+            thrust: true,
+            ..Default::default()
+        };
         update_ship(&mut ship, &input, &ctx(), 0.1);
         assert!(ship.velocity.x > 0.0);
     }
@@ -504,7 +475,10 @@ mod tests {
         let cx = ctx();
         let mut ship = Ship::new(Vec2::ZERO, 10.0, color());
         ship.velocity = Vec2::new(10_000.0, 0.0);
-        let input = ShipInput { thrust: true, ..Default::default() };
+        let input = ShipInput {
+            thrust: true,
+            ..Default::default()
+        };
         update_ship(&mut ship, &input, &cx, 0.1);
         assert!(ship.velocity.length() <= cx.ship_max_speed + 1e-3);
     }

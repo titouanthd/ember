@@ -8,11 +8,11 @@ use std::path::PathBuf;
 
 use ember_stdlib::persistence::Persistence;
 
+use memory::GameState;
 use memory::components::CardState;
 use memory::config::load_config;
 use memory::difficulties::DifficultyData;
 use memory::systems::{Game, SelectionPhase};
-use memory::GameState;
 
 /// Build a `Game` with a temp-file best-times handle, so integration tests
 /// don't touch the project's `best_times.ron`.

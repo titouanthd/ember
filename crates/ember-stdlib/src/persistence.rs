@@ -256,7 +256,8 @@ mod tests {
 
     #[test]
     fn test_in_manifest_dir_uses_provided_path() {
-        let p: Persistence<u32> = Persistence::in_manifest_dir(Path::new("/tmp/test_manifest"), "foo.ron");
+        let p: Persistence<u32> =
+            Persistence::in_manifest_dir(Path::new("/tmp/test_manifest"), "foo.ron");
         assert_eq!(p.path(), Path::new("/tmp/test_manifest/foo.ron"));
     }
 }

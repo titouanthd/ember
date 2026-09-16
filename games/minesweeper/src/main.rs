@@ -1,11 +1,11 @@
 //! Minesweeper — Session C: difficulties, menu, persistence.
 
-use minesweeper::components::{BoardState, Cell, CellState};
-use minesweeper::config::{load_config, GameContext};
-use minesweeper::difficulties::DifficultyData;
-use minesweeper::systems;
 use minesweeper::Game;
 use minesweeper::GameState;
+use minesweeper::components::{BoardState, Cell, CellState};
+use minesweeper::config::{GameContext, load_config};
+use minesweeper::difficulties::DifficultyData;
+use minesweeper::systems;
 
 use ember_stdlib::input::Input;
 use ember_stdlib::ui::button::ButtonEvent;
@@ -51,9 +51,7 @@ async fn main() {
         match game.state {
             GameState::Start => handle_menu_input(&mut game, &ctx, &input),
             GameState::Playing => handle_playing_input(&mut game, &ctx, &input, dt),
-            GameState::Win | GameState::GameOver => {
-                handle_end_input(&mut game, &ctx, &input)
-            }
+            GameState::Win | GameState::GameOver => handle_end_input(&mut game, &ctx, &input),
             _ => {}
         }
 
@@ -98,8 +96,7 @@ fn handle_menu_input(game: &mut Game, ctx: &GameContext, input: &Input) {
     }
 
     // Click start button — same instance as the one drawn in render_menu.
-    if game.start_btn.update(input) == ButtonEvent::Clicked
-        || input.is_key_pressed(KeyCode::Enter)
+    if game.start_btn.update(input) == ButtonEvent::Clicked || input.is_key_pressed(KeyCode::Enter)
     {
         game.start_game(ctx);
     }
@@ -216,15 +213,9 @@ fn difficulty_rects(ctx: &GameContext, game: &Game) -> Vec<Rect> {
 }
 
 fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
-    Label::new(
-        "MINESWEEPER",
-        ctx.window_w * 0.5,
-        100.0,
-        56,
-        ctx.color_text,
-    )
-    .centered()
-    .draw();
+    Label::new("MINESWEEPER", ctx.window_w * 0.5, 100.0, 56, ctx.color_text)
+        .centered()
+        .draw();
 
     let rects = difficulty_rects(ctx, game);
 

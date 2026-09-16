@@ -1,11 +1,11 @@
-use macroquad::prelude::*;
 use asteroids::{
-    config,
-    components::{Asteroid, Bullet, Ship},
-    systems::{self, GameContext, GameWorld, ShipInput},
     GameState,
+    components::{Asteroid, Bullet, Ship},
+    config,
+    systems::{self, GameContext, GameWorld, ShipInput},
 };
 use ember_stdlib::graphics::text::draw_centered;
+use macroquad::prelude::*;
 
 fn window_conf() -> Conf {
     let ctx = config::load_config();
@@ -212,52 +212,112 @@ async fn main() {
 
         match world.state {
             GameState::Start => {
-                draw_centered("ASTEROIDS", screen_w / 2.0, screen_h / 2.0 - 80.0, 90, ctx.ship_color);
-                draw_centered("Left / Right to rotate, Up to thrust", screen_w / 2.0, screen_h / 2.0 - 10.0, 24, ctx.ui_text_color);
-                draw_centered("SPACE to shoot", screen_w / 2.0, screen_h / 2.0 + 25.0, 24, ctx.ui_text_color);
+                draw_centered(
+                    "ASTEROIDS",
+                    screen_w / 2.0,
+                    screen_h / 2.0 - 80.0,
+                    90,
+                    ctx.ship_color,
+                );
+                draw_centered(
+                    "Left / Right to rotate, Up to thrust",
+                    screen_w / 2.0,
+                    screen_h / 2.0 - 10.0,
+                    24,
+                    ctx.ui_text_color,
+                );
+                draw_centered(
+                    "SPACE to shoot",
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 25.0,
+                    24,
+                    ctx.ui_text_color,
+                );
                 draw_centered(
                     &format!("Survive {} waves to win!", ctx.max_waves),
-                    screen_w / 2.0, screen_h / 2.0 + 75.0, 26, ctx.bullet_color,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 75.0,
+                    26,
+                    ctx.bullet_color,
                 );
-                draw_centered("Press SPACE to start", screen_w / 2.0, screen_h / 2.0 + 130.0, 28, WHITE);
+                draw_centered(
+                    "Press SPACE to start",
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 130.0,
+                    28,
+                    WHITE,
+                );
                 draw_centered(
                     &format!("Best: {}", world.high_score),
-                    screen_w / 2.0, screen_h / 2.0 + 175.0, 22, ctx.star_color,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 175.0,
+                    22,
+                    ctx.star_color,
                 );
             }
             GameState::LevelCleared => {
                 draw_centered(
                     &format!("WAVE {} CLEARED!", world.wave),
-                    screen_w / 2.0, screen_h / 2.0 - 20.0, 60, ctx.bullet_color,
+                    screen_w / 2.0,
+                    screen_h / 2.0 - 20.0,
+                    60,
+                    ctx.bullet_color,
                 );
                 draw_centered(
                     &format!("Next wave in {:.1}s", world.level_cleared_timer.max(0.0)),
-                    screen_w / 2.0, screen_h / 2.0 + 40.0, 26, WHITE,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 40.0,
+                    26,
+                    WHITE,
                 );
             }
             GameState::GameOver => {
                 draw_centered("GAME OVER", screen_w / 2.0, screen_h / 2.0 - 60.0, 80, RED);
                 draw_centered(
                     &format!("Score: {}", world.score),
-                    screen_w / 2.0, screen_h / 2.0 + 10.0, 36, WHITE,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 10.0,
+                    36,
+                    WHITE,
                 );
                 draw_centered(
                     &format!("Best: {}", world.high_score),
-                    screen_w / 2.0, screen_h / 2.0 + 55.0, 28, ctx.bullet_color,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 55.0,
+                    28,
+                    ctx.bullet_color,
                 );
-                draw_centered("Press R to restart", screen_w / 2.0, screen_h / 2.0 + 110.0, 26, WHITE);
+                draw_centered(
+                    "Press R to restart",
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 110.0,
+                    26,
+                    WHITE,
+                );
             }
             GameState::Win => {
                 draw_centered("YOU WIN!", screen_w / 2.0, screen_h / 2.0 - 60.0, 90, GREEN);
                 draw_centered(
                     &format!("Final Score: {}", world.score),
-                    screen_w / 2.0, screen_h / 2.0 + 10.0, 40, WHITE,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 10.0,
+                    40,
+                    WHITE,
                 );
                 draw_centered(
                     &format!("Best: {}", world.high_score),
-                    screen_w / 2.0, screen_h / 2.0 + 60.0, 28, ctx.bullet_color,
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 60.0,
+                    28,
+                    ctx.bullet_color,
                 );
-                draw_centered("Press R to restart", screen_w / 2.0, screen_h / 2.0 + 120.0, 26, WHITE);
+                draw_centered(
+                    "Press R to restart",
+                    screen_w / 2.0,
+                    screen_h / 2.0 + 120.0,
+                    26,
+                    WHITE,
+                );
             }
             _ => {}
         }
