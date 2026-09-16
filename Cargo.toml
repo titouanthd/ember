@@ -12,7 +12,7 @@ members = [
     "games/minesweeper", 
     "games/simon", 
     "games/memory", 
-    "games/freecell",
+    "games/freecell", "games/air-hockey",
 ]
 
 [workspace.package]
