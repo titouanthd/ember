@@ -1,14 +1,16 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Zhuo Ji — Guiyang Mahjong (捉鸡麻将).
+//!
+//! Layout follows the Ember convention (Phases 14–18):
+//! - State struct `Game` in `systems.rs`
+//! - `GameContext` in `config.rs`, re-exported here
+//! - `main.rs` builds the `Input` snapshot and drives `Game::update`
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod ai;
+pub mod components;
+pub mod config;
+pub mod hand;
+pub mod systems;
+pub mod wall;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use config::GameContext;
+pub use systems::{Game, GameEvent, Phase};
