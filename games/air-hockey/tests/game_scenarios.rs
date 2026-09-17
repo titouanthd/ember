@@ -142,7 +142,7 @@ fn advance_to_round_end(g: &mut Game, c: &GameContext) {
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
 #[test]
-fn test_full_round_j1_scores_7_goals() {
+fn test_full_round_j1_scores_max_goals() {
     let c = ctx();
     let mut g = game_in_playing(&c);
     let goals_to_win = c.tuning.goals_to_win_round;

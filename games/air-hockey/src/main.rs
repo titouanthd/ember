@@ -52,6 +52,7 @@ async fn main() {
         KeyCode::Right,
         // Meta.
         KeyCode::Space,
+        KeyCode::Enter,
         KeyCode::P,
         KeyCode::Escape,
     ];
@@ -84,6 +85,9 @@ async fn main() {
         for ev in events {
             sounds.on_event(ev);
         }
+
+        let ft = get_frame_time() * 1000.0;
+        draw_text(format!("{:.2} ms", ft), 10.0, 20.0, 24.0, WHITE);
 
         clear_background(ctx.colors.table_bg);
         draw_frame(&game, &ctx);
@@ -253,39 +257,59 @@ fn draw_overlays(game: &Game, ctx: &GameContext, shake: Vec2) {
     let cx = a.mid_x() + shake.x;
     let cy = a.mid_y() + shake.y;
 
+    // Dim the playfield behind any overlay that needs readable text.
+    let dim = matches!(
+        game.phase,
+        Phase::Menu
+            | Phase::Countdown { .. }
+            | Phase::GoalPause { .. }
+            | Phase::RoundOver { .. }
+            | Phase::MatchOver { .. }
+    ) || (matches!(game.phase, Phase::Playing) && game.paused);
+
+    if dim {
+        draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0.0, 0.0, 0.0, 0.55));
+    }
+
     match game.phase {
         Phase::Menu => {
-            draw_centered("AIR HOCKEY", cx + 2.0, cy - 118.0, 72, ctx.colors.text_shadow);
-            draw_centered("AIR HOCKEY", cx, cy - 120.0, 72, ctx.colors.text);
-            draw_centered(
-                "Appuyez sur ESPACE pour jouer",
-                cx,
-                cy + 20.0,
-                32,
-                ctx.colors.text,
-            );
-            draw_centered(
-                "J1 : W A S D     J2 : Flèches",
-                cx,
-                cy + 80.0,
-                24,
-                ctx.colors.text,
-            );
-            draw_centered(
-                "P : pause     Échap : quitter",
-                cx,
-                cy + 120.0,
-                20,
-                ctx.colors.text,
-            );
+            draw_centered("AIR HOCKEY", cx, cy - 140.0, 72, ctx.colors.text);
+            draw_centered("ESPACE : Joueur vs Joueur", cx, cy - 20.0, 32, ctx.colors.text);
+            draw_centered("ENTRÉE : Joueur vs IA",     cx, cy + 30.0, 32, ctx.colors.text);
+            draw_centered("J1 : W A S D     J2 : Flèches", cx, cy + 100.0, 24, ctx.colors.text);
+            draw_centered("P : pause     Échap : quitter", cx, cy + 140.0, 20, ctx.colors.text);
         }
         Phase::Countdown { t } => {
-            let n = t.ceil().max(1.0) as i32;
-            let label = if n > 1 { format!("{}", n) } else { "GO!".to_string() };
-            let frac = t - t.floor();
+            // Durations: three number slots, then a shorter GO slot.
+            const GO_WINDOW: f32 = 0.5;
+            let total = ctx.tuning.countdown;
+            let num_duration = (total - GO_WINDOW).max(0.0);
+            let step_dur = (num_duration / 3.0).max(1e-3);
+            let elapsed = (total - t).max(0.0);   // 0 at start → total at end
+
+            let (label, frac) = if elapsed < num_duration {
+                // Numbers 3 → 2 → 1, each with its own 0..1 progress.
+                let k = (elapsed / step_dur).floor().min(2.0) as i32;
+                let n = 3 - k;
+                let frac = (elapsed - k as f32 * step_dur) / step_dur;
+                (format!("{}", n), frac.clamp(0.0, 1.0))
+            } else {
+                // GO! occupies the tail.
+                let frac = (elapsed - num_duration) / GO_WINDOW.max(1e-3);
+                ("GO!".to_string(), frac.clamp(0.0, 1.0))
+            };
+
+            // Punch: 1.4 at label start → 1.0 at label end.
             let scale = 1.4 - 0.4 * frac;
-            let size = (120.0 * scale).max(40.0) as u16;
-            draw_centered(&label, cx, cy - 40.0, size, ctx.colors.text);
+
+            let params = TextParams {
+                font_size: 120,
+                font_scale: scale,
+                color: ctx.colors.text,
+                ..Default::default()
+            };
+            let dim = measure_text(&label, None, 120, scale);
+            draw_text_ex(&label, cx - dim.width / 2.0, cy - 40.0, params);
         }
         Phase::GoalPause { scorer, .. } => {
             let who = if scorer == Side::Left { 1 } else { 2 };

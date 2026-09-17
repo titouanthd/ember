@@ -42,8 +42,9 @@ pub enum CollisionEvent {
 pub fn integrate_paddle(p: &mut Paddle, input: Vec2, ctx: &GameContext, dt: f32) {
     let t = &ctx.tuning;
 
+    // In integrate_paddle, replace the target_v calculation:
     let target_v = if input.length_squared() > 1e-9 {
-        input.normalize() * t.paddle_speed_max
+        input.clamp_length_max(1.0) * t.paddle_speed_max
     } else {
         Vec2::ZERO
     };

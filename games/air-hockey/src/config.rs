@@ -98,7 +98,7 @@ impl Tuning {
             substeps: 4,
             dt_max: 1.0 / 30.0,
 
-            goals_to_win_round: 7,
+            goals_to_win_round: 3,
             rounds_to_win_match: 2,
 
             goal_pause: 1.2,
@@ -229,7 +229,7 @@ mod tests {
         assert_eq!(t.transfer, 0.6);
         assert_eq!(t.curve_factor, 0.35);
         assert_eq!(t.substeps, 4);
-        assert_eq!(t.goals_to_win_round, 7);
+        assert_eq!(t.goals_to_win_round, 3);
         assert_eq!(t.rounds_to_win_match, 2);
     }
 

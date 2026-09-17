@@ -15,6 +15,7 @@ use crate::components::{Paddle, Puck, Side, Trail};
 use crate::config::GameContext;
 use crate::effects::{Hitstop, Particles, Shake};
 use crate::physics::{step_world_substepped, CollisionEvent};
+use crate::ai::AiState;
 
 /// High-level phase of a game.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -25,6 +26,16 @@ pub enum Phase {
     GoalPause { t: f32, scorer: Side },
     RoundOver { t: f32, winner: Side },
     MatchOver { winner: Side },
+}
+
+/// Who controls Player 2.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GameMode {
+    /// Two human players, split keyboard.
+    #[default]
+    Pvp,
+    /// Player 1 is human, Player 2 is the AI.
+    PvAi,
 }
 
 /// Events emitted by one `Game::update`.
@@ -128,6 +139,8 @@ const P2_RIGHT: &[KeyCode] = &[KeyCode::Right];
 pub struct Game {
     pub phase: Phase,
     pub paused: bool,
+    pub mode: GameMode,
+    pub ai: AiState, 
     pub paddles: [Paddle; 2],
     pub puck: Puck,
     pub trail: Trail,
@@ -154,6 +167,8 @@ impl Game {
         Self {
             phase: Phase::Menu,
             paused: false,
+            mode: GameMode::default(),
+            ai: AiState::new(),
             paddles: [p1, p2],
             puck,
             trail: Trail::new(),
@@ -203,6 +218,11 @@ impl Game {
         match phase {
             Phase::Menu => {
                 if input.is_key_pressed(KeyCode::Space) {
+                    self.mode = GameMode::Pvp;
+                    self.enter_countdown(ctx);
+                    events.push(GameEvent::CountdownBeep);
+                } else if input.is_key_pressed(KeyCode::Enter) {
+                    self.mode = GameMode::PvAi;
                     self.enter_countdown(ctx);
                     events.push(GameEvent::CountdownBeep);
                 }
@@ -222,29 +242,39 @@ impl Game {
             }
 
             Phase::Playing => {
-                let inputs = gather_paddles(input);
-                let physics_events = step_world_substepped(
-                    &mut self.paddles,
-                    &mut self.puck,
-                    inputs,
-                    ctx,
-                    dt_eff,
-                );
-                for ev in physics_events {
-                    match ev {
-                        CollisionEvent::Wall => events.push(GameEvent::Wall),
-                        CollisionEvent::Paddle { impact_speed } => {
-                            if impact_speed > HARD_HIT_SPEED {
-                                self.hitstop.trigger(ctx.tuning.hitstop);
+                if dt_eff > 0.0 {
+                    let mut inputs = gather_paddles(input);
+                    if self.mode == GameMode::PvAi {
+                        // Split borrows so the immutable refs to paddles/puck/arena and the
+                        // mutable ref to self.ai can coexist.
+                        let pad = &self.paddles[1];
+                        let puck = &self.puck;
+                        let arena = &ctx.arena;
+                        let tuning = &ctx.tuning;
+                        inputs[1] = crate::ai::direction(pad, puck, arena, tuning, &mut self.ai, dt_eff);
+                    }
+
+                    let physics_events = step_world_substepped(
+                        &mut self.paddles,
+                        &mut self.puck,
+                        inputs,
+                        ctx,
+                        dt_eff,
+                    );
+                    for ev in physics_events {
+                        match ev {
+                            CollisionEvent::Wall => events.push(GameEvent::Wall),
+                            CollisionEvent::Paddle { impact_speed } => {
+                                if impact_speed > HARD_HIT_SPEED {
+                                    self.hitstop.trigger(ctx.tuning.hitstop);
+                                }
+                                events.push(GameEvent::Paddle { impact_speed });
                             }
-                            events.push(GameEvent::Paddle { impact_speed });
-                        }
-                        CollisionEvent::Goal(scorer) => {
-                            self.on_goal(scorer, ctx, &mut events);
+                            CollisionEvent::Goal(scorer) => {
+                                self.on_goal(scorer, ctx, &mut events);
+                            }
                         }
                     }
-                }
-                if dt_eff > 0.0 {
                     self.trail.push(self.puck.pos);
                 }
             }
@@ -302,6 +332,7 @@ impl Game {
     /// Transition into a countdown. Always resets positions and unpauses.
     fn enter_countdown(&mut self, ctx: &GameContext) {
         self.paused = false;
+        self.ai.reset();
         self.reset_positions(ctx);
         self.phase = Phase::Countdown { t: ctx.tuning.countdown };
     }
@@ -504,7 +535,7 @@ mod tests {
     }
 
     #[test]
-    fn test_round_over_after_7_goals() {
+    fn test_round_over_after_max_goals() {
         let ctx = ctx();
         let mut g = game_in_playing(&ctx);
         g.score.p1 = ctx.tuning.goals_to_win_round - 1;
