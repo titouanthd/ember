@@ -1,0 +1,6 @@
+[package]
+name = "zhuo-ji"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]

@@ -2,8 +2,8 @@
 
 Document destiné au prochain agent qui reprendra le projet.
 
-Dernière mise à jour : après Phase 18 (FreeCell — 9e jeu, drag-and-drop).
-État du workspace : 9 jeux fonctionnels, moteur ember stable, 451 tests verts, Clippy clean.
+Dernière mise à jour : début de Phase 20 (Zhuo Ji — 11e jeu, design doc + scaffold).
+État du workspace : 10 jeux fonctionnels + 1 en design (Zhuo Ji), 521 tests verts, Clippy clean.
 
 ---
 
@@ -33,7 +33,7 @@ Conventions clés :
 - La stratégie est "Rule of Three" : on n'extrait dans le moteur qu'après avoir vu le pattern 3 fois.
 - Crates externes : tirets dans Cargo.toml (ember-core, bullet-hell), underscores dans le code (ember_core, bullet_hell).
 - cargo clippy --workspace --all-targets -- -D warnings est le gate de qualité. Il doit rester vert.
-- State structs : chaque jeu expose un unique struct qui possède tout l'état mutable (MatchState, BreakoutWorld, SnakeWorld, GameWorld, World pour Bullet Hell, Game pour Minesweeper, App + GameWorld pour Simon, Game pour Memory, Game pour FreeCell). main.rs tient une seule variable de ce type. C'est une convention, pas un type partagé.
+- State structs : chaque jeu expose un unique struct qui possède tout l'état mutable (MatchState, BreakoutWorld, SnakeWorld, GameWorld, World pour Bullet Hell, Game pour Minesweeper, App + GameWorld pour Simon, Game pour Memory, Game pour FreeCell, Game pour Air Hockey). main.rs tient une seule variable de ce type. C'est une convention, pas un type partagé.
 - **Layout uniforme (Phase 14)** : le state struct vit dans `systems.rs`, `GameContext` vit dans `config.rs`, `lib.rs` fait les réexports. `systems.rs` fait `pub use crate::config::GameContext;` pour compat.
 - Séparation BoardState / GameState (Minesweeper) : l'état interne du plateau (Ready/Playing/Won/Lost) est distinct de l'état d'écran (Start/Playing/Win/GameOver). Transitions explicites.
 - Boutons UI : update() et draw() doivent être appelés sur la MÊME instance. Si le bouton est recréé dans le rendu, l'event de clic est perdu. Conserver les boutons dans le state struct du jeu.
@@ -45,7 +45,7 @@ Conventions clés :
   Règle générale : si la fonction prend impl AsRef<str> ou impl Into<String>, retirer le &. Clippy râle (needless_borrows_for_generic_args) sinon.
 - TextDimensions : macroquad::draw_text retourne TextDimensions, pas (). Pour ignorer, terminer par ;.
 - manual_range_contains : écrire (a..=b).contains(&x) au lieu de x >= a && x <= b.
-- **Design docs (Phase 17)** : chaque nouveau jeu doit avoir un `DESIGN.md` dans son dossier. Le premier est `games/memory/DESIGN.md`. À faire rétroactivement pour les 7 autres jeux.
+- **Design docs (Phase 17)** : chaque nouveau jeu doit avoir un `DESIGN.md` dans son dossier. Le premier est `games/memory/DESIGN.md`. À faire rétroactivement pour les 8 autres jeux.
 - **Clavier AZERTY vs QWERTY (Phase 18)** : macroquad utilise les scancodes QWERTY, pas les caractères du layout. Sur AZERTY : `M` → `KeyCode::Semicolon`, `Z` → `KeyCode::W`, `A` ↔ `Q`, `W` ↔ `Z`. Toujours préférer `Tab`, `Escape`, `Space`, `Enter`, ou les touches de fonction pour les raccourcis critiques. Solution FreeCell : `Tab` pour le menu, `Z`/`W` pour undo (double mapping), `Y` pour redo (position identique).
 
 ---
@@ -111,27 +111,50 @@ ember-workspace/
     │   ├── difficulties.ron
     │   ├── best_times.ron
     │   └── ...
-    └── freecell/
-        ├── DESIGN.md               # design doc (Phase 18)
-        ├── .env
-        ├── best_times.ron          # créé au runtime, gitignored
-        ├── assets/
-        │   └── DejaVuSansMono.ttf  # police pour symboles Unicode ♠♥♦♣
-        ├── src/
-        │   ├── main.rs             # boucle, input, rendu
-        │   ├── lib.rs
-        │   ├── config.rs           # GameContext
-        │   ├── components.rs       # Card, Suit, Rank, Color, Zone
-        │   ├── deck.rs             # création, distribution, seed
-        │   ├── layout.rs           # positions des colonnes/cellules/fondations
-        │   ├── drag.rs             # DragState, machine à états
-        │   ├── font.rs             # chargement DejaVu Sans Mono
-        │   ├── persistence.rs      # façade BestTimes
-        │   └── systems.rs          # Game, rules, super-move, undo/redo
-        └── tests/
-            └── game_scenarios.rs   # 8 tests d'intégration
+    ├── freecell/
+    │   ├── DESIGN.md               # design doc (Phase 18)
+    │   ├── .env
+    │   ├── best_times.ron          # créé au runtime, gitignored
+    │   ├── assets/
+    │   │   └── DejaVuSansMono.ttf  # police pour symboles Unicode ♠♥♦♣
+    │   ├── src/
+    │   │   ├── main.rs             # boucle, input, rendu
+    │   │   ├── lib.rs
+    │   │   ├── config.rs           # GameContext
+    │   │   ├── components.rs       # Card, Suit, Rank, Color, Zone
+    │   │   ├── deck.rs             # création, distribution, seed
+    │   │   ├── layout.rs           # positions des colonnes/cellules/fondations
+    │   │   ├── drag.rs             # DragState, machine à états
+    │   │   ├── font.rs             # chargement DejaVu Sans Mono
+    │   │   ├── persistence.rs      # façade BestTimes
+    │   │   └── systems.rs          # Game, rules, super-move, undo/redo
+    │   └── tests/
+    │       └── game_scenarios.rs   # 8 tests d'intégration
+    ├── air-hockey/
+    │   ├── DESIGN.md               # à créer (rétroactif, V2)
+    │   ├── .env                    # couleurs + tuning (goals_to_win_round=3)
+    │   ├── assets/
+    │   │   └── DejaVuSansMono.ttf
+    │   ├── src/
+    │   │   ├── main.rs             # boucle, input, rendu, overlays
+    │   │   ├── lib.rs
+    │   │   ├── config.rs           # GameContext, Tuning, Colors
+    │   │   ├── components.rs       # Paddle, Puck, Trail, Particle, Side
+    │   │   ├── arena.rs            # géométrie (goal_h, wall, half_for)
+    │   │   ├── physics.rs          # substep loop, collisions, goal detection
+    │   │   ├── systems.rs          # Game, Phase, GameMode, GameEvent
+    │   │   ├── ai.rs               # AiState + direction (goalkeeper)
+    │   │   ├── effects.rs          # Shake, Hitstop, Particles
+    │   │   ├── audio.rs            # SoundBank
+    │   │   └── font.rs             # DejaVu Sans Mono
+    │   └── tests/
+    │       └── game_scenarios.rs   # 10 tests d'intégration
+    └── zhuo-ji/
+        ├── DESIGN.md               # design doc (Phase 20)
+        └── src/
+            └── lib.rs              # scaffold (cargo new), vide pour l'instant
 
-Total : 9 jeux (Pong, Breakout, Snake, Asteroids, Bullet Hell, Minesweeper, Simon, Memory, FreeCell).
+Total : 10 jeux fonctionnels + 1 en design (Zhuo Ji).
 
 ---
 
@@ -173,7 +196,7 @@ xorshift32 unifié, extrait des 3 copies locales (Bullet Hell, Minesweeper, Simo
 
 Tests : 10. Doctest exécuté (le seul du workspace, les autres sont ignored).
 
-Utilisé par : Bullet Hell, Minesweeper, Simon, Memory (deck shuffle), FreeCell (deck shuffle).
+Utilisé par : Bullet Hell, Minesweeper, Simon, Memory (deck shuffle), FreeCell (deck shuffle), Air Hockey (shake, particles).
 
 ### math/aabb.rs — Aabb
 
@@ -214,7 +237,7 @@ Tests : 11.
 
 Tests : 3.
 
-Important : ajouter une variante oblige à mettre à jour tous les match state dans les 9 jeux.
+Important : ajouter une variante oblige à mettre à jour tous les match state dans les 10 jeux.
 
 Ré-exporté par : chaque jeu.
 
@@ -257,7 +280,7 @@ Tests : 12.
 
 Format .env couleur : env_color lit quatre variables {prefix}_R, {prefix}_G, {prefix}_B, {prefix}_A, chacune un f32 dans [0.0, 1.0]. Jamais une chaîne r,g,b,a.
 
-load_dotenv_once encapsule le pattern `OnceLock` + `load_dotenv_from` (9 jeux). `manifest_dir` doit venir de `env!("CARGO_MANIFEST_DIR")` **du crate appelant**.
+load_dotenv_once encapsule le pattern `OnceLock` + `load_dotenv_from` (10 jeux). `manifest_dir` doit venir de `env!("CARGO_MANIFEST_DIR")` **du crate appelant**.
 
 Tests : 4 + 1 (`test_load_dotenv_once_is_idempotent`).
 
@@ -352,7 +375,7 @@ Sinon, tout appel à play_sound imprime "warn: macroquad's audio feature disable
 
 Pas de tests unitaires : load_sound nécessite un contexte macroquad actif.
 
-Utilisé par : Simon.
+Utilisé par : Simon, Air Hockey (SoundBank).
 
 ### ui/ — UI minimal (Session 7, étendu Session 9)
 
@@ -421,12 +444,14 @@ Placeholder avec 1 test it_works. Pas utilisé.
 | Simon | 9 (Sessions A–B, +tests S5) | AudioClip (macroquad audio feature), CircleButton (custom tessellation), sequence playback avec timers, best score persisté, tests d'intégration | ~29 |
 | Memory | 7-10 | Grid<T> cliquable, sélection à 2 temps, persistance best time, symboles ASCII terminal, Design doc | 27 |
 | FreeCell | 12-16 | Drag-and-drop state machine (Idle/Pressing/Dragging), super-move formula, undo/redo snapshots, hint indicator, DejaVu Sans Mono pour symboles Unicode, layout colonnes superposées, cross-layout keyboard | 89 |
+| Air Hockey | 1 | IA goalkeeper (reaction delay, speed cap), GameMode menu (PvP/PvAI), TextParams::font_scale countdown, scrim overlays, hitstop guard | 68 |
+| Zhuo Ji | Phase 20 (design) | Turn-based loop (planifié), hand evaluation (planifié), hidden-info AI (planifié), 4-player state (planifié), timed claim windows (planifié) | 0 (pas encore codé) |
 
-Total : 9 jeux, ~35 sessions, 451 tests verts, Clippy clean.
+Total : 10 jeux fonctionnels + 1 en design, ~36 sessions, 521 tests verts, Clippy clean.
 
 ---
 
-## games/freecell — Détail (dernier jeu en date)
+## games/freecell — Détail (9e jeu)
 
 ### Concept
 
@@ -489,6 +514,126 @@ games/freecell/
 - **Timer et boutons** : le timer positionné en dur à `window_w - 380` peut chevaucher les boutons. Calculer sa position depuis `hint_btn.rect.0` (coin gauche du bouton).
 - **Dernière carte de colonne** : si `card_stack_offset` est trop grand, les longues colonnes débordent du footer. 30 px minimum, 35-40 px recommandé.
 - **`can_drop_at` et `max_super_move`** : la formule dépend de la **destination**. Déposer 3 cartes sur une colonne vide avec 0 cellule libre → la colonne vide ne compte pas comme buffer → limite = 1. Source classique de confusion pour le joueur (prévoir un affichage « Max: X » dans le HUD en V2).
+
+---
+
+## games/air-hockey — Détail (10e jeu)
+
+### Concept
+
+Air Hockey, arcade 2 joueurs (ou 1 joueur vs IA). Table horizontale,
+deux palets contrôlés par W/A/S/D (J1) et flèches (J2), un palet
+unique. Objectif : 3 buts par manche, 2 manches gagnantes sur 3.
+
+### Structure
+
+games/air-hockey/
+├── Cargo.toml
+├── .env                       # couleurs + tuning (goals_to_win_round=3)
+├── DESIGN.md                  # à créer (rétroactif)
+├── assets/
+│   └── DejaVuSansMono.ttf
+├── src/
+│   ├── main.rs                # boucle, input, rendu, overlays
+│   ├── lib.rs
+│   ├── config.rs              # GameContext, Tuning, Colors
+│   ├── components.rs          # Paddle, Puck, Trail, Particle, Side
+│   ├── arena.rs               # géométrie (goal_h, wall, half_for)
+│   ├── physics.rs             # substep loop, collisions, goal detection
+│   ├── systems.rs             # Game, Phase, GameMode, GameEvent
+│   ├── ai.rs                  # AiState + direction (goalkeeper)
+│   ├── effects.rs             # Shake, Hitstop, Particles
+│   ├── audio.rs               # SoundBank
+│   └── font.rs                # DejaVu Sans Mono
+└── tests/
+    └── game_scenarios.rs      # 10 tests d'intégration
+
+### Détail technique
+
+- **Phases** : Menu → Countdown → Playing → GoalPause → (Countdown | RoundOver | MatchOver).
+- **Physique** : `step_world_substepped` avec `substeps = 4`. Le palet est
+  clampé à `puck_speed_max = 1400`. Détection de but avant résolution
+  des murs pour éviter le tunneling.
+- **Hitstop** : `dt_eff = 0.0` quand le palet tape un palet à plus de
+  900 px/s. IMPORTANT : ne pas appeler `step_world_substepped` quand
+  `dt_eff == 0.0`, sinon boucle infinie (le palet coincé entre deux
+  palets re-trigger hitstop à chaque frame).
+- **IA goalkeeper** : `REACTION_TIME = 0.18s`, `AI_SPEED = 0.55`,
+  `GOALIE_OFFSET = 70.0`. Reste sur sa ligne x, suit le y perçu
+  (avec délai), revient au centre si le palet est derrière. Ne chasse
+  jamais en x (sinon il pousse le palet dans son propre but).
+- **Menu** : Space = PvP, Enter = PvAI. `GameMode` dérivé `Default` = Pvp.
+- **Countdown** : `TextParams { font_size: 120, font_scale: 1.4→1.0 }`.
+  Ne JAMAIS animer `font_size` (thrash de l'atlas de glyphes, drop FPS).
+- **Overlays** : scrim noir alpha 0.55 par-dessus la table quand une
+  phase affiche du texte plein écran.
+- **Tests** : 58 unitaires + 10 intégration = 68 tests.
+
+### Pièges connus
+
+- **Hitstop infini** : si `dt_eff == 0`, ne pas appeler le step physique.
+  Le puck coincé entre deux paddles re-trigger hitstop à l'infini.
+- **Countdown font_size animé** : chaque nouvelle taille rastérise de
+  nouveaux glyphes dans l'atlas. Animer `font_scale` au lieu de `font_size`.
+- **Countdown et le "1" manquant** : `if n > 1 { n } else { "GO!" }`
+  écrase le slot du 1. Utiliser une fenêtre `GO_WINDOW` dédiée.
+- **Overlays illisibles** : la grille de fond a assez de contraste pour
+  noyer le texte. Scrim noir alpha 0.55 minimum.
+- **AZERTY pour les contrôles J1** : `W` et `Z` mappés tous les deux sur
+  "haut" (positions QWERTY voisines). Idem `A`/`Q` pour gauche. Documenté
+  dans `systems.rs`.
+
+---
+
+## games/zhuo-ji — Détail (11e jeu, en design)
+
+### Concept
+
+Zhuo Ji (捉鸡), la variante Guiyang du Mahjong. 4 joueurs, 108 tuiles
+(3 suits × 9 rangs × 4 copies, pas d'honneurs). Deux mécaniques
+signatures :
+
+- **豆 (Dou)** — les bonus de Gang, qui servent aussi de "passeport"
+  pour gagner sur un discard (règle 平胡 vs 大对子).
+- **鸡 (Ji)** — une tuile révélée après la main qui multiplie le score.
+  Tuiles fixes : **1 Tiao** (幺鸡) et **8 Tong** (八筒), qui deviennent
+  Golden Ji sous certaines conditions.
+
+### Statut
+
+- Design doc rédigé : `games/zhuo-ji/DESIGN.md`.
+- Crate scaffold : `cargo new --lib games/zhuo-ji` (workspace member ajouté).
+- **Aucun code écrit pour l'instant.** Session 1 à venir.
+
+### Plan des 5 sessions
+
+| Session | Scope |
+|---|---|
+| 1 | Tile model, wall, deal, human draw/discard, basic rendering |
+| 2 | Win detection + shanten + tenpai (fonctions pures) |
+| 3 | AI discard logic |
+| 4 | Calls (Peng/Gang/Hu), full turn flow |
+| 5 | Scoring (Dou, Ji, patterns), match flow, integration tests |
+
+### Ce que ça apporte au moteur
+
+- Premier jeu **tour par tour** (tous les précédents sont temps réel).
+- Première **évaluation de main complexe** (backtracking).
+- Premier **AI avec information cachée** (l'IA d'Air Hockey voit tout).
+- Premier jeu **4 joueurs** (max actuel : 2).
+- Première **fenêtre de décision temporisée** (claim window).
+
+### Pièges à surveiller (déjà documentés dans DESIGN.md)
+
+- Tile `Copy` → utiliser `Vec::remove`, pas `swap_remove`.
+- Claim priority : Hu > Peng > Gang.
+- Pas de Chi en Guiyang.
+- Gang → re-draw.
+- Dou passport rule (le plus oublié).
+- Twin fixed Ji : 1 Tiao **et** 8 Tong.
+- Huangzhuang ne compte pas Dou/Ji.
+- AI hesitation timing (0.6–0.8 s dwell).
+- Dealer rotation (sauf Huangzhuang sans tenpai).
 
 ---
 
@@ -563,6 +708,29 @@ Dette résolue : #5 (xorshift32 3 copies).
 - **Bugs corrigés** : fondations noires invisibles (alpha 0.20 sur fond sombre → 0.45 + couleur claire), timer chevauchait le bouton Hint (calcul depuis `hint_btn.rect.0`), symbole de fondation mal centré (baseline corrigée).
 - **89 tests** (81 unit + 8 integration), Clippy clean.
 
+### Phase 19 — Air Hockey (10e jeu)
+- 10e jeu = Air Hockey (arcade 2 joueurs + IA).
+- **Premier jeu avec un menu de modes** : `GameMode::{Pvp, PvAi}`.
+- **Premier adversaire IA d'action** : goalkeeper avec reaction delay
+  (`REACTION_TIME`), vitesse plafonnée (`AI_SPEED`), revient à sa ligne.
+- **Puck non-tunneling** : substepping déjà en place depuis Breakout,
+  mais première utilisation pour un palet rapide (1400 px/s).
+- **Hitstop et freeze** : bug découvert en test, `dt_eff == 0` doit
+  court-circuiter la physique. Sinon boucle infinie.
+- **Countdown animé** : `TextParams::font_scale` au lieu de `font_size`
+  pour éviter le thrash de l'atlas. Piège généralisable.
+- **Overlays lisibles** : scrim noir alpha 0.55 derrière tout texte
+  plein écran (Menu, Countdown, GoalPause, RoundOver, MatchOver, Pause).
+- **68 tests** (58 unit + 10 integration), Clippy clean.
+
+### Phase 20 — Zhuo Ji (11e jeu, en design)
+- 11e jeu = Zhuo Ji (捉鸡, variante Guiyang du Mahjong).
+- **Design doc rédigé** : `games/zhuo-ji/DESIGN.md`.
+- **Crate scaffold** : `cargo new --lib games/zhuo-ji` — workspace member ajouté automatiquement.
+- **Aucun code écrit.** Session 1 à venir : tile model, wall, deal, human draw/discard, basic rendering.
+- **Ce que ça apportera** (prévu) : premier jeu tour par tour, première évaluation de main complexe, premier AI avec information cachée, premier jeu 4 joueurs, première fenêtre de décision temporisée.
+- **Pièges à surveiller** (documentés) : tile `Copy` → `Vec::remove`, claim priority Hu > Peng > Gang, pas de Chi, Gang → re-draw, Dou passport rule, twin fixed Ji (1 Tiao **et** 8 Tong), Huangzhuang ne compte pas Dou/Ji.
+
 ---
 
 ## Décisions à prendre
@@ -571,8 +739,12 @@ Dette résolue : #5 (xorshift32 3 copies).
 2. SnakeState::new(duration) : paramètre vestigial (écrasé par update). Le retirer ou le documenter ?
 3. Shape::as_aabb / as_circle : inutilisés. Supprimer ou utiliser ?
 4. Uniformiser UpdateEvent : Snake/Breakout en ont, Pong/Bullet Hell non. (À débattre.)
-5. **Drag-and-drop** : extraire dans ember_stdlib ? Rule of Three : 1re occurrence (FreeCell). Attendre Mahjong / Solitaire.
-6. **Hit testing sur layout rectangulaire** : pattern générique (zone_at) répété 2x (FreeCell, futur Mahjong ?). Surveiller.
+5. **Drag-and-drop** : extraire dans ember_stdlib ? Rule of Three : 1re occurrence (FreeCell). Zhuo Ji ne l'utilise pas (sélection clic-clic). Attendre Klondike / Solitaire.
+6. **Hit testing sur layout rectangulaire** : pattern générique (zone_at) répété 2x (FreeCell, futur Klondike ?). Surveiller.
+7. **Animation / tween / easing** : à extraire dans ember_stdlib ? Aucune occurrence actuelle. Pas nécessaire pour Zhuo Ji.
+8. **Turn-based state machine** : première occurrence en Phase 20 (Zhuo Ji). À extraire si un 2e jeu tour par tour apparaît.
+9. **Fenêtre de décision temporisée** (claim window) : première occurrence en Phase 20. À surveiller.
+10. **AI avec information cachée** : première occurrence en Phase 20 (Zhuo Ji). À surveiller.
 
 ---
 
@@ -585,6 +757,9 @@ Dette résolue : #5 (xorshift32 3 copies).
 5. FreeCell : pas de "auto-complete" (V2), pas d'input de seed (V2), pas de sélection clic-clic (V2).
 6. FreeCell : pas de test pour `can_drop_at` (feedback visuel vert/rouge).
 7. **FreeCell : `max_super_move` devrait prendre la destination en compte** (formule officielle). Actuellement, déposer sur une colonne vide sur-compte cette colonne comme buffer. Bug latent, test à ajouter (`test_super_move_9_cards_with_one_empty_column`).
+8. **Air Hockey : DESIGN.md manquant** (rétroactif).
+9. **Air Hockey : pas de tests d'intégration pour l'IA** (les tests unitaires de `ai.rs` couvrent les branches, mais pas les scénarios d'un match PvAI complet).
+10. **Zhuo Ji : pas encore de code** (Session 1 à venir).
 
 Résolus :
 - ~~glam désalignement~~ → structurellement impossible depuis Session 6.
@@ -598,6 +773,8 @@ Résolus :
 - ~~Pong tests fragiles~~ → Phase 16.
 - ~~Simon tests d'intégration manquants~~ → Phase 16.
 - ~~in_manifest_dir crée les fichiers au mauvais endroit~~ → Phase 16.
+- ~~Hitstop infini Air Hockey~~ → Phase 19.
+- ~~Countdown FPS drop Air Hockey~~ → Phase 19.
 
 ---
 
@@ -607,48 +784,55 @@ Ne généralise pas avant d'avoir vu le pattern 3 fois.
 
 Aujourd'hui :
 - Chargement RON : 8x → extrait.
-- Config env : 9x → extrait.
-- draw_centered : 9x → extrait.
-- GameState : 9x → extrait.
-- State structs : 9x → convention confirmée.
+- Config env : 10x → extrait.
+- draw_centered : 10x → extrait.
+- GameState : 10x → extrait.
+- State structs : 10x → convention confirmée.
 - Grid 2D : 2x (Minesweeper, Memory) → extrait (Grid<T>).
-- Input snapshot : 9x → extrait (Input).
+- Input snapshot : 10x → extrait (Input).
 - UI widgets : 4x (Minesweeper, Simon, Memory, FreeCell) → extrait.
-- Audio : 1x (Simon) → extrait (AudioClip).
+- Audio : 2x (Simon, Air Hockey) → extrait (AudioClip).
 - xorshift32 : 4x → EXTRAIT (Phase 12).
 - Persistance best score : 5x → EXTRAIT (Phase 15).
-- **Drag-and-drop** : 1x (FreeCell) → local. À extraire si Mahjong / Solitaire.
+- **Drag-and-drop** : 1x (FreeCell) → local. À extraire si Klondike / Solitaire.
 - **Hit testing rectangulaire** : 2x (Minesweeper clic, FreeCell zone_at) → surveiller.
 - **Super-move / séquence valide** : 1x (FreeCell) → local.
 - **Snapshots undo/redo** : 1x (FreeCell) → local. À surveiller si un 2e jeu a besoin de undo.
 - **Machine à états drag** : 1x (FreeCell) → local.
+- **IA adversaire de jeu d'action** : 1x (Air Hockey goalkeeper) → local. À surveiller.
+- **Mode PvP / PvAI sélectionnable** : 1x (Air Hockey) → local. À surveiller.
+- **Scrim overlay** : 1x (Air Hockey) → local. Vraiment trop simple pour extraire, mais à noter.
+- **TextParams::font_scale pour animations de taille** : 1x (Air Hockey countdown) → pattern généralisable, mais à documenter plutôt qu'à extraire.
+- **Turn-based state machine** : 1x (Zhuo Ji, planifié) → local. À extraire si un 2e jeu tour par tour apparaît.
+- **Fenêtre de décision temporisée** : 1x (Zhuo Ji, planifié) → local. À surveiller.
+- **Évaluation de main / backtracking** : 1x (Zhuo Ji, planifié) → local. Trop spécifique.
+- **AI avec information cachée** : 1x (Zhuo Ji, planifié) → local. À surveiller.
 
 ---
 
-## Pistes pour le 10e jeu
+## Pistes pour le 12e jeu
 
-Le moteur a maintenant : collisions, grille, input souris + clavier, UI (Button, CircleButton, Label, Panel, Timer), audio, persistance typée, data-driven, machine à états, sélection à 2 temps, drag-and-drop local, design docs.
+Le moteur a maintenant : collisions, grille, input souris + clavier, UI (Button, CircleButton, Label, Panel, Timer), audio, persistance typée, data-driven, machine à états, sélection à 2 temps, drag-and-drop local, IA adversaire local, menu de modes, design docs. En Phase 20, Zhuo Ji apportera le tour par tour, l'évaluation de main, l'AI à information cachée, et le jeu à 4 joueurs.
 
 Ce qui MANQUE encore :
-- Extraction drag-and-drop dans la stdlib (attendre 2e occurrence)
+- Extraction drag-and-drop dans la stdlib (attendre 3e occurrence)
+- Extraction animation / tween / easing dans la stdlib (0 occurrence)
 - Caméra / scroll (pour platformer, exploration, RPG top-down)
 - Procédural (roguelike, génération de niveaux)
 - Pathfinding (Tower Defense, roguelike)
-- Animation / tween / easing (Match-3, transitions riches)
-- Tour par tour structuré (Card Battler, roguelike)
 
 ### Recommandations fortes
 
-1. **Mahjong / Solitaire (Klondike)** — 2e occurrence de drag-and-drop → déclenche l'extraction dans ember_stdlib. Réutilise Card, Zone, layout superposé de FreeCell.
-2. **Match-3** — déclenche ANIMATIONS / TWEEN / EASING. Utilise Grid + Input + UI.
-3. **Plateformer** — déclenche CAMÉRA + scroll + collisions multi-axes solides.
+1. **Match-3** — déclenche ANIMATIONS / TWEEN / EASING. Utilise Grid + Input + UI + Persistence. La plus grosse valeur moteur disponible. Le pattern "animation comme citoyen de première classe" est absent de tous les jeux actuels.
+2. **Plateformer** — déclenche CAMÉRA + scroll + collisions multi-axes solides. Gros coût, gros gain.
+3. **Klondike / Solitaire** — 2e occurrence de drag-and-drop → rapproche de l'extraction. Réutilise Card, Zone, layout superposé de FreeCell.
 
 ### Recommandations moyennes
 
 4. **Tower Defense** — pathfinding, ciblage, économie.
 5. **Roguelike minimal** — procédural, FOV, tour par tour, inventaire, sauvegarde.
 6. **Card Battler** — main, deck, tour par tour, graphe narratif. Réutilise Card + Zone.
-7. **Tetris** — rotation, lignes, drop.
+7. **Tetris** — rotation, lignes, drop. Réutilise Grid + Persistence.
 
 ### Recommandations faibles
 
@@ -665,12 +849,16 @@ Ce qui MANQUE encore :
 2. Shape::as_aabb / as_circle : supprimer ou utiliser ?
 3. SnakeState::new : retirer le paramètre duration ?
 4. Uniformiser UpdateEvent : Snake/Breakout en ont, Pong/Bullet Hell non.
-5. Design docs rétroactifs pour les 7 jeux précédents (avant Memory).
-6. FreeCell : extraire drag-and-drop dans ember_stdlib ? Attendre 2e occurrence.
+5. Design docs rétroactifs pour les 8 jeux précédents (avant Memory).
+6. FreeCell : extraire drag-and-drop dans ember_stdlib ? Attendre 3e occurrence.
+7. Air Hockey : extraire le menu PvP/PvAI dans un helper de stdlib ? Attendre 3e occurrence.
+8. Air Hockey : DESIGN.md rétroactif.
+9. Zhuo Ji : valider le design doc avant Session 1.
 
 ### Bugs potentiels / fragilités
 1. FreeCell : `max_super_move` ne prend pas la destination en compte. Fix documenté.
 2. FreeCell : pas de test pour `can_drop_at`.
+3. Air Hockey : pas de test d'intégration pour un match PvAI complet.
 
 ### Refactors à considérer
 1. Extraire un helper "loops until dt exhausted" (voir Simon tick_playback).
@@ -679,7 +867,9 @@ Ce qui MANQUE encore :
 4. Collider : ajouter contains_point ?
 5. ember_stdlib::graphics::shapes : draw_rotated_rect, draw_polygon.
 6. UiContext frame-level : hot/active ID, résoudrait le piège button update/draw.
-7. Drag-and-drop dans ember_stdlib (après 2e occurrence).
+7. Drag-and-drop dans ember_stdlib (après 3e occurrence).
+8. Animation / tween / easing dans ember_stdlib (après 2e ou 3e occurrence).
+9. Turn-based state machine dans ember_stdlib (après 2e occurrence).
 
 ---
 
@@ -708,7 +898,7 @@ Ce qui MANQUE encore :
 21. tick_playback en boucle : un dt plus grand que le timer de la phase courante doit traverser plusieurs phases.
 22. `load_dotenv_once` : `manifest_dir` doit venir de `env!("CARGO_MANIFEST_DIR")` **du crate appelant**.
 23. `from_macroquad*` : nécessite un contexte macroquad actif, non testable unitairement.
-24. `GameContext` uniformisé dans `config.rs` pour les 9 jeux.
+24. `GameContext` uniformisé dans `config.rs` pour les 10 jeux (+ Zhuo Ji à venir).
 25. `Persistence<T>` a `Clone` mais **pas** `Copy` (PathBuf).
 26. Migration `.txt` → `.ron` (Asteroids) : l'ancien fichier n'est plus lu.
 27. `env!("CARGO_MANIFEST_DIR")` dans une fonction de la stdlib pointe vers le manifest de la **stdlib**, pas du jeu appelant.
@@ -721,31 +911,47 @@ Ce qui MANQUE encore :
 34. **Super-move : la colonne de destination compte (ou pas) comme buffer** selon qu'elle est vide. La formule officielle exclut la destination vide du calcul. (Phase 18)
 35. **Drag et accessibility** : on ne peut prendre que le **run contigu du bas** d'une colonne. `start_idx + n == len` pour valider. (Phase 18)
 36. **Timer positionné en dur** peut chevaucher les boutons. Calculer depuis `button.rect.0`. (Phase 18)
+37. **Ne pas appeler `step_world_substepped` quand `dt_eff == 0.0`.** Le puck coincé entre deux paddles re-trigger hitstop à chaque frame, freeze infini. (Phase 19)
+38. **Ne jamais animer `font_size`.** Chaque nouvelle taille rastérise de nouveaux glyphes. Animer `font_scale` via `TextParams`. (Phase 19)
+39. **Un overlay de texte sur une grille de fond a besoin d'un scrim.** Noir alpha ≥ 0.55 pour rester lisible. (Phase 19)
+40. **IA qui chasse le puck dans son propre camp** : un goalkeeper vertical-only est plus sûr qu'un chasseur 2D. Chasser en x pousse le puck dans le but. (Phase 19)
+41. **Clavier AZERTY vs QWERTY pour les alias de touches** : mapper W et Z sur "haut" (positions QWERTY voisines) est nécessaire pour que les joueurs AZERTY puissent jouer. (Phase 19)
+42. **Zhuo Ji : Tile `Copy`** → utiliser `Vec::remove(index)`, pas `swap_remove`, pour préserver l'ordre (crucial pour les algorithmes de hand evaluation). (Phase 20)
+43. **Zhuo Ji : claim priority** Hu > Peng > Gang. Deux joueurs Peng la même tuile → le plus proche counter-clockwise du discarder gagne. (Phase 20)
+44. **Zhuo Ji : pas de Chi.** Ne pas implémenter, même par réflexe de portage. (Phase 20)
+45. **Zhuo Ji : Gang → re-draw.** Après chaque Gang (An, Bu, Ming), le même joueur pioche à nouveau. La wall peut se vider en cours de tour. (Phase 20)
+46. **Zhuo Ji : Dou passport rule.** Sans Dou, on ne peut pas Hu sur discard avec seulement 平胡. Règle la plus oubliée. (Phase 20)
+47. **Zhuo Ji : twin fixed Ji.** **1 Tiao** et **8 Tong** sont tous les deux des Ji fixes. Golden Ji pour 1 Tiao quand 9 Tiao est flipé. Ne pas oublier 8 Tong — spécifique à Guiyang. (Phase 20)
+48. **Zhuo Ji : Huangzhuang ne compte pas Dou/Ji.** Seule la valeur de base du pattern est payée lors d'une pioche exhaustive. (Phase 20)
 
 ---
 
 ## Prochaines étapes suggérées
 
-1. **Commit FreeCell** (Phase 18 terminée) : 9 jeux, 451 tests verts, Clippy clean.
-2. Décider du 10e jeu :
-   - Mahjong / Solitaire (2e drag-and-drop → extraction stdlib)
-   - Match-3 (tween/easing)
-   - Plateformer (camera/scroll)
-3. Session design doc pour le 10e jeu, avant de coder.
-4. Appliquer les patterns :
-   - State struct (Game/World) dans `systems.rs` dès le début.
+1. **Commit de la Phase 20 (démarrage)** : `feat(zhuo-ji): scaffold crate + design doc for Guiyang Mahjong`.
+2. **Valider le DESIGN.md** avant d'écrire du code.
+3. **Session 1 Zhuo Ji** :
+   - `components.rs` : `Tile`, `Suit`, `Meld`, `Player` + tests unitaires.
+   - `wall.rs` : 108 tuiles, shuffle déterministe via `Rng`, distribution.
+   - `config.rs` : `GameContext` hermétique + load.
+   - `systems.rs` : squelette de `Game` avec `Phase::Deal → AwaitingDraw → AwaitingDiscard`.
+   - `main.rs` : boucle macroquad, clic sur tuile = discard, rendu ASCII (`1W`, `5T`, `9D`).
+   - `tests/game_scenarios.rs` : test hot-seat qui distribue et joue quelques discards.
+4. Appliquer les patterns habituels :
+   - State struct (`Game`) dans `systems.rs` dès le début.
    - `GameContext` dans `config.rs`.
    - Widgets dans le state struct, update + draw sur la même instance.
    - Input snapshot construit dans main.rs.
    - Data-driven (RON) pour tout contenu configurable.
    - Persistance via `ember_stdlib::persistence::Persistence<T>` (passer `manifest_dir` explicitement).
-   - Si audio : ne pas oublier la feature macroquad "audio".
-   - Si symboles Unicode : charger DejaVu Sans Mono via `load_ttf_font` + `set_default_font`.
-   - **Design doc** (`DESIGN.md`) dès le début, avant le code.
+   - **Design doc** (`DESIGN.md`) déjà rédigé.
+   - **Ne pas animer `font_size`**, utiliser `font_scale`.
+   - **Ne pas appeler la physique quand `dt_eff == 0.0`**.
 5. Session refactor moteur (optionnelle) :
    - UiContext frame-level
    - loops-until-dt-exhausted helper
    - graphics::shapes
-   - Extraction drag-and-drop dans ember_stdlib (si 2e jeu)
+   - Animation / tween / easing dans ember_stdlib (si Match-3 choisi plus tard)
+   - Extraction drag-and-drop dans ember_stdlib (si 3e jeu à drag)
    - Fix `max_super_move` avec destination
-   - Design docs rétroactifs pour les 7 jeux précédents
+   - Design docs rétroactifs pour les 8 jeux précédents
