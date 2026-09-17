@@ -91,9 +91,12 @@ impl Player {
 }
 
 /// A claim a player can make on another player's discard.
+/// A claim a player can make on another player's discard.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClaimKind {
     Peng,
+    /// Ming Gang (点豆) — claim a discard to complete a quad.
+    Gang,
     Hu,
 }
 

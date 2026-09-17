@@ -22,6 +22,7 @@ pub enum Phase {
     AwaitingClaims { discard: Tile, from: usize, t: f32 },
     ClaimAnim { claimer: usize, meld: Meld, t: f32 },
     Hu { winner: usize, method: HuMethod },
+    HuangZhuang,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -98,12 +99,14 @@ impl Game {
             }
 
             Phase::AwaitingDraw { player } => {
-                if let Some(tile) = self.wall.pop() {
+                if self.wall.is_empty() {
+                    self.phase = Phase::HuangZhuang;
+                } else if let Some(tile) = self.wall.pop() {
                     self.players[player].concealed.push(tile);
                     self.players[player].concealed.sort();
                     events.push(GameEvent::Drew { player });
+                    self.phase = Phase::DrawAnim { player, t: 0.0 };
                 }
-                self.phase = Phase::DrawAnim { player, t: 0.0 };
             }
 
             Phase::DrawAnim { player, t } => {
@@ -133,14 +136,28 @@ impl Game {
 
             Phase::AwaitingDiscard { player } => {
                 if player != HUMAN_SEAT {
-                    let hand_ref = &self.players[player].concealed;
-                    if !hand_ref.is_empty() {
-                        let idx =
-                            ai::decide_discard(hand_ref, &self.players[player].melds);
-                        let tile = self.players[player].concealed.remove(idx);
-                        self.players[player].discards.push(tile);
-                        events.push(GameEvent::Discarded { player, tile });
-                        self.after_discard(player, tile, ctx);
+                    // AI decision tree: Zimo > An Gang > discard.
+                    if self.can_zimo(player) {
+                        let method = HuMethod::Zimo;
+                        self.phase = Phase::Hu { winner: player, method };
+                        events.push(GameEvent::Hu { player, method });
+                    } else if let Some(tile) =
+                        ai::decide_an_gang(
+                            &self.players[player].concealed,
+                            &self.players[player].melds,
+                        )
+                    {
+                        self.apply_an_gang(player, tile, &mut events);
+                    } else {
+                        let hand_ref = &self.players[player].concealed;
+                        if !hand_ref.is_empty() {
+                            let idx =
+                                ai::decide_discard(hand_ref, &self.players[player].melds);
+                            let tile = self.players[player].concealed.remove(idx);
+                            self.players[player].discards.push(tile);
+                            events.push(GameEvent::Discarded { player, tile });
+                            self.after_discard(player, tile, ctx);
+                        }
                     }
                 }
             }
@@ -176,6 +193,11 @@ impl Game {
 
             Phase::Hu { .. } => {
                 // Terminal — Session 5 handles scoring and restart.
+            }
+
+            Phase::HuangZhuang => {
+                // Terminal state for a draw (no tiles left in the wall).
+                // Session 5 handles scoring and restart.
             }
         }
         let _ = input;
@@ -243,10 +265,66 @@ impl Game {
                     tile: discard,
                 });
             }
+            Some((player, ClaimKind::Gang)) => {
+                if self.players[from].discards.last() == Some(&discard) {
+                    self.players[from].discards.pop();
+                }
+                let mut removed = 0;
+                self.players[player].concealed.retain(|&t| {
+                    if t == discard && removed < 3 {
+                        removed += 1;
+                        false
+                    } else {
+                        true
+                    }
+                });
+                self.players[player].melds.push(Meld::Gang {
+                    tile: discard,
+                    from: crate::components::GangSource::Ming { from },
+                });
+                events.push(GameEvent::Claimed {
+                    player,
+                    kind: ClaimKind::Gang,
+                    tile: discard,
+                });
+                // Claimer draws again — no ClaimAnim for simplicity.
+                self.turn = player;
+                self.phase = Phase::AwaitingDraw { player };
+            }
             None => {
                 self.advance_turn();
             }
         }
+    }
+
+    /// Declare Zimo (win on self-draw) on your own turn. Returns true
+    /// if the win was applied.
+    pub fn human_zimo(&mut self) -> bool {
+        if !matches!(self.phase, Phase::AwaitingDiscard { player: HUMAN_SEAT }) {
+            return false;
+        }
+        if !self.can_zimo(HUMAN_SEAT) {
+            return false;
+        }
+        self.phase = Phase::Hu {
+            winner: HUMAN_SEAT,
+            method: HuMethod::Zimo,
+        };
+        true
+    }
+
+    /// Declare An Gang (闷豆) on your own turn. `tile` must have 4
+    /// concealed copies.
+    pub fn human_an_gang(&mut self, tile: Tile) -> bool {
+        if !matches!(self.phase, Phase::AwaitingDiscard { player: HUMAN_SEAT }) {
+            return false;
+        }
+        if self.an_gang_tile(HUMAN_SEAT) != Some(tile) {
+            return false;
+        }
+        let mut events = Vec::new();
+        self.apply_an_gang(HUMAN_SEAT, tile, &mut events);
+        true
     }
 
     fn any_claim_possible(&self, discard: Tile, from: usize) -> bool {
@@ -264,11 +342,58 @@ impl Game {
             >= 2
     }
 
+    fn apply_an_gang(&mut self, player: usize, tile: Tile, events: &mut Vec<GameEvent>) {
+        let mut removed = 0;
+        self.players[player].concealed.retain(|&t| {
+            if t == tile && removed < 4 {
+                removed += 1;
+                false
+            } else {
+                true
+            }
+        });
+        self.players[player].melds.push(Meld::Gang {
+            tile,
+            from: crate::components::GangSource::An,
+        });
+        events.push(GameEvent::Claimed {
+            player,
+            kind: ClaimKind::Gang,
+            tile,
+        });
+        // Same player draws again.
+        self.phase = Phase::AwaitingDraw { player };
+    }
+
     fn can_hu(&self, player: usize, tile: Tile) -> bool {
         let mut test = self.players[player].concealed.clone();
         test.push(tile);
         test.sort();
         hand::is_winning_hand(&test, &self.players[player].melds)
+    }
+
+        /// If the player has 4 concealed copies of a tile, return it.
+    pub fn an_gang_tile(&self, player: usize) -> Option<Tile> {
+        let mut counts: std::collections::HashMap<Tile, usize> = std::collections::HashMap::new();
+        for &t in &self.players[player].concealed {
+            *counts.entry(t).or_insert(0) += 1;
+        }
+        counts.iter().find(|&(_, &c)| c == 4).map(|(&t, _)| t)
+    }
+
+    /// True if the player has 3 concealed copies of `tile` (Ming Gang).
+    pub fn can_ming_gang(&self, player: usize, tile: Tile) -> bool {
+        self.players[player]
+            .concealed
+            .iter()
+            .filter(|&&t| t == tile)
+            .count()
+            >= 3
+    }
+
+    /// True if the player's hand is complete right now (Zimo).
+    pub fn can_zimo(&self, player: usize) -> bool {
+        hand::is_winning_hand(&self.players[player].concealed, &self.players[player].melds)
     }
 
     /// What the human can claim on this discard, if anything.
@@ -320,6 +445,8 @@ impl Game {
             }
             if self.can_hu(p, discard) {
                 claims.push((p, ClaimKind::Hu));
+            } else if ai::decide_ming_gang(&self.players[p].concealed, discard) {
+                claims.push((p, ClaimKind::Gang));
             } else if self.can_peng(p, discard)
                 && ai::decide_claim(
                     &self.players[p].concealed,
@@ -335,6 +462,7 @@ impl Game {
             let prio = match kind {
                 ClaimKind::Hu => 0u8,
                 ClaimKind::Peng => 1,
+                ClaimKind::Gang => 1,
             };
             let dist = (p + NUM_PLAYERS - from) % NUM_PLAYERS;
             (prio, dist)

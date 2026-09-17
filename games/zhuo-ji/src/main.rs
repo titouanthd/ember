@@ -8,7 +8,8 @@ use ember_stdlib::input::Input;
 use macroquad::prelude::*;
 
 use zhuo_ji::{Game, GameContext, Phase};
-use zhuo_ji::components::ClaimKind;
+use zhuo_ji::components::{ClaimKind, Tile};
+
 
 fn window_conf() -> Conf {
     Conf {
@@ -40,6 +41,13 @@ async fn main() {
 
         if let Some(kind) = draw_claim_prompt(&game, &ctx, input.mouse_pos) {
             game.human_claim(kind);
+        }
+
+        if let Some(action) = draw_own_turn_actions(&game, &ctx, input.mouse_pos) {
+            match action {
+                OwnAction::Zimo => { game.human_zimo(); }
+                OwnAction::AnGang(t) => { game.human_an_gang(t); }
+            }
         }
 
         let _ = game.update(&input, &ctx, dt);
@@ -82,6 +90,7 @@ fn draw_claim_prompt(game: &Game, ctx: &GameContext, mouse: Vec2) -> Option<Clai
 
         let label = match kind {
             ClaimKind::Peng => "Peng",
+            ClaimKind::Gang => "Gang",
             ClaimKind::Hu => "Hu",
         };
         let dim = measure_text(label, None, 28, 1.0);
@@ -164,6 +173,7 @@ fn draw_center_panel(game: &Game, ctx: &GameContext) {
         Phase::Hu { winner, .. } => {
             if winner == 0 { "You win!" } else { "AI wins" }
         }
+        Phase::HuangZhuang => "Wall empty",
     };
     draw_centered(phase_text, cx, cy + 60.0, 22, ctx.colors.text_dim);
 }
@@ -262,4 +272,49 @@ fn draw_centered(text: &str, center_x: f32, y: f32, size: u16, color: Color) {
 fn draw_right_aligned(text: &str, right_x: f32, y: f32, size: u16, color: Color) {
     let dim = measure_text(text, None, size, 1.0);
     draw_text(text, right_x - dim.width, y, size as f32, color);
+}
+
+enum OwnAction {
+    Zimo,
+    AnGang(Tile),
+}
+
+fn draw_own_turn_actions(game: &Game, ctx: &GameContext, mouse: Vec2) -> Option<OwnAction> {
+    let Phase::AwaitingDiscard { player: 0 } = game.phase else {
+        return None;
+    };
+
+    let mut actions: Vec<(OwnAction, &'static str)> = Vec::new();
+    if game.can_zimo(0) {
+        actions.push((OwnAction::Zimo, "Zimo"));
+    }
+    if let Some(tile) = game.an_gang_tile(0) {
+        actions.push((OwnAction::AnGang(tile), "An Gang"));
+    }
+    if actions.is_empty() {
+        return None;
+    }
+
+    let btn_w = 130.0;
+    let btn_h = 52.0;
+    let gap = 12.0;
+    let x = ctx.layout.window_w - btn_w - 40.0;
+    let mut y = ctx.layout.window_h * 0.4;
+
+    let clicked = is_mouse_button_pressed(MouseButton::Left);
+    let mut hit = None;
+    for (action, label) in actions {
+        let hovered = mouse.x >= x && mouse.x <= x + btn_w
+            && mouse.y >= y && mouse.y <= y + btn_h;
+        let bg = if hovered { ctx.colors.highlight } else { ctx.colors.tile_edge };
+        draw_rectangle(x, y, btn_w, btn_h, bg);
+        draw_rectangle_lines(x, y, btn_w, btn_h, 2.0, ctx.colors.tile_text);
+        let dim = measure_text(label, None, 22, 1.0);
+        draw_text(label, x + (btn_w - dim.width) * 0.5, y + 32.0, 22.0, ctx.colors.tile_text);
+        if hovered && clicked {
+            hit = Some(action);
+        }
+        y += btn_h + gap;
+    }
+    hit
 }

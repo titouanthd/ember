@@ -10,6 +10,52 @@
 
 use crate::components::{ClaimKind, Meld, Tile};
 use crate::hand::shanten;
+use crate::components::GangSource;
+
+/// If the AI has 4 concealed copies of a tile, return it for an
+/// An Gang (闷豆), provided the resulting shanten doesn't get worse.
+/// Dou is valuable in Guiyang, so we're permissive: a neutral Gang
+/// is still worth declaring.
+pub fn decide_an_gang(hand: &[Tile], melds: &[Meld]) -> Option<Tile> {
+    let mut counts: std::collections::HashMap<Tile, usize> = std::collections::HashMap::new();
+    for &t in hand {
+        *counts.entry(t).or_insert(0) += 1;
+    }
+    let candidates: Vec<Tile> = counts
+        .iter()
+        .filter(|&(_, &c)| c == 4)
+        .map(|(&t, _)| t)
+        .collect();
+    
+    if candidates.is_empty() {
+        return None;
+    }
+
+    let before = shanten(hand, melds);
+    for tile in candidates {
+        let mut after_hand = hand.to_vec();
+        let mut removed = 0;
+        after_hand.retain(|&t| {
+            if t == tile && removed < 4 {
+                removed += 1;
+                false
+            } else {
+                true
+            }
+        });
+        let mut after_melds = melds.to_vec();
+        after_melds.push(Meld::Gang { tile, from: GangSource::An });
+        if shanten(&after_hand, &after_melds) <= before {
+            return Some(tile);
+        }
+    }
+    None
+}
+
+/// True if the AI has 3 concealed copies of `discard` — a Ming Gang.
+pub fn decide_ming_gang(hand: &[Tile], discard: Tile) -> bool {
+    hand.iter().filter(|&&t| t == discard).count() >= 3
+}
 
 /// Decide whether to Peng a discard. Returns `Some(ClaimKind::Peng)`
 /// if the claim strictly reduces shanten, `None` otherwise.
@@ -84,14 +130,11 @@ pub fn decide_discard(hand: &[Tile], melds: &[Meld]) -> usize {
     best_idx
 }
 
-/// Number of tiles in `hand` (excluding index `i`) that are within
-/// 2 ranks of `hand[i]` in the same suit. Higher = more connected =
-/// more useful to keep.
-fn count_neighbors(hand: &[Tile], i: usize) -> usize {
-    let t = hand[i];
+fn count_neighbors(hand: &[Tile], idx: usize) -> usize {
+    let t = hand[idx];
     hand.iter()
         .enumerate()
-        .filter(|(j, _)| *j != i)
+        .filter(|(j, _)| *j != idx)
         .filter(|(_, u)| {
             u.suit == t.suit && (u.rank as i32 - t.rank as i32).abs() <= 2
         })
@@ -271,5 +314,40 @@ mod tests {
         let hand = sorted(vec![w(1), w(1), w(2), w(3)]);
         let r = decide_claim(&hand, &[], w(1));
         assert!(r.is_none() || r == Some(ClaimKind::Peng));
+    }
+
+    #[test]
+    fn test_decide_an_gang_when_four_concealed() {
+        use crate::components::Suit;
+        let hand = sorted(vec![
+            Tile::new(Suit::Wan, 1),
+            Tile::new(Suit::Wan, 1),
+            Tile::new(Suit::Wan, 1),
+            Tile::new(Suit::Wan, 1),
+            Tile::new(Suit::Tiao, 2),
+            Tile::new(Suit::Tiao, 3),
+            Tile::new(Suit::Tiao, 4),
+            Tile::new(Suit::Tong, 5),
+            Tile::new(Suit::Tong, 5),
+            Tile::new(Suit::Tong, 5),
+            Tile::new(Suit::Tong, 7),
+            Tile::new(Suit::Tong, 8),
+            Tile::new(Suit::Tong, 9),
+            Tile::new(Suit::Tiao, 7),
+        ]);
+        assert_eq!(decide_an_gang(&hand, &[]), Some(Tile::new(Suit::Wan, 1)));
+    }
+
+    #[test]
+    fn test_decide_an_gang_none_without_four() {
+        let hand = sorted(vec![w(1), w(1), w(1), w(2), w(3), w(4), w(5), w(6), w(7), ti(1), ti(2), ti(3), d(1), d(1)]);
+        assert_eq!(decide_an_gang(&hand, &[]), None);
+    }
+
+    #[test]
+    fn test_decide_ming_gang_needs_three() {
+        let hand = sorted(vec![w(5), w(5), w(5), w(1), w(2), w(3)]);
+        assert!(decide_ming_gang(&hand, w(5)));
+        assert!(!decide_ming_gang(&hand, w(1)));
     }
 }

@@ -178,3 +178,26 @@ fn test_full_turn_with_claims_does_not_deadlock() {
     }
     // Passing means: no deadlock, no panic.
 }
+
+#[test]
+fn test_wall_exhaustion_terminates_game() {
+    let c = ctx();
+    // Any seed — the game must eventually stop, either by Hu or
+    // by HuangZhuang when the wall runs out.
+    let mut g = Game::new(0xABCD_1234);
+
+    // Cap at 5000 updates (~80s of game time). Every hand must end
+    // by then because the wall has only 55 tiles after dealing.
+    for _ in 0..5000 {
+        match g.phase {
+            Phase::Hu { .. } | Phase::HuangZhuang => return,
+            Phase::AwaitingDiscard { player: 0 } => {
+                // Human discards first tile.
+                g.human_discard(0, &c);
+            }
+            _ => {}
+        }
+        g.update(&empty_input(), &c, 1.0 / 60.0);
+    }
+    panic!("game never terminated: phase = {:?}", g.phase);
+}
