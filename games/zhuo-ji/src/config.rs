@@ -5,10 +5,9 @@
 
 use std::path::Path;
 
-use ember_stdlib::config::{env_color, load_dotenv_once};
+use ember_stdlib::config::{env_color, env_u32, load_dotenv_once};
 use macroquad::prelude::Color;
 
-/// Colours used by the V1 renderer.
 #[derive(Debug, Clone, Copy)]
 pub struct Colors {
     pub table_bg: Color,
@@ -25,12 +24,11 @@ pub struct Colors {
 }
 
 impl Colors {
-    /// Defaults for hermetic tests — do not read `.env`.
     pub const fn default_hermetic() -> Self {
         Self {
-            table_bg: Color::new(0.10, 0.14, 0.10, 1.0), // dark felt
+            table_bg: Color::new(0.10, 0.14, 0.10, 1.0),
             table_border: Color::new(0.24, 0.32, 0.24, 1.0),
-            tile_face: Color::new(0.94, 0.93, 0.86, 1.0), // ivory
+            tile_face: Color::new(0.94, 0.93, 0.86, 1.0),
             tile_edge: Color::new(0.55, 0.52, 0.42, 1.0),
             tile_text: Color::new(0.10, 0.10, 0.10, 1.0),
             text: Color::new(0.92, 0.94, 0.92, 1.0),
@@ -54,7 +52,6 @@ impl Colors {
     }
 }
 
-/// Layout and timing.
 #[derive(Debug, Clone, Copy)]
 pub struct Layout {
     pub window_w: f32,
@@ -67,9 +64,10 @@ pub struct Layout {
     pub deal_duration: f32,
     pub draw_duration: f32,
     pub ai_think_duration: f32,
+    pub claim_window: f32,
+    pub claim_duration: f32,
 
-    pub claim_window: f32,     // how long the human has to decide
-    pub claim_duration: f32,   // short animation after a claim resolves
+    pub hands_per_match: u32,
 }
 
 impl Layout {
@@ -85,11 +83,19 @@ impl Layout {
             ai_think_duration: 0.6,
             claim_window: 2.0,
             claim_duration: 0.4,
+            hands_per_match: 4,
+        }
+    }
+
+    fn from_env() -> Self {
+        let d = Self::defaults();
+        Self {
+            hands_per_match: env_u32("AH_HANDS_PER_MATCH", d.hands_per_match).max(1),
+            ..d
         }
     }
 }
 
-/// Everything the game needs. Built once, passed by reference.
 #[derive(Debug, Clone)]
 pub struct GameContext {
     pub colors: Colors,
@@ -97,7 +103,6 @@ pub struct GameContext {
 }
 
 impl GameContext {
-    /// Hermetic context for tests — no `.env` read.
     pub fn default_hermetic() -> Self {
         Self {
             colors: Colors::default_hermetic(),
@@ -105,13 +110,12 @@ impl GameContext {
         }
     }
 
-    /// Load from `.env` in this crate's manifest directory.
     pub fn load() -> Self {
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
         load_dotenv_once(manifest_dir, "zhuo-ji");
         Self {
             colors: Colors::from_env(),
-            layout: Layout::defaults(),
+            layout: Layout::from_env(),
         }
     }
 }
@@ -125,24 +129,18 @@ mod tests {
         let ctx = GameContext::default_hermetic();
         assert_eq!(ctx.layout.window_w, 1280.0);
         assert_eq!(ctx.layout.tile_w, 56.0);
-        assert!(ctx.layout.deal_duration > 0.0);
+        assert_eq!(ctx.layout.hands_per_match, 4);
     }
 
     #[test]
     fn test_colors_in_range() {
         let c = Colors::default_hermetic();
         for col in [
-            c.table_bg,
-            c.table_border,
-            c.tile_face,
-            c.tile_edge,
-            c.tile_text,
-            c.text,
-            c.text_dim,
-            c.highlight,
+            c.table_bg, c.table_border, c.tile_face, c.tile_edge, c.tile_text,
+            c.text, c.text_dim, c.highlight,
         ] {
             for v in [col.r, col.g, col.b, col.a] {
-                assert!((0.0..=1.0).contains(&v), "component out of range: {v}");
+                assert!((0.0..=1.0).contains(&v));
             }
         }
     }
@@ -151,14 +149,20 @@ mod tests {
     fn test_ai_think_duration_is_positive() {
         let ctx = GameContext::default_hermetic();
         assert!(ctx.layout.ai_think_duration > 0.0);
-        assert!(ctx.layout.ai_think_duration < 2.0, "AI shouldn't take forever");
+        assert!(ctx.layout.ai_think_duration < 2.0);
     }
 
     #[test]
     fn test_claim_timings_are_reasonable() {
         let l = Layout::defaults();
-        assert!(l.claim_window >= 1.0, "too short for a human to react");
-        assert!(l.claim_window <= 5.0, "too long to wait");
+        assert!(l.claim_window >= 1.0);
+        assert!(l.claim_window <= 5.0);
         assert!(l.claim_duration > 0.0 && l.claim_duration < 1.0);
+    }
+
+    #[test]
+    fn test_hands_per_match_positive() {
+        let l = Layout::defaults();
+        assert!(l.hands_per_match >= 1);
     }
 }

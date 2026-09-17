@@ -1,15 +1,12 @@
 //! Zhuo Ji — entry point.
 //!
-//! Session 1: renders the human hand at the bottom, three opponent
-//! zones around the table, and a center panel with wall/turn/phase.
-//! Click a tile in your hand during your discard window to discard it.
+//! Session 5: score display, match-over overlay, Space to continue.
 
 use ember_stdlib::input::Input;
 use macroquad::prelude::*;
 
-use zhuo_ji::{Game, GameContext, Phase};
 use zhuo_ji::components::{ClaimKind, Tile};
-
+use zhuo_ji::{Game, GameContext, Phase};
 
 fn window_conf() -> Conf {
     Conf {
@@ -25,28 +22,33 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     let ctx = GameContext::load();
-    // Fixed seed for now. Session 5 will let the human choose one.
     let mut game = Game::new(0x2E5B_1234);
 
     loop {
         let input = Input::from_macroquad();
         let dt = get_frame_time().min(1.0 / 30.0);
 
-        // Human discard on click.
-        if input.mouse_left_pressed {
-            if let Some(idx) = hand_hit_test(&game, &ctx, input.mouse_pos) {
-                game.human_discard(idx, &ctx);
-            }
+        if input.is_key_pressed(KeyCode::Escape) {
+            break;
         }
 
+        // Claim prompt (if any).
         if let Some(kind) = draw_claim_prompt(&game, &ctx, input.mouse_pos) {
             game.human_claim(kind);
         }
 
+        // Own-turn actions (Zimo / An Gang).
         if let Some(action) = draw_own_turn_actions(&game, &ctx, input.mouse_pos) {
             match action {
                 OwnAction::Zimo => { game.human_zimo(); }
                 OwnAction::AnGang(t) => { game.human_an_gang(t); }
+            }
+        }
+
+        // Human discard on click.
+        if input.mouse_left_pressed {
+            if let Some(idx) = hand_hit_test(&game, &ctx, input.mouse_pos) {
+                game.human_discard(idx, &ctx);
             }
         }
 
@@ -57,6 +59,7 @@ async fn main() {
         draw_opponents(&game, &ctx);
         draw_center_panel(&game, &ctx);
         draw_human_hand(&game, &ctx, input.mouse_pos);
+        draw_scores(&game, &ctx);
 
         next_frame().await;
     }
@@ -64,53 +67,6 @@ async fn main() {
 
 // ─── Layout helpers ────────────────────────────────────────────────────────
 
-fn draw_claim_prompt(game: &Game, ctx: &GameContext, mouse: Vec2) -> Option<ClaimKind> {
-    let Phase::AwaitingClaims { discard, from, .. } = game.phase else {
-        return None;
-    };
-    let opts = game.human_claim_options(discard, from)?;
-
-    let cx = ctx.layout.window_w * 0.5;
-    let y = ctx.layout.window_h * 0.5 + 100.0;
-    let btn_w = 130.0;
-    let btn_h = 52.0;
-    let gap = 20.0;
-    let total_w = opts.len() as f32 * btn_w + (opts.len().saturating_sub(1)) as f32 * gap;
-    let mut x = cx - total_w * 0.5;
-
-    let clicked = is_mouse_button_pressed(MouseButton::Left);
-    let mut hit: Option<ClaimKind> = None;
-
-    for &kind in &opts {
-        let hovered = mouse.x >= x && mouse.x <= x + btn_w
-            && mouse.y >= y && mouse.y <= y + btn_h;
-        let bg = if hovered { ctx.colors.highlight } else { ctx.colors.tile_edge };
-        draw_rectangle(x, y, btn_w, btn_h, bg);
-        draw_rectangle_lines(x, y, btn_w, btn_h, 2.0, ctx.colors.tile_text);
-
-        let label = match kind {
-            ClaimKind::Peng => "Peng",
-            ClaimKind::Gang => "Gang",
-            ClaimKind::Hu => "Hu",
-        };
-        let dim = measure_text(label, None, 28, 1.0);
-        draw_text(
-            label,
-            x + (btn_w - dim.width) * 0.5,
-            y + 34.0,
-            28.0,
-            ctx.colors.tile_text,
-        );
-
-        if hovered && clicked {
-            hit = Some(kind);
-        }
-        x += btn_w + gap;
-    }
-    hit
-}
-
-/// Top-left of tile `i` in the human's hand row.
 fn human_tile_origin(ctx: &GameContext, index: usize) -> Vec2 {
     let l = &ctx.layout;
     let n = 13.0_f32;
@@ -120,7 +76,6 @@ fn human_tile_origin(ctx: &GameContext, index: usize) -> Vec2 {
     Vec2::new(start_x + index as f32 * (l.tile_w + l.tile_gap), y)
 }
 
-/// Return the index of the human's tile under `mouse`, if any.
 fn hand_hit_test(game: &Game, ctx: &GameContext, mouse: Vec2) -> Option<usize> {
     if !matches!(game.phase, Phase::AwaitingDiscard { player: 0 }) {
         return None;
@@ -141,14 +96,7 @@ fn hand_hit_test(game: &Game, ctx: &GameContext, mouse: Vec2) -> Option<usize> {
 
 fn draw_table_border(ctx: &GameContext) {
     let l = &ctx.layout;
-    draw_rectangle_lines(
-        0.0,
-        0.0,
-        l.window_w,
-        l.window_h,
-        4.0,
-        ctx.colors.table_border,
-    );
+    draw_rectangle_lines(0.0, 0.0, l.window_w, l.window_h, 4.0, ctx.colors.table_border);
 }
 
 fn draw_center_panel(game: &Game, ctx: &GameContext) {
@@ -171,11 +119,23 @@ fn draw_center_panel(game: &Game, ctx: &GameContext) {
         Phase::AwaitingClaims { .. } => "Claims…",
         Phase::ClaimAnim { .. } => "Claim…",
         Phase::Hu { winner, .. } => {
-            if winner == 0 { "You win!" } else { "AI wins" }
+            if winner == 0 { "You win! (Space to continue)" } else { "AI wins (Space)" }
         }
-        Phase::HuangZhuang => "Wall empty",
+        Phase::HuangZhuang => "Wall empty (Space)",
+        Phase::MatchOver { winner } => {
+            if winner == 0 { "MATCH — You win!" } else { "MATCH — AI wins" }
+        }
     };
     draw_centered(phase_text, cx, cy + 60.0, 22, ctx.colors.text_dim);
+
+    if let Some(ji) = game.last_ji {
+        let ji_text = format!("Ji: {}", ji.primary.label());
+        draw_centered(&ji_text, cx, cy + 90.0, 18, ctx.colors.text_dim);
+    }
+
+    if matches!(game.phase, Phase::MatchOver { .. }) {
+        draw_centered("Space to rematch", cx, cy + 120.0, 24, ctx.colors.highlight);
+    }
 }
 
 fn draw_opponents(game: &Game, ctx: &GameContext) {
@@ -184,11 +144,7 @@ fn draw_opponents(game: &Game, ctx: &GameContext) {
     draw_opponent_zone(game, ctx, 3, OpponentSlot::Right);
 }
 
-enum OpponentSlot {
-    Top,
-    Left,
-    Right,
-}
+enum OpponentSlot { Top, Left, Right }
 
 fn draw_opponent_zone(game: &Game, ctx: &GameContext, player: usize, slot: OpponentSlot) {
     let l = &ctx.layout;
@@ -200,10 +156,9 @@ fn draw_opponent_zone(game: &Game, ctx: &GameContext, player: usize, slot: Oppon
     match slot {
         OpponentSlot::Top => {
             let x = l.window_w * 0.5;
-            let y = 40.0;
-            draw_centered(&header, x, y, 22, ctx.colors.text);
-            draw_centered(&hand_line, x, y + 28.0, 18, ctx.colors.text_dim);
-            draw_centered(&river_line, x, y + 52.0, 18, ctx.colors.text_dim);
+            draw_centered(&header, x, 40.0, 22, ctx.colors.text);
+            draw_centered(&hand_line, x, 68.0, 18, ctx.colors.text_dim);
+            draw_centered(&river_line, x, 92.0, 18, ctx.colors.text_dim);
         }
         OpponentSlot::Left => {
             let x = 60.0;
@@ -234,16 +189,10 @@ fn draw_human_hand(game: &Game, ctx: &GameContext, mouse: Vec2) {
             && mouse.y >= o.y
             && mouse.y <= o.y + l.tile_h;
 
-        // Tile body
         draw_rectangle(o.x, o.y, l.tile_w, l.tile_h, ctx.colors.tile_face);
-        let edge = if hovered {
-            ctx.colors.highlight
-        } else {
-            ctx.colors.tile_edge
-        };
+        let edge = if hovered { ctx.colors.highlight } else { ctx.colors.tile_edge };
         draw_rectangle_lines(o.x, o.y, l.tile_w, l.tile_h, 2.0, edge);
 
-        // Label
         let label = tile.label();
         let dim = measure_text(&label, None, 28, 1.0);
         let tx = o.x + (l.tile_w - dim.width) * 0.5;
@@ -252,26 +201,59 @@ fn draw_human_hand(game: &Game, ctx: &GameContext, mouse: Vec2) {
     }
 }
 
-// ─── Small text helpers (local, to avoid stdlib path guessing) ─────────────
-
-fn player_name(idx: usize) -> &'static str {
-    match idx {
-        0 => "You",
-        1 => "AI-1",
-        2 => "AI-2",
-        3 => "AI-3",
-        _ => "?",
+fn draw_scores(game: &Game, ctx: &GameContext) {
+    let l = &ctx.layout;
+    let x = l.window_w - 180.0;
+    let mut y = 40.0;
+    for i in 0..zhuo_ji::systems::NUM_PLAYERS {
+        let text = format!("{}: {}", player_name(i), game.players[i].score);
+        draw_text(&text, x, y, 22.0, ctx.colors.text);
+        y += 28.0;
     }
+    let hands_text = format!("Hand {}/{}", game.hands_played.min(4), 4);
+    draw_text(&hands_text, x, y + 12.0, 20.0, ctx.colors.text_dim);
 }
 
-fn draw_centered(text: &str, center_x: f32, y: f32, size: u16, color: Color) {
-    let dim = measure_text(text, None, size, 1.0);
-    draw_text(text, center_x - dim.width / 2.0, y, size as f32, color);
-}
+// ─── Buttons ───────────────────────────────────────────────────────────────
 
-fn draw_right_aligned(text: &str, right_x: f32, y: f32, size: u16, color: Color) {
-    let dim = measure_text(text, None, size, 1.0);
-    draw_text(text, right_x - dim.width, y, size as f32, color);
+fn draw_claim_prompt(game: &Game, ctx: &GameContext, mouse: Vec2) -> Option<ClaimKind> {
+    let Phase::AwaitingClaims { discard, from, .. } = game.phase else {
+        return None;
+    };
+    let opts = game.human_claim_options(discard, from)?;
+
+    let cx = ctx.layout.window_w * 0.5;
+    let y = ctx.layout.window_h * 0.5 + 130.0;
+    let btn_w = 130.0;
+    let btn_h = 52.0;
+    let gap = 20.0;
+    let total = opts.len() as f32 * btn_w + (opts.len().saturating_sub(1)) as f32 * gap;
+    let mut x = cx - total * 0.5;
+
+    let clicked = is_mouse_button_pressed(MouseButton::Left);
+    let mut hit: Option<ClaimKind> = None;
+
+    for &kind in &opts {
+        let hovered = mouse.x >= x && mouse.x <= x + btn_w
+            && mouse.y >= y && mouse.y <= y + btn_h;
+        let bg = if hovered { ctx.colors.highlight } else { ctx.colors.tile_edge };
+        draw_rectangle(x, y, btn_w, btn_h, bg);
+        draw_rectangle_lines(x, y, btn_w, btn_h, 2.0, ctx.colors.tile_text);
+
+        let label = match kind {
+            ClaimKind::Peng => "Peng",
+            ClaimKind::Gang => "Gang",
+            ClaimKind::Hu => "Hu",
+        };
+        let dim = measure_text(label, None, 28, 1.0);
+        draw_text(label, x + (btn_w - dim.width) * 0.5, y + 34.0, 28.0, ctx.colors.tile_text);
+
+        if hovered && clicked {
+            hit = Some(kind);
+        }
+        x += btn_w + gap;
+    }
+    hit
 }
 
 enum OwnAction {
@@ -317,4 +299,26 @@ fn draw_own_turn_actions(game: &Game, ctx: &GameContext, mouse: Vec2) -> Option<
         y += btn_h + gap;
     }
     hit
+}
+
+// ─── Text helpers ──────────────────────────────────────────────────────────
+
+fn player_name(idx: usize) -> &'static str {
+    match idx {
+        0 => "You",
+        1 => "AI-1",
+        2 => "AI-2",
+        3 => "AI-3",
+        _ => "?",
+    }
+}
+
+fn draw_centered(text: &str, center_x: f32, y: f32, size: u16, color: Color) {
+    let dim = measure_text(text, None, size, 1.0);
+    draw_text(text, center_x - dim.width / 2.0, y, size as f32, color);
+}
+
+fn draw_right_aligned(text: &str, right_x: f32, y: f32, size: u16, color: Color) {
+    let dim = measure_text(text, None, size, 1.0);
+    draw_text(text, right_x - dim.width, y, size as f32, color);
 }

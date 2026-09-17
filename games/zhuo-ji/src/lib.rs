@@ -9,8 +9,9 @@ pub mod ai;
 pub mod components;
 pub mod config;
 pub mod hand;
+pub mod scoring;
 pub mod systems;
 pub mod wall;
 
 pub use config::GameContext;
-pub use systems::{Game, GameEvent, Phase};
+pub use systems::{Game, GameEvent, HuMethod, Phase};
