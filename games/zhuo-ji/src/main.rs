@@ -8,6 +8,7 @@ use ember_stdlib::input::Input;
 use macroquad::prelude::*;
 
 use zhuo_ji::{Game, GameContext, Phase};
+use zhuo_ji::components::ClaimKind;
 
 fn window_conf() -> Conf {
     Conf {
@@ -33,8 +34,12 @@ async fn main() {
         // Human discard on click.
         if input.mouse_left_pressed {
             if let Some(idx) = hand_hit_test(&game, &ctx, input.mouse_pos) {
-                game.human_discard(idx);
+                game.human_discard(idx, &ctx);
             }
+        }
+
+        if let Some(kind) = draw_claim_prompt(&game, &ctx, input.mouse_pos) {
+            game.human_claim(kind);
         }
 
         let _ = game.update(&input, &ctx, dt);
@@ -50,6 +55,51 @@ async fn main() {
 }
 
 // ─── Layout helpers ────────────────────────────────────────────────────────
+
+fn draw_claim_prompt(game: &Game, ctx: &GameContext, mouse: Vec2) -> Option<ClaimKind> {
+    let Phase::AwaitingClaims { discard, from, .. } = game.phase else {
+        return None;
+    };
+    let opts = game.human_claim_options(discard, from)?;
+
+    let cx = ctx.layout.window_w * 0.5;
+    let y = ctx.layout.window_h * 0.5 + 100.0;
+    let btn_w = 130.0;
+    let btn_h = 52.0;
+    let gap = 20.0;
+    let total_w = opts.len() as f32 * btn_w + (opts.len().saturating_sub(1)) as f32 * gap;
+    let mut x = cx - total_w * 0.5;
+
+    let clicked = is_mouse_button_pressed(MouseButton::Left);
+    let mut hit: Option<ClaimKind> = None;
+
+    for &kind in &opts {
+        let hovered = mouse.x >= x && mouse.x <= x + btn_w
+            && mouse.y >= y && mouse.y <= y + btn_h;
+        let bg = if hovered { ctx.colors.highlight } else { ctx.colors.tile_edge };
+        draw_rectangle(x, y, btn_w, btn_h, bg);
+        draw_rectangle_lines(x, y, btn_w, btn_h, 2.0, ctx.colors.tile_text);
+
+        let label = match kind {
+            ClaimKind::Peng => "Peng",
+            ClaimKind::Hu => "Hu",
+        };
+        let dim = measure_text(label, None, 28, 1.0);
+        draw_text(
+            label,
+            x + (btn_w - dim.width) * 0.5,
+            y + 34.0,
+            28.0,
+            ctx.colors.tile_text,
+        );
+
+        if hovered && clicked {
+            hit = Some(kind);
+        }
+        x += btn_w + gap;
+    }
+    hit
+}
 
 /// Top-left of tile `i` in the human's hand row.
 fn human_tile_origin(ctx: &GameContext, index: usize) -> Vec2 {
@@ -109,6 +159,11 @@ fn draw_center_panel(game: &Game, ctx: &GameContext) {
         Phase::AiThinking { .. } => "Thinking…",
         Phase::AwaitingDiscard { player: 0 } => "Your discard",
         Phase::AwaitingDiscard { .. } => "Discarding…",
+        Phase::AwaitingClaims { .. } => "Claims…",
+        Phase::ClaimAnim { .. } => "Claim…",
+        Phase::Hu { winner, .. } => {
+            if winner == 0 { "You win!" } else { "AI wins" }
+        }
     };
     draw_centered(phase_text, cx, cy + 60.0, 22, ctx.colors.text_dim);
 }

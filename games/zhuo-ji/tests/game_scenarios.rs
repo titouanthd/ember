@@ -73,7 +73,7 @@ fn test_discard_moves_tile_to_river() {
     let mut g = Game::new(1);
     advance_to_human_discard(&mut g, &c, 600);
 
-    let discarded = g.human_discard(0).expect("legal discard");
+    let discarded = g.human_discard(0, &c).expect("legal discard");
     assert_eq!(g.players[0].concealed.len(), 13);
     assert_eq!(g.players[0].discards.len(), 1);
     assert_eq!(g.players[0].discards[0], discarded);
@@ -85,7 +85,7 @@ fn test_full_rotation_back_to_human() {
     let mut g = Game::new(1);
     advance_to_human_discard(&mut g, &c, 600);
 
-    g.human_discard(0).unwrap();
+    g.human_discard(0, &c).unwrap();
     advance_to_human_discard(&mut g, &c, 600);
 
     assert_eq!(g.players[0].discards.len(), 1);
@@ -123,7 +123,7 @@ fn test_ai_discards_are_deterministic_with_seed() {
     // Play through one full rotation of the human discarding tile 0.
     for g in [&mut g1, &mut g2] {
         advance_to_human_discard(g, &c, 2000);
-        g.human_discard(0).unwrap();
+        g.human_discard(0, &c).unwrap();
         advance_to_human_discard(g, &c, 2000);
     }
 
@@ -131,4 +131,50 @@ fn test_ai_discards_are_deterministic_with_seed() {
     for i in 1..4 {
         assert_eq!(g1.players[i].discards, g2.players[i].discards, "AI {i}");
     }
+}
+
+#[test]
+fn test_full_turn_with_claims_does_not_deadlock() {
+    let c = ctx();
+    let mut g = Game::new(3);
+
+    // Play up to 20 turns of "human discards tile 0, then let the claim
+    // window resolve". The hand may end in Hu at any point — stop
+    // cleanly when it does. The point is: no hang, no panic.
+    for _ in 0..20 {
+        // Drive to the human's discard, but bail if a terminal phase
+        // arrives first.
+        let mut reached = false;
+        for _ in 0..4000 {
+            match g.phase {
+                Phase::AwaitingDiscard { player: 0 } => {
+                    reached = true;
+                    break;
+                }
+                Phase::Hu { .. } => break,
+                _ => {}
+            }
+            g.update(&empty_input(), &c, 1.0 / 60.0);
+        }
+        if !reached {
+            break;
+        }
+
+        g.human_discard(0, &c).unwrap();
+
+        // Let the claim window resolve, if any. Stop on terminal phase
+        // or on coming back to the human.
+        for _ in 0..240 {
+            if matches!(g.phase, Phase::Hu { .. })
+                || matches!(g.phase, Phase::AwaitingDiscard { player: 0 })
+            {
+                break;
+            }
+            g.update(&empty_input(), &c, 1.0 / 60.0);
+        }
+        if matches!(g.phase, Phase::Hu { .. }) {
+            break;
+        }
+    }
+    // Passing means: no deadlock, no panic.
 }

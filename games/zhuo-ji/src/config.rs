@@ -67,6 +67,9 @@ pub struct Layout {
     pub deal_duration: f32,
     pub draw_duration: f32,
     pub ai_think_duration: f32,
+
+    pub claim_window: f32,     // how long the human has to decide
+    pub claim_duration: f32,   // short animation after a claim resolves
 }
 
 impl Layout {
@@ -80,6 +83,8 @@ impl Layout {
             deal_duration: 0.5,
             draw_duration: 0.25,
             ai_think_duration: 0.6,
+            claim_window: 2.0,
+            claim_duration: 0.4,
         }
     }
 }
@@ -147,5 +152,13 @@ mod tests {
         let ctx = GameContext::default_hermetic();
         assert!(ctx.layout.ai_think_duration > 0.0);
         assert!(ctx.layout.ai_think_duration < 2.0, "AI shouldn't take forever");
+    }
+
+    #[test]
+    fn test_claim_timings_are_reasonable() {
+        let l = Layout::defaults();
+        assert!(l.claim_window >= 1.0, "too short for a human to react");
+        assert!(l.claim_window <= 5.0, "too long to wait");
+        assert!(l.claim_duration > 0.0 && l.claim_duration < 1.0);
     }
 }

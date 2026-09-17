@@ -90,6 +90,13 @@ impl Player {
     }
 }
 
+/// A claim a player can make on another player's discard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClaimKind {
+    Peng,
+    Hu,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
