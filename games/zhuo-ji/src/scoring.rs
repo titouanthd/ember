@@ -1,18 +1,15 @@
 //! Hand-end scoring: pattern detection, Dou (Gang bonuses), and Ji
 //! (Chicken) scoring, per DESIGN.md §7.
-//!
-//! V1 scope: standard 4 melds + 1 pair only. QiDui and LongQiDui are
-//! V2, so `detect_pattern` handles PingHu, DaDuiZi, QingYiSe, QingDaDui.
+
 use crate::components::{GangSource, Meld, Player, Suit, Tile};
 use crate::systems::{HuMethod, NUM_PLAYERS};
 
-/// Recognized hand patterns, in increasing fan value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Pattern {
-    PingHu,    // 平胡 — 1 fan
-    DaDuiZi,   // 大对子 — 5 fan
-    QingYiSe,  // 清一色 — 10 fan
-    QingDaDui, // 清大对 — 15 fan
+    PingHu,
+    DaDuiZi,
+    QingYiSe,
+    QingDaDui,
 }
 
 impl Pattern {
@@ -34,8 +31,6 @@ impl Pattern {
         }
     }
 }
-
-// ─── Pattern detection ─────────────────────────────────────────────────────
 
 pub fn detect_pattern(concealed: &[Tile], melds: &[Meld]) -> Pattern {
     let one_suit = is_all_one_suit(concealed, melds);
@@ -77,7 +72,6 @@ fn is_all_one_suit(concealed: &[Tile], melds: &[Meld]) -> bool {
 }
 
 fn is_all_triplets_hand(concealed: &[Tile], melds: &[Meld]) -> bool {
-    // Melds are Peng/Gang, so they're already triplets.
     let needed = 4usize.saturating_sub(melds.len());
     if concealed.len() != 3 * needed + 2 {
         return false;
@@ -120,13 +114,11 @@ fn can_form_triplets_only(tiles: &[Tile], needed: usize) -> bool {
     can_form_triplets_only(&rest, needed - 1)
 }
 
-// ─── Dou (Gang bonuses) ────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DouScore {
-    pub an: u32,   // 闷豆 — each other player pays 2
-    pub bu: u32,   // 爬坡豆 — each other player pays 3
-    pub ming: u32, // 点豆 — only discarder pays 1
+    pub an: u32,
+    pub bu: u32,
+    pub ming: u32,
 }
 
 impl DouScore {
@@ -135,7 +127,7 @@ impl DouScore {
     }
 
     pub fn fan_from_discarder(self) -> i32 {
-        (self.ming as i32) * 1
+        self.ming as i32
     }
 
     pub fn is_empty(self) -> bool {
@@ -157,19 +149,15 @@ pub fn count_dou(melds: &[Meld]) -> DouScore {
     d
 }
 
-// ─── Ji (Chicken) ──────────────────────────────────────────────────────────
-
-/// Ji information determined after a hand ends by flipping a wall tile.
 #[derive(Debug, Clone, Copy)]
 pub struct JiInfo {
     pub primary: Tile,
-    pub jiao_golden: bool,    // 1 Tiao is worth 2
-    pub ba_tong_golden: bool, // 8 Tong is worth 2
+    pub jiao_golden: bool,
+    pub ba_tong_golden: bool,
 }
 
 impl JiInfo {
     pub const fn none() -> Self {
-        // Impossible rank so `ji_fan_for_tile` never matches primary.
         Self {
             primary: Tile { suit: Suit::Wan, rank: 0 },
             jiao_golden: false,
@@ -223,12 +211,6 @@ fn ji_fan_for_tile(tile: Tile, ji: &JiInfo) -> i32 {
     }
 }
 
-// ─── Full hand application ─────────────────────────────────────────────────
-
-/// Apply score changes to every player for one finished hand.
-///
-/// `winner` is `None` for a Huangzhuang (exhaustive draw); in that case
-/// only the tenpai/non-tenpai payments apply, computed by the caller.
 pub fn apply_hand_scores(
     players: &mut [Player; NUM_PLAYERS],
     winner: Option<(usize, HuMethod)>,
@@ -253,7 +235,6 @@ pub fn apply_hand_scores(
 
         match method {
             HuMethod::Zimo => {
-                // Each other player pays the winner.
                 for i in 0..NUM_PLAYERS {
                     if i != idx {
                         players[i].score -= total;
@@ -268,7 +249,6 @@ pub fn apply_hand_scores(
         }
     }
 
-    // Ji: pairwise net from each player's Ji count.
     let ji_counts: Vec<i32> = players
         .iter()
         .map(|p| count_ji_for_player(p, ji))
@@ -282,10 +262,6 @@ pub fn apply_hand_scores(
     }
 }
 
-// ─── Huangzhuang (exhaustive draw) ─────────────────────────────────────────
-
-/// Simplified 查叫: tenpai players receive a flat 2 fan from each
-/// non-tenpai player. Dou and Ji do not apply.
 pub fn apply_huangzhuang_scores(
     players: &mut [Player; NUM_PLAYERS],
     tenpai: &[bool; NUM_PLAYERS],
@@ -314,8 +290,6 @@ pub fn meld_tile(m: &Meld) -> Tile {
         Meld::Gang { tile, .. } => tile,
     }
 }
-
-// ─── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -377,7 +351,6 @@ mod tests {
 
     #[test]
     fn test_pattern_with_pengs() {
-        // 2 Pengs + 2 W sequences + pair → PingHu (not one suit).
         let concealed = sorted(vec![
             w(1), w(2), w(3),
             w(4), w(5), w(6),
@@ -462,8 +435,7 @@ mod tests {
             Tile::new(Suit::Tiao, 1),
             Tile::new(Suit::Wan, 5),
         ];
-        let ji = determine_ji(Tile::new(Suit::Wan, 4)); // 5W primary
-        // Two 1 Tiao (1 fan each) + 5W (1 fan) = 3 fan.
+        let ji = determine_ji(Tile::new(Suit::Wan, 4));
         assert_eq!(count_ji_for_player(&p, &ji), 3);
     }
 
@@ -471,8 +443,7 @@ mod tests {
     fn test_ji_counting_golden() {
         let mut p = Player::new(false);
         p.concealed = vec![Tile::new(Suit::Tiao, 1)];
-        let ji = determine_ji(Tile::new(Suit::Tiao, 9)); // 1T primary + golden
-        // 1 Tiao is Golden → 2 fan.
+        let ji = determine_ji(Tile::new(Suit::Tiao, 9));
         assert_eq!(count_ji_for_player(&p, &ji), 2);
     }
 
@@ -484,7 +455,6 @@ mod tests {
             Player::new(true),
             Player::new(true),
         ];
-        // Player 0 has a complete hand (4 melds + pair).
         players[0].concealed = sorted(vec![
             w(1), w(2), w(3),
             w(4), w(5), w(6),
@@ -496,11 +466,11 @@ mod tests {
         let ji = JiInfo::none();
         apply_hand_scores(&mut players, Some((0, HuMethod::Zimo)), &ji, 1);
 
-        // Non-winners each lost; winner gained 3×.
         assert!(players[0].score > 0);
         assert_eq!(players[1].score, players[2].score);
         assert_eq!(players[2].score, players[3].score);
-        assert_eq!(players[1].score + players[2].score + players[3].score + players[0].score, 0);
+        let sum: i32 = players.iter().map(|p| p.score).sum();
+        assert_eq!(sum, 0);
     }
 
     #[test]
@@ -540,7 +510,7 @@ mod tests {
         ];
         let tenpai = [true, false, false, false];
         apply_huangzhuang_scores(&mut players, &tenpai);
-        assert_eq!(players[0].score, 6); // 3 non-tenpai × 2
+        assert_eq!(players[0].score, 6);
         assert_eq!(players[1].score, -2);
     }
 

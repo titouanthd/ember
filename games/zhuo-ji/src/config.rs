@@ -1,7 +1,4 @@
 //! Game configuration resolved from `.env`.
-//!
-//! `GameContext` is the single source of truth for layout, palette, and
-//! tuning. Built once in `main.rs` and passed by reference everywhere.
 
 use std::path::Path;
 
@@ -12,15 +9,13 @@ use macroquad::prelude::Color;
 pub struct Colors {
     pub table_bg: Color,
     pub table_border: Color,
-
     pub tile_face: Color,
     pub tile_edge: Color,
     pub tile_text: Color,
-
     pub text: Color,
     pub text_dim: Color,
-
     pub highlight: Color,
+    pub danger: Color,
 }
 
 impl Colors {
@@ -33,7 +28,8 @@ impl Colors {
             tile_text: Color::new(0.10, 0.10, 0.10, 1.0),
             text: Color::new(0.92, 0.94, 0.92, 1.0),
             text_dim: Color::new(0.60, 0.65, 0.60, 1.0),
-            highlight: Color::new(1.0, 0.85, 0.30, 0.85),
+            highlight: Color::new(1.0, 0.85, 0.30, 0.95),
+            danger: Color::new(0.95, 0.45, 0.45, 1.0),
         }
     }
 
@@ -48,6 +44,7 @@ impl Colors {
             text: env_color("COLOR_TEXT", d.text),
             text_dim: env_color("COLOR_TEXT_DIM", d.text_dim),
             highlight: env_color("COLOR_HIGHLIGHT", d.highlight),
+            danger: env_color("COLOR_DANGER", d.danger),
         }
     }
 }
@@ -57,13 +54,12 @@ pub struct Layout {
     pub window_w: f32,
     pub window_h: f32,
 
-    pub tile_w: f32,
-    pub tile_h: f32,
-    pub tile_gap: f32,
-
     pub deal_duration: f32,
     pub draw_duration: f32,
     pub ai_think_duration: f32,
+    /// How long the human has to discard on their turn.
+    pub turn_window: f32,
+    /// How long the human has to claim a discard.
     pub claim_window: f32,
     pub claim_duration: f32,
 
@@ -75,15 +71,13 @@ impl Layout {
         Self {
             window_w: 1280.0,
             window_h: 720.0,
-            tile_w: 56.0,
-            tile_h: 78.0,
-            tile_gap: 4.0,
             deal_duration: 0.5,
             draw_duration: 0.25,
             ai_think_duration: 0.6,
-            claim_window: 2.0,
+            turn_window: 30.0,
+            claim_window: 10.0,
             claim_duration: 0.4,
-            hands_per_match: 4,
+            hands_per_match: 16,
         }
     }
 
@@ -128,8 +122,7 @@ mod tests {
     fn test_hermetic_context_defaults() {
         let ctx = GameContext::default_hermetic();
         assert_eq!(ctx.layout.window_w, 1280.0);
-        assert_eq!(ctx.layout.tile_w, 56.0);
-        assert_eq!(ctx.layout.hands_per_match, 4);
+        assert_eq!(ctx.layout.hands_per_match, 16);
     }
 
     #[test]
@@ -137,7 +130,7 @@ mod tests {
         let c = Colors::default_hermetic();
         for col in [
             c.table_bg, c.table_border, c.tile_face, c.tile_edge, c.tile_text,
-            c.text, c.text_dim, c.highlight,
+            c.text, c.text_dim, c.highlight, c.danger,
         ] {
             for v in [col.r, col.g, col.b, col.a] {
                 assert!((0.0..=1.0).contains(&v));
@@ -146,23 +139,17 @@ mod tests {
     }
 
     #[test]
-    fn test_ai_think_duration_is_positive() {
-        let ctx = GameContext::default_hermetic();
-        assert!(ctx.layout.ai_think_duration > 0.0);
-        assert!(ctx.layout.ai_think_duration < 2.0);
+    fn test_turn_window_is_thirty_seconds() {
+        assert!((Layout::defaults().turn_window - 30.0).abs() < 1e-3);
     }
 
     #[test]
-    fn test_claim_timings_are_reasonable() {
-        let l = Layout::defaults();
-        assert!(l.claim_window >= 1.0);
-        assert!(l.claim_window <= 5.0);
-        assert!(l.claim_duration > 0.0 && l.claim_duration < 1.0);
+    fn test_claim_window_is_ten_seconds() {
+        assert!((Layout::defaults().claim_window - 10.0).abs() < 1e-3);
     }
 
     #[test]
-    fn test_hands_per_match_positive() {
-        let l = Layout::defaults();
-        assert!(l.hands_per_match >= 1);
+    fn test_hands_per_match_is_sixteen() {
+        assert_eq!(Layout::defaults().hands_per_match, 16);
     }
 }

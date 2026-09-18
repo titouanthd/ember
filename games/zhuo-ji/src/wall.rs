@@ -1,20 +1,12 @@
 //! Wall creation, shuffle, and deal.
-//!
-//! The wall is 108 tiles: 3 suits × 9 ranks × 4 copies, no honors.
-//! Shuffling uses the workspace `Rng` (xorshift32) so deals are
-//! reproducible given a seed — critical for the integration tests.
 
 use ember_core::rng::Rng;
 
 use crate::components::{Player, Suit, Tile};
 
-/// Total number of tiles in the wall.
 pub const WALL_SIZE: usize = 108;
-
-/// Tiles each player is dealt before the dealer's opening draw.
 pub const HAND_SIZE: usize = 13;
 
-/// Build the full 108-tile wall in a deterministic (sorted) order.
 pub fn build_wall() -> Vec<Tile> {
     let mut wall = Vec::with_capacity(WALL_SIZE);
     for suit in Suit::ALL {
@@ -27,23 +19,17 @@ pub fn build_wall() -> Vec<Tile> {
     wall
 }
 
-/// Shuffle `wall` in place with Fisher-Yates, driven by `rng`.
 pub fn shuffle(wall: &mut [Tile], rng: &mut Rng) {
     let n = wall.len();
-    if n < 2 {
-        return;
-    }
+    if n < 2 { return; }
     for i in (1..n).rev() {
         let j = rng.next_range(i + 1);
         wall.swap(i, j);
     }
 }
 
-/// Deal 13 tiles to each of 4 players, then draw one extra for the
-/// dealer (who opens with 14). Hands are sorted after dealing so
-/// hand evaluation and rendering both see a canonical order.
-///
-/// After this call the wall has `108 − 52 − 1 = 55` tiles left.
+/// Deal 13 tiles to each player. The dealer's extra (14th) tile goes
+/// into `drawn`, so it can be rendered separately from the hand.
 pub fn deal(wall: &mut Vec<Tile>, players: &mut [Player; 4], dealer: usize) {
     for _ in 0..HAND_SIZE {
         for p in players.iter_mut() {
@@ -53,7 +39,7 @@ pub fn deal(wall: &mut Vec<Tile>, players: &mut [Player; 4], dealer: usize) {
         }
     }
     if let Some(t) = wall.pop() {
-        players[dealer].concealed.push(t);
+        players[dealer].drawn = Some(t);
     }
     for p in players.iter_mut() {
         p.concealed.sort();
@@ -104,13 +90,10 @@ mod tests {
     #[test]
     fn test_shuffle_preserves_multiset() {
         let mut wall = build_wall();
-        let original = {
-            let mut c: HashMap<Tile, usize> = HashMap::new();
-            for t in &wall {
-                *c.entry(*t).or_insert(0) += 1;
-            }
-            c
-        };
+        let mut original: HashMap<Tile, usize> = HashMap::new();
+        for t in &wall {
+            *original.entry(*t).or_insert(0) += 1;
+        }
         shuffle(&mut wall, &mut Rng::new(7));
         let mut after: HashMap<Tile, usize> = HashMap::new();
         for t in &wall {
@@ -139,8 +122,10 @@ mod tests {
         deal(&mut wall, &mut players, 0);
 
         assert_eq!(wall.len(), 55);
-        assert_eq!(players[0].concealed.len(), 14); // dealer drew one extra
+        assert_eq!(players[0].concealed.len(), 13);
+        assert!(players[0].drawn.is_some());
         assert_eq!(players[1].concealed.len(), 13);
+        assert!(players[1].drawn.is_none());
         assert_eq!(players[2].concealed.len(), 13);
         assert_eq!(players[3].concealed.len(), 13);
     }
@@ -174,7 +159,8 @@ mod tests {
             Player::new(true),
         ];
         deal(&mut wall, &mut players, 2);
-        assert_eq!(players[2].concealed.len(), 14);
-        assert_eq!(players[0].concealed.len(), 13);
+        assert!(players[2].drawn.is_some());
+        assert!(players[0].drawn.is_none());
+        assert!(players[1].drawn.is_none());
     }
 }

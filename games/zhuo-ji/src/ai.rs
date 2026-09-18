@@ -1,68 +1,58 @@
-//! AI discard logic.
+//! AI discard and claim logic.
 //!
 //! V1 is purely offensive: for each candidate discard, compute the
 //! shanten of the post-discard hand and keep the minimum. Ties break
 //! toward tiles with fewer same-suit "neighbors" (within 2 ranks),
 //! which are least useful for forming future melds.
 //!
-//! No defense yet. The AI ignores what other players are collecting.
-//! That arrives in a V2 heuristic once the game is playable end-to-end.
+//! No defense yet.
 
-use crate::components::{ClaimKind, Meld, Tile};
+use crate::components::{ClaimKind, GangSource, Meld, Tile};
 use crate::hand::shanten;
-use crate::components::GangSource;
 
-/// If the AI has 4 concealed copies of a tile, return it for an
-/// An Gang (闷豆), provided the resulting shanten doesn't get worse.
-/// Dou is valuable in Guiyang, so we're permissive: a neutral Gang
-/// is still worth declaring.
-pub fn decide_an_gang(hand: &[Tile], melds: &[Meld]) -> Option<Tile> {
-    let mut counts: std::collections::HashMap<Tile, usize> = std::collections::HashMap::new();
-    for &t in hand {
-        *counts.entry(t).or_insert(0) += 1;
-    }
-    let candidates: Vec<Tile> = counts
-        .iter()
-        .filter(|&(_, &c)| c == 4)
-        .map(|(&t, _)| t)
-        .collect();
-    
-    if candidates.is_empty() {
-        return None;
+/// Choose which tile to discard from `hand`. Returns an index into `hand`.
+pub fn decide_discard(hand: &[Tile], melds: &[Meld]) -> usize {
+    if hand.is_empty() {
+        return 0;
     }
 
-    let before = shanten(hand, melds);
-    for tile in candidates {
-        let mut after_hand = hand.to_vec();
-        let mut removed = 0;
-        after_hand.retain(|&t| {
-            if t == tile && removed < 4 {
-                removed += 1;
-                false
-            } else {
-                true
-            }
-        });
-        let mut after_melds = melds.to_vec();
-        after_melds.push(Meld::Gang { tile, from: GangSource::An });
-        if shanten(&after_hand, &after_melds) <= before {
-            return Some(tile);
+    let mut best_idx = 0;
+    let mut best_shanten = i32::MAX;
+    let mut best_neighbors = usize::MAX;
+
+    for i in 0..hand.len() {
+        let mut after = hand.to_vec();
+        after.remove(i);
+        let s = shanten(&after, melds);
+        let n = count_neighbors(hand, i);
+
+        let better = s < best_shanten
+            || (s == best_shanten && n < best_neighbors);
+
+        if better {
+            best_idx = i;
+            best_shanten = s;
+            best_neighbors = n;
         }
     }
-    None
+    best_idx
 }
 
-/// True if the AI has 3 concealed copies of `discard` — a Ming Gang.
-pub fn decide_ming_gang(hand: &[Tile], discard: Tile) -> bool {
-    hand.iter().filter(|&&t| t == discard).count() >= 3
+/// Number of tiles in `hand` (excluding index `idx`) that are within
+/// 2 ranks of `hand[idx]` in the same suit.
+fn count_neighbors(hand: &[Tile], idx: usize) -> usize {
+    let t = hand[idx];
+    hand.iter()
+        .enumerate()
+        .filter(|(j, _)| *j != idx)
+        .filter(|(_, u)| {
+            u.suit == t.suit && (u.rank as i32 - t.rank as i32).abs() <= 2
+        })
+        .count()
 }
 
 /// Decide whether to Peng a discard. Returns `Some(ClaimKind::Peng)`
 /// if the claim strictly reduces shanten, `None` otherwise.
-///
-/// "Strictly reduces" is the conservative rule: it prevents the AI
-/// from opening its hand for a lateral move, which would be exploitable
-/// in real play. Hu handling lives in `systems.rs`.
 pub fn decide_claim(hand: &[Tile], melds: &[Meld], discard: Tile) -> Option<ClaimKind> {
     let count = hand.iter().filter(|&&t| t == discard).count();
     if count < 2 {
@@ -94,57 +84,52 @@ pub fn decide_claim(hand: &[Tile], melds: &[Meld], discard: Tile) -> Option<Clai
     }
 }
 
-/// Choose which tile to discard from `hand`. Returns an index into `hand`.
-///
-/// Preconditions: `hand` is non-empty. If empty, returns 0 (caller must
-/// guard — a Mahjong turn always has at least one tile to discard).
-///
-/// Deterministic: same input always yields the same index. Ties break
-/// toward the lowest index, which is also the lowest-ranked tile in a
-/// sorted hand — a human-like "throw the smallest useful-adjacent tile"
-/// behavior.
-pub fn decide_discard(hand: &[Tile], melds: &[Meld]) -> usize {
-    if hand.is_empty() {
-        return 0;
+/// If the AI has 4 concealed copies of a tile, return it for an
+/// An Gang (闷豆), provided the resulting shanten doesn't get worse.
+pub fn decide_an_gang(hand: &[Tile], melds: &[Meld]) -> Option<Tile> {
+    let mut counts: std::collections::HashMap<Tile, usize> = std::collections::HashMap::new();
+    for &t in hand {
+        *counts.entry(t).or_insert(0) += 1;
+    }
+    let candidates: Vec<Tile> = counts
+        .iter()
+        .filter(|&(_, &c)| c == 4)
+        .map(|(&t, _)| t)
+        .collect();
+    if candidates.is_empty() {
+        return None;
     }
 
-    let mut best_idx = 0;
-    let mut best_shanten = i32::MAX;
-    let mut best_neighbors = usize::MAX;
-
-    for i in 0..hand.len() {
-        let mut after = hand.to_vec();
-        after.remove(i);
-        let s = shanten(&after, melds);
-        let n = count_neighbors(hand, i);
-
-        let better = s < best_shanten
-            || (s == best_shanten && n < best_neighbors);
-
-        if better {
-            best_idx = i;
-            best_shanten = s;
-            best_neighbors = n;
+    let before = shanten(hand, melds);
+    for tile in candidates {
+        let mut after_hand = hand.to_vec();
+        let mut removed = 0;
+        after_hand.retain(|&t| {
+            if t == tile && removed < 4 {
+                removed += 1;
+                false
+            } else {
+                true
+            }
+        });
+        let mut after_melds = melds.to_vec();
+        after_melds.push(Meld::Gang { tile, from: GangSource::An });
+        if shanten(&after_hand, &after_melds) <= before {
+            return Some(tile);
         }
     }
-    best_idx
+    None
 }
 
-fn count_neighbors(hand: &[Tile], idx: usize) -> usize {
-    let t = hand[idx];
-    hand.iter()
-        .enumerate()
-        .filter(|(j, _)| *j != idx)
-        .filter(|(_, u)| {
-            u.suit == t.suit && (u.rank as i32 - t.rank as i32).abs() <= 2
-        })
-        .count()
+/// True if the AI has 3 concealed copies of `discard` — a Ming Gang.
+pub fn decide_ming_gang(hand: &[Tile], discard: Tile) -> bool {
+    hand.iter().filter(|&&t| t == discard).count() >= 3
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::components::{Suit, Tile};
+    use crate::components::{ClaimKind, Suit, Tile};
 
     fn w(r: u8) -> Tile { Tile::new(Suit::Wan, r) }
     fn ti(r: u8) -> Tile { Tile::new(Suit::Tiao, r) }
@@ -155,7 +140,6 @@ mod tests {
         v
     }
 
-    /// Discard index i, return the resulting hand.
     fn discard_at(hand: &[Tile], i: usize) -> Vec<Tile> {
         let mut h = hand.to_vec();
         h.remove(i);
@@ -164,71 +148,52 @@ mod tests {
 
     #[test]
     fn test_discards_isolated_tile_from_complete_shapes() {
-        // 3 Wan sequences + Tiao triplet + lone 5D. The lone tile is
-        // index 13 in a sorted hand (all W < all T < all D).
         let hand = sorted(vec![
             w(1), w(2), w(3),
             w(4), w(5), w(6),
             w(7), w(8), w(9),
             ti(1), ti(1), ti(1),
             d(5),
-            d(9), // second isolated tile
+            d(9),
         ]);
         let idx = decide_discard(&hand, &[]);
-        // Both d5 and d9 are isolated. Tie-break goes to the earlier
-        // index (d5) → index 12 in the sorted 14-tile hand.
         assert_eq!(hand[idx], d(5));
     }
 
     #[test]
     fn test_unique_optimal_discard_to_stay_tenpai() {
-        // Hand: 123W, 456W, 789W (3 melds) + 78T (partial) + 11D (pair)
-        //       + a SECOND 9W as the extra tile.
-        //
-        // Only discarding the extra 9W keeps tenpai (waiting on 6T or 9T).
-        // Every other discard loses something structural:
-        //   - discard 1D → no pair → 1-shanten
-        //   - discard 7T or 8T → no partial → 1-shanten
-        //   - discard any W tile that's part of a sequence → breaks a meld
         let hand = sorted(vec![
             w(1), w(2), w(3),
             w(4), w(5), w(6),
-            w(7), w(8), w(9), w(9), // two 9W: one in 789W, one extra
+            w(7), w(8), w(9), w(9),
             ti(7), ti(8),
             d(1), d(1),
         ]);
         assert_eq!(hand.len(), 14);
 
         let idx = decide_discard(&hand, &[]);
-        assert_eq!(hand[idx], w(9), "should discard the extra 9W");
+        assert_eq!(hand[idx], w(9));
 
         let after = discard_at(&hand, idx);
-        assert_eq!(shanten(&after, &[]), 0, "hand must remain tenpai");
+        assert_eq!(shanten(&after, &[]), 0);
 
-        // Sanity: the discarded tile really was the extra one, not a
-        // sequence member. The 13-tile remainder should contain 3 W
-        // sequences + 78T + 11D and no extra 9W.
-        let nines_in_hand_before = hand.iter().filter(|&&t| t == w(9)).count();
+        let nines_before = hand.iter().filter(|&&t| t == w(9)).count();
         let nines_after = after.iter().filter(|&&t| t == w(9)).count();
-        assert_eq!(nines_in_hand_before, 2);
+        assert_eq!(nines_before, 2);
         assert_eq!(nines_after, 1);
     }
 
     #[test]
     fn test_keeps_pair_rather_than_breaking_it() {
-        // The pair (5T) is the only pair. Discarding one of them loses
-        // the pair, so the AI should discard something else.
         let hand = sorted(vec![
             ti(5), ti(5),
             w(1), w(3), w(5), w(7), w(9),
             d(1), d(3), d(5), d(7),
             ti(1), ti(3),
-            w(2), // partial with w1 or w3
+            w(2),
         ]);
         let idx = decide_discard(&hand, &[]);
-        let discarded = hand[idx];
-        // AI should not discard 5T (it's the only pair).
-        assert_ne!(discarded, ti(5));
+        assert_ne!(hand[idx], ti(5));
     }
 
     #[test]
@@ -239,68 +204,35 @@ mod tests {
             d(1), d(4), d(7),
             w(2), w(5), ti(2), d(5),
         ]);
-        let a = decide_discard(&hand, &[]);
-        let b = decide_discard(&hand, &[]);
-        assert_eq!(a, b);
+        assert_eq!(decide_discard(&hand, &[]), decide_discard(&hand, &[]));
     }
 
     #[test]
     fn test_handles_melds() {
-        // Two Pengs called. Concealed: 6 tiles → need 2 more melds.
-        // 1-2-3W, 4-5-6W are already 2 melds, so concealed is 4 melds
-        // worth of tiles minus 2. Wait: with 2 melds, need 2 more +
-        // pair, so concealed should be 3*2+2 = 8.
-        // Let's use 8 concealed: 1-2-3W, 4-5-6W, 2D, 2D.
-        // The AI should keep them (already winning shape).
-        let concealed = sorted(vec![
-            w(1), w(2), w(3), w(4), w(5), w(6), d(2), d(2),
-        ]);
+        let concealed = sorted(vec![w(1), w(2), w(3), w(4), w(5), w(6), d(2), d(2)]);
         let melds = vec![
             Meld::Peng { tile: ti(1), from: 1 },
             Meld::Peng { tile: ti(5), from: 2 },
         ];
         let idx = decide_discard(&concealed, &melds);
-        // Discarding anything breaks a complete hand. The AI should
-        // still return a valid index (0 is fine as last resort).
         assert!(idx < concealed.len());
     }
 
     #[test]
     fn test_returns_valid_index_on_empty_safe_default() {
-        let idx = decide_discard(&[], &[]);
-        assert_eq!(idx, 0);
+        assert_eq!(decide_discard(&[], &[]), 0);
     }
 
     #[test]
     fn test_isolated_honor_like_tile_discarded_first() {
-        // Guiyang has no honors, but a lone terminal far from everything
-        // is the closest analog.
         let hand = sorted(vec![
             w(1), w(2), w(3), w(4), w(5), w(6), w(7), w(8), w(9),
             ti(2), ti(3), ti(4),
-            d(1), // lone 1D, far from anything else
-            d(9), // lone 9D
+            d(1),
+            d(9),
         ]);
         let idx = decide_discard(&hand, &[]);
-        // Both d1 and d9 are isolated. Tie-break: lowest index → d1.
         assert_eq!(hand[idx], d(1));
-    }
-
-    #[test]
-    fn test_decide_claim_peng_when_it_helps() {
-        // Two 3W. Peng-ing would free up the hand and reduce shanten.
-        let hand = sorted(vec![
-            w(3), w(3),
-            w(1), w(1), w(2),
-            ti(4), ti(5), ti(6),
-            d(2), d(3), d(4),
-            d(7), d(8),
-        ]);
-        // Plenty of 2-shanten to 1-shanten reduction possible.
-        let r = decide_claim(&hand, &[], w(3));
-        // The exact accept/reject here depends on shanten math; the point
-        // is that it returns a well-formed answer.
-        assert!(r.is_none() || r == Some(ClaimKind::Peng));
     }
 
     #[test]
@@ -317,8 +249,20 @@ mod tests {
     }
 
     #[test]
+    fn test_decide_claim_peng_when_it_helps() {
+        let hand = sorted(vec![
+            w(3), w(3),
+            w(1), w(1), w(2),
+            ti(4), ti(5), ti(6),
+            d(2), d(3), d(4),
+            d(7), d(8),
+        ]);
+        let r = decide_claim(&hand, &[], w(3));
+        assert!(r.is_none() || r == Some(ClaimKind::Peng));
+    }
+
+    #[test]
     fn test_decide_an_gang_when_four_concealed() {
-        use crate::components::Suit;
         let hand = sorted(vec![
             Tile::new(Suit::Wan, 1),
             Tile::new(Suit::Wan, 1),
@@ -340,7 +284,10 @@ mod tests {
 
     #[test]
     fn test_decide_an_gang_none_without_four() {
-        let hand = sorted(vec![w(1), w(1), w(1), w(2), w(3), w(4), w(5), w(6), w(7), ti(1), ti(2), ti(3), d(1), d(1)]);
+        let hand = sorted(vec![
+            w(1), w(1), w(1), w(2), w(3), w(4), w(5), w(6), w(7),
+            ti(1), ti(2), ti(3), d(1), d(1),
+        ]);
         assert_eq!(decide_an_gang(&hand, &[]), None);
     }
 

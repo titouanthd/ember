@@ -11,6 +11,7 @@ pub mod config;
 pub mod hand;
 pub mod scoring;
 pub mod systems;
+pub mod tiles;
 pub mod wall;
 
 pub use config::GameContext;

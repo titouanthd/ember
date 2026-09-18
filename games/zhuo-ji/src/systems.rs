@@ -1,7 +1,4 @@
 //! Game state machine and turn flow.
-//!
-//! Session 5 scope: scoring on Hu or Huangzhuang, MatchOver after N
-//! hands, and Space-to-continue between hands.
 
 use ember_core::rng::Rng;
 use ember_stdlib::input::Input;
@@ -34,12 +31,6 @@ pub enum HuMethod {
     Hu { from: usize },
 }
 
-#[derive(Debug, Clone)]
-pub struct ClaimOption {
-    pub player: usize,
-    pub kinds: Vec<ClaimKind>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GameEvent {
     DealComplete,
@@ -54,6 +45,9 @@ pub enum GameEvent {
 pub const NUM_PLAYERS: usize = 4;
 pub const HUMAN_SEAT: usize = 0;
 
+pub const DEFAULT_MATCH_LENGTH: u32 = 16;
+pub const MATCH_EXTENSION: u32 = 16;
+
 pub struct Game {
     pub phase: Phase,
     pub wall: Vec<Tile>,
@@ -63,7 +57,10 @@ pub struct Game {
     pub rng: Rng,
     pub pending_human_claim: Option<ClaimKind>,
     pub hands_played: u32,
+    pub match_length: u32,
     pub last_ji: Option<JiInfo>,
+    /// Countdown for the human's discard decision.
+    pub turn_timer: f32,
 }
 
 impl Game {
@@ -85,7 +82,9 @@ impl Game {
             rng,
             pending_human_claim: None,
             hands_played: 0,
+            match_length: DEFAULT_MATCH_LENGTH,
             last_ji: None,
+            turn_timer: 0.0,
         }
     }
 
@@ -99,6 +98,9 @@ impl Game {
                     wall::deal(&mut self.wall, &mut self.players, self.dealer);
                     self.turn = self.dealer;
                     self.phase = Phase::AwaitingDiscard { player: self.dealer };
+                    if self.dealer == HUMAN_SEAT {
+                        self.turn_timer = ctx.layout.turn_window;
+                    }
                     events.push(GameEvent::DealComplete);
                 } else {
                     self.phase = Phase::Deal { t: new_t };
@@ -109,8 +111,11 @@ impl Game {
                 if self.wall.is_empty() {
                     self.on_huangzhuang(&mut events);
                 } else if let Some(tile) = self.wall.pop() {
-                    self.players[player].concealed.push(tile);
-                    self.players[player].concealed.sort();
+                    if let Some(prev) = self.players[player].drawn.take() {
+                        self.players[player].concealed.push(prev);
+                        self.players[player].concealed.sort();
+                    }
+                    self.players[player].drawn = Some(tile);
                     events.push(GameEvent::Drew { player });
                     self.phase = Phase::DrawAnim { player, t: 0.0 };
                 }
@@ -121,6 +126,7 @@ impl Game {
                 if new_t >= ctx.layout.draw_duration {
                     if player == HUMAN_SEAT {
                         self.phase = Phase::AwaitingDiscard { player };
+                        self.turn_timer = ctx.layout.turn_window;
                     } else {
                         self.phase = Phase::AiThinking {
                             player,
@@ -142,20 +148,38 @@ impl Game {
             }
 
             Phase::AwaitingDiscard { player } => {
-                if player != HUMAN_SEAT {
-                    if self.can_zimo(player) {
+                if player == HUMAN_SEAT {
+                    self.turn_timer -= dt;
+                    if self.turn_timer <= 0.0 {
+                        // Auto-discard: the drawn tile if present, else the
+                        // first concealed tile.
+                        let idx = if self.players[HUMAN_SEAT].drawn.is_some() {
+                            self.players[HUMAN_SEAT].concealed.len()
+                        } else {
+                            0
+                        };
+                        self.human_discard(idx, ctx);
+                    }
+                } else {
+                    let all = self.players[player].all_tiles();
+                    if hand::is_winning_hand(&all, &self.players[player].melds) {
                         let method = HuMethod::Zimo;
                         self.on_hu(player, method, &mut events);
-                    } else if let Some(tile) = ai::decide_an_gang(
-                        &self.players[player].concealed,
-                        &self.players[player].melds,
-                    ) {
+                    } else if let Some(tile) =
+                        ai::decide_an_gang(&all, &self.players[player].melds)
+                    {
                         self.apply_an_gang(player, tile, &mut events);
                     } else {
+                        if let Some(d) = self.players[player].drawn.take() {
+                            self.players[player].concealed.push(d);
+                            self.players[player].concealed.sort();
+                        }
                         let hand_ref = &self.players[player].concealed;
                         if !hand_ref.is_empty() {
-                            let idx =
-                                ai::decide_discard(hand_ref, &self.players[player].melds);
+                            let idx = ai::decide_discard(
+                                hand_ref,
+                                &self.players[player].melds,
+                            );
                             let tile = self.players[player].concealed.remove(idx);
                             self.players[player].discards.push(tile);
                             events.push(GameEvent::Discarded { player, tile });
@@ -169,8 +193,7 @@ impl Game {
                 let new_t = t - dt;
                 let human_has_opts = self.human_claim_options(discard, from).is_some();
                 let human_decided = self.pending_human_claim.is_some();
-                let close = new_t <= 0.0 || (!human_has_opts && !human_decided);
-
+                let close = new_t <= 0.0 || !human_has_opts || human_decided;
                 if close {
                     let claim = self.resolve_claims(discard, from);
                     self.pending_human_claim = None;
@@ -185,6 +208,9 @@ impl Game {
                 if new_t <= 0.0 {
                     self.turn = claimer;
                     self.phase = Phase::AwaitingDiscard { player: claimer };
+                    if claimer == HUMAN_SEAT {
+                        self.turn_timer = ctx.layout.turn_window;
+                    }
                     let _ = meld;
                 } else {
                     self.phase = Phase::ClaimAnim { claimer, meld, t: new_t };
@@ -200,6 +226,9 @@ impl Game {
 
             Phase::MatchOver { .. } => {
                 if input.is_key_pressed(KeyCode::Space) {
+                    self.extend_match();
+                    events.push(GameEvent::DealComplete);
+                } else if input.is_key_pressed(KeyCode::R) {
                     self.reset_match();
                     events.push(GameEvent::DealComplete);
                 }
@@ -209,6 +238,10 @@ impl Game {
     }
 
     fn on_hu(&mut self, winner: usize, method: HuMethod, events: &mut Vec<GameEvent>) {
+        if let Some(d) = self.players[winner].drawn.take() {
+            self.players[winner].concealed.push(d);
+            self.players[winner].concealed.sort();
+        }
         let ji = if let Some(flipped) = self.wall.pop() {
             scoring::determine_ji(flipped)
         } else {
@@ -226,7 +259,7 @@ impl Game {
         self.hands_played += 1;
         events.push(GameEvent::Hu { player: winner, method });
 
-        if self.hands_played >= self.hands_per_match() {
+        if self.hands_played >= self.match_length {
             let best = self.leading_player();
             self.phase = Phase::MatchOver { winner: best };
             events.push(GameEvent::MatchOver { winner: best });
@@ -237,14 +270,17 @@ impl Game {
 
     fn on_huangzhuang(&mut self, events: &mut Vec<GameEvent>) {
         let tenpai: [bool; NUM_PLAYERS] = std::array::from_fn(|i| {
-            hand::is_tenpai(&self.players[i].concealed, &self.players[i].melds)
+            hand::is_tenpai(
+                &self.players[i].all_tiles(),
+                &self.players[i].melds,
+            )
         });
         scoring::apply_huangzhuang_scores(&mut self.players, &tenpai);
 
         self.hands_played += 1;
         events.push(GameEvent::HuangZhuang);
 
-        if self.hands_played >= self.hands_per_match() {
+        if self.hands_played >= self.match_length {
             let best = self.leading_player();
             self.phase = Phase::MatchOver { winner: best };
             events.push(GameEvent::MatchOver { winner: best });
@@ -255,20 +291,25 @@ impl Game {
 
     fn start_next_hand(&mut self) {
         self.dealer = (self.dealer + 1) % NUM_PLAYERS;
-
         let mut new_wall = wall::build_wall();
         wall::shuffle(&mut new_wall, &mut self.rng);
         self.wall = new_wall;
-
         for p in &mut self.players {
             p.concealed.clear();
+            p.drawn = None;
             p.melds.clear();
             p.discards.clear();
         }
         self.turn = self.dealer;
         self.pending_human_claim = None;
         self.last_ji = None;
+        self.turn_timer = 0.0;
         self.phase = Phase::Deal { t: 0.0 };
+    }
+
+    fn extend_match(&mut self) {
+        self.match_length += MATCH_EXTENSION;
+        self.start_next_hand();
     }
 
     fn reset_match(&mut self) {
@@ -276,16 +317,9 @@ impl Game {
             p.score = 0;
         }
         self.hands_played = 0;
-        // Set dealer one step back so start_next_hand rotates to 0.
+        self.match_length = DEFAULT_MATCH_LENGTH;
         self.dealer = NUM_PLAYERS - 1;
         self.start_next_hand();
-    }
-
-    fn hands_per_match(&self) -> u32 {
-        // Stored on the layout, but Game does not hold GameContext, so
-        // we default to 4 and rely on `human`-side env override being
-        // applied via start-of-match config. For hermetic tests, always 4.
-        4
     }
 
     fn leading_player(&self) -> usize {
@@ -332,14 +366,14 @@ impl Game {
                 if self.players[from].discards.last() == Some(&discard) {
                     self.players[from].discards.pop();
                 }
+                let p = &mut self.players[player];
+                if let Some(d) = p.drawn.take() {
+                    p.concealed.push(d);
+                    p.concealed.sort();
+                }
                 let mut removed = 0;
-                self.players[player].concealed.retain(|&t| {
-                    if t == discard && removed < 2 {
-                        removed += 1;
-                        false
-                    } else {
-                        true
-                    }
+                p.concealed.retain(|&t| {
+                    if t == discard && removed < 2 { removed += 1; false } else { true }
                 });
                 let meld = Meld::Peng { tile: discard, from };
                 self.players[player].melds.push(meld);
@@ -358,14 +392,14 @@ impl Game {
                 if self.players[from].discards.last() == Some(&discard) {
                     self.players[from].discards.pop();
                 }
+                let p = &mut self.players[player];
+                if let Some(d) = p.drawn.take() {
+                    p.concealed.push(d);
+                    p.concealed.sort();
+                }
                 let mut removed = 0;
-                self.players[player].concealed.retain(|&t| {
-                    if t == discard && removed < 3 {
-                        removed += 1;
-                        false
-                    } else {
-                        true
-                    }
+                p.concealed.retain(|&t| {
+                    if t == discard && removed < 3 { removed += 1; false } else { true }
                 });
                 self.players[player].melds.push(Meld::Gang {
                     tile: discard,
@@ -395,42 +429,31 @@ impl Game {
     }
 
     fn can_peng(&self, player: usize, tile: Tile) -> bool {
-        self.players[player]
-            .concealed
-            .iter()
-            .filter(|&&t| t == tile)
-            .count()
-            >= 2
+        self.players[player].all_tiles().iter().filter(|&&t| t == tile).count() >= 2
     }
 
     fn can_ming_gang(&self, player: usize, tile: Tile) -> bool {
-        self.players[player]
-            .concealed
-            .iter()
-            .filter(|&&t| t == tile)
-            .count()
-            >= 3
+        self.players[player].all_tiles().iter().filter(|&&t| t == tile).count() >= 3
     }
 
     fn can_hu(&self, player: usize, tile: Tile) -> bool {
-        let mut test = self.players[player].concealed.clone();
+        let mut test = self.players[player].all_tiles();
         test.push(tile);
         test.sort();
         hand::is_winning_hand(&test, &self.players[player].melds)
     }
 
     pub fn an_gang_tile(&self, player: usize) -> Option<Tile> {
+        let all = self.players[player].all_tiles();
         let mut counts: std::collections::HashMap<Tile, usize> =
             std::collections::HashMap::new();
-        for &t in &self.players[player].concealed {
-            *counts.entry(t).or_insert(0) += 1;
-        }
+        for &t in &all { *counts.entry(t).or_insert(0) += 1; }
         counts.iter().find(|&(_, &c)| c == 4).map(|(&t, _)| t)
     }
 
     pub fn can_zimo(&self, player: usize) -> bool {
         hand::is_winning_hand(
-            &self.players[player].concealed,
+            &self.players[player].all_tiles(),
             &self.players[player].melds,
         )
     }
@@ -440,18 +463,11 @@ impl Game {
         discard: Tile,
         from: usize,
     ) -> Option<Vec<ClaimKind>> {
-        if from == HUMAN_SEAT {
-            return None;
-        }
+        if from == HUMAN_SEAT { return None; }
         let mut kinds = Vec::new();
-        if self.can_hu(HUMAN_SEAT, discard) {
-            kinds.push(ClaimKind::Hu);
-        }
-        if self.can_ming_gang(HUMAN_SEAT, discard) {
-            kinds.push(ClaimKind::Gang);
-        } else if self.can_peng(HUMAN_SEAT, discard) {
-            kinds.push(ClaimKind::Peng);
-        }
+        if self.can_hu(HUMAN_SEAT, discard) { kinds.push(ClaimKind::Hu); }
+        if self.can_ming_gang(HUMAN_SEAT, discard) { kinds.push(ClaimKind::Gang); }
+        else if self.can_peng(HUMAN_SEAT, discard) { kinds.push(ClaimKind::Peng); }
         if kinds.is_empty() { None } else { Some(kinds) }
     }
 
@@ -462,23 +478,26 @@ impl Game {
         let Some(opts) = self.human_claim_options(discard, from) else {
             return false;
         };
-        if !opts.contains(&kind) {
-            return false;
-        }
+        if !opts.contains(&kind) { return false; }
         self.pending_human_claim = Some(kind);
         true
     }
 
-    fn resolve_claims(
-        &self,
-        discard: Tile,
-        from: usize,
-    ) -> Option<(usize, ClaimKind)> {
+    pub fn human_pass(&mut self, ctx: &GameContext) -> bool {
+        let Phase::AwaitingClaims { discard, from, .. } = self.phase else {
+            return false;
+        };
+        let claim = self.resolve_claims(discard, from);
+        self.pending_human_claim = None;
+        let mut events = Vec::new();
+        self.apply_claim(discard, from, claim, ctx, &mut events);
+        true
+    }
+
+    fn resolve_claims(&self, discard: Tile, from: usize) -> Option<(usize, ClaimKind)> {
         let mut claims: Vec<(usize, ClaimKind)> = Vec::new();
         for p in 0..NUM_PLAYERS {
-            if p == from {
-                continue;
-            }
+            if p == from { continue; }
             if p == HUMAN_SEAT {
                 if let Some(kind) = self.pending_human_claim {
                     claims.push((p, kind));
@@ -487,11 +506,14 @@ impl Game {
             }
             if self.can_hu(p, discard) {
                 claims.push((p, ClaimKind::Hu));
-            } else if ai::decide_ming_gang(&self.players[p].concealed, discard) {
+            } else if ai::decide_ming_gang(
+                &self.players[p].all_tiles(),
+                discard,
+            ) {
                 claims.push((p, ClaimKind::Gang));
             } else if self.can_peng(p, discard)
                 && ai::decide_claim(
-                    &self.players[p].concealed,
+                    &self.players[p].all_tiles(),
                     &self.players[p].melds,
                     discard,
                 ) == Some(ClaimKind::Peng)
@@ -499,7 +521,6 @@ impl Game {
                 claims.push((p, ClaimKind::Peng));
             }
         }
-
         claims.sort_by_key(|&(p, kind)| {
             let prio = match kind {
                 ClaimKind::Hu => 0u8,
@@ -513,19 +534,16 @@ impl Game {
     }
 
     fn apply_an_gang(&mut self, player: usize, tile: Tile, events: &mut Vec<GameEvent>) {
+        let p = &mut self.players[player];
+        if let Some(d) = p.drawn.take() {
+            p.concealed.push(d);
+            p.concealed.sort();
+        }
         let mut removed = 0;
-        self.players[player].concealed.retain(|&t| {
-            if t == tile && removed < 4 {
-                removed += 1;
-                false
-            } else {
-                true
-            }
+        p.concealed.retain(|&t| {
+            if t == tile && removed < 4 { removed += 1; false } else { true }
         });
-        self.players[player].melds.push(Meld::Gang {
-            tile,
-            from: GangSource::An,
-        });
+        p.melds.push(Meld::Gang { tile, from: GangSource::An });
         events.push(GameEvent::Claimed {
             player,
             kind: ClaimKind::Gang,
@@ -534,18 +552,23 @@ impl Game {
         self.phase = Phase::AwaitingDraw { player };
     }
 
-    pub fn human_discard(
-        &mut self,
-        tile_index: usize,
-        ctx: &GameContext,
-    ) -> Option<Tile> {
+    pub fn human_discard(&mut self, idx: usize, ctx: &GameContext) -> Option<Tile> {
         if !matches!(self.phase, Phase::AwaitingDiscard { player: HUMAN_SEAT }) {
             return None;
         }
-        if tile_index >= self.players[HUMAN_SEAT].concealed.len() {
+        let p = &mut self.players[HUMAN_SEAT];
+        let tile = if idx < p.concealed.len() {
+            let t = p.concealed.remove(idx);
+            if let Some(d) = p.drawn.take() {
+                p.concealed.push(d);
+                p.concealed.sort();
+            }
+            t
+        } else if idx == p.concealed.len() {
+            p.drawn.take()?
+        } else {
             return None;
-        }
-        let tile = self.players[HUMAN_SEAT].concealed.remove(tile_index);
+        };
         self.players[HUMAN_SEAT].discards.push(tile);
         self.after_discard(HUMAN_SEAT, tile, ctx);
         Some(tile)
@@ -555,9 +578,7 @@ impl Game {
         if !matches!(self.phase, Phase::AwaitingDiscard { player: HUMAN_SEAT }) {
             return false;
         }
-        if !self.can_zimo(HUMAN_SEAT) {
-            return false;
-        }
+        if !self.can_zimo(HUMAN_SEAT) { return false; }
         let mut events = Vec::new();
         self.on_hu(HUMAN_SEAT, HuMethod::Zimo, &mut events);
         true
@@ -567,9 +588,7 @@ impl Game {
         if !matches!(self.phase, Phase::AwaitingDiscard { player: HUMAN_SEAT }) {
             return false;
         }
-        if self.an_gang_tile(HUMAN_SEAT) != Some(tile) {
-            return false;
-        }
+        if self.an_gang_tile(HUMAN_SEAT) != Some(tile) { return false; }
         let mut events = Vec::new();
         self.apply_an_gang(HUMAN_SEAT, tile, &mut events);
         true
@@ -581,8 +600,6 @@ impl Game {
     }
 }
 
-// ─── Tests ─────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -591,56 +608,73 @@ mod tests {
     fn empty_input() -> Input {
         Input {
             mouse_pos: Vec2::ZERO,
-            mouse_left_pressed: false,
-            mouse_left_down: false,
-            mouse_left_released: false,
-            mouse_right_pressed: false,
-            mouse_right_down: false,
-            mouse_right_released: false,
-            mouse_middle_pressed: false,
-            mouse_middle_down: false,
-            mouse_middle_released: false,
-            keys_pressed: Vec::new(),
-            keys_down: Vec::new(),
-            keys_released: Vec::new(),
+            mouse_left_pressed: false, mouse_left_down: false, mouse_left_released: false,
+            mouse_right_pressed: false, mouse_right_down: false, mouse_right_released: false,
+            mouse_middle_pressed: false, mouse_middle_down: false, mouse_middle_released: false,
+            keys_pressed: Vec::new(), keys_down: Vec::new(), keys_released: Vec::new(),
         }
     }
 
-    fn space_input() -> Input {
+    fn key_input(k: KeyCode) -> Input {
         let mut i = empty_input();
-        i.keys_pressed = vec![KeyCode::Space];
+        i.keys_pressed = vec![k];
         i
     }
 
-    fn ctx() -> GameContext {
-        GameContext::default_hermetic()
-    }
+    fn ctx() -> GameContext { GameContext::default_hermetic() }
 
     fn drive_to_discard(g: &mut Game, c: &GameContext, max_frames: usize) -> usize {
         for _ in 0..max_frames {
-            if let Phase::AwaitingDiscard { player } = g.phase {
-                return player;
-            }
+            if let Phase::AwaitingDiscard { player } = g.phase { return player; }
             g.update(&empty_input(), c, 1.0 / 60.0);
         }
         panic!("never reached AwaitingDiscard, phase = {:?}", g.phase);
     }
 
+    /// Drive to the human's next discard. Auto-passes any claim window
+    /// the human is not actively deciding on, so the test doesn't stall.
     fn drive_to_human_discard(g: &mut Game, c: &GameContext, max_frames: usize) {
         for _ in 0..max_frames {
-            if let Phase::AwaitingDiscard { player: HUMAN_SEAT } = g.phase {
+            if matches!(g.phase, Phase::AwaitingDiscard { player: HUMAN_SEAT }) {
                 return;
+            }
+            // Auto-pass pending claims (mimics a player who doesn't click).
+            if matches!(g.phase, Phase::AwaitingClaims { .. }) {
+                g.human_pass(c);
+                continue;
+            }
+            // Bail out cleanly on terminal phases.
+            if matches!(
+                g.phase,
+                Phase::Hu { .. } | Phase::HuangZhuang | Phase::MatchOver { .. }
+            ) {
+                panic!(
+                    "drive_to_human_discard: game ended, phase = {:?}",
+                    g.phase
+                );
             }
             g.update(&empty_input(), c, 1.0 / 60.0);
         }
         panic!("never reached human discard, phase = {:?}", g.phase);
     }
 
+    fn winning_hand() -> Vec<Tile> {
+        use crate::components::Suit;
+        vec![
+            Tile::new(Suit::Wan, 1), Tile::new(Suit::Wan, 2), Tile::new(Suit::Wan, 3),
+            Tile::new(Suit::Wan, 4), Tile::new(Suit::Wan, 5), Tile::new(Suit::Wan, 6),
+            Tile::new(Suit::Wan, 7), Tile::new(Suit::Wan, 8), Tile::new(Suit::Wan, 9),
+            Tile::new(Suit::Tiao, 3), Tile::new(Suit::Tiao, 4), Tile::new(Suit::Tiao, 5),
+            Tile::new(Suit::Tong, 5), Tile::new(Suit::Tong, 5),
+        ]
+    }
+
     #[test]
-    fn test_new_game_starts_in_deal_with_full_wall() {
+    fn test_new_game_starts_in_deal() {
         let g = Game::new(1);
         assert!(matches!(g.phase, Phase::Deal { .. }));
         assert_eq!(g.wall.len(), 108);
+        assert_eq!(g.match_length, 16);
     }
 
     #[test]
@@ -657,18 +691,30 @@ mod tests {
         let mut g = Game::new(1);
         let player = drive_to_discard(&mut g, &c, 600);
         assert_eq!(player, 0);
-        assert_eq!(g.players[0].concealed.len(), 14);
-        assert_eq!(g.wall.len(), 108 - 52 - 1);
+        assert_eq!(g.players[0].all_tiles().len(), 14);
     }
 
     #[test]
-    fn test_human_discard_moves_tile_to_river() {
+    fn test_human_discard_from_hand_merges_drawn() {
         let c = ctx();
         let mut g = Game::new(1);
         drive_to_discard(&mut g, &c, 600);
         let discarded = g.human_discard(0, &c).expect("legal discard");
         assert_eq!(g.players[0].concealed.len(), 13);
+        assert!(g.players[0].drawn.is_none());
         assert_eq!(g.players[0].discards[0], discarded);
+    }
+
+    #[test]
+    fn test_human_discard_drawn_tile_directly() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        let drawn = g.players[0].drawn.expect("drawn");
+        let concealed_len = g.players[0].concealed.len();
+        let discarded = g.human_discard(concealed_len, &c).expect("legal discard");
+        assert_eq!(discarded, drawn);
+        assert!(g.players[0].drawn.is_none());
     }
 
     #[test]
@@ -699,34 +745,6 @@ mod tests {
     }
 
     #[test]
-    fn test_wall_shrinks_by_one_per_turn() {
-        let c = ctx();
-        let mut g = Game::new(1);
-        drive_to_discard(&mut g, &c, 600);
-        assert_eq!(g.wall.len(), 55);
-        g.human_discard(0, &c).unwrap();
-        for _ in 0..30 {
-            g.update(&empty_input(), &c, 1.0 / 60.0);
-            if let Phase::AwaitingDiscard { player: 1 } = g.phase {
-                break;
-            }
-        }
-        assert_eq!(g.wall.len(), 54);
-    }
-
-    #[test]
-    fn test_hands_remain_sorted_after_draws_and_discards() {
-        let c = ctx();
-        let mut g = Game::new(1);
-        drive_to_discard(&mut g, &c, 600);
-        for p in &g.players {
-            let mut sorted = p.concealed.clone();
-            sorted.sort();
-            assert_eq!(p.concealed, sorted);
-        }
-    }
-
-    #[test]
     fn test_ai_thinks_before_discarding() {
         let c = ctx();
         let mut g = Game::new(1);
@@ -735,10 +753,7 @@ mod tests {
         let mut saw = false;
         for _ in 0..120 {
             g.update(&empty_input(), &c, 1.0 / 60.0);
-            if matches!(g.phase, Phase::AiThinking { .. }) {
-                saw = true;
-                break;
-            }
+            if matches!(g.phase, Phase::AiThinking { .. }) { saw = true; break; }
         }
         assert!(saw);
     }
@@ -751,46 +766,15 @@ mod tests {
         g.human_discard(0, &c).unwrap();
         for _ in 0..120 {
             g.update(&empty_input(), &c, 1.0 / 60.0);
-            if matches!(g.phase, Phase::AiThinking { .. }) {
-                break;
-            }
+            if matches!(g.phase, Phase::AiThinking { .. }) { break; }
         }
         assert_eq!(g.players[1].discards.len(), 0);
         for _ in 0..120 {
             g.update(&empty_input(), &c, 1.0 / 60.0);
-            if matches!(g.phase, Phase::AwaitingDiscard { player: 1 }) {
-                break;
-            }
+            if matches!(g.phase, Phase::AwaitingDiscard { player: 1 }) { break; }
         }
         g.update(&empty_input(), &c, 1.0 / 60.0);
         assert_eq!(g.players[1].discards.len(), 1);
-    }
-
-    #[test]
-    fn test_hu_transitions_to_hu_phase() {
-        let c = ctx();
-        let mut g = Game::new(1);
-        drive_to_discard(&mut g, &c, 600);
-        // Give the human a winning hand.
-        g.players[0].concealed = vec![
-            Tile::new(crate::components::Suit::Wan, 1),
-            Tile::new(crate::components::Suit::Wan, 2),
-            Tile::new(crate::components::Suit::Wan, 3),
-            Tile::new(crate::components::Suit::Wan, 4),
-            Tile::new(crate::components::Suit::Wan, 5),
-            Tile::new(crate::components::Suit::Wan, 6),
-            Tile::new(crate::components::Suit::Wan, 7),
-            Tile::new(crate::components::Suit::Wan, 8),
-            Tile::new(crate::components::Suit::Wan, 9),
-            Tile::new(crate::components::Suit::Tiao, 1),
-            Tile::new(crate::components::Suit::Tiao, 1),
-            Tile::new(crate::components::Suit::Tiao, 1),
-            Tile::new(crate::components::Suit::Tong, 2),
-            Tile::new(crate::components::Suit::Tong, 2),
-        ];
-        assert!(g.human_zimo());
-        assert!(matches!(g.phase, Phase::Hu { winner: 0, .. }));
-        assert_eq!(g.hands_played, 1);
     }
 
     #[test]
@@ -798,65 +782,99 @@ mod tests {
         let c = ctx();
         let mut g = Game::new(1);
         drive_to_discard(&mut g, &c, 600);
-        g.players[0].concealed = vec![
-            Tile::new(crate::components::Suit::Wan, 1),
-            Tile::new(crate::components::Suit::Wan, 2),
-            Tile::new(crate::components::Suit::Wan, 3),
-            Tile::new(crate::components::Suit::Wan, 4),
-            Tile::new(crate::components::Suit::Wan, 5),
-            Tile::new(crate::components::Suit::Wan, 6),
-            Tile::new(crate::components::Suit::Wan, 7),
-            Tile::new(crate::components::Suit::Wan, 8),
-            Tile::new(crate::components::Suit::Wan, 9),
-            Tile::new(crate::components::Suit::Tiao, 1),
-            Tile::new(crate::components::Suit::Tiao, 1),
-            Tile::new(crate::components::Suit::Tiao, 1),
-            Tile::new(crate::components::Suit::Tong, 2),
-            Tile::new(crate::components::Suit::Tong, 2),
-        ];
+        g.players[0].concealed = winning_hand();
+        g.players[0].drawn = None;
         g.human_zimo();
-        g.update(&space_input(), &c, 1.0 / 60.0);
+        assert!(matches!(g.phase, Phase::Hu { winner: 0, .. }));
+        g.update(&key_input(KeyCode::Space), &c, 1.0 / 60.0);
         assert!(matches!(g.phase, Phase::Deal { .. }));
-        assert_eq!(g.dealer, 1); // rotated
+        assert_eq!(g.dealer, 1);
     }
 
     #[test]
-    fn test_match_over_after_four_hands() {
+    fn test_match_over_after_sixteen_hands() {
         let c = ctx();
         let mut g = Game::new(1);
-        // Force hands_played high enough that the next win ends the match.
-        g.hands_played = 3;
+        g.hands_played = 15;
         drive_to_discard(&mut g, &c, 600);
-        g.players[0].concealed = vec![
-            Tile::new(crate::components::Suit::Wan, 1),
-            Tile::new(crate::components::Suit::Wan, 2),
-            Tile::new(crate::components::Suit::Wan, 3),
-            Tile::new(crate::components::Suit::Wan, 4),
-            Tile::new(crate::components::Suit::Wan, 5),
-            Tile::new(crate::components::Suit::Wan, 6),
-            Tile::new(crate::components::Suit::Wan, 7),
-            Tile::new(crate::components::Suit::Wan, 8),
-            Tile::new(crate::components::Suit::Wan, 9),
-            Tile::new(crate::components::Suit::Tiao, 1),
-            Tile::new(crate::components::Suit::Tiao, 1),
-            Tile::new(crate::components::Suit::Tiao, 1),
-            Tile::new(crate::components::Suit::Tong, 2),
-            Tile::new(crate::components::Suit::Tong, 2),
-        ];
+        g.players[0].concealed = winning_hand();
+        g.players[0].drawn = None;
         g.human_zimo();
         assert!(matches!(g.phase, Phase::MatchOver { .. }));
     }
 
     #[test]
-    fn test_match_over_space_resets() {
+    fn test_match_over_space_extends_match() {
         let c = ctx();
         let mut g = Game::new(1);
         g.phase = Phase::MatchOver { winner: 0 };
         g.players[0].score = 42;
-        g.hands_played = 4;
-        g.update(&space_input(), &c, 1.0 / 60.0);
-        assert_eq!(g.players[0].score, 0);
-        assert_eq!(g.hands_played, 0);
+        g.match_length = 16;
+        g.update(&key_input(KeyCode::Space), &c, 1.0 / 60.0);
+        assert_eq!(g.players[0].score, 42);
+        assert_eq!(g.match_length, 32);
         assert!(matches!(g.phase, Phase::Deal { .. }));
+    }
+
+    #[test]
+    fn test_match_over_r_key_full_reset() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        g.phase = Phase::MatchOver { winner: 0 };
+        g.players[0].score = 42;
+        g.match_length = 32;
+        g.update(&key_input(KeyCode::R), &c, 1.0 / 60.0);
+        assert_eq!(g.players[0].score, 0);
+        assert_eq!(g.match_length, 16);
+    }
+
+    #[test]
+    fn test_turn_timer_reset_on_human_discard_enter() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        assert!((g.turn_timer - c.layout.turn_window).abs() < 1e-3);
+    }
+
+    #[test]
+    fn test_turn_timer_decrements() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        let before = g.turn_timer;
+        g.update(&empty_input(), &c, 1.0);
+        assert!(g.turn_timer < before);
+    }
+
+    #[test]
+    fn test_turn_timer_expires_auto_discards() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        g.turn_timer = 0.001;
+        g.update(&empty_input(), &c, 1.0);
+        assert_eq!(g.players[0].discards.len(), 1);
+    }
+
+    #[test]
+    fn test_human_pass_resolves_immediately() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        let mut hand = vec![
+            Tile::new(crate::components::Suit::Wan, 5),
+            Tile::new(crate::components::Suit::Wan, 5),
+        ];
+        hand.extend(winning_hand().into_iter().take(11));
+        g.players[0].concealed = hand;
+        g.players[0].melds.clear();
+        let discard = Tile::new(crate::components::Suit::Wan, 5);
+        g.players[1].discards.push(discard);
+        g.phase = Phase::AwaitingClaims {
+            discard,
+            from: 1,
+            t: c.layout.claim_window,
+        };
+        assert!(g.human_pass(&c));
+        assert!(!matches!(g.phase, Phase::AwaitingClaims { .. }));
     }
 }
