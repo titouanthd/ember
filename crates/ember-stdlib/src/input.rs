@@ -73,9 +73,9 @@ impl Input {
     pub fn from_macroquad_with_keys(keys: &[KeyCode]) -> Self {
         let mut input = Self::from_macroquad();
         for &k in keys {
-            if is_key_pressed(k) {
-                input.keys_pressed.push(k);
-            }
+            if is_key_pressed(k)  { input.keys_pressed.push(k);  }
+            if is_key_down(k)     { input.keys_down.push(k);     }
+            if is_key_released(k) { input.keys_released.push(k); }
         }
         input
     }
