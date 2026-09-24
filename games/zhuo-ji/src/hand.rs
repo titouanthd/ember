@@ -6,9 +6,13 @@ use std::collections::HashMap;
 
 use crate::components::{Meld, Tile};
 
-/// `true` if `concealed` + `melds` forms a complete hand:
-/// 4 sets (triplets or sequences) + 1 pair.
+/// `true` if `concealed` + `melds` forms a winning hand:
+/// either a standard 4 sets + 1 pair, or a seven-pairs variant.
 pub fn is_winning_hand(concealed: &[Tile], melds: &[Meld]) -> bool {
+    is_standard_winning_hand(concealed, melds) || is_seven_pairs_hand(concealed, melds)
+}
+
+fn is_standard_winning_hand(concealed: &[Tile], melds: &[Meld]) -> bool {
     let needed = 4usize.saturating_sub(melds.len());
     if concealed.len() != 3 * needed + 2 {
         return false;
@@ -31,6 +35,22 @@ pub fn is_winning_hand(concealed: &[Tile], melds: &[Meld]) -> bool {
         i += count;
     }
     false
+}
+
+/// Seven pairs variant (Qi Dui). Requires no melds and 14 concealed
+/// tiles, all in pairs (count 2) or concealed quads (count 4).
+pub fn is_seven_pairs_hand(concealed: &[Tile], melds: &[Meld]) -> bool {
+    if !melds.is_empty() {
+        return false;
+    }
+    if concealed.len() != 14 {
+        return false;
+    }
+    let mut counts: HashMap<Tile, usize> = HashMap::new();
+    for &t in concealed {
+        *counts.entry(t).or_insert(0) += 1;
+    }
+    counts.values().all(|&c| c == 2 || c == 4)
 }
 
 /// `true` if `tiles` can be fully partitioned into exactly `needed`
@@ -406,5 +426,68 @@ mod tests {
             w(2), w(3), w(4),
         ]);
         assert!(shanten(&hand, &[]) >= -1);
+    }
+
+        #[test]
+    fn test_seven_pairs_is_winning() {
+        let hand = sorted(vec![
+            w(1), w(1), w(2), w(2), w(3), w(3),
+            ti(4), ti(4), ti(5), ti(5),
+            d(7), d(7), d(9), d(9),
+        ]);
+        assert!(is_winning_hand(&hand, &[]));
+    }
+
+    #[test]
+    fn test_seven_pairs_with_quad() {
+        // 5 pairs + 1 concealed quad = 14 tiles.
+        let hand = sorted(vec![
+            w(1), w(1), w(1), w(1),
+            w(2), w(2), w(3), w(3), w(4), w(4),
+            ti(5), ti(5), d(7), d(7),
+        ]);
+        assert!(is_winning_hand(&hand, &[]));
+    }
+
+    #[test]
+    fn test_seven_pairs_rejected_with_melds() {
+        let hand = sorted(vec![
+            w(1), w(1), w(2), w(2), w(3), w(3),
+            ti(4), ti(4), ti(5), ti(5),
+            d(7), d(7), d(9), d(9),
+        ]);
+        let melds = vec![Meld::Peng { tile: w(9), from: 1 }];
+        assert!(!is_winning_hand(&hand, &melds));
+    }
+
+    #[test]
+    fn test_seven_pairs_rejected_with_triplet() {
+        // Triplet breaks seven-pairs (one tile has count 3).
+        let hand = sorted(vec![
+            w(1), w(1), w(1), w(2), w(2), w(3), w(3),
+            ti(4), ti(4), ti(5), ti(5),
+            d(7), d(7), d(9),
+        ]);
+        assert!(!is_winning_hand(&hand, &[]));
+    }
+
+    #[test]
+    fn test_seven_pairs_also_standard() {
+        // 11223344556677 can be either 7 pairs OR 4 sequences + pair.
+        let hand = sorted(vec![
+            w(1), w(1), w(2), w(2), w(3), w(3), w(4),
+            w(4), w(5), w(5), w(6), w(6), w(7), w(7),
+        ]);
+        assert!(is_winning_hand(&hand, &[]));
+    }
+
+    #[test]
+    fn test_seven_pairs_only_not_standard() {
+        // Gaps that prevent standard decomposition, but valid 7 pairs.
+        let hand = sorted(vec![
+            w(1), w(1), w(2), w(2), w(3), w(3), w(4),
+            w(4), w(5), w(5), w(7), w(7), w(9), w(9),
+        ]);
+        assert!(is_winning_hand(&hand, &[]));
     }
 }

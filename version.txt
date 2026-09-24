@@ -2,8 +2,8 @@
 
 Document destiné au prochain agent qui reprendra le projet.
 
-Dernière mise à jour : début de Phase 20 (Zhuo Ji — 11e jeu, design doc + scaffold).
-État du workspace : 10 jeux fonctionnels + 1 en design (Zhuo Ji), 521 tests verts, Clippy clean.
+Dernière mise à jour : fin de Phase 21 (Zhuo Ji V2 — scoring, modals, menu, refonte graphique, tile glow).
+État du workspace : 11 jeux fonctionnels, **718 tests verts** (0 failed, 0 ignored sauf doctests macroquad), Clippy clean.
 
 ---
 
@@ -33,7 +33,7 @@ Conventions clés :
 - La stratégie est "Rule of Three" : on n'extrait dans le moteur qu'après avoir vu le pattern 3 fois.
 - Crates externes : tirets dans Cargo.toml (ember-core, bullet-hell), underscores dans le code (ember_core, bullet_hell).
 - cargo clippy --workspace --all-targets -- -D warnings est le gate de qualité. Il doit rester vert.
-- State structs : chaque jeu expose un unique struct qui possède tout l'état mutable (MatchState, BreakoutWorld, SnakeWorld, GameWorld, World pour Bullet Hell, Game pour Minesweeper, App + GameWorld pour Simon, Game pour Memory, Game pour FreeCell, Game pour Air Hockey). main.rs tient une seule variable de ce type. C'est une convention, pas un type partagé.
+- State structs : chaque jeu expose un unique struct qui possède tout l'état mutable (MatchState, BreakoutWorld, SnakeWorld, GameWorld, World pour Bullet Hell, Game pour Minesweeper, App + GameWorld pour Simon, Game pour Memory, Game pour FreeCell, Game pour Air Hockey, Game pour Zhuo Ji). main.rs tient une seule variable de ce type. C'est une convention, pas un type partagé.
 - **Layout uniforme (Phase 14)** : le state struct vit dans `systems.rs`, `GameContext` vit dans `config.rs`, `lib.rs` fait les réexports. `systems.rs` fait `pub use crate::config::GameContext;` pour compat.
 - Séparation BoardState / GameState (Minesweeper) : l'état interne du plateau (Ready/Playing/Won/Lost) est distinct de l'état d'écran (Start/Playing/Win/GameOver). Transitions explicites.
 - Boutons UI : update() et draw() doivent être appelés sur la MÊME instance. Si le bouton est recréé dans le rendu, l'event de clic est perdu. Conserver les boutons dans le state struct du jeu.
@@ -45,8 +45,11 @@ Conventions clés :
   Règle générale : si la fonction prend impl AsRef<str> ou impl Into<String>, retirer le &. Clippy râle (needless_borrows_for_generic_args) sinon.
 - TextDimensions : macroquad::draw_text retourne TextDimensions, pas (). Pour ignorer, terminer par ;.
 - manual_range_contains : écrire (a..=b).contains(&x) au lieu de x >= a && x <= b.
-- **Design docs (Phase 17)** : chaque nouveau jeu doit avoir un `DESIGN.md` dans son dossier. Le premier est `games/memory/DESIGN.md`. À faire rétroactivement pour les 8 autres jeux.
+- **Design docs (Phase 17)** : chaque nouveau jeu doit avoir un `DESIGN.md` dans son dossier. Premier : `games/memory/DESIGN.md`. À faire rétroactivement pour les 8 autres jeux sauf Air Hockey et Zhuo Ji.
 - **Clavier AZERTY vs QWERTY (Phase 18)** : macroquad utilise les scancodes QWERTY, pas les caractères du layout. Sur AZERTY : `M` → `KeyCode::Semicolon`, `Z` → `KeyCode::W`, `A` ↔ `Q`, `W` ↔ `Z`. Toujours préférer `Tab`, `Escape`, `Space`, `Enter`, ou les touches de fonction pour les raccourcis critiques. Solution FreeCell : `Tab` pour le menu, `Z`/`W` pour undo (double mapping), `Y` pour redo (position identique).
+- **`clippy::collapsible_if` (Phase 21)** : let-chains (`if let Some(x) = ... && cond { }`) stables depuis Rust 1.88, à utiliser.
+- **`clippy::doc_overindented_list_items` (Phase 21)** : sous-items doc-comment alignés à 2 espaces après le `-`.
+- **`clippy::too_many_arguments` (Phase 21)** : bundler en tuple. Ex : `draw_filter_btn(rect: (f32, f32, f32, f32), ...)`.
 
 ---
 
@@ -93,68 +96,34 @@ ember-workspace/
     ├── breakout/
     ├── snake/
     ├── asteroids/
-    │   ├── highscore.ron           # (Phase 15, créé au runtime)
-    │   └── ...
     ├── bullet-hell/
-    │   ├── waves.ron
-    │   └── ...
     ├── minesweeper/
-    │   ├── difficulties.ron
-    │   ├── best_times.ron
-    │   └── ...
     ├── simon/
-    │   ├── sounds/{green,red,yellow,blue}.wav
-    │   ├── best_score.ron
-    │   └── ...
-    ├── memory/
-    │   ├── DESIGN.md               # design doc (Phase 17)
-    │   ├── difficulties.ron
-    │   ├── best_times.ron
-    │   └── ...
-    ├── freecell/
-    │   ├── DESIGN.md               # design doc (Phase 18)
-    │   ├── .env
-    │   ├── best_times.ron          # créé au runtime, gitignored
-    │   ├── assets/
-    │   │   └── DejaVuSansMono.ttf  # police pour symboles Unicode ♠♥♦♣
-    │   ├── src/
-    │   │   ├── main.rs             # boucle, input, rendu
-    │   │   ├── lib.rs
-    │   │   ├── config.rs           # GameContext
-    │   │   ├── components.rs       # Card, Suit, Rank, Color, Zone
-    │   │   ├── deck.rs             # création, distribution, seed
-    │   │   ├── layout.rs           # positions des colonnes/cellules/fondations
-    │   │   ├── drag.rs             # DragState, machine à états
-    │   │   ├── font.rs             # chargement DejaVu Sans Mono
-    │   │   ├── persistence.rs      # façade BestTimes
-    │   │   └── systems.rs          # Game, rules, super-move, undo/redo
-    │   └── tests/
-    │       └── game_scenarios.rs   # 8 tests d'intégration
-    ├── air-hockey/
-    │   ├── DESIGN.md               # à créer (rétroactif, V2)
-    │   ├── .env                    # couleurs + tuning (goals_to_win_round=3)
-    │   ├── assets/
-    │   │   └── DejaVuSansMono.ttf
-    │   ├── src/
-    │   │   ├── main.rs             # boucle, input, rendu, overlays
-    │   │   ├── lib.rs
-    │   │   ├── config.rs           # GameContext, Tuning, Colors
-    │   │   ├── components.rs       # Paddle, Puck, Trail, Particle, Side
-    │   │   ├── arena.rs            # géométrie (goal_h, wall, half_for)
-    │   │   ├── physics.rs          # substep loop, collisions, goal detection
-    │   │   ├── systems.rs          # Game, Phase, GameMode, GameEvent
-    │   │   ├── ai.rs               # AiState + direction (goalkeeper)
-    │   │   ├── effects.rs          # Shake, Hitstop, Particles
-    │   │   ├── audio.rs            # SoundBank
-    │   │   └── font.rs             # DejaVu Sans Mono
-    │   └── tests/
-    │       └── game_scenarios.rs   # 10 tests d'intégration
+    ├── memory/                     # DESIGN.md (Phase 17)
+    ├── freecell/                   # DESIGN.md (Phase 18), assets/DejaVuSansMono.ttf
+    ├── air-hockey/                 # DESIGN.md à créer (rétroactif)
     └── zhuo-ji/
         ├── DESIGN.md               # design doc (Phase 20)
-        └── src/
-            └── lib.rs              # scaffold (cargo new), vide pour l'instant
+        ├── .env
+        ├── src/
+        │   ├── main.rs             # boucle, rendu, modals, menu screen
+        │   ├── lib.rs              # pub mod hand_summary, menu, ...
+        │   ├── config.rs           # GameContext
+        │   ├── components.rs       # Tile, Suit, Rank, Meld, Player, Seat
+        │   ├── wall.rs             # build_wall, shuffle Fisher-Yates
+        │   ├── hand.rs             # is_winning_hand, shanten, is_tenpai, is_seven_pairs_hand
+        │   ├── ai.rs               # decide_discard, decide_claim, decide_an_gang, decide_ming_gang
+        │   ├── claims.rs           # resolve_claims, priority
+        │   ├── scoring.rs          # Pattern, Dou, Ji, HandBreakdown, apply_hand_scores
+        │   ├── systems.rs          # Game, Phase, first_discard, hand_history
+        │   ├── layout.rs           # MeldsLayout, scr_w/h/cx/cy runtime
+        │   ├── tiles.rs            # tuiles custom + TileGlow
+        │   ├── hand_summary.rs     # HandSnapshot (modal fin de main)
+        │   ├── menu.rs             # écran titre + MenuState
+        │   └── help.rs             # 7 onglets (Goal/Patterns/Dou/Ji/Tiles/Specials/UI)
+        └── tests/game_scenarios.rs # 10 tests d'intégration
 
-Total : 10 jeux fonctionnels + 1 en design (Zhuo Ji).
+Total : 11 jeux fonctionnels.
 
 ---
 
@@ -196,7 +165,7 @@ xorshift32 unifié, extrait des 3 copies locales (Bullet Hell, Minesweeper, Simo
 
 Tests : 10. Doctest exécuté (le seul du workspace, les autres sont ignored).
 
-Utilisé par : Bullet Hell, Minesweeper, Simon, Memory (deck shuffle), FreeCell (deck shuffle), Air Hockey (shake, particles).
+Utilisé par : Bullet Hell, Minesweeper, Simon, Memory, FreeCell, Air Hockey, **Zhuo Ji (wall shuffle)**.
 
 ### math/aabb.rs — Aabb
 
@@ -227,7 +196,7 @@ Accumulateur pour simulations à pas fixe.
   pub fn progress(&self) -> f32;
   pub fn accumulator(&self) -> f32;
 
-Note importante : TickTimer est un accumulateur de ticks, pas un cooldown booléen. Pour un cooldown "prêt / pas prêt", utiliser un f32 qui décrémente (voir Asteroids, Bullet Hell).
+Note importante : TickTimer est un accumulateur de ticks, pas un cooldown booléen. Pour un cooldown "prêt / pas prêt", utiliser un f32 qui décrémente (voir Asteroids, Bullet Hell, **Zhuo Ji turn window**).
 
 Tests : 11.
 
@@ -237,9 +206,9 @@ Tests : 11.
 
 Tests : 3.
 
-Important : ajouter une variante oblige à mettre à jour tous les match state dans les 10 jeux.
+Important : ajouter une variante oblige à mettre à jour tous les match state dans les 11 jeux. Zhuo Ji **n'utilise pas** GameState (il a sa propre machine `Phase`).
 
-Ré-exporté par : chaque jeu.
+Ré-exporté par : chaque jeu sauf Zhuo Ji.
 
 ---
 
@@ -280,7 +249,7 @@ Tests : 12.
 
 Format .env couleur : env_color lit quatre variables {prefix}_R, {prefix}_G, {prefix}_B, {prefix}_A, chacune un f32 dans [0.0, 1.0]. Jamais une chaîne r,g,b,a.
 
-load_dotenv_once encapsule le pattern `OnceLock` + `load_dotenv_from` (10 jeux). `manifest_dir` doit venir de `env!("CARGO_MANIFEST_DIR")` **du crate appelant**.
+load_dotenv_once encapsule le pattern `OnceLock` + `load_dotenv_from` (11 jeux). `manifest_dir` doit venir de `env!("CARGO_MANIFEST_DIR")` **du crate appelant**.
 
 Tests : 4 + 1 (`test_load_dotenv_once_is_idempotent`).
 
@@ -304,11 +273,11 @@ Persistance typée, format RON. Unifie les 3 implémentations locales (Asteroids
   pub fn update_if_higher<T: PartialOrd + Copy>(current: &mut T, candidate: T) -> bool;
   pub fn update_if_lower<T: PartialOrd + Copy>(current: &mut T, candidate: T) -> bool;
 
-Tests : 15 (Phase 16 a ajouté `test_in_manifest_dir_uses_provided_path`). Doctest ignoré (comme les autres).
+Tests : 15. Doctest ignoré (comme les autres).
 
-**Important (Phase 16)** : `in_manifest_dir` prend `manifest_dir: &Path` en paramètre, parce que `env!("CARGO_MANIFEST_DIR")` est évalué **là où la macro est écrite** (donc dans la stdlib), pas au point d'appel. Les 5 jeux (Asteroids, Minesweeper, Simon, Memory, FreeCell) passent leur propre `env!("CARGO_MANIFEST_DIR")`.
+**Important (Phase 16)** : `in_manifest_dir` prend `manifest_dir: &Path` en paramètre, parce que `env!("CARGO_MANIFEST_DIR")` est évalué **là où la macro est écrite** (donc dans la stdlib), pas au point d'appel.
 
-Utilisé par : Asteroids (`HighScore = Persistence<i32>`), Minesweeper (`BestTimes = Persistence<HashMap<String, f32>>`), Simon (`BestScore = Persistence<u32>`), Memory (`BestTimes = Persistence<HashMap<String, f32>>`), FreeCell (`BestTimes = Persistence<HashMap<String, f32>>`).
+Utilisé par : Asteroids, Minesweeper, Simon, Memory, FreeCell. Zhuo Ji **n'utilise pas** encore Persistence (pas de best score pour l'instant).
 
 ### grid.rs — Grid<T> (Session 7)
 
@@ -356,9 +325,9 @@ Snapshot input par frame, découplé de macroquad.
 
 Note : `from_macroquad()` ne remplit PAS les vecteurs de touches. `from_macroquad_with_keys(&[KeyCode])` (Phase 12) les peuple en une passe pour `keys_pressed` uniquement.
 
-**Non testable unitairement** : `from_macroquad*` nécessite un contexte macroquad actif (comme `AudioClip::load`). Documenté comme limitation connue.
+**Non testable unitairement** : `from_macroquad*` nécessite un contexte macroquad actif.
 
-**Important (Phase 18)** : `is_key_pressed(key)` matche le scancode QWERTY, pas le caractère du layout. Sur AZERTY, `M` physique → `KeyCode::Semicolon`, `Z` → `KeyCode::W`. Tester avec `get_last_key_pressed()` si un raccourci ne déclenche pas.
+**Important (Phase 18)** : `is_key_pressed(key)` matche le scancode QWERTY, pas le caractère du layout.
 
 Tests : 4.
 
@@ -371,9 +340,8 @@ Tests : 4.
 
 Wraps macroquad::audio. IMPORTANT : macroquad 0.4 n'a PAS l'audio activé par défaut. Il faut dans le Cargo.toml racine :
   macroquad = { version = "0.4", features = ["audio"] }
-Sinon, tout appel à play_sound imprime "warn: macroquad's audio feature disabled." et ne joue rien.
 
-Pas de tests unitaires : load_sound nécessite un contexte macroquad actif.
+Pas de tests unitaires.
 
 Utilisé par : Simon, Air Hockey (SoundBank).
 
@@ -392,8 +360,6 @@ Widgets : Button, CircleButton, Label, Panel, TimerDisplay.
   pub enum CircleButtonEvent { None, Hovered, Held, Clicked }
   pub fn update(&self, input: &Input) -> CircleButtonEvent;
   pub fn draw(&self, lit_color, dim_color, lit: bool);
-  // Tessellation custom : fill et border partagent les mêmes vertices
-  // (macroquad draw_circle et draw_circle_lines ont des counts différents)
 
   // Label
   pub struct Label { pub text, pub x, pub y, pub size, pub align, pub color }
@@ -412,9 +378,9 @@ Widgets : Button, CircleButton, Label, Panel, TimerDisplay.
   pub fn format(seconds: f32) -> String;   // "MM:SS" ou "HH:MM:SS"
   pub fn draw(&self, seconds: f32);
 
-IMPORTANT (piège) : un widget doit être update() ET draw() sur la MÊME instance. Sinon l'event Clicked n'arrive jamais. Stocker les widgets dans le state struct du jeu.
+IMPORTANT (piège) : un widget doit être update() ET draw() sur la MÊME instance.
 
-Tests : 21 (button 8, circle_button 10, timer 4, moins quelques chevauchements).
+Tests : 21 (button 8, circle_button 10, timer 4).
 
 ### graphics/text.rs
 
@@ -431,23 +397,207 @@ Placeholder avec 1 test it_works. Pas utilisé.
 
 ---
 
-## Jeux — Récap
+## Jeux — Récap (chiffres confirmés par `cargo test --workspace`)
 
-| Jeu | Sessions | Nouveautés moteur | Tests |
+| Jeu | Sessions | Nouveautés moteur | Tests (unit + integration) |
 |---|---|---|---|
-| Pong | 1 (+refactor S3, +fix S5) | Collisions AABB, IA simple, boucle, MatchState | 14 |
-| Breakout | 2 (+refactor S3) | Niveaux RON, substepping, rebond angulaire, BreakoutWorld | 18 |
-| Snake | 3 | Grille logique, TickTimer, GameState étendu, SnakeWorld | 32 |
-| Asteroids | 2 (+tests S3, +GameWorld S5, +persistence S4, +fix S5) | Rotation, inertie, wrap-around, Vec<Bullet>, persistance RON testable, tests d'intégration, GameWorld, HighScore handle, step_ship_asteroid_collision | 29 |
-| Bullet Hell | 5 (Sessions A–F) | Waves RON, 4 émetteurs data-driven, graze + multiplicateur, juice (shake, hitstop, particles), World 3e occurrence, HP par assombrissement | ~45 |
-| Minesweeper | 7 (Sessions A–C, +tests S5) | Grid<T>, Input, UI (Button/Label/Panel/Timer), first-click safe, flood fill (testé 30x16), chord, best times persistants, menu de difficultés, Game dans systems.rs | ~39 |
-| Simon | 9 (Sessions A–B, +tests S5) | AudioClip (macroquad audio feature), CircleButton (custom tessellation), sequence playback avec timers, best score persisté, tests d'intégration | ~29 |
-| Memory | 7-10 | Grid<T> cliquable, sélection à 2 temps, persistance best time, symboles ASCII terminal, Design doc | 27 |
-| FreeCell | 12-16 | Drag-and-drop state machine (Idle/Pressing/Dragging), super-move formula, undo/redo snapshots, hint indicator, DejaVu Sans Mono pour symboles Unicode, layout colonnes superposées, cross-layout keyboard | 89 |
-| Air Hockey | 1 | IA goalkeeper (reaction delay, speed cap), GameMode menu (PvP/PvAI), TextParams::font_scale countdown, scrim overlays, hitstop guard | 68 |
-| Zhuo Ji | Phase 20 (design) | Turn-based loop (planifié), hand evaluation (planifié), hidden-info AI (planifié), 4-player state (planifié), timed claim windows (planifié) | 0 (pas encore codé) |
+| Pong | 1 (+refactor S3, +fix S5) | Collisions AABB, IA simple, boucle, MatchState | 7 + 7 = 14 |
+| Breakout | 2 (+refactor S3) | Niveaux RON, substepping, rebond angulaire, BreakoutWorld | 17 + 1 = 18 |
+| Snake | 3 | Grille logique, TickTimer, GameState étendu, SnakeWorld | 20 + 12 = 32 |
+| Asteroids | 2 (+tests S3, +GameWorld S5, +persistence S4, +fix S5) | Rotation, inertie, wrap-around, Vec<Bullet>, persistance RON testable, GameWorld, HighScore handle | 19 + 10 = 29 |
+| Bullet Hell | 5 (Sessions A–F) | Waves RON, 4 émetteurs data-driven, graze + multiplicateur, juice, World 3e occurrence | 34 + 11 = 45 |
+| Minesweeper | 7 (Sessions A–C, +tests S5) | Grid<T>, Input, UI, first-click safe, flood fill, chord, best times persistants | 31 + 8 = 39 |
+| Simon | 9 (Sessions A–B, +tests S5) | AudioClip, CircleButton, playback timers, best score | 21 + 8 = 29 |
+| Memory | 7-10 | Grid<T> cliquable, sélection à 2 temps, persistance best time, Design doc | 23 + 4 = 27 |
+| FreeCell | 12-16 | Drag-and-drop state machine, super-move, undo/redo, DejaVu Sans Mono Unicode | 81 + 8 = 89 |
+| Air Hockey | 1 | IA goalkeeper, GameMode PvP/PvAI, TextParams::font_scale countdown, scrim overlays, hitstop guard | 58 + 10 = 68 |
+| **Zhuo Ji** | **Phases 20–21 (Sessions 1–5 + V2)** | **Turn-based loop, hand evaluation (7 paires), hidden-info AI, 4-player state, claim window, tiles custom sans CJK, modals multi-onglets, menu principal, tile glow** | **187 + 10 = 197** |
 
-Total : 10 jeux fonctionnels + 1 en design, ~36 sessions, 521 tests verts, Clippy clean.
+Total jeux : 14 + 18 + 32 + 29 + 45 + 39 + 29 + 27 + 89 + 68 + 197 = **587 tests**
+Framework : ember_core (47 + 1 collision) + ember_editor (1) + ember_stdlib (82) = **131 tests**
+**Total workspace : 718 tests verts.** Doctests : 1 exécuté (Rng), 7 ignored (macroquad context).
+
+---
+
+## games/zhuo-ji — Détail (11e jeu)
+
+### Concept
+
+Zhuo Ji (捉鸡), la variante Guiyang du Mahjong. 4 joueurs, 108 tuiles
+(3 suits × 9 rangs × 4 copies, pas d'honneurs). Deux mécaniques
+signatures :
+
+- **豆 (Dou)** — les bonus de Gang, qui servent aussi de "passeport"
+  pour gagner sur un discard (règle 平胡 vs 大对子).
+- **鸡 (Ji)** — une tuile révélée après la main qui multiplie le score.
+  Tuiles fixes : **1 Tiao** (幺鸡) et **8 Tong** (八筒), qui deviennent
+  Golden Ji sous certaines conditions.
+
+### Structure
+
+games/zhuo-ji/
+├── DESIGN.md
+├── .env
+├── src/
+│   ├── main.rs                # boucle, rendu, modals, menu screen
+│   ├── lib.rs                 # pub mod hand_summary, menu, ...
+│   ├── config.rs              # GameContext
+│   ├── components.rs          # Tile, Suit, Rank, Meld, Player, Seat
+│   ├── wall.rs                # build_wall, shuffle Fisher-Yates
+│   ├── hand.rs                # is_winning_hand, shanten, is_tenpai, is_seven_pairs_hand
+│   ├── ai.rs                  # decide_discard, decide_claim, decide_an_gang, decide_ming_gang
+│   ├── claims.rs              # resolve_claims, priority Hu > Gang = Peng
+│   ├── scoring.rs             # Pattern, Dou, Ji, HandBreakdown, apply_hand_scores
+│   ├── systems.rs             # Game, Phase, first_discard, hand_history
+│   ├── layout.rs              # MeldsLayout, scr_w/h/cx/cy runtime
+│   ├── tiles.rs               # tuiles custom + TileGlow
+│   ├── hand_summary.rs        # HandSnapshot (modal fin de main)
+│   ├── menu.rs                # écran titre + MenuState
+│   └── help.rs                # 7 onglets (Goal/Patterns/Dou/Ji/Tiles/Specials/UI)
+└── tests/game_scenarios.rs    # 10 tests d'intégration
+
+### Détail technique
+
+- **Wall** : 108 tuiles, `build_wall()` retourne l'ordre canonique,
+  `shuffle()` Fisher-Yates via `Rng`. Deal : 13 par joueur, le dealer
+  reçoit une 14e dans `drawn` (séparée du `concealed`).
+- **Phases** : `Deal → AwaitingDraw → DrawAnim → AiThinking → AwaitingDiscard → AwaitingClaims → ClaimAnim → (loop | Hu | HuangZhuang) → MatchOver`.
+- **Claims** : Peng, Gang, Hu. Pas de Chi. Priorité `Hu > Gang = Peng`,
+  puis distance counter-clockwise depuis le discarder.
+- **Shanten** : `(4 - melds) * 2 - partials - has_pair`. Recherche
+  exhaustive avec memo sur `(Vec<Tile>, max_sets)`.
+- **`is_winning_hand`** : backtracking sur les paires candidates puis
+  partition en melds. Reconnaît aussi les **7 paires** (`is_seven_pairs_hand`).
+- **AI** : `decide_discard` minimise le shanten post-discard, tie-break
+  sur le moins de voisins (≤2 rangs). `decide_claim` Peng si shanten
+  strictement réduit. `decide_an_gang` An Gang si shanten ne régresse
+  pas. `decide_ming_gang` : 3 copies en main.
+- **Scoring** : `apply_hand_scores` applique pattern fan + Dou +
+  Ji pairwise et retourne un `HandBreakdown` (buckets `hu` / `dou` /
+  `ji` par joueur, utilisés par le modal fin de main).
+  **8 patterns** : PingHu(1), DaDuiZi(5), QiDui(10), QingYiSe(10),
+  QingDaDui(15), LongQiDui(20), QingQiDui(20), QingLongBei(30).
+  `apply_huangzhuang_scores` : 2 fan par tenpai × non-tenpai.
+- **Chong Feng Ji / Ze Ren Ji** : `Game.first_discard: Option<(usize, Tile)>`
+  + `record_discard()`. Premier 1 Tiao jeté → bonus doublé au discarder
+  (1 ou 2 fan selon golden) ; si ce 1 Tiao est Peng'd → discarder paie
+  +1 fan à chacun.
+- **Match** : `hands_played` counter, MatchOver après 16 mains.
+  **Space** étend de 16, **R** fait un nouveau match.
+- **Timers** : 30s turn window pour l'humain (auto-discard), 10s claim
+  window, 0.6s AI think, 0.4s claim animation.
+- **Seed** : aléatoire depuis `SystemTime::now()`.
+- **Tuiles custom** (`tiles.rs`) :
+  - **WAN** : petit chiffre rouge en haut à gauche, chiffre noir centré,
+    barre rouge + accent sous le chiffre (proxy pour 万).
+  - **TIAO** : barres vertes/rouges alternées par position.
+    **1 Tiao = poulet stylisé** (corps crème, crête rouge 3 lobes,
+    barbillon, bec orange, œil cartoon, 2 pattes, queue 3 plumes) —
+    Ji permanent.
+  - **TONG** : cercles **bleus** + centrale rouge (position 1,1) ;
+    le 1 est un cercle concentrique bleu/blanc/rouge, le 8 est tout
+    noir (Ji permanent).
+  - **Taille uniforme** 40×54 partout. Hand 56×84, river/AI backs 30×46,
+    AI melds 28×42.
+  - **`draw_tile_standing_base` + `draw_tile_standing_face`** : split
+    pour rendu en 2 passes (fix z-index melds East).
+  - **`TileGlow { None, Useful, Ji }`** : halo autour des tuiles utiles
+    (vert 0.40, 0.95, 0.55) ou Ji (or 1.00, 0.82, 0.30), priorité
+    Ji > Useful. Rendu par deux `draw_rectangle_lines` superposés.
+- **Layout UI** : info stack en haut-gauche (shanten, waits, hand, turn,
+  phase), WALL pile en haut-droite, pendule pile au centre de l'écran
+  (runtime `screen_width() / 2`, `screen_height() / 2`), flèche vers le
+  siège actif, avatars 50×50, rivières "en face" de chaque joueur.
+  Melds en **3 slots** + 4e tuile de Gang empilée (`MeldsLayout`,
+  gap `MELD_INTER_GAP = 12px`).
+- **Modals** : fin de main (2 onglets Scores / Table view, nav ← →),
+  fin de match (2 onglets Scores / Hand history, titre pulsant),
+  menu principal (`AppScreen { Menu, Game }`, écran titre jade,
+  3 boutons New game / Rules / Quit, nav souris + clavier).
+- **help.rs** : 7 onglets (Goal/Patterns/Dou/Ji/Tiles/Specials/UI),
+  filtres Suit/Rank sur l'onglet Tiles.
+- **Tests** : **187 unitaires + 10 intégration = 197 tests**.
+
+### Règles officielles (pour référence)
+
+**Combinaisons de base (牌型番值)** :
+
+| Combinaison | Fans |
+|---|---|
+| 平胡 (Pinghu) | 1 |
+| 大对子 (Da duizi) | 5 |
+| 七对 (Qi dui) | 10 |
+| 龙七对 (Long qi dui) | 20 |
+| 清一色 (Qing yi se) | 10 |
+| 清大对 (Qing da dui) | 15 |
+| 清七对 (Qing qi dui) | 20 |
+| 青龙背 (Qing long bei) | 30 |
+| 报听 (Bao ting) | 10 |
+
+**Beans (豆) — Kongs** :
+
+| Type | Nom | Fans |
+|---|---|---|
+| Kong caché | 闷豆 (Men dou) | 2 |
+| Kong ajouté | 爬坡豆 (Pa po dou) | 3 |
+| Kong exposé | 点豆 (Dian dou) | 1 |
+
+**Chickens (鸡)** :
+
+| Type | Nom | Fans |
+|---|---|---|
+| Chicken normal | 幺鸡 (Yao ji) | 1 |
+| Carte retournée | 翻牌鸡 (Fan pai ji) | 1 |
+| Chicken en or | 金鸡 (Jin ji) | 2 |
+| Chicken d'assaut | 冲锋鸡 (Chong feng ji) | 2 (4 si en or) |
+| Chicken de responsabilité | 责任鸡 (Ze ren ji) | +1 |
+
+**Règles spéciales** :
+- 杠上炮 (Gang shang pao) — victoire sur défausse post-Gang.
+- 抢杠 (Qiang gang) — vol de la tuile d'un Bu Gang.
+- 黄庄查叫 (Huangzhuang) — partie nulle, paiement tenpai vs non-tenpai.
+- 报听 (Bao ting) — annonce d'attente.
+
+**Calcul** :
+- Pêche (自摸) : les 3 autres paient.
+- Écart (点胡) : seul le donneur paie.
+- Total = combinaison + beans + chickens.
+- **Dou passport rule** : sans bean, pas de victoire sur écart pour PingHu.
+
+### Pièges connus (Zhuo Ji)
+
+- **Tile `Copy`** : utiliser `Vec::remove`, pas `swap_remove`, pour
+  préserver l'ordre (crucial pour hand evaluation).
+- **Claim priority** : Hu > Gang = Peng. Deux joueurs Peng la même
+  tuile → le plus proche counter-clockwise du discarder gagne.
+- **Pas de Chi.**
+- **Gang → re-draw** : après chaque Gang, même joueur pioche à nouveau.
+- **Dou passport rule** : sans Dou, on ne peut pas Hu sur discard avec
+  seulement 平胡.
+- **Twin fixed Ji** : **1 Tiao** et **8 Tong** sont tous les deux des
+  Ji fixes. Golden Ji pour 1 Tiao quand 9 Tiao est flipé.
+- **Huangzhuang ne compte pas Dou/Ji.**
+- **`first_discard` propagation** : toute modif de scoring doit
+  propager vers `HandBreakdown` (modal fin de main) et `first_discard`
+  (Chong Feng Ji). `apply_hand_scores` dans `on_hu` prend 5 args.
+- **`HandSnapshot`** : capturer **avant** `start_next_hand()`.
+- **`measure_text` dans un test** : remplacer par offset calculé
+  (`fs * 0.40`).
+- **`assert!(CONSTANT > CONSTANT)`** → `const _: () = assert!(...)`.
+- **Test "neutre" Zhuo Ji** : vérifier que les tiles neutres ne sont
+  pas le primary actif.
+- **`f32::min` ambiguïté** : suffixer `56.0_f32` sur le premier élément.
+- **Melds z-index (East)** : rendre en 2 passes (base puis face).
+- **Melds largeur** : Peng (3) et Gang (4) doivent occuper la **même
+  largeur** (`MeldsLayout` avec `stacks`). Gap `MELD_INTER_GAP = 12px`.
+- **`TONG_BLUE` vs `TIAO_GREEN`** : const assert compile-time.
+- **`hands_per_match` hardcodé à 4** dans `Game::hands_per_match()` et
+  `main.rs` "Hand N/4". Le `Layout` lit `AH_HANDS_PER_MATCH` mais
+  `Game` ne reçoit pas `GameContext`.
+- **Layout runtime** : `SCREEN_W` / `SCREEN_H` remplacés par
+  `screen_width()` / `screen_height()` à chaque frame.
+- **Pendule centrée H + V** : la flèche sort du disque — ne pas la
+  compter dans le calcul du centrage.
 
 ---
 
@@ -466,54 +616,21 @@ et dans l'ordre croissant (A → 2 → ... → K).
 
 Thème visuel : terminal dev (fond sombre, symboles Unicode ♠ ♥ ♦ ♣).
 
-### Structure
-
-games/freecell/
-├── Cargo.toml
-├── .env                       # couleurs terminal, layout
-├── DESIGN.md                  # design doc (Phase 18)
-├── assets/
-│   └── DejaVuSansMono.ttf    # police pour symboles Unicode
-├── best_times.ron            # créé au runtime, gitignored
-├── src/
-│   ├── main.rs                # boucle, input, rendu
-│   ├── lib.rs
-│   ├── config.rs              # GameContext
-│   ├── components.rs          # Card, Suit, Rank, Color, Zone
-│   ├── deck.rs                # création, distribution, seed
-│   ├── drag.rs                # DragState, machine à états
-│   ├── font.rs                # chargement DejaVu Sans Mono
-│   ├── layout.rs              # positions des colonnes/cellules/fondations
-│   ├── persistence.rs         # façade BestTimes
-│   └── systems.rs             # Game, rules, super-move, undo/redo, hint
-└── tests/
-    └── game_scenarios.rs      # 8 tests d'intégration
-
 ### Détail technique
 
 - **Cartes** : `Card { suit: Suit, rank: Rank }`, `Rank(pub u8)` avec 1=As, 11=Valet, 12=Dame, 13=Roi.
 - **Zones** : `Zone::Column(0..8)`, `Zone::FreeCell(0..4)`, `Zone::Foundation(0..4)`.
-- **Distribution** : 4 colonnes de 7 cartes + 4 colonnes de 6 cartes = 52. Déterministe depuis une seed via `Rng` + Fisher-Yates.
+- **Distribution** : 4 colonnes de 7 + 4 colonnes de 6 = 52. Déterministe via `Rng` + Fisher-Yates.
 - **Règles** : `can_place_on_column`, `can_place_on_foundation`, `can_place_in_cell`, `max_super_move`.
-- **Super-move** : formule `(1 + cellules_libres) × 2^colonnes_vides`. **Piège** : si on dépose sur une colonne **vide**, elle ne compte pas comme buffer temporaire disponible (elle est occupée par le move lui-même).
-- **Accessibilité** : on ne peut prendre que le **run contigu du bas** d'une colonne. `is_accessible(from, start_idx, n)` vérifie `start_idx + n == columns[col].len()`.
-- **Drag-and-drop** : `DragState::Idle / Pressing { origin, card, press_pos } / Dragging { origin, start_index, cards, offset }`. Seuil de 5 px pour passer de Pressing à Dragging.
-- **Hit testing** : `hit_test(mouse)` retourne `(Zone, index)`. Parcourt cellules → fondations → colonnes, en cherchant la carte la plus basse dans chaque colonne.
-- **Undo/redo** : snapshots complets de l'état (colonnes + cellules + fondations + moves). Pile `history` / `future`. Nouveau move = `future.clear()`.
-- **Hint** : `find_hint()` retourne `Hint { from, to, card }` sans muter l'état. Priorité : fondation > colonne > cellule libre.
+- **Super-move** : `(1 + cellules_libres) × 2^colonnes_vides`. **Piège** : colonne vide de destination ne compte pas comme buffer.
+- **Accessibilité** : run contigu du bas seulement. `is_accessible(from, start_idx, n)` vérifie `start_idx + n == columns[col].len()`.
+- **Drag-and-drop** : `DragState::Idle / Pressing / Dragging`. Seuil de 5 px.
+- **Undo/redo** : snapshots complets. Pile `history` / `future`.
+- **Hint** : `find_hint()` retourne `Hint { from, to, card }`. Priorité : fondation > colonne > cellule libre.
 - **Best time** : `Persistence<HashMap<String, f32>>`, clé = seed stringifiée.
-- **Police** : DejaVu Sans Mono chargée au démarrage pour les symboles Unicode ♠ ♥ ♦ ♣. Fallback ASCII S/H/D/C documenté.
-- **Raccourcis clavier** (cross-layout) : `N` new, `R` restart, `Tab` menu, `Z`/`W` undo, `Y` redo, `Escape` quit.
-- **Tests** : 81 unitaires + 8 intégration = **89 tests**.
-
-### Pièges connus
-
-- **Unicode rendering** : macroquad's default font (ProggyClean.ttf) ne couvre que l'ASCII de base. Les symboles ♠ ♥ ♦ ♣ (U+2660..U+2667) ne rendent pas (tofu □). Charger DejaVu Sans Mono via `load_ttf_font` + `set_default_font`.
-- **Clavier AZERTY** : `KeyCode::M` correspond au scancode QWERTY, donc sur AZERTY la touche `M` physique envoie `KeyCode::Semicolon`. Idem pour `Z` ↔ `W`, `A` ↔ `Q`. Solution : utiliser `Tab` (position identique) ou mapper plusieurs KeyCode.
-- **Fondations noires invisibles** : sur fond sombre, un symbole noir en alpha 0.20 est invisible. Utiliser une couleur claire (gris) + alpha ≥ 0.45 pour les placeholders.
-- **Timer et boutons** : le timer positionné en dur à `window_w - 380` peut chevaucher les boutons. Calculer sa position depuis `hint_btn.rect.0` (coin gauche du bouton).
-- **Dernière carte de colonne** : si `card_stack_offset` est trop grand, les longues colonnes débordent du footer. 30 px minimum, 35-40 px recommandé.
-- **`can_drop_at` et `max_super_move`** : la formule dépend de la **destination**. Déposer 3 cartes sur une colonne vide avec 0 cellule libre → la colonne vide ne compte pas comme buffer → limite = 1. Source classique de confusion pour le joueur (prévoir un affichage « Max: X » dans le HUD en V2).
+- **Police** : DejaVu Sans Mono pour ♠ ♥ ♦ ♣.
+- **Raccourcis** : `N` new, `R` restart, `Tab` menu, `Z`/`W` undo, `Y` redo, `Escape` quit.
+- **Tests** : **81 unit + 8 integration = 89 tests**.
 
 ---
 
@@ -525,115 +642,16 @@ Air Hockey, arcade 2 joueurs (ou 1 joueur vs IA). Table horizontale,
 deux palets contrôlés par W/A/S/D (J1) et flèches (J2), un palet
 unique. Objectif : 3 buts par manche, 2 manches gagnantes sur 3.
 
-### Structure
-
-games/air-hockey/
-├── Cargo.toml
-├── .env                       # couleurs + tuning (goals_to_win_round=3)
-├── DESIGN.md                  # à créer (rétroactif)
-├── assets/
-│   └── DejaVuSansMono.ttf
-├── src/
-│   ├── main.rs                # boucle, input, rendu, overlays
-│   ├── lib.rs
-│   ├── config.rs              # GameContext, Tuning, Colors
-│   ├── components.rs          # Paddle, Puck, Trail, Particle, Side
-│   ├── arena.rs               # géométrie (goal_h, wall, half_for)
-│   ├── physics.rs             # substep loop, collisions, goal detection
-│   ├── systems.rs             # Game, Phase, GameMode, GameEvent
-│   ├── ai.rs                  # AiState + direction (goalkeeper)
-│   ├── effects.rs             # Shake, Hitstop, Particles
-│   ├── audio.rs               # SoundBank
-│   └── font.rs                # DejaVu Sans Mono
-└── tests/
-    └── game_scenarios.rs      # 10 tests d'intégration
-
 ### Détail technique
 
 - **Phases** : Menu → Countdown → Playing → GoalPause → (Countdown | RoundOver | MatchOver).
-- **Physique** : `step_world_substepped` avec `substeps = 4`. Le palet est
-  clampé à `puck_speed_max = 1400`. Détection de but avant résolution
-  des murs pour éviter le tunneling.
-- **Hitstop** : `dt_eff = 0.0` quand le palet tape un palet à plus de
-  900 px/s. IMPORTANT : ne pas appeler `step_world_substepped` quand
-  `dt_eff == 0.0`, sinon boucle infinie (le palet coincé entre deux
-  palets re-trigger hitstop à chaque frame).
-- **IA goalkeeper** : `REACTION_TIME = 0.18s`, `AI_SPEED = 0.55`,
-  `GOALIE_OFFSET = 70.0`. Reste sur sa ligne x, suit le y perçu
-  (avec délai), revient au centre si le palet est derrière. Ne chasse
-  jamais en x (sinon il pousse le palet dans son propre but).
-- **Menu** : Space = PvP, Enter = PvAI. `GameMode` dérivé `Default` = Pvp.
-- **Countdown** : `TextParams { font_size: 120, font_scale: 1.4→1.0 }`.
-  Ne JAMAIS animer `font_size` (thrash de l'atlas de glyphes, drop FPS).
-- **Overlays** : scrim noir alpha 0.55 par-dessus la table quand une
-  phase affiche du texte plein écran.
-- **Tests** : 58 unitaires + 10 intégration = 68 tests.
-
-### Pièges connus
-
-- **Hitstop infini** : si `dt_eff == 0`, ne pas appeler le step physique.
-  Le puck coincé entre deux paddles re-trigger hitstop à l'infini.
-- **Countdown font_size animé** : chaque nouvelle taille rastérise de
-  nouveaux glyphes dans l'atlas. Animer `font_scale` au lieu de `font_size`.
-- **Countdown et le "1" manquant** : `if n > 1 { n } else { "GO!" }`
-  écrase le slot du 1. Utiliser une fenêtre `GO_WINDOW` dédiée.
-- **Overlays illisibles** : la grille de fond a assez de contraste pour
-  noyer le texte. Scrim noir alpha 0.55 minimum.
-- **AZERTY pour les contrôles J1** : `W` et `Z` mappés tous les deux sur
-  "haut" (positions QWERTY voisines). Idem `A`/`Q` pour gauche. Documenté
-  dans `systems.rs`.
-
----
-
-## games/zhuo-ji — Détail (11e jeu, en design)
-
-### Concept
-
-Zhuo Ji (捉鸡), la variante Guiyang du Mahjong. 4 joueurs, 108 tuiles
-(3 suits × 9 rangs × 4 copies, pas d'honneurs). Deux mécaniques
-signatures :
-
-- **豆 (Dou)** — les bonus de Gang, qui servent aussi de "passeport"
-  pour gagner sur un discard (règle 平胡 vs 大对子).
-- **鸡 (Ji)** — une tuile révélée après la main qui multiplie le score.
-  Tuiles fixes : **1 Tiao** (幺鸡) et **8 Tong** (八筒), qui deviennent
-  Golden Ji sous certaines conditions.
-
-### Statut
-
-- Design doc rédigé : `games/zhuo-ji/DESIGN.md`.
-- Crate scaffold : `cargo new --lib games/zhuo-ji` (workspace member ajouté).
-- **Aucun code écrit pour l'instant.** Session 1 à venir.
-
-### Plan des 5 sessions
-
-| Session | Scope |
-|---|---|
-| 1 | Tile model, wall, deal, human draw/discard, basic rendering |
-| 2 | Win detection + shanten + tenpai (fonctions pures) |
-| 3 | AI discard logic |
-| 4 | Calls (Peng/Gang/Hu), full turn flow |
-| 5 | Scoring (Dou, Ji, patterns), match flow, integration tests |
-
-### Ce que ça apporte au moteur
-
-- Premier jeu **tour par tour** (tous les précédents sont temps réel).
-- Première **évaluation de main complexe** (backtracking).
-- Premier **AI avec information cachée** (l'IA d'Air Hockey voit tout).
-- Premier jeu **4 joueurs** (max actuel : 2).
-- Première **fenêtre de décision temporisée** (claim window).
-
-### Pièges à surveiller (déjà documentés dans DESIGN.md)
-
-- Tile `Copy` → utiliser `Vec::remove`, pas `swap_remove`.
-- Claim priority : Hu > Peng > Gang.
-- Pas de Chi en Guiyang.
-- Gang → re-draw.
-- Dou passport rule (le plus oublié).
-- Twin fixed Ji : 1 Tiao **et** 8 Tong.
-- Huangzhuang ne compte pas Dou/Ji.
-- AI hesitation timing (0.6–0.8 s dwell).
-- Dealer rotation (sauf Huangzhuang sans tenpai).
+- **Physique** : `step_world_substepped` avec `substeps = 4`. Palet clampé à `puck_speed_max = 1400`.
+- **Hitstop** : `dt_eff = 0.0` quand palet tape palet à plus de 900 px/s. **Ne pas** appeler `step_world_substepped` quand `dt_eff == 0.0`.
+- **IA goalkeeper** : `REACTION_TIME = 0.18s`, `AI_SPEED = 0.55`, `GOALIE_OFFSET = 70.0`. Ne chasse jamais en x.
+- **Menu** : Space = PvP, Enter = PvAI.
+- **Countdown** : `TextParams { font_size: 120, font_scale: 1.4→1.0 }`. Ne JAMAIS animer `font_size`.
+- **Overlays** : scrim noir alpha 0.55.
+- **Tests** : **58 unit + 10 integration = 68 tests**.
 
 ---
 
@@ -641,125 +659,113 @@ signatures :
 
 ### Fondations moteur (Phases 1-6, condensé)
 
-Les 6 premières phases ont posé les bases du moteur :
-
-- **Phase 1** — Nettoyage Level : Level/BrickData déplacés de stdlib vers games/breakout/src/levels.rs.
-- **Phase 2** — Aabb / Circle dans ember_core::math (24 tests).
-- **Phase 3** — collider enrichi : Contact, collide_contact, swept_circle_vs_aabb, swept_circle_vs_obb. Renommage Shape::AABB → Shape::Aabb. Alignement glam 0.27.
-- **Phase 4** — TickTimer dans ember_core::time (généralisé depuis Snake).
-- **Phase 5** — GameState dans ember_core::app (5 variantes).
-- **Phase 6** — State structs + workspace hygiene : MatchState, SnakeWorld, [workspace.dependencies] ajouté.
-
-Résultat : moteur pur, Aabb/Circle testés, boucle de jeu robuste, 4 jeux jouables.
+- **Phase 1** — Nettoyage Level.
+- **Phase 2** — Aabb / Circle dans ember_core::math.
+- **Phase 3** — collider enrichi, Shape::AABB → Shape::Aabb.
+- **Phase 4** — TickTimer.
+- **Phase 5** — GameState.
+- **Phase 6** — State structs + workspace hygiene.
 
 ### Construction du moteur (Phases 7-11, condensé)
 
-- **Phase 7** — Bullet Hell (5e jeu) + [workspace.package]. Décision : position = centre dans ce jeu (déviation documentée).
-- **Phase 8** — GameWorld Asteroids : extraction de la state struct, suppression des #[allow(clippy::too_many_arguments)].
-- **Phase 9** — `.workspace = true` généralisé. Tous les membres alignés.
-- **Phase 10** — Minesweeper (6e jeu) + UI subsystem : Grid<T>, Input, ui/ (Button, Label, Panel, Timer). ember-core purgé de macroquad et slotmap.
-- **Phase 11** — Simon (7e jeu) + audio subsystem : AudioClip, CircleButton, feature "audio" de macroquad.
-
-Résultat : 7 jeux, stdlib complète (grille, input, UI, audio), 300+ tests.
+- **Phase 7** — Bullet Hell (5e jeu).
+- **Phase 8** — GameWorld Asteroids.
+- **Phase 9** — `.workspace = true` généralisé.
+- **Phase 10** — Minesweeper (6e jeu) + UI subsystem.
+- **Phase 11** — Simon (7e jeu) + audio subsystem.
 
 ### Phase 12 — Session 1 : Fondations moteur (7 jeux)
-- Extraction `ember_stdlib::config::load_dotenv_once(manifest_dir, game_name)`.
-- Extraction `Transform::center()` (= `position + scale / 2.0`).
-- Extraction `ember_core::rng::Rng` (xorshift32, 3 copies unifiées). Premier doctest **exécuté** du workspace.
-- Extraction `Input::from_macroquad_with_keys(&[KeyCode])`.
+- `load_dotenv_once`, `Transform::center()`, `Rng`, `Input::from_macroquad_with_keys`.
 
-Dette résolue : #5 (xorshift32 3 copies).
+### Phase 13 — Session 2 : Bugs (4 corrections)
+- Breakout brick collision, Minesweeper Button recréé, Pong clamp, Asteroids UpdateEvent supprimé.
 
-### Phase 13 — Session 2 : Bugs et incohérences (4 corrections)
-- **Breakout** : `resolve_brick_collision` utilisait `ctx.brick_width/2` au lieu de `brick.transform.scale/2`.
-- **Minesweeper** : le `Button` START était recréé chaque frame.
-- **Pong** : pas de clamp de vitesse. Ajout de `Ball::clamp_speed(max)`.
-- **Asteroids** : `enum UpdateEvent` supprimé.
-
-### Phase 14 — Session 3 : Architecture (uniformisation)
-- **BreakoutWorld** extrait. `update` passe de 7 args à 3.
-- **Minesweeper Game** déplacé de `main.rs` vers `systems.rs`.
-- **GameContext uniformisé** dans `config.rs` pour les 7 jeux.
+### Phase 14 — Session 3 : Architecture
+- BreakoutWorld extrait, Minesweeper Game déplacé, GameContext uniformisé.
 
 ### Phase 15 — Session 4 : Persistance générique
-- **`ember_stdlib::persistence`** créé. `Persistence<T>` avec `Clone` manuel, helpers `update_if_higher` / `update_if_lower`.
-- **Simon**, **Minesweeper**, **Asteroids** migrés.
+- `Persistence<T>` créé. Simon, Minesweeper, Asteroids migrés.
 
 ### Phase 16 — Session 5 : Bugs et tests restants
-- **Asteroids** : `step_ship_asteroid_collision` extrait.
-- **Minesweeper** : 3 tests d'intégration flood fill Expert (30x16).
-- **Simon** : 8 tests d'intégration.
-- **Pong** : 4 tests d'intégration robustes.
-- **Bonus** : bug `Persistence::in_manifest_dir` corrigé.
+- Asteroids step_ship_asteroid_collision, 3 tests flood fill Expert, 8 tests Simon, 4 tests Pong, fix in_manifest_dir.
 
 ### Phase 17 — Memory (8e jeu)
-- 8e jeu = Memory. Premier `DESIGN.md` sauvegardé dans le projet.
-- Grid<T> cliquable, sélection à 2 temps, persistance best time.
-- 27 tests.
+- Grid<T> cliquable, sélection 2 temps, persistance best time, DESIGN.md.
 
 ### Phase 18 — FreeCell (9e jeu)
-- 9e jeu = FreeCell (solitaire à information parfaite).
-- **Drag-and-drop** : première brique UI majeure depuis Input. `DragState` (Idle/Pressing/Dragging) local au jeu (Rule of Three : 1re occurrence).
-- **Super-move** : formule `(1 + cellules) × 2^colonnes_vides`. Réutilise la logique de séquence valide (descendante, couleurs alternées).
-- **Undo/redo** : snapshots complets (colonnes + cellules + fondations + moves). Piles `history` / `future`. Redo vidée sur nouveau move.
-- **Hint** : indicateur pur, ne mute pas l'état.
-- **Unicode** : chargement de `DejaVuSansMono.ttf` (depuis `assets/`) car la police par défaut de macroquad ne couvre pas ♠ ♥ ♦ ♣.
-- **Piège AZERTY découvert** : macroquad utilise les scancodes QWERTY. `M` → `Semicolon`, `Z` → `W`, `A` ↔ `Q`. Diagnostic via `get_last_key_pressed()`.
-- **Bugs corrigés** : fondations noires invisibles (alpha 0.20 sur fond sombre → 0.45 + couleur claire), timer chevauchait le bouton Hint (calcul depuis `hint_btn.rect.0`), symbole de fondation mal centré (baseline corrigée).
-- **89 tests** (81 unit + 8 integration), Clippy clean.
+- Drag-and-drop state machine, super-move, undo/redo, DejaVu Sans Mono, piège AZERTY.
 
 ### Phase 19 — Air Hockey (10e jeu)
-- 10e jeu = Air Hockey (arcade 2 joueurs + IA).
-- **Premier jeu avec un menu de modes** : `GameMode::{Pvp, PvAi}`.
-- **Premier adversaire IA d'action** : goalkeeper avec reaction delay
-  (`REACTION_TIME`), vitesse plafonnée (`AI_SPEED`), revient à sa ligne.
-- **Puck non-tunneling** : substepping déjà en place depuis Breakout,
-  mais première utilisation pour un palet rapide (1400 px/s).
-- **Hitstop et freeze** : bug découvert en test, `dt_eff == 0` doit
-  court-circuiter la physique. Sinon boucle infinie.
-- **Countdown animé** : `TextParams::font_scale` au lieu de `font_size`
-  pour éviter le thrash de l'atlas. Piège généralisable.
-- **Overlays lisibles** : scrim noir alpha 0.55 derrière tout texte
-  plein écran (Menu, Countdown, GoalPause, RoundOver, MatchOver, Pause).
-- **68 tests** (58 unit + 10 integration), Clippy clean.
+- GameMode PvP/PvAI, goalkeeper IA, hitstop guard, font_scale countdown, scrim overlays.
 
-### Phase 20 — Zhuo Ji (11e jeu, en design)
-- 11e jeu = Zhuo Ji (捉鸡, variante Guiyang du Mahjong).
-- **Design doc rédigé** : `games/zhuo-ji/DESIGN.md`.
-- **Crate scaffold** : `cargo new --lib games/zhuo-ji` — workspace member ajouté automatiquement.
-- **Aucun code écrit.** Session 1 à venir : tile model, wall, deal, human draw/discard, basic rendering.
-- **Ce que ça apportera** (prévu) : premier jeu tour par tour, première évaluation de main complexe, premier AI avec information cachée, premier jeu 4 joueurs, première fenêtre de décision temporisée.
-- **Pièges à surveiller** (documentés) : tile `Copy` → `Vec::remove`, claim priority Hu > Peng > Gang, pas de Chi, Gang → re-draw, Dou passport rule, twin fixed Ji (1 Tiao **et** 8 Tong), Huangzhuang ne compte pas Dou/Ji.
+### Phase 20 — Zhuo Ji (11e jeu, Sessions 1–5 + polish)
+- **Session 1** — Tile model, wall, deal, human draw/discard, ASCII rendering.
+- **Session 2** — `hand.rs` : `is_winning_hand`, `shanten`, `is_tenpai`.
+- **Session 3** — `ai.rs` : `decide_discard` par shanten, tie-break neighbors.
+- **Session 4** — Peng + Hu claims. `AwaitingClaims`, `ClaimAnim`, `Hu`. `resolve_claims`.
+- **Session 4.5** — An Gang, Ming Gang, Zimo, `HuangZhuang`.
+- **Session 5** — `scoring.rs` : Pattern, Dou, Ji, Huangzhuang. Match flow, MatchOver.
+- **UI polish** — `tiles.rs` avec symboles custom, info stack, pendule runtime centrée, WALL top-right, avatars, timers.
+
+### Phase 21 — Zhuo Ji V2 (règles + polish UX + refonte graphique)
+
+- **Scoring V2** — `Pattern` enum étendu de 4 à 8 variants. `HandBreakdown` (`hu` / `dou` / `ji` par joueur) retourné par `apply_hand_scores`. Fix bug : `is_winning_hand` ne reconnaissait pas les 7 paires → `is_seven_pairs_hand`.
+- **Chong Feng Ji / Ze Ren Ji** — `Game.first_discard: Option<(usize, Tile)>` + `record_discard()`.
+- **Modal fin de main** — 2 onglets (Scores / Table view), navigation ← →. `hand_summary.rs` avec `HandSnapshot` capturé avant `start_next_hand()`. Mini-tuiles 22×32, bordure dorée sur Ji, orange sur Gang.
+- **Modal fin de match** — 2 onglets (Scores / Hand history 16 dernières mains), titre pulsant "YOU WIN THE MATCH".
+- **Menu principal** — écran titre jade + bordures or, 3 boutons (New game / Rules / Quit), nav souris + clavier (↑↓ + Entrée). `AppScreen { Menu, Game }`. Échap en jeu → menu, Échap au menu → quitte.
+- **Refonte graphique** — Tong passe au **bleu** (porcelaine), Tiao garde le **vert** (bambou). 1 Tiao = poulet stylisé. Melds rendus en 2 passes (fix z-index East). `MeldsLayout` avec 3 slots + 4e tuile de Gang empilée. Tailles ajustées (hand 56×84, river/AI backs 30×46, melds 28×42). Corner glyphs alignés top (`glyph_band_center_offset`).
+- **Tile glow** — `TileGlow { None, Useful, Ji }`, halo vert/or autour des tuiles, priorité Ji > Useful. Remplace la pastille dorée. Helpers `tile_has_friend_in`, `glow_for_concealed`, `glow_for_drawn`.
+- **help.rs** — 7 onglets (Goal/Patterns/Dou/Ji/Tiles/Specials/UI), filtres Suit/Rank sur Tiles.
+- **187 tests unit + 10 integration**, Clippy clean.
 
 ---
 
 ## Décisions à prendre
 
 1. Sprite : renommer en Tint ou assumer qu'on ajoutera des textures ? (Reporté depuis Session 2.)
-2. SnakeState::new(duration) : paramètre vestigial (écrasé par update). Le retirer ou le documenter ?
+2. SnakeState::new(duration) : paramètre vestigial. Le retirer ou le documenter ?
 3. Shape::as_aabb / as_circle : inutilisés. Supprimer ou utiliser ?
-4. Uniformiser UpdateEvent : Snake/Breakout en ont, Pong/Bullet Hell non. (À débattre.)
-5. **Drag-and-drop** : extraire dans ember_stdlib ? Rule of Three : 1re occurrence (FreeCell). Zhuo Ji ne l'utilise pas (sélection clic-clic). Attendre Klondike / Solitaire.
-6. **Hit testing sur layout rectangulaire** : pattern générique (zone_at) répété 2x (FreeCell, futur Klondike ?). Surveiller.
-7. **Animation / tween / easing** : à extraire dans ember_stdlib ? Aucune occurrence actuelle. Pas nécessaire pour Zhuo Ji.
-8. **Turn-based state machine** : première occurrence en Phase 20 (Zhuo Ji). À extraire si un 2e jeu tour par tour apparaît.
-9. **Fenêtre de décision temporisée** (claim window) : première occurrence en Phase 20. À surveiller.
-10. **AI avec information cachée** : première occurrence en Phase 20 (Zhuo Ji). À surveiller.
+4. Uniformiser UpdateEvent : Snake/Breakout en ont, Pong/Bullet Hell non.
+5. **Drag-and-drop** : extraire dans ember_stdlib ? Rule of Three : 1re occurrence (FreeCell). Attendre Klondike / Solitaire.
+6. **Hit testing rectangulaire** : 2x (Minesweeper, FreeCell). Surveiller.
+7. **Animation / tween / easing** : à extraire. 0 occurrence.
+8. **Turn-based state machine** : 1x (Zhuo Ji). À extraire si un 2e jeu tour par tour apparaît.
+9. **Fenêtre de décision temporisée** (claim window) : 1x (Zhuo Ji).
+10. **AI avec information cachée** : 1x (Zhuo Ji).
+11. **Boutons contextuels attachés à une phase** : 1x (Zhuo Ji).
+12. **Tiles custom sans police CJK** : 1x (Zhuo Ji). À extraire si un 2e jeu à tuiles apparaît.
+13. **Layout runtime (`screen_width()` à chaque frame)** : 1x (Zhuo Ji). Généralisable.
+14. **Hand evaluation / backtracking** : 1x (Zhuo Ji). Trop spécifique.
+15. **Modals multi-onglets** : 1x (Zhuo Ji). À extraire si 2e occurrence.
+16. **Écran titre / menu principal** : 1x (Zhuo Ji). À extraire si 2e occurrence.
+17. **Halo tuile (2 rectangles superposés)** : 1x (Zhuo Ji). À extraire si 2e occurrence.
 
 ---
 
 ## Dette technique
 
 1. ember-editor : placeholder vide.
-2. Button UI : pas de vrai UiContext frame-level. L'utilisateur doit gérer lui-même la cohérence update/draw.
-3. tick_playback dans Simon : boucle jusqu'à épuisement de dt. Pattern "loops until dt exhausted" devrait être un helper dans TickTimer.
+2. Button UI : pas de vrai UiContext frame-level.
+3. tick_playback dans Simon : boucle jusqu'à épuisement de dt.
 4. Memory : pas de "pairs attempted" counter.
-5. FreeCell : pas de "auto-complete" (V2), pas d'input de seed (V2), pas de sélection clic-clic (V2).
-6. FreeCell : pas de test pour `can_drop_at` (feedback visuel vert/rouge).
-7. **FreeCell : `max_super_move` devrait prendre la destination en compte** (formule officielle). Actuellement, déposer sur une colonne vide sur-compte cette colonne comme buffer. Bug latent, test à ajouter (`test_super_move_9_cards_with_one_empty_column`).
-8. **Air Hockey : DESIGN.md manquant** (rétroactif).
-9. **Air Hockey : pas de tests d'intégration pour l'IA** (les tests unitaires de `ai.rs` couvrent les branches, mais pas les scénarios d'un match PvAI complet).
-10. **Zhuo Ji : pas encore de code** (Session 1 à venir).
+5. FreeCell : pas de "auto-complete", pas d'input de seed, pas de sélection clic-clic (V2).
+6. FreeCell : pas de test pour `can_drop_at`.
+7. **FreeCell : `max_super_move` ne prend pas la destination en compte.**
+8. Air Hockey : DESIGN.md manquant (rétroactif).
+9. Air Hockey : pas de tests d'intégration pour l'IA.
+10. **Zhuo Ji : `hands_per_match` hardcodé à 4** dans `Game::hands_per_match()` et `main.rs`.
+11. **Zhuo Ji : Bu Gang (爬坡豆) non implémenté.** An Gang et Ming Gang marchent, upgrade d'un Peng existant en Gang manque.
+12. **Zhuo Ji : pas de tests d'intégration pour Ming Gang et An Gang en situation de jeu.**
+13. **Zhuo Ji : `Layout::from_env` ne lit que `AH_HANDS_PER_MATCH`.**
+14. **Zhuo Ji : timer de claim window non affiché.**
+15. **Zhuo Ji : pas de rendu CJK.** Les symboles custom sont fonctionnels mais ne montrent pas les vrais glyphes 万 / 条 / 筒. Charger Noto Sans CJK en V2.
+16. **Zhuo Ji : Dou passport rule non-enforcée** (§6.3).
+17. **Zhuo Ji : Qiang Gang (抢杠) non implémenté.**
+18. **Zhuo Ji : Gang Shang Pao (杠上炮) non implémenté.**
+19. **Zhuo Ji : Bao Ting (报听) non implémenté.**
+20. **Zhuo Ji : chips d'état sous avatars (豆 × N, 鸡 × N) non implémentés.**
+21. **Zhuo Ji : TENPAI permanent + chips transitoires (冲锋鸡!, 责任鸡, +冲锋鸡) non implémentés.**
 
 Résolus :
 - ~~glam désalignement~~ → structurellement impossible depuis Session 6.
@@ -775,6 +781,10 @@ Résolus :
 - ~~in_manifest_dir crée les fichiers au mauvais endroit~~ → Phase 16.
 - ~~Hitstop infini Air Hockey~~ → Phase 19.
 - ~~Countdown FPS drop Air Hockey~~ → Phase 19.
+- ~~Pendule mal centrée Zhuo Ji~~ → Phase 20 (runtime + H/V).
+- ~~Zhuo Ji : QiDui (七对) non implémenté~~ → Phase 21 (scoring V2).
+- ~~Zhuo Ji : 冲锋鸡 / 责任鸡 non implémentés~~ → Phase 21 (scoring V2).
+- ~~Zhuo Ji : pastille dorée moche~~ → Phase 21 (TileGlow).
 
 ---
 
@@ -784,35 +794,40 @@ Ne généralise pas avant d'avoir vu le pattern 3 fois.
 
 Aujourd'hui :
 - Chargement RON : 8x → extrait.
-- Config env : 10x → extrait.
-- draw_centered : 10x → extrait.
-- GameState : 10x → extrait.
-- State structs : 10x → convention confirmée.
-- Grid 2D : 2x (Minesweeper, Memory) → extrait (Grid<T>).
-- Input snapshot : 10x → extrait (Input).
-- UI widgets : 4x (Minesweeper, Simon, Memory, FreeCell) → extrait.
-- Audio : 2x (Simon, Air Hockey) → extrait (AudioClip).
-- xorshift32 : 4x → EXTRAIT (Phase 12).
+- Config env : 11x → extrait.
+- draw_centered : 11x → extrait.
+- GameState : 10x (Zhuo Ji n'utilise pas GameState).
+- State structs : 11x → convention confirmée.
+- Grid 2D : 2x → extrait (Grid<T>).
+- Input snapshot : 11x → extrait.
+- UI widgets : 4x → extrait.
+- Audio : 2x → extrait (AudioClip).
+- xorshift32 : 5x → EXTRAIT (Phase 12).
 - Persistance best score : 5x → EXTRAIT (Phase 15).
-- **Drag-and-drop** : 1x (FreeCell) → local. À extraire si Klondike / Solitaire.
-- **Hit testing rectangulaire** : 2x (Minesweeper clic, FreeCell zone_at) → surveiller.
-- **Super-move / séquence valide** : 1x (FreeCell) → local.
-- **Snapshots undo/redo** : 1x (FreeCell) → local. À surveiller si un 2e jeu a besoin de undo.
-- **Machine à états drag** : 1x (FreeCell) → local.
-- **IA adversaire de jeu d'action** : 1x (Air Hockey goalkeeper) → local. À surveiller.
-- **Mode PvP / PvAI sélectionnable** : 1x (Air Hockey) → local. À surveiller.
-- **Scrim overlay** : 1x (Air Hockey) → local. Vraiment trop simple pour extraire, mais à noter.
-- **TextParams::font_scale pour animations de taille** : 1x (Air Hockey countdown) → pattern généralisable, mais à documenter plutôt qu'à extraire.
-- **Turn-based state machine** : 1x (Zhuo Ji, planifié) → local. À extraire si un 2e jeu tour par tour apparaît.
-- **Fenêtre de décision temporisée** : 1x (Zhuo Ji, planifié) → local. À surveiller.
-- **Évaluation de main / backtracking** : 1x (Zhuo Ji, planifié) → local. Trop spécifique.
-- **AI avec information cachée** : 1x (Zhuo Ji, planifié) → local. À surveiller.
+- **Drag-and-drop** : 1x (FreeCell) → local.
+- **Hit testing rectangulaire** : 2x → surveiller.
+- **Snapshots undo/redo** : 1x (FreeCell) → local.
+- **Turn-based state machine** : 1x (Zhuo Ji) → local.
+- **Fenêtre de décision temporisée** : 1x (Zhuo Ji) → local.
+- **Boutons contextuels de phase** : 1x (Zhuo Ji) → local.
+- **AI avec information cachée** : 1x (Zhuo Ji) → local.
+- **Évaluation de main / backtracking** : 1x (Zhuo Ji) → local.
+- **Tiles custom sans police CJK** : 1x (Zhuo Ji) → local.
+- **Layout runtime screen_width** : 1x (Zhuo Ji) → à extraire si un 2e jeu en a besoin.
+- **Modals multi-onglets** : 1x (Zhuo Ji) → local.
+- **Écran titre / menu principal** : 1x (Zhuo Ji) → local.
+- **Halo tuile (2 rectangles superposés)** : 1x (Zhuo Ji) → local.
 
 ---
 
 ## Pistes pour le 12e jeu
 
-Le moteur a maintenant : collisions, grille, input souris + clavier, UI (Button, CircleButton, Label, Panel, Timer), audio, persistance typée, data-driven, machine à états, sélection à 2 temps, drag-and-drop local, IA adversaire local, menu de modes, design docs. En Phase 20, Zhuo Ji apportera le tour par tour, l'évaluation de main, l'AI à information cachée, et le jeu à 4 joueurs.
+Le moteur a maintenant : collisions, grille, input souris + clavier,
+UI, audio, persistance typée, data-driven, machine à états, sélection
+à 2 temps, drag-and-drop local, IA adversaire local, menu de modes,
+design docs, tour par tour, évaluation de main, AI avec information
+cachée, 4-player state, fenêtres de décision temporisées, tiles
+custom sans police CJK, modals multi-onglets, écran titre.
 
 Ce qui MANQUE encore :
 - Extraction drag-and-drop dans la stdlib (attendre 3e occurrence)
@@ -823,22 +838,23 @@ Ce qui MANQUE encore :
 
 ### Recommandations fortes
 
-1. **Match-3** — déclenche ANIMATIONS / TWEEN / EASING. Utilise Grid + Input + UI + Persistence. La plus grosse valeur moteur disponible. Le pattern "animation comme citoyen de première classe" est absent de tous les jeux actuels.
-2. **Plateformer** — déclenche CAMÉRA + scroll + collisions multi-axes solides. Gros coût, gros gain.
-3. **Klondike / Solitaire** — 2e occurrence de drag-and-drop → rapproche de l'extraction. Réutilise Card, Zone, layout superposé de FreeCell.
+1. **Match-3** — déclenche ANIMATIONS / TWEEN / EASING. Utilise Grid
+   + Input + UI + Persistence. La plus grosse valeur moteur disponible.
+2. **Plateformer** — déclenche CAMÉRA + scroll + collisions multi-axes.
+3. **Klondike / Solitaire** — 2e occurrence de drag-and-drop.
 
 ### Recommandations moyennes
 
 4. **Tower Defense** — pathfinding, ciblage, économie.
-5. **Roguelike minimal** — procédural, FOV, tour par tour, inventaire, sauvegarde.
-6. **Card Battler** — main, deck, tour par tour, graphe narratif. Réutilise Card + Zone.
+5. **Roguelike minimal** — procédural, FOV, tour par tour, inventaire.
+6. **Card Battler** — main, deck, tour par tour. Réutilise Card + Zone de FreeCell.
 7. **Tetris** — rotation, lignes, drop. Réutilise Grid + Persistence.
 
 ### Recommandations faibles
 
-8. **Bomberman-like** — grille destructible, IA (réutilise beaucoup).
-9. **Aim Trainer** — cercles à cliquer, ultra-simple, palier de repos.
-10. **Bubble Shooter** — grille hexagonale (nouveau type de grille).
+8. **Bomberman-like** — grille destructible, IA.
+9. **Aim Trainer** — cercles à cliquer, ultra-simple.
+10. **Bubble Shooter** — grille hexagonale.
 
 ---
 
@@ -849,109 +865,139 @@ Ce qui MANQUE encore :
 2. Shape::as_aabb / as_circle : supprimer ou utiliser ?
 3. SnakeState::new : retirer le paramètre duration ?
 4. Uniformiser UpdateEvent : Snake/Breakout en ont, Pong/Bullet Hell non.
-5. Design docs rétroactifs pour les 8 jeux précédents (avant Memory).
-6. FreeCell : extraire drag-and-drop dans ember_stdlib ? Attendre 3e occurrence.
-7. Air Hockey : extraire le menu PvP/PvAI dans un helper de stdlib ? Attendre 3e occurrence.
-8. Air Hockey : DESIGN.md rétroactif.
-9. Zhuo Ji : valider le design doc avant Session 1.
+5. Design docs rétroactifs pour les 8 jeux précédents.
+6. Extraire drag-and-drop dans ember_stdlib ? Attendre 3e occurrence.
+7. Extraire menu PvP/PvAI dans stdlib ? Attendre 3e occurrence.
+8. Zhuo Ji : extraire le turn-based state machine ? Attendre 2e occurrence.
+9. Zhuo Ji : Bu Gang / Qiang Gang / Gang Shang Pao / Bao Ting en V2 ?
+10. Zhuo Ji : charger Noto Sans CJK pour les vrais glyphes ? V2.
+11. Zhuo Ji : extraire les tiles custom dans ember_stdlib ? Attendre 2e jeu à tuiles.
+12. Zhuo Ji : extraire les modals multi-onglets ? Attendre 2e occurrence.
+13. Zhuo Ji : extraire l'écran titre / menu principal ? Attendre 2e occurrence.
+14. Zhuo Ji : extraire le halo tuile ? Attendre 2e occurrence.
 
 ### Bugs potentiels / fragilités
-1. FreeCell : `max_super_move` ne prend pas la destination en compte. Fix documenté.
+1. FreeCell : `max_super_move` ne prend pas la destination en compte.
 2. FreeCell : pas de test pour `can_drop_at`.
 3. Air Hockey : pas de test d'intégration pour un match PvAI complet.
+4. Zhuo Ji : `hands_per_match` hardcodé à 4.
+5. Zhuo Ji : Bu Gang, Qiang Gang, Gang Shang Pao, Bao Ting absents.
+6. Zhuo Ji : Dou passport rule non-enforcée.
 
 ### Refactors à considérer
-1. Extraire un helper "loops until dt exhausted" (voir Simon tick_playback).
+1. Extraire un helper "loops until dt exhausted".
 2. Transform : ajouter apply, apply_inverse, matrix.
 3. Aabb : ajouter overlaps_with_rotation ?
 4. Collider : ajouter contains_point ?
 5. ember_stdlib::graphics::shapes : draw_rotated_rect, draw_polygon.
-6. UiContext frame-level : hot/active ID, résoudrait le piège button update/draw.
+6. UiContext frame-level : hot/active ID.
 7. Drag-and-drop dans ember_stdlib (après 3e occurrence).
-8. Animation / tween / easing dans ember_stdlib (après 2e ou 3e occurrence).
-9. Turn-based state machine dans ember_stdlib (après 2e occurrence).
+8. Animation / tween / easing dans ember_stdlib (après 2e/3e occurrence).
+9. Turn-based state machine helper (après 2e occurrence).
+10. Tile rendering helpers (après 2e jeu à tuiles).
+11. Modal multi-onglets helper (après 2e occurrence).
+12. Écran titre / menu principal helper (après 2e occurrence).
+13. Halo tuile / glow helper (après 2e occurrence).
 
 ---
 
 ## Pièges connus (récap)
 
-1. glam version mismatch : structurellement impossible depuis Session 6, mais vérifier cargo tree -i glam avant d'ajouter un crate externe.
+1. glam version mismatch : vérifier cargo tree -i glam avant d'ajouter un crate externe.
 2. Shape::AABB vs Shape::Aabb : la variante s'appelle Aabb.
-3. overlaps_strict : rejette les bords touchants. Utiliser un léger chevauchement dans les tests.
+3. overlaps_strict : rejette les bords touchants.
 4. TickTimer ≠ cooldown : utiliser un f32 qui décrémente.
 5. GameState ajout de variante : mettre à jour TOUS les match state.
 6. SnakeState::new(duration) : la durée est écrasée au premier update.
 7. SnakeWorld::apply_level : ne reset PAS self.score.
 8. env_color format : {PREFIX}_R/_G/_B/_A, pas r,g,b,a.
 9. draw_arc macroquad 0.4.16 : segments: u8 en 3e position, radius en 6e.
-10. HP indicators : préférer l'assombrissement par hp/max_hp aux anneaux partiels.
+10. HP indicators : préférer l'assombrissement par hp/max_hp.
 11. Button UI : update() et draw() sur la MÊME instance.
 12. TextDimensions : draw_text retourne TextDimensions.
-13. field_reassign_with_default (clippy) : X { field: value, ..Default::default() }.
-14. Grid : neighbors_8 retourne des &T (borrow). Utiliser neighbor_coords_8 pour muter.
-15. Flood fill Démineur : révèle la frontière chiffrée, pas seulement les cases vides.
+13. field_reassign_with_default (clippy).
+14. Grid : neighbors_8 retourne des &T (borrow).
+15. Flood fill Démineur : révèle la frontière chiffrée.
 16. BoardState vs GameState : deux enums séparés.
-17. needless_borrows_for_generic_args (clippy) : pas de & devant format!() passé à draw_text, Label::new, etc. MAIS & requis pour draw_centered (signature &str).
-18. manual_range_contains (clippy) : (a..=b).contains(&x) au lieu de x >= a && x <= b.
-19. macroquad audio feature : à activer dans Cargo.toml racine, sinon silence total.
-20. CircleButton tessellation : tesseller manuellement avec circle_segments(radius) pour aligner fill et border.
-21. tick_playback en boucle : un dt plus grand que le timer de la phase courante doit traverser plusieurs phases.
-22. `load_dotenv_once` : `manifest_dir` doit venir de `env!("CARGO_MANIFEST_DIR")` **du crate appelant**.
-23. `from_macroquad*` : nécessite un contexte macroquad actif, non testable unitairement.
-24. `GameContext` uniformisé dans `config.rs` pour les 10 jeux (+ Zhuo Ji à venir).
-25. `Persistence<T>` a `Clone` mais **pas** `Copy` (PathBuf).
-26. Migration `.txt` → `.ron` (Asteroids) : l'ancien fichier n'est plus lu.
-27. `env!("CARGO_MANIFEST_DIR")` dans une fonction de la stdlib pointe vers le manifest de la **stdlib**, pas du jeu appelant.
-28. Memory : certains symboles ASCII (`§`, `\`) peuvent ne pas rendre avec la police par défaut de macroquad.
-29. Memory : `NO_MATCH_DELAY` doit laisser le temps de voir les symboles. 0.8s bon compromis.
-30. `cargo new --lib games/<name>` ajoute automatiquement le crate au workspace.
-31. **macroquad default font ne couvre pas les symboles Unicode étendus** (♠ ♥ ♦ ♣, U+2660..U+2667). Charger une police TTF custom via `load_ttf_font` + `set_default_font`. (Phase 18)
-32. **macroquad utilise les scancodes QWERTY** : sur AZERTY, `M` → `Semicolon`, `Z` → `W`, `A` ↔ `Q`. Diagnostiquer avec `get_last_key_pressed()`. Préférer `Tab` / `Escape` / `Space` / `Enter` pour les raccourcis critiques. (Phase 18)
-33. **Fondations noires invisibles sur fond sombre** : alpha minimum 0.45 + couleur claire (gris) pour les placeholders. (Phase 18)
-34. **Super-move : la colonne de destination compte (ou pas) comme buffer** selon qu'elle est vide. La formule officielle exclut la destination vide du calcul. (Phase 18)
-35. **Drag et accessibility** : on ne peut prendre que le **run contigu du bas** d'une colonne. `start_idx + n == len` pour valider. (Phase 18)
-36. **Timer positionné en dur** peut chevaucher les boutons. Calculer depuis `button.rect.0`. (Phase 18)
-37. **Ne pas appeler `step_world_substepped` quand `dt_eff == 0.0`.** Le puck coincé entre deux paddles re-trigger hitstop à chaque frame, freeze infini. (Phase 19)
-38. **Ne jamais animer `font_size`.** Chaque nouvelle taille rastérise de nouveaux glyphes. Animer `font_scale` via `TextParams`. (Phase 19)
-39. **Un overlay de texte sur une grille de fond a besoin d'un scrim.** Noir alpha ≥ 0.55 pour rester lisible. (Phase 19)
-40. **IA qui chasse le puck dans son propre camp** : un goalkeeper vertical-only est plus sûr qu'un chasseur 2D. Chasser en x pousse le puck dans le but. (Phase 19)
-41. **Clavier AZERTY vs QWERTY pour les alias de touches** : mapper W et Z sur "haut" (positions QWERTY voisines) est nécessaire pour que les joueurs AZERTY puissent jouer. (Phase 19)
-42. **Zhuo Ji : Tile `Copy`** → utiliser `Vec::remove(index)`, pas `swap_remove`, pour préserver l'ordre (crucial pour les algorithmes de hand evaluation). (Phase 20)
-43. **Zhuo Ji : claim priority** Hu > Peng > Gang. Deux joueurs Peng la même tuile → le plus proche counter-clockwise du discarder gagne. (Phase 20)
-44. **Zhuo Ji : pas de Chi.** Ne pas implémenter, même par réflexe de portage. (Phase 20)
-45. **Zhuo Ji : Gang → re-draw.** Après chaque Gang (An, Bu, Ming), le même joueur pioche à nouveau. La wall peut se vider en cours de tour. (Phase 20)
-46. **Zhuo Ji : Dou passport rule.** Sans Dou, on ne peut pas Hu sur discard avec seulement 平胡. Règle la plus oubliée. (Phase 20)
-47. **Zhuo Ji : twin fixed Ji.** **1 Tiao** et **8 Tong** sont tous les deux des Ji fixes. Golden Ji pour 1 Tiao quand 9 Tiao est flipé. Ne pas oublier 8 Tong — spécifique à Guiyang. (Phase 20)
-48. **Zhuo Ji : Huangzhuang ne compte pas Dou/Ji.** Seule la valeur de base du pattern est payée lors d'une pioche exhaustive. (Phase 20)
+17. needless_borrows_for_generic_args (clippy).
+18. manual_range_contains (clippy).
+19. macroquad audio feature : à activer dans Cargo.toml racine.
+20. CircleButton tessellation custom.
+21. tick_playback en boucle.
+22. `load_dotenv_once` : `manifest_dir` du crate appelant.
+23. `from_macroquad*` : non testable unitairement.
+24. `GameContext` uniformisé dans `config.rs`.
+25. `Persistence<T>` a `Clone` mais **pas** `Copy`.
+26. Migration `.txt` → `.ron` (Asteroids).
+27. `env!("CARGO_MANIFEST_DIR")` dans la stdlib pointe vers la stdlib.
+28. Memory : symboles ASCII peuvent ne pas rendre.
+29. Memory : `NO_MATCH_DELAY` doit laisser le temps de voir. 0.8s.
+30. `cargo new --lib games/<name>` ajoute au workspace.
+31. macroquad default font ne couvre pas les symboles Unicode étendus.
+32. macroquad utilise les scancodes QWERTY (voir AZERTY).
+33. Fondations noires invisibles sur fond sombre.
+34. Super-move : destination compte comme buffer (ou pas).
+35. Drag : run contigu du bas seulement.
+36. Timer positionné en dur peut chevaucher les boutons.
+37. Ne pas appeler `step_world_substepped` quand `dt_eff == 0.0`.
+38. Ne jamais animer `font_size`. Utiliser `TextParams::font_scale`.
+39. Un overlay de texte sur une grille a besoin d'un scrim (alpha ≥ 0.55).
+40. IA qui chasse le puck dans son propre camp : vertical-only plus sûr.
+41. Clavier AZERTY vs QWERTY : alias de touches nécessaires.
+42. **Zhuo Ji : Tile `Copy`** → `Vec::remove`, pas `swap_remove`.
+43. **Zhuo Ji : claim priority** Hu > Gang = Peng.
+44. **Zhuo Ji : pas de Chi.**
+45. **Zhuo Ji : Gang → re-draw.**
+46. **Zhuo Ji : Dou passport rule.**
+47. **Zhuo Ji : twin fixed Ji** — 1 Tiao **et** 8 Tong.
+48. **Zhuo Ji : Huangzhuang ne compte pas Dou/Ji.**
+49. **Zhuo Ji : HashMap iter closures** — `filter(|&(_, &c)| ...)` pour `filter`/`find`, `map(|(&t, _)| ...)` pour `map`.
+50. **Zhuo Ji : shanten formula edge cases** — tester contre exemples connus.
+51. **Layout runtime** : utiliser `screen_width()` / `screen_height()` au lieu de constantes. (Phase 20)
+52. **Pendule centrée** : ne pas compter la flèche (qui sort du disque) dans le calcul de centrage. (Phase 20)
+53. **Clippy 1.93+** : nouveaux lints activés (collapsible_if, manual_div_ceil, needless_borrows_for_generic_args…). `-D warnings` les transforme en erreurs. Anticiper avec `cargo clippy` avant chaque commit. (Phase 20)
+54. **Zhuo Ji : `first_discard` propagation** — toute modif scoring doit propager vers `HandBreakdown` (modal fin de main) + `first_discard` (Chong Feng Ji). `apply_hand_scores` dans `on_hu` prend 5 args. (Phase 21)
+55. **Zhuo Ji : `HandSnapshot`** — capturer **avant** `start_next_hand()` dans `on_hu` / `on_huangzhuang`. (Phase 21)
+56. **Zhuo Ji : `measure_text` hors thread macroquad** — remplacer par offset calculé (`fs * 0.40`). (Phase 21)
+57. **`assert!(CONSTANT > CONSTANT)`** → `const _: () = assert!(...)`. (Phase 21)
+58. **Test "neutre" Zhuo Ji** : vérifier que les tiles neutres ne sont pas le primary actif. (Phase 21)
+59. **Ambiguité `f32::min`** : suffixer `56.0_f32` sur le premier élément du tuple. (Phase 21)
+60. **`clippy::needless_range_loop`** → `for (i, &x) in arr.iter().enumerate()`. (Phase 21)
+61. **`clippy::collapsible_if`** → let-chains stables depuis Rust 1.88. (Phase 21)
+62. **`clippy::doc_overindented_list_items`** → sous-items doc-comment à 2 espaces. (Phase 21)
+63. **`clippy::too_many_arguments`** → bundler en tuple. (Phase 21)
+64. **Zhuo Ji : melds z-index (East)** — rendre en 2 passes (base puis face). (Phase 21)
+65. **Zhuo Ji : melds largeur** — Peng et Gang doivent occuper la même largeur (`MeldsLayout`). (Phase 21)
+66. **Zhuo Ji : Tong bleu vs Tiao vert** — const assert compile-time. (Phase 21)
 
 ---
 
 ## Prochaines étapes suggérées
 
-1. **Commit de la Phase 20 (démarrage)** : `feat(zhuo-ji): scaffold crate + design doc for Guiyang Mahjong`.
-2. **Valider le DESIGN.md** avant d'écrire du code.
-3. **Session 1 Zhuo Ji** :
-   - `components.rs` : `Tile`, `Suit`, `Meld`, `Player` + tests unitaires.
-   - `wall.rs` : 108 tuiles, shuffle déterministe via `Rng`, distribution.
-   - `config.rs` : `GameContext` hermétique + load.
-   - `systems.rs` : squelette de `Game` avec `Phase::Deal → AwaitingDraw → AwaitingDiscard`.
-   - `main.rs` : boucle macroquad, clic sur tuile = discard, rendu ASCII (`1W`, `5T`, `9D`).
-   - `tests/game_scenarios.rs` : test hot-seat qui distribue et joue quelques discards.
-4. Appliquer les patterns habituels :
-   - State struct (`Game`) dans `systems.rs` dès le début.
-   - `GameContext` dans `config.rs`.
-   - Widgets dans le state struct, update + draw sur la même instance.
-   - Input snapshot construit dans main.rs.
-   - Data-driven (RON) pour tout contenu configurable.
-   - Persistance via `ember_stdlib::persistence::Persistence<T>` (passer `manifest_dir` explicitement).
-   - **Design doc** (`DESIGN.md`) déjà rédigé.
-   - **Ne pas animer `font_size`**, utiliser `font_scale`.
-   - **Ne pas appeler la physique quand `dt_eff == 0.0`**.
-5. Session refactor moteur (optionnelle) :
+1. **Commit Zhuo Ji V2** : scoring V2 + modals + menu + refonte graphique + tile glow.
+2. **Update version.txt** : ce document.
+3. **Sessions Zhuo Ji planifiées** :
+   - **Session 2** — Chips d'état sous avatars (`豆 × N` orange, `鸡 × N` or, masqués si N=0).
+   - **Session 3** — TENPAI permanent (anneau vert autour de l'avatar) + chips transitoires 2.5s (`冲锋鸡!` vert au discarder, `责任鸡` rouge sur le discarder si Peng'd, `+冲锋鸡` or sur le claimer).
+4. **Règles V2 Zhuo Ji** (ordre conseillé) :
+   - Dou passport (pas de Hu sur défausse sans Dou)
+   - Bu Gang (爬坡豆, upgrade Peng → Gang)
+   - Qiang Gang (抢杠, vol de la tuile d'un Bu Gang)
+   - Gang Shang Pao (杠上炮, Hu sur tuile post-Gang)
+   - Bao Ting (报听, annonce d'attente)
+5. Décider du 12e jeu :
+   - Match-3 (tween/easing — plus grosse valeur moteur)
+   - Plateformer (camera/scroll)
+   - Klondike (2e drag-and-drop)
+6. Session design doc pour le 12e jeu, avant de coder.
+7. Session refactor moteur (optionnelle) :
    - UiContext frame-level
    - loops-until-dt-exhausted helper
    - graphics::shapes
-   - Animation / tween / easing dans ember_stdlib (si Match-3 choisi plus tard)
-   - Extraction drag-and-drop dans ember_stdlib (si 3e jeu à drag)
+   - Animation / tween / easing (si Match-3 choisi)
+   - Extraction drag-and-drop (si 3e jeu à drag)
    - Fix `max_super_move` avec destination
-   - Design docs rétroactifs pour les 8 jeux précédents
+   - Design docs rétroactifs
+   - Modal multi-onglets helper
+   - Écran titre helper
+   - Halo tuile helper

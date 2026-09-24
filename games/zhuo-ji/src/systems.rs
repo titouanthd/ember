@@ -8,7 +8,8 @@ use crate::ai;
 use crate::components::{ClaimKind, GangSource, Meld, Player, Tile};
 use crate::config::GameContext;
 use crate::hand;
-use crate::scoring::{self, JiInfo};
+use crate::hand_summary::HandSnapshot;
+use crate::scoring::{self, HandBreakdown, JiInfo};
 use crate::wall;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -59,8 +60,11 @@ pub struct Game {
     pub hands_played: u32,
     pub match_length: u32,
     pub last_ji: Option<JiInfo>,
-    /// Countdown for the human's discard decision.
     pub turn_timer: f32,
+    pub first_discard: Option<(usize, Tile)>,
+    pub hand_history: Vec<[i32; NUM_PLAYERS]>,
+    pub last_breakdown: Option<HandBreakdown>,
+    pub last_hand_snapshot: Option<HandSnapshot>,
 }
 
 impl Game {
@@ -85,7 +89,25 @@ impl Game {
             match_length: DEFAULT_MATCH_LENGTH,
             last_ji: None,
             turn_timer: 0.0,
+            first_discard: None,
+            hand_history: Vec::new(),
+            last_breakdown: None,
+            last_hand_snapshot: None,
         }
+    }
+
+    pub fn last_hand_deltas(&self) -> Option<[i32; NUM_PLAYERS]> {
+        let n = self.hand_history.len();
+        if n == 0 {
+            return None;
+        }
+        let cur = self.hand_history[n - 1];
+        let prev = if n >= 2 {
+            self.hand_history[n - 2]
+        } else {
+            [0; NUM_PLAYERS]
+        };
+        Some(std::array::from_fn(|i| cur[i] - prev[i]))
     }
 
     pub fn update(&mut self, input: &Input, ctx: &GameContext, dt: f32) -> Vec<GameEvent> {
@@ -151,8 +173,6 @@ impl Game {
                 if player == HUMAN_SEAT {
                     self.turn_timer -= dt;
                     if self.turn_timer <= 0.0 {
-                        // Auto-discard: the drawn tile if present, else the
-                        // first concealed tile.
                         let idx = if self.players[HUMAN_SEAT].drawn.is_some() {
                             self.players[HUMAN_SEAT].concealed.len()
                         } else {
@@ -182,6 +202,7 @@ impl Game {
                             );
                             let tile = self.players[player].concealed.remove(idx);
                             self.players[player].discards.push(tile);
+                            self.record_discard(player, tile);
                             events.push(GameEvent::Discarded { player, tile });
                             self.after_discard(player, tile, ctx);
                         }
@@ -237,6 +258,16 @@ impl Game {
         events
     }
 
+    fn capture_snapshot(&self, ji: JiInfo) -> HandSnapshot {
+        let concealed: [Vec<Tile>; NUM_PLAYERS] =
+            std::array::from_fn(|i| self.players[i].concealed.clone());
+        let melds: [Vec<Meld>; NUM_PLAYERS] =
+            std::array::from_fn(|i| self.players[i].melds.clone());
+        let discards: [Vec<Tile>; NUM_PLAYERS] =
+            std::array::from_fn(|i| self.players[i].discards.clone());
+        HandSnapshot::capture(&concealed, &melds, &discards, ji)
+    }
+
     fn on_hu(&mut self, winner: usize, method: HuMethod, events: &mut Vec<GameEvent>) {
         if let Some(d) = self.players[winner].drawn.take() {
             self.players[winner].concealed.push(d);
@@ -248,13 +279,17 @@ impl Game {
             JiInfo::none()
         };
         self.last_ji = Some(ji);
+        self.last_hand_snapshot = Some(self.capture_snapshot(ji));
 
-        scoring::apply_hand_scores(
+        let breakdown = scoring::apply_hand_scores(
             &mut self.players,
             Some((winner, method)),
             &ji,
             self.dealer,
+            self.first_discard,
         );
+        self.last_breakdown = Some(breakdown);
+        self.hand_history.push(std::array::from_fn(|i| self.players[i].score));
 
         self.hands_played += 1;
         events.push(GameEvent::Hu { player: winner, method });
@@ -275,7 +310,12 @@ impl Game {
                 &self.players[i].melds,
             )
         });
+        let ji = self.last_ji.unwrap_or(JiInfo::none());
+        self.last_hand_snapshot = Some(self.capture_snapshot(ji));
+        self.last_breakdown = None;
+
         scoring::apply_huangzhuang_scores(&mut self.players, &tenpai);
+        self.hand_history.push(std::array::from_fn(|i| self.players[i].score));
 
         self.hands_played += 1;
         events.push(GameEvent::HuangZhuang);
@@ -304,6 +344,9 @@ impl Game {
         self.pending_human_claim = None;
         self.last_ji = None;
         self.turn_timer = 0.0;
+        self.first_discard = None;
+        self.last_breakdown = None;
+        self.last_hand_snapshot = None;
         self.phase = Phase::Deal { t: 0.0 };
     }
 
@@ -319,6 +362,7 @@ impl Game {
         self.hands_played = 0;
         self.match_length = DEFAULT_MATCH_LENGTH;
         self.dealer = NUM_PLAYERS - 1;
+        self.hand_history.clear();
         self.start_next_hand();
     }
 
@@ -330,6 +374,12 @@ impl Game {
             }
         }
         best
+    }
+
+    fn record_discard(&mut self, player: usize, tile: Tile) {
+        if self.first_discard.is_none() {
+            self.first_discard = Some((player, tile));
+        }
     }
 
     fn after_discard(&mut self, player: usize, tile: Tile, ctx: &GameContext) {
@@ -570,6 +620,7 @@ impl Game {
             return None;
         };
         self.players[HUMAN_SEAT].discards.push(tile);
+        self.record_discard(HUMAN_SEAT, tile);
         self.after_discard(HUMAN_SEAT, tile, ctx);
         Some(tile)
     }
@@ -631,27 +682,20 @@ mod tests {
         panic!("never reached AwaitingDiscard, phase = {:?}", g.phase);
     }
 
-    /// Drive to the human's next discard. Auto-passes any claim window
-    /// the human is not actively deciding on, so the test doesn't stall.
     fn drive_to_human_discard(g: &mut Game, c: &GameContext, max_frames: usize) {
         for _ in 0..max_frames {
             if matches!(g.phase, Phase::AwaitingDiscard { player: HUMAN_SEAT }) {
                 return;
             }
-            // Auto-pass pending claims (mimics a player who doesn't click).
             if matches!(g.phase, Phase::AwaitingClaims { .. }) {
                 g.human_pass(c);
                 continue;
             }
-            // Bail out cleanly on terminal phases.
             if matches!(
                 g.phase,
                 Phase::Hu { .. } | Phase::HuangZhuang | Phase::MatchOver { .. }
             ) {
-                panic!(
-                    "drive_to_human_discard: game ended, phase = {:?}",
-                    g.phase
-                );
+                panic!("drive_to_human_discard: game ended, phase = {:?}", g.phase);
             }
             g.update(&empty_input(), c, 1.0 / 60.0);
         }
@@ -876,5 +920,159 @@ mod tests {
         };
         assert!(g.human_pass(&c));
         assert!(!matches!(g.phase, Phase::AwaitingClaims { .. }));
+    }
+
+    #[test]
+    fn test_hand_history_starts_empty() {
+        let g = Game::new(1);
+        assert!(g.hand_history.is_empty());
+    }
+
+    #[test]
+    fn test_hand_history_records_after_hu() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        g.players[0].concealed = winning_hand();
+        g.players[0].drawn = None;
+        g.human_zimo();
+        assert_eq!(g.hand_history.len(), 1);
+    }
+
+    #[test]
+    fn test_hand_history_cleared_on_reset() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        g.players[0].concealed = winning_hand();
+        g.players[0].drawn = None;
+        g.human_zimo();
+        assert_eq!(g.hand_history.len(), 1);
+
+        g.phase = Phase::MatchOver { winner: 0 };
+        g.update(&key_input(KeyCode::R), &c, 1.0 / 60.0);
+        assert!(g.hand_history.is_empty());
+    }
+
+    #[test]
+    fn test_hand_history_snapshots_are_zero_sum() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        g.players[0].concealed = winning_hand();
+        g.players[0].drawn = None;
+        g.human_zimo();
+        let snap = g.hand_history[0];
+        let sum: i32 = snap.iter().sum();
+        assert_eq!(sum, 0);
+    }
+
+    #[test]
+    fn test_last_hand_deltas_none_when_empty() {
+        let g = Game::new(1);
+        assert!(g.last_hand_deltas().is_none());
+    }
+
+    #[test]
+    fn test_last_hand_deltas_after_first_hand() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        g.players[0].concealed = winning_hand();
+        g.players[0].drawn = None;
+        g.human_zimo();
+        let deltas = g.last_hand_deltas().unwrap();
+        let sum: i32 = deltas.iter().sum();
+        assert_eq!(sum, 0);
+        for (i, &d) in deltas.iter().enumerate() {
+            assert_eq!(d, g.players[i].score);
+        }
+    }
+
+    #[test]
+    fn test_last_hand_deltas_are_incremental() {
+        let mut g = Game::new(1);
+        g.hand_history.push([10, -3, -3, -4]);
+        g.hand_history.push([12, -6, 2, -8]);
+        let deltas = g.last_hand_deltas().unwrap();
+        assert_eq!(deltas, [2, -3, 5, -4]);
+    }
+
+    #[test]
+    fn test_last_breakdown_none_initially() {
+        let g = Game::new(1);
+        assert!(g.last_breakdown.is_none());
+    }
+
+    #[test]
+    fn test_last_breakdown_after_hu() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        g.players[0].concealed = winning_hand();
+        g.players[0].drawn = None;
+        g.human_zimo();
+        assert!(g.last_breakdown.is_some());
+    }
+
+    #[test]
+    fn test_last_breakdown_cleared_on_next_hand() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        g.players[0].concealed = winning_hand();
+        g.players[0].drawn = None;
+        g.human_zimo();
+        assert!(g.last_breakdown.is_some());
+        g.update(&key_input(KeyCode::Space), &c, 1.0 / 60.0);
+        assert!(g.last_breakdown.is_none());
+    }
+
+    #[test]
+    fn test_last_breakdown_matches_score_deltas() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        g.players[0].concealed = winning_hand();
+        g.players[0].drawn = None;
+        g.human_zimo();
+        let bd = g.last_breakdown.unwrap();
+        let deltas = g.last_hand_deltas().unwrap();
+        for (i, &d) in deltas.iter().enumerate() {
+            assert_eq!(bd.total(i), d);
+        }
+    }
+
+    #[test]
+    fn test_last_hand_snapshot_none_initially() {
+        let g = Game::new(1);
+        assert!(g.last_hand_snapshot.is_none());
+    }
+
+    #[test]
+    fn test_last_hand_snapshot_captured_after_hu() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        g.players[0].concealed = winning_hand();
+        g.players[0].drawn = None;
+        g.human_zimo();
+        assert!(g.last_hand_snapshot.is_some());
+        let snap = g.last_hand_snapshot.as_ref().unwrap();
+        // Winner's concealed should be the 14-tile winning hand.
+        assert_eq!(snap.concealed[0].len(), 14);
+    }
+
+    #[test]
+    fn test_last_hand_snapshot_cleared_on_next_hand() {
+        let c = ctx();
+        let mut g = Game::new(1);
+        drive_to_discard(&mut g, &c, 600);
+        g.players[0].concealed = winning_hand();
+        g.players[0].drawn = None;
+        g.human_zimo();
+        assert!(g.last_hand_snapshot.is_some());
+        g.update(&key_input(KeyCode::Space), &c, 1.0 / 60.0);
+        assert!(g.last_hand_snapshot.is_none());
     }
 }

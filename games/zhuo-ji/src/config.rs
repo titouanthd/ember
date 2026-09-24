@@ -5,6 +5,8 @@ use std::path::Path;
 use ember_stdlib::config::{env_color, env_u32, load_dotenv_once};
 use macroquad::prelude::Color;
 
+use crate::font::TileFont;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Colors {
     pub table_bg: Color,
@@ -16,20 +18,57 @@ pub struct Colors {
     pub text_dim: Color,
     pub highlight: Color,
     pub danger: Color,
+
+    // ─── Mountain layers (far → near) ────────────────────────────────
+    pub mountain_far: Color,
+    pub mountain_mid: Color,
+    pub mountain_near: Color,
+    pub mountain_fore: Color,
+    pub mountain_shade: Color,
+    pub mountain_rim: Color,
+    pub mist: Color,
+
+    // ─── Wall ────────────────────────────────────────────────────────
+    pub wall_top: Color,
+    pub wall_top_dark: Color,
+    pub wall_edge: Color,
+    pub wall_edge_shadow: Color,
+    pub wall_gold: Color,
+
+    // ─── Premium border ──────────────────────────────────────────────
+    pub gold_dark: Color,
+    pub gold_light: Color,
 }
 
 impl Colors {
     pub const fn default_hermetic() -> Self {
         Self {
-            table_bg: Color::new(0.10, 0.14, 0.10, 1.0),
-            table_border: Color::new(0.24, 0.32, 0.24, 1.0),
-            tile_face: Color::new(0.94, 0.93, 0.86, 1.0),
-            tile_edge: Color::new(0.55, 0.52, 0.42, 1.0),
+            table_bg: Color::new(0.08, 0.16, 0.11, 1.0),
+            table_border: Color::new(0.55, 0.43, 0.23, 1.0),
+            tile_face: Color::new(0.96, 0.94, 0.86, 1.0),
+            tile_edge: Color::new(0.62, 0.58, 0.48, 1.0),
             tile_text: Color::new(0.10, 0.10, 0.10, 1.0),
-            text: Color::new(0.92, 0.94, 0.92, 1.0),
-            text_dim: Color::new(0.60, 0.65, 0.60, 1.0),
-            highlight: Color::new(1.0, 0.85, 0.30, 0.95),
-            danger: Color::new(0.95, 0.45, 0.45, 1.0),
+            text: Color::new(0.94, 0.92, 0.86, 1.0),
+            text_dim: Color::new(0.65, 0.68, 0.60, 1.0),
+            highlight: Color::new(0.95, 0.85, 0.35, 1.0),
+            danger: Color::new(0.85, 0.35, 0.30, 1.0),
+
+            mountain_far:  Color::new(0.24, 0.34, 0.30, 1.0),
+            mountain_mid:  Color::new(0.17, 0.29, 0.23, 1.0),
+            mountain_near: Color::new(0.12, 0.23, 0.17, 1.0),
+            mountain_fore: Color::new(0.08, 0.16, 0.11, 1.0),
+            mountain_shade: Color::new(0.05, 0.12, 0.09, 1.0),
+            mountain_rim: Color::new(0.42, 0.55, 0.48, 0.55),
+            mist: Color::new(0.85, 0.88, 0.86, 0.15),
+
+            wall_top:         Color::new(0.20, 0.42, 0.30, 1.0),
+            wall_top_dark:    Color::new(0.11, 0.28, 0.19, 1.0),
+            wall_edge:        Color::new(0.94, 0.92, 0.86, 1.0),
+            wall_edge_shadow: Color::new(0.70, 0.68, 0.60, 1.0),
+            wall_gold:        Color::new(0.83, 0.69, 0.22, 0.9),
+
+            gold_dark:  Color::new(0.55, 0.43, 0.23, 1.0),
+            gold_light: Color::new(0.83, 0.69, 0.22, 1.0),
         }
     }
 
@@ -45,6 +84,20 @@ impl Colors {
             text_dim: env_color("COLOR_TEXT_DIM", d.text_dim),
             highlight: env_color("COLOR_HIGHLIGHT", d.highlight),
             danger: env_color("COLOR_DANGER", d.danger),
+            mountain_far: env_color("COLOR_MOUNTAIN_FAR", d.mountain_far),
+            mountain_mid: env_color("COLOR_MOUNTAIN_MID", d.mountain_mid),
+            mountain_near: env_color("COLOR_MOUNTAIN_NEAR", d.mountain_near),
+            mountain_fore: env_color("COLOR_MOUNTAIN_FORE", d.mountain_fore),
+            mountain_shade: env_color("COLOR_MOUNTAIN_SHADE", d.mountain_shade),
+            mountain_rim: env_color("COLOR_MOUNTAIN_RIM", d.mountain_rim),
+            mist: env_color("COLOR_MIST", d.mist),
+            wall_top: env_color("COLOR_WALL_TOP", d.wall_top),
+            wall_top_dark: env_color("COLOR_WALL_TOP_DARK", d.wall_top_dark),
+            wall_edge: env_color("COLOR_WALL_EDGE", d.wall_edge),
+            wall_edge_shadow: env_color("COLOR_WALL_EDGE_SHADOW", d.wall_edge_shadow),
+            wall_gold: env_color("COLOR_WALL_GOLD", d.wall_gold),
+            gold_dark: env_color("COLOR_GOLD_DARK", d.gold_dark),
+            gold_light: env_color("COLOR_GOLD_LIGHT", d.gold_light),
         }
     }
 }
@@ -53,24 +106,20 @@ impl Colors {
 pub struct Layout {
     pub window_w: f32,
     pub window_h: f32,
-
     pub deal_duration: f32,
     pub draw_duration: f32,
     pub ai_think_duration: f32,
-    /// How long the human has to discard on their turn.
     pub turn_window: f32,
-    /// How long the human has to claim a discard.
     pub claim_window: f32,
     pub claim_duration: f32,
-
     pub hands_per_match: u32,
 }
 
 impl Layout {
     pub const fn defaults() -> Self {
         Self {
-            window_w: 1280.0,
-            window_h: 720.0,
+            window_w: 1440.0,
+            window_h: 900.0,
             deal_duration: 0.5,
             draw_duration: 0.25,
             ai_think_duration: 0.6,
@@ -90,10 +139,10 @@ impl Layout {
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct GameContext {
     pub colors: Colors,
     pub layout: Layout,
+    pub font: TileFont,
 }
 
 impl GameContext {
@@ -101,6 +150,7 @@ impl GameContext {
         Self {
             colors: Colors::default_hermetic(),
             layout: Layout::defaults(),
+            font: TileFont::hermetic(),
         }
     }
 
@@ -110,6 +160,7 @@ impl GameContext {
         Self {
             colors: Colors::from_env(),
             layout: Layout::from_env(),
+            font: TileFont::load(),
         }
     }
 }
@@ -121,8 +172,9 @@ mod tests {
     #[test]
     fn test_hermetic_context_defaults() {
         let ctx = GameContext::default_hermetic();
-        assert_eq!(ctx.layout.window_w, 1280.0);
+        assert_eq!(ctx.layout.window_w, 1440.0);
         assert_eq!(ctx.layout.hands_per_match, 16);
+        assert!(!ctx.font.is_available());
     }
 
     #[test]
@@ -131,6 +183,10 @@ mod tests {
         for col in [
             c.table_bg, c.table_border, c.tile_face, c.tile_edge, c.tile_text,
             c.text, c.text_dim, c.highlight, c.danger,
+            c.mountain_far, c.mountain_mid, c.mountain_near, c.mountain_fore,
+            c.mountain_shade, c.mountain_rim, c.mist,
+            c.wall_top, c.wall_top_dark, c.wall_edge, c.wall_edge_shadow, c.wall_gold,
+            c.gold_dark, c.gold_light,
         ] {
             for v in [col.r, col.g, col.b, col.a] {
                 assert!((0.0..=1.0).contains(&v));
@@ -146,10 +202,5 @@ mod tests {
     #[test]
     fn test_claim_window_is_ten_seconds() {
         assert!((Layout::defaults().claim_window - 10.0).abs() < 1e-3);
-    }
-
-    #[test]
-    fn test_hands_per_match_is_sixteen() {
-        assert_eq!(Layout::defaults().hands_per_match, 16);
     }
 }
