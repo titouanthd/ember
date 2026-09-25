@@ -48,6 +48,32 @@ pub fn draw_centered_shadowed(
     draw_text(text, x, y, font_size as f32, color);
 }
 
+/// Dessine un texte aligné à droite sur `right_x` (le bord droit du
+/// texte est posé sur `right_x`).
+///
+/// Le paramètre `y` correspond à la **ligne de base** (comme `draw_text`).
+///
+/// # Exemple
+/// ```ignore
+/// # use ember_stdlib::graphics::text::draw_right;
+/// # use macroquad::prelude::*;
+/// // Affiche "1234" collé au bord droit de l'écran
+/// draw_right("1234", screen_width() - 10.0, 30.0, 28, WHITE);
+/// ```
+pub fn draw_right(text: &str, right_x: f32, y: f32, font_size: u16, color: Color) {
+    let size = measure_text(text, None, font_size, 1.0);
+    draw_text(text, right_x - size.width, y, font_size as f32, color);
+}
+
+/// Dessine un texte aligné à gauche sur `x`.
+///
+/// Trivial (c'est ce que fait `draw_text`), mais utile pour la symétrie
+/// avec `draw_centered` et `draw_right` dans du code qui choisit son
+/// alignement dynamiquement.
+pub fn draw_left(text: &str, x: f32, y: f32, font_size: u16, color: Color) {
+    draw_text(text, x, y, font_size as f32, color);
+}
+
 #[cfg(test)]
 mod tests {
     // Ces fonctions dépendent de macroquad pour `measure_text`, qui

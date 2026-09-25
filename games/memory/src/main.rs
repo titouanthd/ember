@@ -4,6 +4,8 @@ use memory::GameState;
 use memory::components::{Card, CardState};
 use memory::config::{GameContext, load_config};
 use memory::systems::Game;
+use ember_stdlib::ui::hit;
+use ember_stdlib::graphics::text::{draw_right};
 
 use ember_stdlib::input::Input;
 use ember_stdlib::ui::button::ButtonEvent;
@@ -11,7 +13,6 @@ use ember_stdlib::ui::label::Label;
 use ember_stdlib::ui::panel::Panel;
 use ember_stdlib::ui::timer::TimerDisplay;
 
-use glam::Vec2;
 use macroquad::prelude::*;
 
 fn window_conf() -> Conf {
@@ -102,7 +103,7 @@ fn handle_menu_input(game: &mut Game, ctx: &GameContext, input: &Input) {
 
     // Click on a difficulty entry.
     for (i, rect) in rects.iter().enumerate() {
-        if input.mouse_left_pressed && btn_rect_contains(*rect, input.mouse_pos) {
+        if input.mouse_left_pressed && hit::contains_tuple(*rect, input.mouse_pos) {
             game.selected_difficulty = i;
         }
     }
@@ -162,10 +163,6 @@ fn handle_win_input(game: &mut Game, ctx: &GameContext, input: &Input) {
 /// Local tuple rect for menu items (not to be confused with `macroquad::Rect`).
 type BtnRect = (f32, f32, f32, f32);
 
-fn btn_rect_contains(r: BtnRect, p: Vec2) -> bool {
-    p.x >= r.0 && p.x <= r.0 + r.2 && p.y >= r.1 && p.y <= r.1 + r.3
-}
-
 fn difficulty_rects(ctx: &GameContext, game: &Game) -> Vec<BtnRect> {
     let cx = ctx.window_w * 0.5;
     let mut rects = Vec::new();
@@ -204,7 +201,7 @@ fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
     for (i, rect) in rects.iter().enumerate() {
         let d = &game.difficulties[i];
         let selected = i == game.selected_difficulty;
-        let hovered = btn_rect_contains(*rect, input.mouse_pos);
+        let hovered = hit::contains_tuple(*rect, input.mouse_pos);
 
         let bg = if selected {
             ctx.color_menu_selected
@@ -232,14 +229,7 @@ fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
             16.0,
             ctx.color_text_dim,
         );
-        let dims = measure_text(&line3, None, 16, 1.0);
-        draw_text(
-            &line3,
-            rect.0 + rect.2 - 20.0 - dims.width,
-            rect.1 + 46.0,
-            16.0,
-            ctx.color_accent,
-        );
+        draw_right(&line3, rect.0 + rect.2 - 20.0, rect.1 + 46.0, 16, ctx.color_accent);
     }
 
     game.start_btn.draw(
@@ -281,24 +271,22 @@ fn render_game(ctx: &GameContext, game: &Game, input: &Input) {
     let time_str = TimerDisplay::format(game.elapsed);
     let label_str = "time: ";
     let time_size = 20u16;
+    let time_right = ctx.window_w - 260.0;
+    let y = ctx.hud_h * 0.5 + 7.0;
+
+    // Label dim coloré
     let time_dims = measure_text(&time_str, None, time_size, 1.0);
     let label_dims = measure_text(label_str, None, time_size, 1.0);
-    let time_right = ctx.window_w - 260.0;
     let x_label = time_right - time_dims.width - label_dims.width;
-    let y = ctx.hud_h * 0.5 + 7.0;
     draw_text(label_str, x_label, y, time_size as f32, ctx.color_text_dim);
+
+    // Valeur, alignée à droite
     let time_color = if game.timer_running {
         ctx.color_text
     } else {
         ctx.color_text_dim
     };
-    draw_text(
-        &time_str,
-        x_label + label_dims.width,
-        y,
-        time_size as f32,
-        time_color,
-    );
+    draw_right(&time_str, time_right, y, time_size, time_color);
 
     // Header buttons
     game.restart_btn.draw(

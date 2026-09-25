@@ -353,7 +353,7 @@ impl Game {
     /// difficulty.
     pub fn record_best_if_needed(&mut self) {
         let name = self.current_difficulty().name.clone();
-        if persistence::update_if_better(&mut self.best_times, &name, self.elapsed) {
+        if ember_stdlib::persistence::update_best_in_map(&mut self.best_times, &name, self.elapsed) {
             self.best_handle.save(&self.best_times);
             self.was_new_best = true;
         }

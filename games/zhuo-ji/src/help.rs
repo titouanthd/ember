@@ -10,6 +10,7 @@ use crate::components::{Suit, Tile};
 use crate::config::GameContext;
 use crate::layout::{TableLayout, TileSize};
 use crate::tiles;
+use ember_stdlib::ui::hit;
 
 const PANEL_W: f32 = 1040.0;
 const PANEL_H: f32 = 780.0;
@@ -247,23 +248,19 @@ pub enum HelpAction {
     RankFilter(Option<u8>),
 }
 
-fn rect_contains(x: f32, y: f32, w: f32, h: f32, p: Vec2) -> bool {
-    p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h
-}
-
 pub fn hit_test(layout: &TableLayout, state: &HelpState, mouse: Vec2) -> HelpAction {
     let g = HelpGeom::new(layout);
     let (cx, cy, cw, ch) = close_btn_rect(&g);
-    if rect_contains(cx, cy, cw, ch, mouse) {
+    if hit::contains_xywh(cx, cy, cw, ch, mouse) {
         return HelpAction::Close;
     }
     let (gx, gy, gw, gh) = got_it_btn_rect(&g);
-    if rect_contains(gx, gy, gw, gh, mouse) {
+    if hit::contains_xywh(gx, gy, gw, gh, mouse) {
         return HelpAction::GotIt;
     }
     for (i, tab) in HelpTab::ALL.iter().enumerate() {
         let (tx, ty, tw, th) = tab_rect(&g, i);
-        if rect_contains(tx, ty, tw, th, mouse) {
+        if hit::contains_xywh(tx, ty, tw, th, mouse) {
             return HelpAction::Tab(*tab);
         }
     }
@@ -271,7 +268,7 @@ pub fn hit_test(layout: &TableLayout, state: &HelpState, mouse: Vec2) -> HelpAct
     if state.tab == HelpTab::Tiles {
         for i in 0..4 {
             let (x, y, w, h) = suit_btn_rect(&g, i);
-            if rect_contains(x, y, w, h, mouse) {
+            if hit::contains_xywh(x, y, w, h, mouse) {
                 let action = match i {
                     0 => HelpAction::SuitFilter(None),
                     1 => HelpAction::SuitFilter(Some(Suit::Wan)),
@@ -284,7 +281,7 @@ pub fn hit_test(layout: &TableLayout, state: &HelpState, mouse: Vec2) -> HelpAct
         }
         for i in 0..10 {
             let (x, y, w, h) = rank_btn_rect(&g, i);
-            if rect_contains(x, y, w, h, mouse) {
+            if hit::contains_xywh(x, y, w, h, mouse) {
                 let action = if i == 0 {
                     HelpAction::RankFilter(None)
                 } else {
@@ -357,7 +354,7 @@ pub fn draw_help_overlay(
 
 fn draw_close_button(g: &HelpGeom, ctx: &GameContext, mouse: Vec2) {
     let (x, y, w, h) = close_btn_rect(g);
-    let hovered = rect_contains(x, y, w, h, mouse);
+    let hovered = hit::contains_xywh(x, y, w, h, mouse);
     let bg = if hovered {
         ctx.colors.danger
     } else {
@@ -376,7 +373,7 @@ fn draw_close_button(g: &HelpGeom, ctx: &GameContext, mouse: Vec2) {
 fn draw_tabs(g: &HelpGeom, ctx: &GameContext, state: &HelpState, mouse: Vec2) {
     for (i, tab) in HelpTab::ALL.iter().enumerate() {
         let (x, y, w, h) = tab_rect(g, i);
-        let hovered = rect_contains(x, y, w, h, mouse);
+        let hovered = hit::contains_xywh(x, y, w, h, mouse);
         let active = *tab == state.tab;
 
         let bg = if active {
@@ -402,7 +399,7 @@ fn draw_tabs(g: &HelpGeom, ctx: &GameContext, state: &HelpState, mouse: Vec2) {
 
 fn draw_got_it(g: &HelpGeom, ctx: &GameContext, mouse: Vec2) {
     let (x, y, w, h) = got_it_btn_rect(g);
-    let hovered = rect_contains(x, y, w, h, mouse);
+    let hovered = hit::contains_xywh(x, y, w, h, mouse);
     let bg = if hovered {
         ctx.colors.highlight
     } else {
@@ -638,7 +635,7 @@ fn draw_tiles(g: &HelpGeom, ctx: &GameContext, state: &HelpState, mouse: Vec2) {
     for (i, label) in suit_labels.iter().enumerate() {
         let rect = suit_btn_rect(g, i);
         let active = state.suit_filter == suit_values[i];
-        let hovered = rect_contains(rect.0, rect.1, rect.2, rect.3, mouse);
+        let hovered = hit::contains_xywh(rect.0, rect.1, rect.2, rect.3, mouse);
         draw_filter_btn(rect, label, active, hovered, ctx);
     }
 
@@ -652,7 +649,7 @@ fn draw_tiles(g: &HelpGeom, ctx: &GameContext, state: &HelpState, mouse: Vec2) {
         } else {
             state.rank_filter == Some(i as u8)
         };
-        let hovered = rect_contains(rect.0, rect.1, rect.2, rect.3, mouse);
+        let hovered = hit::contains_xywh(rect.0, rect.1, rect.2, rect.3, mouse);
         draw_filter_btn(rect, &label, active, hovered, ctx);
     }
 

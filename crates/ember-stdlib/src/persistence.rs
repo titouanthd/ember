@@ -14,6 +14,7 @@
 //! p.save(&(best + 1));
 //! ```
 
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
@@ -117,6 +118,31 @@ pub fn update_if_lower<T: PartialOrd + Copy>(current: &mut T, candidate: T) -> b
     }
 }
 
+/// Met à jour une map de records "lower is better" (best time).
+///
+/// Insère la clé si absente, compare sinon. Retourne `true` si la map
+/// a été modifiée.
+///
+/// La clé est n'importe quel type `ToString` : `&str`, `String`, `u32`
+/// (pour FreeCell qui indexe par seed), etc.
+///
+/// Utilisé par Minesweeper et Memory (clé = nom de difficulté) et
+/// FreeCell (clé = seed). Évite la duplication du `match get_mut / insert`.
+pub fn update_best_in_map<K: ToString>(
+    map: &mut HashMap<String, f32>,
+    key: K,
+    value: f32,
+) -> bool {
+    let k = key.to_string();
+    match map.get_mut(&k) {
+        Some(current) => update_if_lower(current, value),
+        None => {
+            map.insert(k, value);
+            true
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -125,6 +151,7 @@ pub fn update_if_lower<T: PartialOrd + Copy>(current: &mut T, candidate: T) -> b
 mod tests {
     use super::*;
     use std::env;
+    use std::collections::HashMap;
 
     fn temp_path(name: &str) -> PathBuf {
         env::temp_dir().join(format!("ember_persistence_test_{name}.ron"))
@@ -259,5 +286,42 @@ mod tests {
         let p: Persistence<u32> =
             Persistence::in_manifest_dir(Path::new("/tmp/test_manifest"), "foo.ron");
         assert_eq!(p.path(), Path::new("/tmp/test_manifest/foo.ron"));
+    }
+
+    #[test]
+    fn test_update_best_in_map_inserts_new_key() {
+        let mut m = HashMap::new();
+        assert!(update_best_in_map(&mut m, "Easy", 10.0));
+        assert_eq!(m.get("Easy"), Some(&10.0));
+    }
+
+    #[test]
+    fn test_update_best_in_map_accepts_owned_string() {
+        let mut m = HashMap::new();
+        assert!(update_best_in_map(&mut m, String::from("Easy"), 10.0));
+        assert_eq!(m.get("Easy"), Some(&10.0));
+    }
+
+    #[test]
+    fn test_update_best_in_map_accepts_u32_key() {
+        let mut m = HashMap::new();
+        assert!(update_best_in_map(&mut m, 42u32, 10.0));
+        assert_eq!(m.get("42"), Some(&10.0));
+    }
+
+    #[test]
+    fn test_update_best_in_map_slower_is_rejected() {
+        let mut m = HashMap::new();
+        m.insert("Easy".to_string(), 10.0);
+        assert!(!update_best_in_map(&mut m, "Easy", 15.0));
+        assert_eq!(m.get("Easy"), Some(&10.0));
+    }
+
+    #[test]
+    fn test_update_best_in_map_faster_replaces() {
+        let mut m = HashMap::new();
+        m.insert("Easy".to_string(), 10.0);
+        assert!(update_best_in_map(&mut m, "Easy", 8.0));
+        assert_eq!(m.get("Easy"), Some(&8.0));
     }
 }

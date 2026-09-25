@@ -3,8 +3,10 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ember_stdlib::input::Input;
+use ember_stdlib::graphics::text::draw_right;
 use macroquad::prelude::*;
-
+use ember_stdlib::ui::hit;
+    
 use zhuo_ji::components::{ClaimKind, Meld, Suit, Tile};
 use zhuo_ji::hand;
 use zhuo_ji::help::{self, HelpAction, HelpState};
@@ -85,7 +87,7 @@ fn match_end_tab_rects(layout: &TableLayout) -> [(MatchEndTab, (f32, f32, f32, f
 
 fn hit_match_end_tab(layout: &TableLayout, mouse: Vec2) -> Option<MatchEndTab> {
     for (tab, (x, y, w, h)) in match_end_tab_rects(layout) {
-        if rect_contains(x, y, w, h, mouse) {
+        if hit::contains_xywh(x, y, w, h, mouse) {
             return Some(tab);
         }
     }
@@ -106,9 +108,7 @@ async fn main() {
     let mut last_was_hand_end = false;
 
     loop {
-        let mut input = Input::from_macroquad_with_keys(TRACKED_KEYS);
-        input.keys_down = TRACKED_KEYS.iter().copied().filter(|k| is_key_down(*k)).collect();
-        input.keys_released = TRACKED_KEYS.iter().copied().filter(|k| is_key_released(*k)).collect();
+        let input = Input::from_macroquad_with_keys(TRACKED_KEYS);
 
         let dt = get_frame_time().min(1.0 / 30.0);
         let layout = TableLayout::new(screen_width(), screen_height());
@@ -321,8 +321,7 @@ fn text_centered(text: &str, cx: f32, y: f32, size: f32, color: Color) {
 }
 
 fn text_right(text: &str, rx: f32, y: f32, size: f32, color: Color) {
-    let dim = measure_text(text, None, size as u16, 1.0);
-    draw_text(text, rx - dim.width, y, size, color);
+    draw_right(text, rx, y, size as u16, color);
 }
 
 fn signed_color(v: i32, ctx: &GameContext) -> Color {
@@ -337,10 +336,6 @@ fn signed_color(v: i32, ctx: &GameContext) -> Color {
 
 // ─── Hit testing ───────────────────────────────────────────────────────────
 
-fn rect_contains(x: f32, y: f32, w: f32, h: f32, p: Vec2) -> bool {
-    p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h
-}
-
 fn hit_hand_tile(game: &Game, layout: &TableLayout, mouse: Vec2) -> Option<usize> {
     if !matches!(game.phase, Phase::AwaitingDiscard { player: 0 }) {
         return None;
@@ -352,13 +347,13 @@ fn hit_hand_tile(game: &Game, layout: &TableLayout, mouse: Vec2) -> Option<usize
 
     for i in 0..n {
         let pos = layout.hand_tile_pos(i, n);
-        if rect_contains(pos.x, pos.y, tw, th, mouse) {
+        if hit::contains_xywh(pos.x, pos.y, tw, th, mouse) {
             return Some(i);
         }
     }
     if p.drawn.is_some() {
         let pos = layout.drawn_pos(n);
-        if rect_contains(pos.x, pos.y, tw, th, mouse) {
+        if hit::contains_xywh(pos.x, pos.y, tw, th, mouse) {
             return Some(n);
         }
     }
@@ -403,7 +398,7 @@ fn own_turn_button_rects(game: &Game, layout: &TableLayout)
 
 fn hit_own_turn_button(game: &Game, layout: &TableLayout, mouse: Vec2) -> Option<OwnAction> {
     for (action, (x, y, w, h)) in own_turn_button_rects(game, layout) {
-        if rect_contains(x, y, w, h, mouse) {
+        if hit::contains_xywh(x, y, w, h, mouse) {
             return Some(action);
         }
     }
@@ -439,7 +434,7 @@ fn claim_button_rects(game: &Game, layout: &TableLayout)
 
 fn hit_claim_button(game: &Game, layout: &TableLayout, mouse: Vec2) -> Option<ClaimAction> {
     for (action, (x, y, w, h)) in claim_button_rects(game, layout) {
-        if rect_contains(x, y, w, h, mouse) {
+        if hit::contains_xywh(x, y, w, h, mouse) {
             return Some(action);
         }
     }
@@ -956,7 +951,7 @@ fn draw_human_hand(game: &Game, layout: &TableLayout, ctx: &GameContext, mouse: 
 
     for (i, &tile) in game.players[0].concealed.iter().enumerate() {
         let pos = layout.hand_tile_pos(i, n);
-        let hovered = discardable && rect_contains(pos.x, pos.y, tw, th, mouse);
+        let hovered = discardable && hit::contains_xywh(pos.x, pos.y, tw, th, mouse);
         if hovered {
             tiles::draw_tile_standing_highlighted(
                 tile, pos.x, pos.y, layout.sizes.hand,
@@ -980,7 +975,7 @@ fn draw_human_drawn(game: &Game, layout: &TableLayout, ctx: &GameContext, mouse:
     let tw = layout.sizes.hand.w;
     let th = layout.sizes.hand.h;
 
-    let hovered = discardable && rect_contains(pos.x, pos.y, tw, th, mouse);
+    let hovered = discardable && hit::contains_xywh(pos.x, pos.y, tw, th, mouse);
     if hovered {
         tiles::draw_tile_standing_highlighted(
             drawn, pos.x, pos.y, layout.sizes.hand,
@@ -1212,7 +1207,7 @@ fn draw_claim_buttons(game: &Game, layout: &TableLayout, ctx: &GameContext, mous
     }
 
     for (action, (x, y, w, h)) in claim_button_rects(game, layout) {
-        let hovered = rect_contains(x, y, w, h, mouse);
+        let hovered = hit::contains_xywh(x, y, w, h, mouse);
         let is_pass = matches!(action, ClaimAction::Pass);
         let bg = if hovered {
             if is_pass { ctx.colors.danger } else { ctx.colors.highlight }
@@ -1235,7 +1230,7 @@ fn draw_claim_buttons(game: &Game, layout: &TableLayout, ctx: &GameContext, mous
 
 fn draw_own_turn_buttons(game: &Game, layout: &TableLayout, ctx: &GameContext, mouse: Vec2) {
     for (action, (x, y, w, h)) in own_turn_button_rects(game, layout) {
-        let hovered = rect_contains(x, y, w, h, mouse);
+        let hovered = hit::contains_xywh(x, y, w, h, mouse);
         let bg = if hovered { ctx.colors.highlight } else { ctx.colors.tile_face };
         draw_rectangle(x, y, w, h, bg);
         draw_rectangle_lines(x, y, w, h, 3.0, ctx.colors.tile_text);
@@ -1502,7 +1497,7 @@ fn draw_match_end_overlay(
 
     for (tab_kind, (tx, ty, tw, th)) in match_end_tab_rects(layout) {
         let active = tab_kind == tab;
-        let hovered = rect_contains(tx, ty, tw, th, mouse);
+        let hovered = hit::contains_xywh(tx, ty, tw, th, mouse);
         let bg = if active {
             ctx.colors.gold_dark
         } else if hovered {

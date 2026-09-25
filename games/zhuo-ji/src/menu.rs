@@ -7,6 +7,9 @@ use crate::config::GameContext;
 use crate::layout::{TableLayout, TileSize};
 use crate::tiles;
 
+use ember_stdlib::ui::hit;
+use ember_stdlib::graphics::text::draw_right;
+
 pub const VERSION: &str = "0.1.0";
 
 const PANEL_W: f32 = 560.0;
@@ -100,15 +103,11 @@ pub fn button_rect(g: &MenuGeom, i: usize) -> (f32, f32, f32, f32) {
     (x, y, BTN_W, BTN_H)
 }
 
-fn rect_contains(x: f32, y: f32, w: f32, h: f32, p: Vec2) -> bool {
-    p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h
-}
-
 pub fn hit_button_idx(layout: &TableLayout, mouse: Vec2) -> Option<usize> {
     let g = MenuGeom::new(layout);
     for i in 0..MenuButton::ALL.len() {
         let (x, y, w, h) = button_rect(&g, i);
-        if rect_contains(x, y, w, h, mouse) {
+        if hit::contains_xywh(x, y, w, h, mouse) {
             return Some(i);
         }
     }
@@ -196,7 +195,7 @@ pub fn draw_menu(layout: &TableLayout, ctx: &GameContext, state: &MenuState, mou
     // Buttons.
     for (i, btn) in MenuButton::ALL.iter().enumerate() {
         let (x, y, w, h) = button_rect(&g, i);
-        let hovered = rect_contains(x, y, w, h, mouse);
+        let hovered = hit::contains_xywh(x, y, w, h, mouse);
         let selected = state.selected == i;
         let active = hovered || selected;
 
@@ -254,8 +253,7 @@ fn text_centered(text: &str, cx: f32, y: f32, size: f32, color: Color) {
 }
 
 fn text_right(text: &str, rx: f32, y: f32, size: f32, color: Color) {
-    let dim = measure_text(text, None, size as u16, 1.0);
-    draw_text(text, rx - dim.width, y, size, color);
+    draw_right(text, rx, y, size as u16, color);
 }
 
 #[cfg(test)]

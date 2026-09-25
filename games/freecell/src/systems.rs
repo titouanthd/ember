@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use glam::Vec2;
 use macroquad::prelude::Rect;
+use ember_stdlib::ui::hit;
 
 use ember_core::app::GameState;
 
@@ -467,7 +468,7 @@ impl Game {
     }
 
     pub fn record_best_if_needed(&mut self) {
-        if persistence::update_if_better(&mut self.best_times, self.seed, self.elapsed) {
+        if ember_stdlib::persistence::update_best_in_map(&mut self.best_times, self.seed, self.elapsed) {
             self.best_handle.save(&self.best_times);
             self.was_new_best = true;
         }
@@ -536,19 +537,19 @@ impl Game {
     pub fn zone_at(&self, mouse: Vec2, ctx: &GameContext) -> Option<Zone> {
         for i in 0..4 {
             let r = layout::free_cell_rect(i, ctx);
-            if point_in_rect(mouse, r) {
+            if hit::contains(r, mouse) {
                 return Some(Zone::FreeCell(i));
             }
         }
         for i in 0..4 {
             let r = layout::foundation_rect(i, ctx);
-            if point_in_rect(mouse, r) {
+            if hit::contains(r, mouse) {
                 return Some(Zone::Foundation(i));
             }
         }
         for col in 0..8 {
             let r = layout::column_bounds(col, ctx);
-            if point_in_rect(mouse, r) {
+            if hit::contains(r, mouse) {
                 return Some(Zone::Column(col));
             }
         }
@@ -563,7 +564,7 @@ impl Game {
         for i in 0..4 {
             if self.free_cells[i].is_some() {
                 let r = layout::free_cell_rect(i, ctx);
-                if point_in_rect(mouse, r) {
+                if hit::contains(r, mouse) {
                     return Some((Zone::FreeCell(i), 0));
                 }
             }
@@ -571,7 +572,7 @@ impl Game {
         for i in 0..4 {
             if !self.foundations[i].is_empty() {
                 let r = layout::foundation_rect(i, ctx);
-                if point_in_rect(mouse, r) {
+                if hit::contains(r, mouse) {
                     return Some((Zone::Foundation(i), 0));
                 }
             }
@@ -580,7 +581,7 @@ impl Game {
             let len = self.columns[col].len();
             for card_index in (0..len).rev() {
                 let r = layout::card_rect_in_column(col, card_index, ctx);
-                if point_in_rect(mouse, r) {
+                if hit::contains(r, mouse) {
                     return Some((Zone::Column(col), card_index));
                 }
             }
@@ -740,10 +741,6 @@ fn is_valid_sequence(cards: &[Card]) -> bool {
         }
     }
     true
-}
-
-fn point_in_rect(p: Vec2, r: Rect) -> bool {
-    p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h
 }
 
 // ============================================================================

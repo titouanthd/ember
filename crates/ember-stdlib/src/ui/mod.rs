@@ -12,8 +12,10 @@
 pub mod button;
 pub mod circle_button;
 pub mod label;
+pub mod hit;
 pub mod panel;
 pub mod timer;
+
 
 pub use button::{Button, ButtonEvent};
 pub use circle_button::{CircleButton, CircleButtonEvent};

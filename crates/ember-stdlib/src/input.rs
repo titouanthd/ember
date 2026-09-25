@@ -5,8 +5,8 @@
 
 use glam::Vec2;
 use macroquad::prelude::{
-    KeyCode, MouseButton, is_key_pressed, is_mouse_button_down, is_mouse_button_pressed,
-    is_mouse_button_released, mouse_position,
+    KeyCode, MouseButton, is_key_down, is_key_pressed, is_key_released,
+    is_mouse_button_down, is_mouse_button_pressed, is_mouse_button_released, mouse_position,
 };
 
 /// Snapshot of all relevant input for one frame.
@@ -52,12 +52,9 @@ impl Input {
         }
     }
 
-    /// Like [`Self::from_macroquad`], but also populates `keys_pressed`
-    /// with the keys from `keys` that were pressed this frame.
-    ///
-    /// `keys_down` and `keys_released` are **not** populated (no game needs
-    /// them via `Input` right now). Games that need `is_key_down` can call
-    /// `macroquad::prelude::is_key_down` directly.
+    /// Like [`Self::from_macroquad`], but also populates `keys_pressed`,
+    /// `keys_down`, and `keys_released` with the keys from `keys` that
+    /// were pressed / held / released this frame.
     ///
     /// **Not unit-testable**: macroquad's input functions require an active
     /// macroquad context (a `#[macroquad::main]` or equivalent). This is the
@@ -69,13 +66,20 @@ impl Input {
     ///     KeyCode::R, KeyCode::Escape, KeyCode::Enter,
     /// ]);
     /// if input.is_key_pressed(KeyCode::R) { /* ... */ }
+    /// if input.is_key_down(KeyCode::Escape) { /* ... */ }
     /// ```
     pub fn from_macroquad_with_keys(keys: &[KeyCode]) -> Self {
         let mut input = Self::from_macroquad();
         for &k in keys {
-            if is_key_pressed(k)  { input.keys_pressed.push(k);  }
-            if is_key_down(k)     { input.keys_down.push(k);     }
-            if is_key_released(k) { input.keys_released.push(k); }
+            if is_key_pressed(k) {
+                input.keys_pressed.push(k);
+            }
+            if is_key_down(k) {
+                input.keys_down.push(k);
+            }
+            if is_key_released(k) {
+                input.keys_released.push(k);
+            }
         }
         input
     }
@@ -149,5 +153,18 @@ mod tests {
             ..Default::default()
         };
         assert!(j.pressed_or_down(KeyCode::R));
+    }
+
+    #[test]
+    fn test_pressed_or_down_covers_all_three_vectors() {
+        // Contrat : pressed_or_down() couvre pressed ET down.
+        let i = Input {
+            keys_pressed: vec![KeyCode::R],
+            keys_down: vec![KeyCode::Escape],
+            ..Default::default()
+        };
+        assert!(i.pressed_or_down(KeyCode::R));
+        assert!(i.pressed_or_down(KeyCode::Escape));
+        assert!(!i.pressed_or_down(KeyCode::Space));
     }
 }

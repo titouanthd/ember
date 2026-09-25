@@ -6,6 +6,8 @@ use minesweeper::components::{BoardState, Cell, CellState};
 use minesweeper::config::{GameContext, load_config};
 use minesweeper::difficulties::DifficultyData;
 use minesweeper::systems;
+use ember_stdlib::ui::hit;
+use ember_stdlib::graphics::text::draw_right;
 
 use ember_stdlib::input::Input;
 use ember_stdlib::ui::button::ButtonEvent;
@@ -13,7 +15,6 @@ use ember_stdlib::ui::label::Label;
 use ember_stdlib::ui::panel::Panel;
 use ember_stdlib::ui::timer::TimerDisplay;
 
-use glam::Vec2;
 use macroquad::prelude::*;
 
 fn window_conf() -> Conf {
@@ -90,7 +91,7 @@ fn handle_menu_input(game: &mut Game, ctx: &GameContext, input: &Input) {
 
     // Click on a difficulty entry.
     for (i, rect) in rects.iter().enumerate() {
-        if input.mouse_left_pressed && rect_contains(*rect, input.mouse_pos) {
+        if input.mouse_left_pressed && hit::contains_tuple(*rect, input.mouse_pos) {
             game.selected_difficulty = i;
         }
     }
@@ -183,12 +184,7 @@ fn handle_end_input(game: &mut Game, ctx: &GameContext, input: &Input) {
 // ---------------------------------------------------------------------------
 // Menu
 // ---------------------------------------------------------------------------
-
 type Rect = (f32, f32, f32, f32);
-
-fn rect_contains(r: Rect, p: Vec2) -> bool {
-    p.x >= r.0 && p.x <= r.0 + r.2 && p.y >= r.1 && p.y <= r.1 + r.3
-}
 
 /// Compute the difficulty entry rects. The START button lives in `Game`
 /// (see `Game::update_menu_layout` and `Game::start_btn`) so that
@@ -222,7 +218,7 @@ fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
     for (i, rect) in rects.iter().enumerate() {
         let d: &DifficultyData = &game.difficulties[i];
         let selected = i == game.selected_difficulty;
-        let hovered = rect_contains(*rect, input.mouse_pos);
+        let hovered = hit::contains_tuple(*rect, input.mouse_pos);
 
         let bg = if selected {
             ctx.color_menu_selected
@@ -244,14 +240,7 @@ fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
 
         draw_text(line1, rect.0 + 20.0, rect.1 + 22.0, 22.0, ctx.color_text);
         draw_text(line2, rect.0 + 20.0, rect.1 + 42.0, 16.0, ctx.color_text);
-        let dims = measure_text(&line3, None, 16, 1.0);
-        draw_text(
-            &line3,
-            rect.0 + rect.2 - 20.0 - dims.width,
-            rect.1 + 42.0,
-            16.0,
-            ctx.color_text,
-        );
+        draw_right(&line3, rect.0 + rect.2 - 20.0, rect.1 + 42.0, 16, ctx.color_text);
     }
 
     // Same instance as the one updated in handle_menu_input.
