@@ -4,8 +4,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use ember_stdlib::input::Input;
 use ember_stdlib::graphics::text::draw_right;
+use ember_stdlib::graphics::text::draw_centered;
 use macroquad::prelude::*;
 use ember_stdlib::ui::hit;
+use zhuo_ji::ui::panel;
     
 use zhuo_ji::components::{ClaimKind, Meld, Suit, Tile};
 use zhuo_ji::hand;
@@ -316,8 +318,7 @@ async fn main() {
 // ─── Default-font text helpers ────────────────────────────────────────────
 
 fn text_centered(text: &str, cx: f32, y: f32, size: f32, color: Color) {
-    let dim = measure_text(text, None, size as u16, 1.0);
-    draw_text(text, cx - dim.width * 0.5, y, size, color);
+    draw_centered(text, cx, y, size as u16, color);
 }
 
 fn text_right(text: &str, rx: f32, y: f32, size: f32, color: Color) {
@@ -1258,30 +1259,13 @@ fn draw_hand_end_overlay(layout: &TableLayout, ctx: &GameContext, game: &Game, t
     let py = (layout.scr_h - ph) * 0.5;
     let cx = px + pw * 0.5;
 
-    draw_rectangle(px, py, pw, ph, Color::new(0.10, 0.18, 0.13, alpha));
-    draw_rectangle_lines(
-        px, py, pw, ph, 3.0,
-        Color::new(
-            ctx.colors.gold_dark.r, ctx.colors.gold_dark.g,
-            ctx.colors.gold_dark.b, alpha,
-        ),
+    // Panel background + gold double border + corner diamonds.
+    panel::draw_premium_panel(
+        Rect::new(px, py, pw, ph),
+        alpha,
+        8.0,
+        &ctx.colors,
     );
-    draw_rectangle_lines(
-        px + 4.0, py + 4.0, pw - 8.0, ph - 8.0, 1.5,
-        Color::new(
-            ctx.colors.gold_light.r, ctx.colors.gold_light.g,
-            ctx.colors.gold_light.b, alpha,
-        ),
-    );
-
-    for (dx, dy) in [
-        (px + 12.0, py + 12.0),
-        (px + pw - 12.0, py + 12.0),
-        (px + 12.0, py + ph - 12.0),
-        (px + pw - 12.0, py + ph - 12.0),
-    ] {
-        draw_poly(dx, dy, 4, 8.0, 45.0, ctx.colors.gold_light);
-    }
 
     let title = match game.phase {
         Phase::Hu { winner, method } => {
@@ -1458,30 +1442,12 @@ fn draw_match_end_overlay(
     let py = (layout.scr_h - ph) * 0.5;
     let cx = px + pw * 0.5;
 
-    draw_rectangle(px, py, pw, ph, Color::new(0.10, 0.18, 0.13, alpha));
-    draw_rectangle_lines(
-        px, py, pw, ph, 3.0,
-        Color::new(
-            ctx.colors.gold_dark.r, ctx.colors.gold_dark.g,
-            ctx.colors.gold_dark.b, alpha,
-        ),
+    panel::draw_premium_panel(
+        Rect::new(px, py, pw, ph),
+        alpha,
+        10.0,
+        &ctx.colors,
     );
-    draw_rectangle_lines(
-        px + 4.0, py + 4.0, pw - 8.0, ph - 8.0, 1.5,
-        Color::new(
-            ctx.colors.gold_light.r, ctx.colors.gold_light.g,
-            ctx.colors.gold_light.b, alpha,
-        ),
-    );
-
-    for (dx, dy) in [
-        (px + 12.0, py + 12.0),
-        (px + pw - 12.0, py + 12.0),
-        (px + 12.0, py + ph - 12.0),
-        (px + pw - 12.0, py + ph - 12.0),
-    ] {
-        draw_poly(dx, dy, 4, 10.0, 45.0, ctx.colors.gold_light);
-    }
 
     let title = if let Phase::MatchOver { winner } = game.phase {
         if winner == 0 {

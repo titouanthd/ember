@@ -1,3 +1,4 @@
+// ember-stdlib UI Panel module
 //! Rectangular container with a background and optional border.
 
 use macroquad::prelude::{Color, draw_rectangle, draw_rectangle_lines};

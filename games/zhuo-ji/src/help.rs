@@ -10,7 +10,9 @@ use crate::components::{Suit, Tile};
 use crate::config::GameContext;
 use crate::layout::{TableLayout, TileSize};
 use crate::tiles;
+use crate::ui::panel;
 use ember_stdlib::ui::hit;
+use ember_stdlib::graphics::text::draw_centered;
 
 const PANEL_W: f32 = 1040.0;
 const PANEL_H: f32 = 780.0;
@@ -310,23 +312,13 @@ pub fn draw_help_overlay(
 
     let g = HelpGeom::new(layout);
 
-    draw_rectangle(g.px, g.py, g.pw, g.ph, Color::new(0.10, 0.18, 0.13, 1.0));
-    draw_rectangle_lines(g.px, g.py, g.pw, g.ph, 3.0, ctx.colors.gold_dark);
-    draw_rectangle_lines(
-        g.px + 4.0, g.py + 4.0, g.pw - 8.0, g.ph - 8.0,
-        1.5, ctx.colors.gold_light,
+    // Panel background + gold double border + corner diamonds.
+    panel::draw_premium_panel(
+        Rect::new(g.px, g.py, g.pw, g.ph),
+        1.0,
+        9.0,
+        &ctx.colors,
     );
-
-    let d = 9.0;
-    for (cx, cy) in [
-        (g.px + 12.0, g.py + 12.0),
-        (g.px + g.pw - 12.0, g.py + 12.0),
-        (g.px + 12.0, g.py + g.ph - 12.0),
-        (g.px + g.pw - 12.0, g.py + g.ph - 12.0),
-    ] {
-        draw_poly(cx, cy, 4, d, 45.0, ctx.colors.gold_light);
-        draw_poly_lines(cx, cy, 4, d, 45.0, 1.0, ctx.colors.gold_dark);
-    }
 
     text_centered(
         "How to play Zhuo Ji",
@@ -419,8 +411,7 @@ fn draw_got_it(g: &HelpGeom, ctx: &GameContext, mouse: Vec2) {
 // ─── Text helpers ────────────────────────────────────────────────────────
 
 fn text_centered(text: &str, cx: f32, y: f32, size: f32, color: Color) {
-    let dim = measure_text(text, None, size as u16, 1.0);
-    draw_text(text, cx - dim.width * 0.5, y, size, color);
+    draw_centered(text, cx, y, size as u16, color);
 }
 
 fn heading(x: f32, y: f32, text: &str, ctx: &GameContext) {

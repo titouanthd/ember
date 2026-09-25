@@ -6,9 +6,11 @@ use crate::components::{Suit, Tile};
 use crate::config::GameContext;
 use crate::layout::{TableLayout, TileSize};
 use crate::tiles;
+use crate::ui::panel;
 
 use ember_stdlib::ui::hit;
 use ember_stdlib::graphics::text::draw_right;
+use ember_stdlib::graphics::text::draw_centered;
 
 pub const VERSION: &str = "0.1.0";
 
@@ -132,24 +134,13 @@ pub fn draw_menu(layout: &TableLayout, ctx: &GameContext, state: &MenuState, mou
 
     let g = MenuGeom::new(layout);
 
-    // Panel background.
-    draw_rectangle(g.px, g.py, g.pw, g.ph, Color::new(0.10, 0.18, 0.13, 1.0));
-    draw_rectangle_lines(g.px, g.py, g.pw, g.ph, 3.0, ctx.colors.gold_dark);
-    draw_rectangle_lines(
-        g.px + 4.0, g.py + 4.0, g.pw - 8.0, g.ph - 8.0,
-        1.5, ctx.colors.gold_light,
+    // Panel background + gold double border + corner diamonds.
+    panel::draw_premium_panel(
+        Rect::new(g.px, g.py, g.pw, g.ph),
+        1.0,
+        10.0,
+        &ctx.colors,
     );
-
-    // Corner diamonds.
-    for (dx, dy) in [
-        (g.px + 12.0, g.py + 12.0),
-        (g.px + g.pw - 12.0, g.py + 12.0),
-        (g.px + 12.0, g.py + g.ph - 12.0),
-        (g.px + g.pw - 12.0, g.py + g.ph - 12.0),
-    ] {
-        draw_poly(dx, dy, 4, 10.0, 45.0, ctx.colors.gold_light);
-        draw_poly_lines(dx, dy, 4, 10.0, 45.0, 1.0, ctx.colors.gold_dark);
-    }
 
     // Pulsing title.
     let cx = g.px + g.pw * 0.5;
@@ -248,8 +239,7 @@ pub fn draw_menu(layout: &TableLayout, ctx: &GameContext, state: &MenuState, mou
 }
 
 fn text_centered(text: &str, cx: f32, y: f32, size: f32, color: Color) {
-    let dim = measure_text(text, None, size as u16, 1.0);
-    draw_text(text, cx - dim.width * 0.5, y, size, color);
+    draw_centered(text, cx, y, size as u16, color);
 }
 
 fn text_right(text: &str, rx: f32, y: f32, size: f32, color: Color) {

@@ -12,6 +12,7 @@ pub mod menu;
 pub mod scoring;
 pub mod systems;
 pub mod tiles;
+pub mod ui;
 pub mod wall;
 
 pub use config::GameContext;
