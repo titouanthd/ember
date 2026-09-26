@@ -1,0 +1,8 @@
+(
+    mana_start: 30.0,
+    mana_max: 100.0,
+    mana_regen: 10.0,
+    mana_per_kill: 5.0,
+    gold_per_kill: 3.0,
+    gold_start: 0.0,
+)

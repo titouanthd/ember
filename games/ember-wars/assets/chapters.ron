@@ -1,0 +1,128 @@
+[
+    (
+        id: "shanghai",
+        name: "Shanghai",
+        subtitle: "La ville qui ne dort jamais",
+        levels: [
+            (
+                id: "sh_01",
+                name: "Les quais",
+                palette: "shanghai",
+                width: 1600.0,
+                tower_hp: 400.0,
+                objective: Survive(45.0),
+                reward_gold: 150.0,
+                ai: (
+                    aggression: 0.85,
+                    mana_regen_mult: 0.85,
+                    waves: [
+                        (start_at: 0.0, priority: ["grunt"]),
+                        (start_at: 20.0, priority: ["grunt", "brute"]),
+                    ],
+                ),
+            ),
+            (
+                id: "sh_02",
+                name: "Le Bund",
+                palette: "shanghai",
+                width: 1800.0,
+                tower_hp: 500.0,
+                objective: Destroy,
+                reward_gold: 250.0,
+                ai: (
+                    aggression: 1.0,
+                    mana_regen_mult: 1.0,
+                    waves: [
+                        (start_at: 0.0, priority: ["grunt"]),
+                        (start_at: 15.0, priority: ["grunt", "brute"]),
+                        (start_at: 40.0, priority: ["grunt", "brute", "archer"]),
+                    ],
+                ),
+            ),
+            (
+                id: "sh_03",
+                name: "Pudong",
+                palette: "shanghai",
+                width: 2000.0,
+                tower_hp: 600.0,
+                objective: Destroy,
+                reward_gold: 400.0,
+                ai: (
+                    aggression: 1.15,
+                    mana_regen_mult: 1.20,
+                    waves: [
+                        (start_at: 0.0, priority: ["grunt"]),
+                        (start_at: 10.0, priority: ["grunt", "brute"]),
+                        (start_at: 30.0, priority: ["grunt", "brute", "archer"]),
+                        (start_at: 60.0, priority: ["brute", "archer", "bomber"]),
+                        (start_at: 90.0, priority: ["hero", "brute", "archer", "bomber"]),
+                    ],
+                ),
+            ),
+        ],
+    ),
+    (
+        id: "guiyang",
+        name: "Guiyang",
+        subtitle: "Le cœur du Guizhou",
+        levels: [
+            (
+                id: "gy_01",
+                name: "Les rizières",
+                palette: "guiyang",
+                width: 1700.0,
+                tower_hp: 500.0,
+                objective: Survive(60.0),
+                reward_gold: 220.0,
+                ai: (
+                    aggression: 0.95,
+                    mana_regen_mult: 1.0,
+                    waves: [
+                        (start_at: 0.0, priority: ["grunt", "brute"]),
+                        (start_at: 25.0, priority: ["grunt", "brute", "archer"]),
+                        (start_at: 45.0, priority: ["brute", "archer", "bomber"]),
+                    ],
+                ),
+            ),
+            (
+                id: "gy_02",
+                name: "La montagne",
+                palette: "guiyang",
+                width: 1900.0,
+                tower_hp: 700.0,
+                objective: Destroy,
+                reward_gold: 350.0,
+                ai: (
+                    aggression: 1.10,
+                    mana_regen_mult: 1.15,
+                    waves: [
+                        (start_at: 0.0, priority: ["grunt", "brute"]),
+                        (start_at: 20.0, priority: ["brute", "archer"]),
+                        (start_at: 50.0, priority: ["brute", "archer", "bomber"]),
+                        (start_at: 80.0, priority: ["hero", "brute", "archer"]),
+                    ],
+                ),
+            ),
+            (
+                id: "gy_03",
+                name: "La citadelle",
+                palette: "guiyang",
+                width: 2100.0,
+                tower_hp: 800.0,
+                objective: Destroy,
+                reward_gold: 600.0,
+                ai: (
+                    aggression: 1.30,
+                    mana_regen_mult: 1.30,
+                    waves: [
+                        (start_at: 0.0, priority: ["brute", "grunt"]),
+                        (start_at: 15.0, priority: ["brute", "archer"]),
+                        (start_at: 40.0, priority: ["brute", "archer", "bomber"]),
+                        (start_at: 70.0, priority: ["hero", "brute", "archer", "bomber"]),
+                        (start_at: 110.0, priority: ["hero", "brute", "archer", "bomber", "healer"]),
+                    ],
+                ),
+            ),
+        ],
+    ),
+]

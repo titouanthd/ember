@@ -1,0 +1,33 @@
+(
+    stars: {
+        "sh_02": 3,
+        "gy_02": 3,
+        "sh_01": 3,
+        "gy_01": 3,
+        "gy_03": 3,
+        "sh_03": 3,
+    },
+    tree: (
+        gold: 2255.0,
+        purchased: [
+            "mana_cap",
+            "root",
+            "fire_rate_1",
+            "unlock_healer",
+            "mana_regen_1",
+            "turret_dmg_1",
+            "unlock_hero",
+            "unlock_archer",
+            "fortress",
+            "turret_dmg_2",
+            "tower_hp_2",
+            "unlock_bomber",
+            "multi_shot",
+            "unit_hp_2",
+            "unit_hp_1",
+            "tower_hp_1",
+            "tower_regen",
+            "gold_per_kill",
+        ],
+    ),
+)
