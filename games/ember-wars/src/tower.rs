@@ -34,9 +34,7 @@ pub struct Turret {
     pub angle: f32,
     pub cooldown: f32,
     pub shot_kind: ShotKind,
-    /// Multiplicateur sur le cooldown (1.0 par défaut, <1 = plus rapide).
     pub fire_rate_mult: f32,
-    /// Nombre de projectiles par tir (>= 1).
     pub multi_shot: u32,
 }
 
@@ -69,18 +67,12 @@ impl Turret {
         self.cooldown <= 0.0
     }
 
-    /// Tire un projectile unique (compat ascendante).
     pub fn try_fire(&mut self, team: Team, damage_mult: f32) -> Option<Projectile> {
         self.try_fire_multi(team, damage_mult)
             .and_then(|mut v| if v.is_empty() { None } else { Some(v.remove(0)) })
     }
 
-    /// Tire N projectiles en éventail, selon `multi_shot`.
-    pub fn try_fire_multi(
-        &mut self,
-        team: Team,
-        damage_mult: f32,
-    ) -> Option<Vec<Projectile>> {
+    pub fn try_fire_multi(&mut self, team: Team, damage_mult: f32) -> Option<Vec<Projectile>> {
         if !self.is_ready() {
             return None;
         }
@@ -92,7 +84,6 @@ impl Turret {
             let offset = if n == 1 {
                 0.0
             } else {
-                // Éventail centré : de -spread/2 à +spread/2.
                 let t = (i as f32 / (n - 1) as f32) - 0.5;
                 t * MULTI_SHOT_SPREAD_RAD
             };
@@ -116,7 +107,6 @@ impl Turret {
             });
         }
 
-        // Cooldown ajusté par le fire_rate_mult.
         self.cooldown = TURRET_FIRE_COOLDOWN * self.fire_rate_mult;
         Some(shots)
     }
@@ -147,7 +137,6 @@ mod tests {
         assert!(t.is_ready());
         assert_eq!(t.shot_kind, ShotKind::Basic);
         assert_eq!(t.multi_shot, 1);
-        assert!((t.fire_rate_mult - 1.0).abs() < 1e-6);
     }
 
     #[test]
@@ -259,8 +248,7 @@ mod tests {
         let mut t = Turret::new(Vec2::ZERO);
         t.multi_shot = 2;
         let shots = t.try_fire_multi(Team::Player, 1.0).unwrap();
-        // Les deux projectiles ne sont pas colinéaires.
         let dot = shots[0].vel.normalize().dot(shots[1].vel.normalize());
-        assert!(dot < 1.0 - 1e-3, "expected spread, dot = {dot}");
+        assert!(dot < 1.0 - 1e-3);
     }
 }

@@ -2,8 +2,8 @@
 
 Document destiné au prochain agent qui reprendra le projet.
 
-Dernière mise à jour : fin de Phase 23 (ember-wars — 12e jeu, campagne + décor procédural).
-État du workspace : 12 jeux fonctionnels, **~1100 tests verts** (0 failed, 0 ignored sauf doctests macroquad), Clippy clean.
+Dernière mise à jour : fin de Phase 23 (ember-wars — stick men, armes, strike différé).
+État du workspace : 12 jeux fonctionnels, **~991 tests verts** (0 failed, 0 ignored sauf doctests macroquad), Clippy clean.
 
 ---
 
@@ -121,10 +121,12 @@ ember-workspace/
         ├── src/
         │   ├── main.rs
         │   ├── lib.rs
-        │   ├── config.rs           # GameContext + loaders chapters/balance
-        │   ├── components.rs       # Unit, Projectile, Tower, Team, Shape, UnitId
+        │   ├── config.rs
+        │   ├── components.rs       # Unit, PendingAttack, AttackTarget
         │   ├── units.rs
-        │   ├── combat.rs
+        │   ├── stickman.rs         # Phase 23, F1
+        │   ├── weapons.rs          # Phase 23, F2
+        │   ├── combat.rs           # strike différé
         │   ├── mana.rs
         │   ├── tower.rs
         │   ├── ai.rs
@@ -137,7 +139,7 @@ ember-workspace/
         │   ├── fonts.rs
         │   ├── render.rs
         │   ├── menu.rs
-        │   ├── systems.rs          # Game (state struct), Phase
+        │   ├── systems.rs
         │   └── ui/
         │       ├── mod.rs
         │       ├── spawn_bar.rs
@@ -217,7 +219,7 @@ Accumulateur pour simulations à pas fixe.
   pub fn progress(&self) -> f32;
   pub fn accumulator(&self) -> f32;
 
-Note importante : TickTimer est un accumulateur de ticks, pas un cooldown booléen. Pour un cooldown "prêt / pas prêt", utiliser un f32 qui décrémente (voir Asteroids, Bullet Hell, Zhuo Ji turn window, **ember-wars attack/turret/spawn cooldowns**).
+Note importante : TickTimer est un accumulateur de ticks, pas un cooldown booléen. Pour un cooldown "prêt / pas prêt", utiliser un f32 qui décrémente (voir Asteroids, Bullet Hell, Zhuo Ji turn window, **ember-wars attack/turret/spawn cooldowns**, **ember-wars pending_attack.time_to_hit**).
 
 Tests : 11.
 
@@ -463,13 +465,11 @@ Placeholder avec 1 test it_works. Pas utilisé.
 | FreeCell | 12-16 | Drag-and-drop state machine, super-move, undo/redo, DejaVu Sans Mono Unicode | 78 + 8 = 86 |
 | Air Hockey | 1 | IA goalkeeper, GameMode PvP/PvAI, TextParams::font_scale countdown, scrim overlays, hitstop guard | 58 + 10 = 68 |
 | Zhuo Ji | Phases 20–22 | Turn-based loop, hand evaluation (7 paires), hidden-info AI, 4-player state, claim window, tiles custom sans CJK, modals multi-onglets, menu principal, tile glow, ui/panel local | 187 + 10 = 197 |
-| **ember-wars** | **Phase 23** | **Campagne chapitres, upgrade tree 18 nœuds, or persistant, étoiles, décor procédural, police Unicode, sol responsive, juice, caméra manuelle, waves IA** | **~205 + 14 = ~219** |
+| **ember-wars** | **Phase 23** | **Campagne chapitres, upgrade tree, or persistant, étoiles, décor procédural, police Unicode, sol responsive, juice, caméra manuelle, stick men (3 phases), 6 armes, strike différé** | **251 + 14 = 265** |
 
-Total jeux : 14 + 18 + 32 + 29 + 45 + 36 + 29 + 24 + 86 + 68 + 197 + 219 = **~797 tests**
+Total jeux : 14 + 18 + 32 + 29 + 45 + 36 + 29 + 24 + 86 + 68 + 197 + 265 = **843 tests**
 Framework : ember_core (47 + 1 collision) + ember_editor (1) + ember_stdlib (99) = **148 tests**
-**Total workspace : ~945 tests verts.** Doctests : 1 exécuté (Rng), 7 ignored (macroquad context).
-
-**Note** : les chiffres exacts d'ember-wars dépendent de la dernière exécution de `cargo test -p ember-wars`. La dernière commande affichait 205 unit + 14 integration.
+**Total workspace : 991 tests verts.** Doctests : 1 exécuté (Rng), 7 ignored (macroquad context).
 
 ---
 
@@ -477,19 +477,11 @@ Framework : ember_core (47 + 1 collision) + ember_editor (1) + ember_stdlib (99)
 
 ### Concept
 
-Inspiré de **Cartoon Wars** (Gamevil, 2009) : hybride Tower
-Defense / RTS side-scrolling. Deux tours s'affrontent, chaque camp
-spawn des unités qui avancent automatiquement, le joueur gère une
-ressource (Mana) et vise manuellement avec une tourelle. Objectif :
-détruire la tour ennemie OU survivre N secondes selon le niveau.
-
-**Thème visuel** : campagne à deux chapitres, chacun avec une
-identité propre.
-
-- **Chapitre 1 : Shanghai** — nuit urbaine, skyline de gratte-ciels
-  à fenêtres jaunes, enseignes néon, ciel violet/rose.
-- **Chapitre 2 : Guiyang** — aube brumeuse sur les montagnes
-  karstiques, pagodes, rizières.
+Inspiré de **Cartoon Wars** (Gamevil, 2009) : hybride Tower Defense /
+RTS side-scrolling. Deux tours s'affrontent, chaque camp spawn des
+unités qui avancent automatiquement, le joueur gère une ressource
+(Mana) et vise manuellement avec une tourelle. Objectif : détruire la
+tour ennemie OU survivre N secondes.
 
 ### Structure
 
@@ -502,30 +494,32 @@ games/ember-wars/
 ├── assets/
 │   ├── chapters.ron         # 2 chapitres × 3 niveaux
 │   ├── palettes.ron         # Shanghai + Guiyang
-│   ├── balance.ron          # mana, or, coûts
-│   ├── units.ron            # 6 unités
+│   ├── balance.ron
+│   ├── units.ron
 │   ├── upgrade_tree.ron     # 18 nœuds, 4 branches
-│   └── DejaVuSansMono.ttf   # police Unicode
+│   └── DejaVuSansMono.ttf
 ├── src/
 │   ├── main.rs              # boucle, écrans, input global
-│   ├── lib.rs               # pub mod ... + réexports
-│   ├── config.rs            # GameContext + loaders chapters/balance
-│   ├── components.rs        # Unit, Projectile, Tower, Team, Shape, UnitId
-│   ├── units.rs             # units.ron, spawn, can_spawn
-│   ├── combat.rs            # targeting, attaques, projectiles, juice hooks
-│   ├── mana.rs              # ManaPool
-│   ├── tower.rs             # Turret, ShotKind
-│   ├── ai.rs                # decide_spawn (waves)
-│   ├── upgrades.rs          # UpgradeTree, UpgradeTreeDefs
-│   ├── progress.rs          # Progress, stars, chapter unlock
-│   ├── camera.rs            # Camera2D (scroll manuel)
-│   ├── layout.rs            # scr_w/h, ground_y responsive
-│   ├── textures.rs          # décor procédural
-│   ├── juice.rs             # particles, shake, floating texts, flashes
-│   ├── fonts.rs             # DejaVu Sans Mono
-│   ├── render.rs            # dessin jeu + HUD + end overlay
-│   ├── menu.rs              # campagne scrollable
-│   ├── systems.rs           # Game (state struct), Phase
+│   ├── lib.rs
+│   ├── config.rs            # GameContext + loaders
+│   ├── components.rs        # Unit, PendingAttack, AttackTarget
+│   ├── units.rs
+│   ├── stickman.rs          # Phase 23, F1
+│   ├── weapons.rs           # Phase 23, F2
+│   ├── combat.rs
+│   ├── mana.rs
+│   ├── tower.rs
+│   ├── ai.rs
+│   ├── upgrades.rs
+│   ├── progress.rs
+│   ├── camera.rs
+│   ├── layout.rs
+│   ├── textures.rs
+│   ├── juice.rs
+│   ├── fonts.rs
+│   ├── render.rs
+│   ├── menu.rs
+│   ├── systems.rs
 │   └── ui/
 │       ├── mod.rs
 │       ├── spawn_bar.rs
@@ -551,143 +545,327 @@ Chapitres débloqués séquentiellement (tous les niveaux du précédent
 
 #### Unités (6)
 
-| Unité | Coût | Rôle | Débloqué par |
-|---|---|---|---|
-| Grunt | 15 | Melee basique | Défaut |
-| Brute | 40 | Melee lourd, tank | Défaut |
-| Archer | 30 | Ranged (projectile) | Arbre (`unlock_archer`) |
-| Healer | 45 | Soigne allié le plus blessé | Arbre (`unlock_healer`) |
-| Bomber | 35 | Suicide AoE (70px) | Arbre (`unlock_bomber`) |
-| Hero | 90 | Melee fort, max 1 vivant | Arbre (`unlock_hero`) |
+| Unité | Coût | Rôle | Arme | Débloqué par |
+|---|---|---|---|---|
+| Grunt | 15 | Melee basique | Épée courte | Défaut |
+| Brute | 40 | Melee lourd, tank | Gourdin | Défaut |
+| Archer | 30 | Ranged (projectile) | Arc | Arbre (`unlock_archer`) |
+| Healer | 45 | Soigne allié le plus blessé | Bâton doré | Arbre (`unlock_healer`) |
+| Bomber | 35 | Suicide AoE (70px) | Bombe | Arbre (`unlock_bomber`) |
+| Hero | 90 | Melee fort, max 1 vivant | Épée longue | Arbre (`unlock_hero`) |
 
-#### Upgrade Tree (18 nœuds, 4 branches)
+#### Stick men (Phase 23, Session F1)
 
-- **Défense** (col -3) : Tower HP I/II, Regen, Fortress.
-- **Armée** (col -1) : Unit HP I/II, Unlock Archer/Healer/Bomber/Hero.
-- **Tourelle** (col +1) : Turret Dmg I/II, Fire Rate, Multi-shot.
-- **Économie** (col +3) : Mana Regen, Gold per kill, Mana Cap.
+- Corps en 6 points (tête cercle, torse, 2 bras, 2 jambes).
+- Animation procédurale.
+- Poses : **Idle** (balancement 1.2 Hz), **Walking** (jambes alternées 2.2 Hz), **Attacking** (3 phases), **Dying** (ragdoll 0.6 s).
+- **Attack 3 phases** :
+  - Windup (0 → 0.30) : bras monte derrière (`REST_ARM_R = -0.15` → `-1.80` rad).
+  - Strike (0.30 → 0.65) : bras descend en smoothstep (`-1.80` → `+1.60`).
+  - Recovery (0.65 → 1.0) : retour à `REST_ARM_R`.
+- **Durée** : `ATTACK_DURATION = 0.55` s.
+- **Continuité** : `REST_ARM_R` / `REST_ARM_L` partagés entre Idle, Walking, bornes d'attaque. Pas de saut visuel.
 
-**Effets** : `TowerHpMult`, `TowerRegen`, `Fortress`, `UnitHpMult`,
-`UnitDamageMult`, `UnlockUnit(String)`, `TurretDamageMult`,
-`TurretFireRateMult`, `MultiShot(u32)`, `ManaRegenMult`,
-`ManaCapMult`, `GoldPerKillAdd`.
+#### Armes (Phase 23, Session F2)
 
-**Validation** au chargement : ids uniques, requires existants,
-exactement 1 racine, pas de cycle (Kahn).
+- 6 armes : Sword (grunt), Club (brute), Bow (archer), Staff (healer), Bomb (bomber), Longsword (hero).
+- Ancrage à la main droite.
+- Angle = `arm_angle + wrist_offset + attack_t * swing_amplitude`.
+- Dessins spécifiques par arme (lame + bout pour épées, double arc pour arc, orbe pour bâton, cercle avec reflet pour bombe).
 
-**Agrégation** : les mults se multiplient, les additifs s'additionnent.
+#### Strike différé
 
-Achetés dans le **menu** via `Tab`. **Persistés** dans `progress.ron`
-(avec la bank d'or).
+- `PendingAttack { target, damage, time_to_hit }` sur `Unit`.
+- `strike_delay() = ATTACK_DURATION * WINDUP_END = 0.165 s`.
+- **Phase 1** de `resolve_attacks` : applique les pending dont `time_to_hit <= 0`.
+- **Phase 2** : décide de nouvelles attaques + mouvement.
+- **Fix critique** : `tick_unit_timers` ne consomme PAS le pending (c'est la Phase 1 qui le fait).
+- **Fix critique** : mouvement indépendant du cooldown — une unité en cooldown avance si elle n'a pas de cible à portée.
+- **Fix critique** : `detonate_bomber` reçoit l'index de l'**attaquant**, pas de la cible.
 
 #### Progression
 
 - **Étoiles** : 1⭐ win, 2⭐ tower HP ≥ 50%, 3⭐ tower HP ≥ 90%.
-- **Or persistant** : crédité à la fin du niveau.
-- **Chapitres verrouillés** : débloqués par complétion du précédent.
-- `progress.ron` **gitignoré**.
+- **Or persistant** dans `progress.ron` (gitignoré).
+- **Upgrade tree** : 18 nœuds, 4 branches (Défense, Armée, Tourelle, Économie), achetés dans le menu via Tab.
+- **Déblocage d'unités** via l'arbre.
 
 #### Décor procédural
 
-Aucun asset externe. Tout est dessiné en code avec
-`textures.rs` :
+Aucun asset externe. Palettes par chapitre :
+- **Shanghai** : ciel violet/rose, skyline avec fenêtres jaunes, enseignes néon, sol pavé.
+- **Guiyang** : ciel d'aube, montagnes karstiques, pagodes, brume.
 
-- **`draw_sky`** — dégradé vertical en strips + étoiles (Urban).
-- **`draw_far_layer`** — skyline lointaine ou montagnes, parallax 0.25.
-- **`draw_mid_layer`** — skyline proche ou collines + pagodes,
-  parallax 0.55, fenêtres + néons (Urban).
-- **`draw_ground`** — sol + pavés / herbe + néons au sol (Urban).
-- **`draw_mist`** — bande de brume (Mountain).
-- **`draw_tower`** — tour stylisée avec fenêtres, créneaux, porte,
-  antenne + voyant.
-
-**Hash déterministe** : `hash_u32(seed, x)` (murmur-inspired).
-Générateurs : `far_urban_height`, `mid_urban_height`,
-`far_mountain_height`, `mid_mountain_height`.
-
-**Palettes** dans `palettes.ron`. **Seed** par niveau
-(`visual_seed` dérivé du game seed).
+Parallax : far 0.25, mid 0.55, néons 0.75, sol 1.0.
 
 #### Juice
 
-- **Hit flash** blanc 80ms sur les unités touchées.
-- **Particles** de mort (6 par kill, 10 pour bomber).
-- **Screen shake** proportionnel aux dégâts sur les tours.
-- **Floating numbers** "-X" cyan sur les hits de tourelle.
-- **Flash** doré à chaque achat d'upgrade.
-- **Flash** coloré (vert/rouge) à la fin de niveau.
+Hit flash, particules de mort (6, 10 pour bomber), screen shake,
+floating numbers, flash doré à l'achat d'upgrade, flash vert/rouge
+à la fin.
 
 #### Police
 
-**DejaVu Sans Mono** chargée via `set_default_font`. Résout les
-étoiles ★☆ et les accents.
+DejaVu Sans Mono via `set_default_font`.
 
 #### Sol responsive
 
 `ground_y_for(viewport_h) = viewport_h - SPAWN_BAR_H - BOTTOM_MARGIN - GROUND_PADDING`.
-Recalculé à chaque frame via `Game::update_viewport`. Les unités
-existantes sont décalées en Y si le sol bouge.
 
 #### Contrôles
 
-- **Menu** :
-  - Clic sur niveau débloqué → lance la partie.
-  - Molette / ↑↓ → scroll.
-  - Tab → modal Upgrade Tree.
-  - Échap → quitter.
-- **En jeu** :
-  - ← / → : scroll caméra.
-  - Clic gauche sur la map : tir de tourelle.
-  - Clic gauche sur la barre de spawn : spawn unité.
-  - 1 / 2 / 3 : type de tir (Basic / Piercing / Explosive).
-  - R : retry.
-  - Échap : retour menu.
-  - Entrée : retour menu après fin.
-
-#### Fichiers clés
-
-- `assets/chapters.ron` — 2 chapitres, 6 niveaux.
-- `assets/palettes.ron` — Shanghai + Guiyang.
-- `assets/upgrade_tree.ron` — 18 nœuds, 4 branches.
-- `assets/units.ron` — 6 unités.
-- `assets/balance.ron` — Mana + or.
-- `src/textures.rs` — décor procédural.
-- `src/juice.rs` — feedback visuel.
-- `src/progress.rs` — étoiles + persistance.
-- `src/upgrades.rs` — arbre d'upgrades.
-- `src/ui/upgrade_modal.rs` — modal de l'arbre.
-- `src/menu.rs` — campagne scrollable.
+- **Menu** : clic niveau, molette/↑↓ scroll, Tab upgrade, Échap quitter.
+- **En jeu** : ← / → scroll caméra, clic map tir, clic spawn bar, 1/2/3 type tir, R retry, Échap menu, Entrée après fin.
 
 #### Tests
 
-**~219 tests** (~205 unit + 14 integration).
+**251 unit + 14 integration = 265 tests**.
 
 #### Prochaines étapes
 
-1. **Session F — Stick men procéduraux** (remplacement des formes
-   géométriques par des bonhommes animés).
-2. **Session G — Balance & polish gameplay** (coûts, dégâts,
-   vitesses, waves).
-3. **Session refacto — Extraction `Cooldown`** dans
-   `ember_core::time` (4e occurrence confirmée).
+1. Session G — Refonte UI.
+2. Session H — Chapitre 3.
+3. Session I — Upgrade tree amélioré.
 
 ---
 
 ## games/zhuo-ji — Détail (11e jeu)
 
-[Section inchangée par rapport à la version précédente.]
+### Concept
+
+Zhuo Ji (捉鸡), la variante Guiyang du Mahjong. 4 joueurs, 108 tuiles
+(3 suits × 9 rangs × 4 copies, pas d'honneurs). Deux mécaniques
+signatures :
+
+- **豆 (Dou)** — les bonus de Gang, qui servent aussi de "passeport"
+  pour gagner sur un discard (règle 平胡 vs 大对子).
+- **鸡 (Ji)** — une tuile révélée après la main qui multiplie le score.
+  Tuiles fixes : **1 Tiao** (幺鸡) et **8 Tong** (八筒), qui deviennent
+  Golden Ji sous certaines conditions.
+
+### Structure
+
+games/zhuo-ji/
+├── DESIGN.md
+├── .env
+├── src/
+│   ├── main.rs                # boucle, rendu, modals, menu screen
+│   ├── lib.rs                 # pub mod hand_summary, menu, ...
+│   ├── config.rs              # GameContext
+│   ├── components.rs          # Tile, Suit, Rank, Meld, Player, Seat
+│   ├── wall.rs                # build_wall, shuffle Fisher-Yates
+│   ├── hand.rs                # is_winning_hand, shanten, is_tenpai, is_seven_pairs_hand
+│   ├── ai.rs                  # decide_discard, decide_claim, decide_an_gang, decide_ming_gang
+│   ├── claims.rs              # resolve_claims, priority
+│   ├── scoring.rs             # Pattern, Dou, Ji, HandBreakdown, apply_hand_scores
+│   ├── systems.rs             # Game, Phase, first_discard, hand_history
+│   ├── layout.rs              # MeldsLayout, scr_w/h/cx/cy runtime
+│   ├── tiles.rs               # tuiles custom + TileGlow
+│   ├── hand_summary.rs        # HandSnapshot (modal fin de main)
+│   ├── menu.rs                # écran titre + MenuState
+│   ├── help.rs                # 7 onglets (Goal/Patterns/Dou/Ji/Tiles/Specials/UI)
+│   └── ui/                    # widgets spécifiques Zhuo Ji (Phase 22)
+│       ├── mod.rs
+│       └── panel.rs           # draw_premium_panel (jade + bordures or + 4 diamants)
+└── tests/game_scenarios.rs    # 10 tests d'intégration
+
+### Détail technique
+
+- **Wall** : 108 tuiles, `build_wall()` retourne l'ordre canonique,
+  `shuffle()` Fisher-Yates via `Rng`. Deal : 13 par joueur, le dealer
+  reçoit une 14e dans `drawn` (séparée du `concealed`).
+- **Phases** : `Deal → AwaitingDraw → DrawAnim → AiThinking → AwaitingDiscard → AwaitingClaims → ClaimAnim → (loop | Hu | HuangZhuang) → MatchOver`.
+- **Claims** : Peng, Gang, Hu. Pas de Chi. Priorité `Hu > Gang = Peng`,
+  puis distance counter-clockwise depuis le discarder.
+- **Shanten** : `(4 - melds) * 2 - partials - has_pair`. Recherche
+  exhaustive avec memo sur `(Vec<Tile>, max_sets)`.
+- **`is_winning_hand`** : backtracking sur les paires candidates puis
+  partition en melds. Reconnaît aussi les **7 paires** (`is_seven_pairs_hand`).
+- **AI** : `decide_discard` minimise le shanten post-discard, tie-break
+  sur le moins de voisins (≤2 rangs). `decide_claim` Peng si shanten
+  strictement réduit. `decide_an_gang` An Gang si shanten ne régresse
+  pas. `decide_ming_gang` : 3 copies en main.
+- **Scoring** : `apply_hand_scores` applique pattern fan + Dou +
+  Ji pairwise et retourne un `HandBreakdown` (buckets `hu` / `dou` /
+  `ji` par joueur, utilisés par le modal fin de main).
+  **8 patterns** : PingHu(1), DaDuiZi(5), QiDui(10), QingYiSe(10),
+  QingDaDui(15), LongQiDui(20), QingQiDui(20), QingLongBei(30).
+  `apply_huangzhuang_scores` : 2 fan par tenpai × non-tenpai.
+- **Chong Feng Ji / Ze Ren Ji** : `Game.first_discard: Option<(usize, Tile)>`
+  + `record_discard()`. Premier 1 Tiao jeté → bonus doublé au discarder
+  (1 ou 2 fan selon golden) ; si ce 1 Tiao est Peng'd → discarder paie
+  +1 fan à chacun.
+- **Match** : `hands_played` counter, MatchOver après 16 mains.
+  **Space** étend de 16, **R** fait un nouveau match.
+- **Timers** : 30s turn window pour l'humain (auto-discard), 10s claim
+  window, 0.6s AI think, 0.4s claim animation.
+- **Seed** : aléatoire depuis `SystemTime::now()`.
+- **Tuiles custom** (`tiles.rs`) :
+  - **WAN** : petit chiffre rouge en haut à gauche, chiffre noir centré,
+    barre rouge + accent sous le chiffre (proxy pour 万).
+  - **TIAO** : barres vertes/rouges alternées par position.
+    **1 Tiao = poulet stylisé** (corps crème, crête rouge 3 lobes,
+    barbillon, bec orange, œil cartoon, 2 pattes, queue 3 plumes) —
+    Ji permanent.
+  - **TONG** : cercles **bleus** + centrale rouge (position 1,1) ;
+    le 1 est un cercle concentrique bleu/blanc/rouge, le 8 est tout
+    noir (Ji permanent).
+  - **Taille uniforme** 40×54 partout. Hand 56×84, river/AI backs 30×46,
+    AI melds 28×42.
+  - **`draw_tile_standing_base` + `draw_tile_standing_face`** : split
+    pour rendu en 2 passes (fix z-index melds East).
+  - **`TileGlow { None, Useful, Ji }`** : halo autour des tuiles utiles
+    (vert 0.40, 0.95, 0.55) ou Ji (or 1.00, 0.82, 0.30), priorité
+    Ji > Useful. Rendu par deux `draw_rectangle_lines` superposés.
+- **Layout UI** : info stack en haut-gauche (shanten, waits, hand, turn,
+  phase), WALL pile en haut-droite, pendule pile au centre de l'écran
+  (runtime `screen_width() / 2`, `screen_height() / 2`), flèche vers le
+  siège actif, avatars 50×50, rivières "en face" de chaque joueur.
+  Melds en **3 slots** + 4e tuile de Gang empilée (`MeldsLayout`,
+  gap `MELD_INTER_GAP = 12px`).
+- **Modals** : fin de main (2 onglets Scores / Table view, nav ← →),
+  fin de match (2 onglets Scores / Hand history, titre pulsant),
+  menu principal (`AppScreen { Menu, Game }`, écran titre jade,
+  3 boutons New game / Rules / Quit, nav souris + clavier).
+- **help.rs** : 7 onglets (Goal/Patterns/Dou/Ji/Tiles/Specials/UI),
+  filtres Suit/Rank sur l'onglet Tiles.
+- **ui/panel.rs** (Phase 22) : `draw_premium_panel(rect, alpha, diamond_size, colors)` — fond jade + double bordure or + 4 diamants aux coins. Utilisé par menu, help, modal fin de main, modal fin de match.
+- **Tests** : **187 unitaires + 10 intégration = 197 tests**.
+
+### Règles officielles (pour référence)
+
+**Combinaisons de base (牌型番值)** :
+
+| Combinaison | Fans |
+|---|---|
+| 平胡 (Pinghu) | 1 |
+| 大对子 (Da duizi) | 5 |
+| 七对 (Qi dui) | 10 |
+| 龙七对 (Long qi dui) | 20 |
+| 清一色 (Qing yi se) | 10 |
+| 清大对 (Qing da dui) | 15 |
+| 清七对 (Qing qi dui) | 20 |
+| 青龙背 (Qing long bei) | 30 |
+| 报听 (Bao ting) | 10 |
+
+**Beans (豆) — Kongs** :
+
+| Type | Nom | Fans |
+|---|---|---|
+| Kong caché | 闷豆 (Men dou) | 2 |
+| Kong ajouté | 爬坡豆 (Pa po dou) | 3 |
+| Kong exposé | 点豆 (Dian dou) | 1 |
+
+**Chickens (鸡)** :
+
+| Type | Nom | Fans |
+|---|---|---|
+| Chicken normal | 幺鸡 (Yao ji) | 1 |
+| Carte retournée | 翻牌鸡 (Fan pai ji) | 1 |
+| Chicken en or | 金鸡 (Jin ji) | 2 |
+| Chicken d'assaut | 冲锋鸡 (Chong feng ji) | 2 (4 si en or) |
+| Chicken de responsabilité | 责任鸡 (Ze ren ji) | +1 |
+
+**Règles spéciales** :
+- 杠上炮 (Gang shang pao) — victoire sur défausse post-Gang.
+- 抢杠 (Qiang gang) — vol de la tuile d'un Bu Gang.
+- 黄庄查叫 (Huangzhuang) — partie nulle, paiement tenpai vs non-tenpai.
+- 报听 (Bao ting) — annonce d'attente.
+
+**Calcul** :
+- Pêche (自摸) : les 3 autres paient.
+- Écart (点胡) : seul le donneur paie.
+- Total = combinaison + beans + chickens.
+- **Dou passport rule** : sans bean, pas de victoire sur écart pour PingHu.
+
+### Pièges connus (Zhuo Ji)
+
+- **Tile `Copy`** : utiliser `Vec::remove`, pas `swap_remove`, pour
+  préserver l'ordre (crucial pour hand evaluation).
+- **Claim priority** : Hu > Gang = Peng. Deux joueurs Peng la même
+  tuile → le plus proche counter-clockwise du discarder gagne.
+- **Pas de Chi.**
+- **Gang → re-draw** : après chaque Gang, même joueur pioche à nouveau.
+- **Dou passport rule** : sans Dou, on ne peut pas Hu sur discard avec
+  seulement 平胡.
+- **Twin fixed Ji** : **1 Tiao** et **8 Tong** sont tous les deux des
+  Ji fixes. Golden Ji pour 1 Tiao quand 9 Tiao est flipé.
+- **Huangzhuang ne compte pas Dou/Ji.**
+- **`first_discard` propagation** : toute modif de scoring doit
+  propager vers `HandBreakdown` (modal fin de main) et `first_discard`
+  (Chong Feng Ji). `apply_hand_scores` dans `on_hu` prend 5 args.
+- **`HandSnapshot`** : capturer **avant** `start_next_hand()`.
+- **`measure_text` dans un test** : remplacer par offset calculé
+  (`fs * 0.40`).
+- **`assert!(CONSTANT > CONSTANT)`** → `const _: () = assert!(...)`.
+- **Test "neutre" Zhuo Ji** : vérifier que les tiles neutres ne sont
+  pas le primary actif.
+- **`f32::min` ambiguïté** : suffixer `56.0_f32` sur le premier élément.
+- **Melds z-index (East)** : rendre en 2 passes (base puis face).
+- **Melds largeur** : Peng (3) et Gang (4) doivent occuper la **même
+  largeur** (`MeldsLayout` avec `stacks`). Gap `MELD_INTER_GAP = 12px`.
+- **`TONG_BLUE` vs `TIAO_GREEN`** : const assert compile-time.
+- **`hands_per_match` hardcodé à 4** dans `Game::hands_per_match()` et
+  `main.rs` "Hand N/4". Le `Layout` lit `AH_HANDS_PER_MATCH` mais
+  `Game` ne reçoit pas `GameContext`.
+- **Layout runtime** : `SCREEN_W` / `SCREEN_H` remplacés par
+  `screen_width()` / `screen_height()` à chaque frame.
+- **Pendule centrée H + V** : la flèche sort du disque — ne pas la
+  compter dans le calcul du centrage.
 
 ---
 
 ## games/freecell — Détail (9e jeu)
 
-[Section inchangée.]
+### Concept
+
+FreeCell, le solitaire à information parfaite (1978, Paul Alfille). Un
+jeu de 52 cartes, toutes visibles dès le départ. Pas de pioche, pas de
+hasard pendant la partie. Le joueur déplace des cartes entre 8 colonnes
+du tableau, 4 cellules libres (en haut à gauche), et 4 fondations
+(en haut à droite).
+
+Objectif : déplacer toutes les cartes vers les fondations, par couleur
+et dans l'ordre croissant (A → 2 → ... → K).
+
+Thème visuel : terminal dev (fond sombre, symboles Unicode ♠ ♥ ♦ ♣).
+
+### Détail technique
+
+- **Cartes** : `Card { suit: Suit, rank: Rank }`, `Rank(pub u8)` avec 1=As, 11=Valet, 12=Dame, 13=Roi.
+- **Zones** : `Zone::Column(0..8)`, `Zone::FreeCell(0..4)`, `Zone::Foundation(0..4)`.
+- **Distribution** : 4 colonnes de 7 + 4 colonnes de 6 = 52. Déterministe via `Rng` + Fisher-Yates.
+- **Règles** : `can_place_on_column`, `can_place_on_foundation`, `can_place_in_cell`, `max_super_move`.
+- **Super-move** : `(1 + cellules_libres) × 2^colonnes_vides`. **Piège** : colonne vide de destination ne compte pas comme buffer.
+- **Accessibilité** : run contigu du bas seulement. `is_accessible(from, start_idx, n)` vérifie `start_idx + n == columns[col].len()`.
+- **Drag-and-drop** : `DragState::Idle / Pressing / Dragging`. Seuil de 5 px.
+- **Undo/redo** : snapshots complets. Pile `history` / `future`.
+- **Hint** : `find_hint()` retourne `Hint { from, to, card }`. Priorité : fondation > colonne > cellule libre.
+- **Best time** : `Persistence<HashMap<String, f32>>`, clé = seed stringifiée.
+- **Police** : DejaVu Sans Mono pour ♠ ♥ ♦ ♣.
+- **Raccourcis** : `N` new, `R` restart, `Tab` menu, `Z`/`W` undo, `Y` redo, `Escape` quit.
+- **Tests** : **78 unit + 8 integration = 86 tests**.
 
 ---
 
 ## games/air-hockey — Détail (10e jeu)
 
-[Section inchangée.]
+### Concept
+
+Air Hockey, arcade 2 joueurs (ou 1 joueur vs IA). Table horizontale,
+deux palets contrôlés par W/A/S/D (J1) et flèches (J2), un palet
+unique. Objectif : 3 buts par manche, 2 manches gagnantes sur 3.
+
+### Détail technique
+
+- **Phases** : Menu → Countdown → Playing → GoalPause → (Countdown | RoundOver | MatchOver).
+- **Physique** : `step_world_substepped` avec `substeps = 4`. Palet clampé à `puck_speed_max = 1400`.
+- **Hitstop** : `dt_eff = 0.0` quand palet tape palet à plus de 900 px/s. **Ne pas** appeler `step_world_substepped` quand `dt_eff == 0.0`.
+- **IA goalkeeper** : `REACTION_TIME = 0.18s`, `AI_SPEED = 0.55`, `GOALIE_OFFSET = 70.0`. Ne chasse jamais en x.
+- **Menu** : Space = PvP, Enter = PvAI.
+- **Countdown** : `TextParams { font_size: 120, font_scale: 1.4→1.0 }`. Ne JAMAIS animer `font_size`.
+- **Overlays** : scrim noir alpha 0.55.
+- **Tests** : **58 unit + 10 integration = 68 tests**.
 
 ---
 
@@ -735,70 +913,98 @@ existantes sont décalées en Y si le sol bouge.
 - GameMode PvP/PvAI, goalkeeper IA, hitstop guard, font_scale countdown, scrim overlays.
 
 ### Phase 20 — Zhuo Ji (11e jeu, Sessions 1–5 + polish)
-[Section inchangée.]
+- **Session 1** — Tile model, wall, deal, human draw/discard, ASCII rendering.
+- **Session 2** — `hand.rs` : `is_winning_hand`, `shanten`, `is_tenpai`.
+- **Session 3** — `ai.rs` : `decide_discard` par shanten, tie-break neighbors.
+- **Session 4** — Peng + Hu claims. `AwaitingClaims`, `ClaimAnim`, `Hu`. `resolve_claims`.
+- **Session 4.5** — An Gang, Ming Gang, Zimo, `HuangZhuang`.
+- **Session 5** — `scoring.rs` : Pattern, Dou, Ji, Huangzhuang. Match flow, MatchOver.
+- **UI polish** — `tiles.rs` avec symboles custom, info stack, pendule runtime centrée, WALL top-right, avatars, timers.
 
 ### Phase 21 — Zhuo Ji V2 (règles + polish UX + refonte graphique)
-[Section inchangée.]
+
+- **Scoring V2** — `Pattern` enum étendu de 4 à 8 variants. `HandBreakdown` (`hu` / `dou` / `ji` par joueur) retourné par `apply_hand_scores`. Fix bug : `is_winning_hand` ne reconnaissait pas les 7 paires → `is_seven_pairs_hand`.
+- **Chong Feng Ji / Ze Ren Ji** — `Game.first_discard: Option<(usize, Tile)>` + `record_discard()`.
+- **Modal fin de main** — 2 onglets (Scores / Table view), navigation ← →. `hand_summary.rs` avec `HandSnapshot` capturé avant `start_next_hand()`. Mini-tuiles 22×32, bordure dorée sur Ji, orange sur Gang.
+- **Modal fin de match** — 2 onglets (Scores / Hand history 16 dernières mains), titre pulsant "YOU WIN THE MATCH".
+- **Menu principal** — écran titre jade + bordures or, 3 boutons (New game / Rules / Quit), nav souris + clavier (↑↓ + Entrée). `AppScreen { Menu, Game }`. Échap en jeu → menu, Échap au menu → quitte.
+- **Refonte graphique** — Tong passe au **bleu** (porcelaine), Tiao garde le **vert** (bambou). 1 Tiao = poulet stylisé. Melds rendus en 2 passes (fix z-index East). `MeldsLayout` avec 3 slots + 4e tuile de Gang empilée. Tailles ajustées (hand 56×84, river/AI backs 30×46, melds 28×42). Corner glyphs alignés top (`glyph_band_center_offset`).
+- **Tile glow** — `TileGlow { None, Useful, Ji }`, halo vert/or autour des tuiles, priorité Ji > Useful. Remplace la pastille dorée. Helpers `tile_has_friend_in`, `glow_for_concealed`, `glow_for_drawn`.
+- **help.rs** — 7 onglets (Goal/Patterns/Dou/Ji/Tiles/Specials/UI), filtres Suit/Rank sur Tiles.
+- **187 tests unit + 10 integration**, Clippy clean.
 
 ### Phase 22 — Refactor Rule of Three (extractions stdlib)
 
-- **Fix `Input::from_macroquad_with_keys`** — peuplait uniquement `keys_pressed`. Maintenant les 3 vecteurs. Zhuo Ji supprime son contournement manuel.
-- **`ui::hit` module** — 6 duplications supprimées (Minesweeper, FreeCell, Zhuo Ji ×3, Memory).
-- **`persistence::update_best_in_map<K: ToString>`** — 3 duplications.
-- **`graphics::text::draw_right` / `draw_left`** — 4 duplications.
-- **Bonus intra-Zhuo Ji** : 3 copies de `text_centered` délèguent à `draw_centered`, 4 copies du panneau "premium" extraites dans `zhuo-ji/src/ui/panel.rs::draw_premium_panel`.
+- **Fix `Input::from_macroquad_with_keys`** — peuplait uniquement `keys_pressed`. Maintenant les 3 vecteurs (`keys_pressed`, `keys_down`, `keys_released`). Zhuo Ji supprime son contournement manuel (2 lignes).
+- **`ui::hit` module** — 6 duplications supprimées (Minesweeper, FreeCell, Zhuo Ji ×3, Memory). API : `contains(Rect, Vec2)`, `contains_xywh(x,y,w,h,Vec2)`, `contains_tuple((x,y,w,h),Vec2)`, `contains_strict(Rect, Vec2)`.
+- **`persistence::update_best_in_map<K: ToString>`** — 3 duplications (Minesweeper, FreeCell, Memory). La clé accepte `&str`, `String`, `u32`.
+- **`graphics::text::draw_right` / `draw_left`** — 4 duplications (Minesweeper, Memory, FreeCell, Zhuo Ji ×2). Signature `font_size: u16`.
+- **Bonus intra-Zhuo Ji** :
+  - 3 copies de `text_centered` délèguent à `draw_centered` (main, menu, help).
+  - 4 copies du panneau "premium" (jade + bordures or + 4 diamants) extraites dans `zhuo-ji/src/ui/panel.rs::draw_premium_panel(rect, alpha, diamond_size, colors)`.
 - **Tests** : +17 stdlib, -9 jeux (déplacement) → +8 net. Clippy clean.
 
 ### Phase 23 — ember-wars (12e jeu)
 
 **Sessions livrées** :
 
-- **Design** — `DESIGN.md` complet validé.
+- **Design** — `DESIGN.md` complet.
 - **Units** — `units.rs` : chargement lazy, spawn, mults, `can_spawn`.
 - **Tower** — `Turret::aim`, `try_fire`, 3 `ShotKind`.
 - **Combat** — targeting, attaques (melee / ranged / healer / bomber), projectiles, bomber AoE, `MAX_PROJECTILES = 200`.
-- **AI** — `decide_spawn` avec waves temporelles, priorité offensive/défensive, agressivité.
-- **Camera** — `Camera2D::scroll` manuel (flèches). `follow_front` désactivé mais conservé pour V2.
+- **AI** — `decide_spawn` avec waves temporelles.
+- **Camera** — `Camera2D::scroll` manuel.
 - **Systems** — `Game` state struct, `tick`, `try_player_spawn`, `update_viewport`, `ground_y` responsive.
-- **Render** — décor procédural, HP bars locales, HUD épuré, end overlay.
+- **Render** — décor procédural, HP bars locales, HUD, end overlay.
 - **Menu** — campagne scrollable, progression, étoiles.
-- **Spawn bar** — 6 boutons avec cooldown + état locked.
+- **Spawn bar** — 6 boutons avec cooldown + locked.
 - **Juice** — particles, hit flash, screen shake, floating numbers, flashes.
 - **Upgrade tree** — 18 nœuds, 4 branches, modal Tab.
 - **Progress** — étoiles, or persistant, chapitres verrouillés.
 - **Textures** — décor procédural (Shanghai urbain + Guiyang montagne).
 - **Fonts** — DejaVu Sans Mono via `set_default_font`.
+- **Session F1** — Stick men procéduraux (3 phases, REST_ARM partagés).
+- **Session F2** — 6 armes procédurales.
+- **Strike différé** — `PendingAttack`, dégâts au contact.
+- **Fix healer** — avance quand rien à soigner, midline.
+- **Fix bomber** — explose à sa position (attacker_idx).
+- **Fix mouvement** — plus de figement après attaque.
 
 **Changements par rapport au design initial** :
 
-- **Upgrades dans le menu** (Tab) au lieu d'en jeu.
-- **Or persistant** entre niveaux (dans `progress.ron`).
-- **2 chapitres × 3 niveaux** au lieu de 2 maps × 2 difficultés.
-- **Déblocage d'unités** via l'arbre (au lieu de tout dispo dès le début).
-- **Étoiles** (1-3) comme système de progression.
-- **Caméra manuelle** (flèches) au lieu de suivi auto.
-- **Sol responsive** (`ground_y_for(viewport_h)`).
-- **Décor procédural** au lieu de formes plates.
+- Upgrades dans le menu (pas en jeu).
+- Or persistant entre niveaux.
+- 2 chapitres × 3 niveaux au lieu de 2 maps × 2 difficultés.
+- Déblocage d'unités via l'arbre.
+- Étoiles comme système de progression.
+- Caméra manuelle.
+- Sol responsive.
+- Décor procédural.
+- **Stick men animés (au lieu de formes géométriques).**
+- **Strike différé.**
 
-**Extractions faites pendant la phase** : aucune (Rule of Three non
-atteinte pour caméra, auto-combat, spawner, upgrade tree).
+**Extractions** : aucune (Rule of Three non atteinte pour caméra, auto-combat, spawner, upgrade tree).
 
-**Candidat mur pour la session refacto suivante** :
-`Cooldown` (f32 qui décrémente) → **4e occurrence** confirmée.
+**Candidat mur** : `Cooldown` (4e occurrence).
 
-**Chiffres** : **~219 tests** dans `ember-wars` (~205 unit + 14 integration).
+**Chiffres** : **265 tests** dans ember-wars.
 
-**Pièges spécifiques découverts** (à ajouter en §Pièges) :
-- `gen` réservé en Rust 2024 (voir §Pièges workspace).
-- `clippy::should_implement_trait` sur `next()` custom → renommer `next_id()`.
-- `clippy::vec_init_then_push` → `vec![...]`.
-- `clippy::manual_is_multiple_of` → `.is_multiple_of(n)`.
+**Pièges spécifiques découverts** (voir §Pièges) :
+- `gen` réservé en Rust 2024.
+- `should_implement_trait` sur `next()` custom → `next_id()`.
+- `vec_init_then_push` → `vec![...]`.
+- `manual_is_multiple_of` → `.is_multiple_of(n)`.
 - E0502 sur `a[i].field = a[i].other * x` → extraire `other` dans un `let`.
-- Tourelle ≠ sol : la tourelle est au-dessus du sol. Pour tester un tir direct, placer l'ennemi à la hauteur de la tourelle.
-- Comparer les difficultés sur les **HP déployés**, pas le nombre d'unités.
-- Viewport dynamique : `game.update_viewport()` à chaque frame.
-- Sol responsive : `ground_y_for(viewport_h)`.
-- `palettes.ron` doit commencer par `[` — sinon RON `Expected opening [`. Vérifier que le fichier n'est pas vide / avec BOM.
+- Tourelle ≠ sol.
+- HP déployés vs nombre d'unités.
+- Viewport dynamique.
+- Sol responsive.
+- `palettes.ron` doit commencer par `[`.
+- `PendingAttack` : ne pas clear dans `tick_unit_timers`.
+- `strike_delay = ATTACK_DURATION * WINDUP_END`.
+- `REST_ARM_R` / `REST_ARM_L` partagés.
+- Bomber : `detonate_bomber` prend l'index de l'attaquant.
+- Mouvement indépendant du cooldown.
 
 ---
 
@@ -809,7 +1015,7 @@ atteinte pour caméra, auto-combat, spawner, upgrade tree).
 3. Shape::as_aabb / as_circle : inutilisés. Supprimer ou utiliser ?
 4. Uniformiser UpdateEvent : Snake/Breakout en ont, Pong/Bullet Hell non.
 5. **Drag-and-drop** : extraire dans ember_stdlib ? Rule of Three : 1re occurrence (FreeCell). Attendre Klondike / Solitaire.
-6. **Animation / tween / easing** : à extraire. 0 occurrence.
+6. **Animation / tween / easing** : à extraire. 0 occurrence (mais l'anim stick man est un cas d'usage différent).
 7. **Turn-based state machine** : 1x (Zhuo Ji). À extraire si un 2e jeu tour par tour apparaît.
 8. **Fenêtre de décision temporisée** (claim window) : 1x (Zhuo Ji).
 9. **AI avec information cachée** : 1x (Zhuo Ji).
@@ -826,6 +1032,9 @@ atteinte pour caméra, auto-combat, spawner, upgrade tree).
 20. **Camera2D / scroll** : 1x (ember-wars). Attendre 2e.
 21. **Upgrade tree persistant** : 1x (ember-wars). Attendre 2e.
 22. **Auto-combat** : 1x (ember-wars). Attendre 2e.
+23. **Stickman / skeletal animation** : 1x (ember-wars). Attendre 2e.
+24. **Weapons procédurales** : 1x (ember-wars). Attendre 2e.
+25. **PendingAttack / strike différé** : 1x (ember-wars). Attendre 2e.
 
 ---
 
@@ -852,11 +1061,10 @@ atteinte pour caméra, auto-combat, spawner, upgrade tree).
 19. Zhuo Ji : Bao Ting (报听) non implémenté.
 20. Zhuo Ji : chips d'état sous avatars (豆 × N, 鸡 × N) non implémentés.
 21. Zhuo Ji : TENPAI permanent + chips transitoires (冲锋鸡!, 责任鸡, +冲锋鸡) non implémentés.
-22. **ember-wars : stick men** — remplacer les formes par des stick men animés (Session F).
-23. **ember-wars : balance** — tune des coûts, dégâts, vitesses, waves (Session G).
-24. **ember-wars : Fortress** — effet de l'upgrade pas encore implémenté (2e barre HP).
-25. **ember-wars : pas de sons** (`AudioClip` existe).
-26. **ember-wars : DESIGN.md** — OK, à jour.
+22. **ember-wars : stick men ragdoll** — mort statique actuellement.
+23. **ember-wars : Fortress** — effet de l'upgrade pas implémenté (2e barre HP).
+24. **ember-wars : pas de sons** (`AudioClip` existe).
+25. **ember-wars : pas de cadavres persistants** (l'unité disparaît après 0.6s de Dying).
 
 Résolus :
 - ~~glam désalignement~~ → structurellement impossible depuis Session 6.
@@ -887,6 +1095,8 @@ Résolus :
 - ~~ember-wars : décor procédural~~ → Phase 23.
 - ~~ember-wars : police Unicode~~ → Phase 23.
 - ~~ember-wars : sol responsive~~ → Phase 23.
+- ~~ember-wars : flash avant l'anim d'attaque~~ → Phase 23 F2 (REST_ARM partagé).
+- ~~ember-wars : figement après attaque~~ → Phase 23 F2 (mouvement indépendant du cooldown).
 
 ---
 
@@ -895,7 +1105,7 @@ Résolus :
 Ne généralise pas avant d'avoir vu le pattern 3 fois.
 
 Aujourd'hui :
-- Chargement RON : 8x → extrait.
+- Chargement RON : 9x → extrait.
 - Config env : 12x → extrait.
 - draw_centered : 11x → extrait.
 - GameState : 10x (Zhuo Ji et ember-wars n'utilisent pas GameState).
@@ -928,6 +1138,9 @@ Aujourd'hui :
 - **Auto-combat** : 1x (ember-wars) → local.
 - **Upgrade tree persistant** : 1x (ember-wars) → local.
 - **Menu campagne scrollable** : 1x (ember-wars) → local.
+- **Stickman / skeletal animation** : 1x (ember-wars) → local.
+- **Weapons procédurales** : 1x (ember-wars) → local.
+- **PendingAttack / strike différé** : 1x (ember-wars) → local.
 
 ---
 
@@ -941,30 +1154,30 @@ cachée, 4-player state, fenêtres de décision temporisées, tiles
 custom, modals multi-onglets, écran titre, hit testing partagé,
 **caméra scroll manuel, auto-combat, spawner avec coûts, upgrade
 tree persistant, décor procédural, police Unicode, juice (particles +
-shake), sol responsive, campagne à chapitres**.
+shake), sol responsive, campagne à chapitres, stick men animés,
+armes procédurales, strike différé**.
 
 Ce qui MANQUE encore :
 
-- Extraction drag-and-drop dans la stdlib (attendre 3e occurrence)
-- Extraction animation / tween / easing dans la stdlib (0 occurrence)
-- Pathfinding (Tower Defense, roguelike)
-- Procédural gameplay (roguelike)
-- Stick men animés (à faire dans ember-wars V1.5)
+- Extraction drag-and-drop dans la stdlib (attendre 3e occurrence).
+- Extraction animation / tween / easing dans la stdlib (0 occurrence).
+- Pathfinding (Tower Defense, roguelike).
+- Procédural gameplay (roguelike).
+- Ragdoll / physique de mort.
 
 ### Recommandations fortes
 
 1. **Tower Defense** — pathfinding, ciblage, économie. Utilise
    Grid + Waves + Spawner + décor procédural. Le pattern "spawn
    + avancée" est déjà là.
-2. **Match-3** — déclenche ANIMATIONS / TWEEN / EASING. Utilise
-   Grid + Input + UI + Persistence.
+2. **Match-3** — déclenche ANIMATIONS / TWEEN / EASING.
 3. **Plateformer** — caméra/scroll déjà là (ember-wars). Manque
    les collisions multi-axes.
 
 ### Recommandations moyennes
 
 4. **Roguelike minimal** — procédural, FOV, tour par tour, inventaire.
-5. **Card Battler** — main, deck, tour par tour. Réutilise Card + Zone de FreeCell.
+5. **Card Battler** — main, deck, tour par tour.
 6. **Klondike** — 2e drag-and-drop.
 7. **Tetris** — rotation, lignes, drop.
 
@@ -1005,7 +1218,8 @@ Ce qui MANQUE encore :
 5. Zhuo Ji : Bu Gang, Qiang Gang, Gang Shang Pao, Bao Ting absents.
 6. Zhuo Ji : Dou passport rule non-enforcée.
 7. **ember-wars : Fortress** — effet de l'upgrade pas implémenté.
-8. **ember-wars : stick men** — formes géométriques, pas encore animées.
+8. **ember-wars : stick men ragdoll** — mort statique.
+9. **ember-wars : pas de cadavres persistants**.
 
 ### Refactors à considérer
 
@@ -1024,6 +1238,7 @@ Ce qui MANQUE encore :
 13. Halo tuile / glow helper (après 2e occurrence).
 14. **`Cooldown` dans `ember_core::time`** (4e occurrence confirmée).
 15. **Police Unicode helper** (après 3e occurrence).
+16. **Stickman / skeletal animation helper** (après 2e occurrence).
 
 ---
 
@@ -1113,23 +1328,21 @@ Ce qui MANQUE encore :
 82. **ember-wars : upgrades dans le menu**, pas en jeu. (Phase 23)
 83. **ember-wars : or persistant** dans `progress.ron`, gitignoré. (Phase 23)
 84. **ember-wars : chapitres verrouillés** tant que le précédent n'a pas tous ses niveaux à ≥1⭐. (Phase 23)
+85. **ember-wars : `PendingAttack`** — ne JAMAIS clear dans `tick_unit_timers`, c'est la Phase 1 qui consomme. (Phase 23)
+86. **ember-wars : `strike_delay()`** — doit être cohérent avec `stickman::WINDUP_END`. Si l'un change, l'autre aussi. (Phase 23)
+87. **ember-wars : `REST_ARM_R` / `REST_ARM_L`** — partagés entre Idle, Walking et bornes d'attaque. Sinon saut au repos. (Phase 23)
+88. **ember-wars : bomber `detonate_bomber`** — prend l'index de l'attaquant, pas de la cible. (Phase 23)
+89. **ember-wars : mouvement** — le cooldown n'empêche pas l'avance si pas de cible à portée. (Phase 23)
 
 ---
 
 ## Prochaines étapes suggérées
 
-1. **Session F — ember-wars stick men** (haute priorité visuelle).
-2. **Session G — ember-wars balance & polish**.
-3. **Session refacto — Extraction `Cooldown`** dans `ember_core::time` (4e occurrence).
-4. **Design docs rétroactifs** pour Pong, Breakout, Snake, Asteroids, Bullet Hell, Minesweeper, Simon, Air Hockey.
-5. **Zhuo Ji V2** — Bu Gang, Qiang Gang, Gang Shang Pao, Bao Ting, chips d'état, CJK.
-6. **Décider du 13e jeu** :
-   - Tower Defense (pathfinding)
-   - Match-3 (tween/easing)
-   - Plateformer (collisions multi-axes)
+1. **Session G — ember-wars Refonte UI** : menu, panneau d'info niveau, étoiles animées.
+2. **Session H — ember-wars Chapitre 3** : Hong Kong / Beijing / Xi'an, palette + 3 niveaux.
+3. **Session I — ember-wars Upgrade tree amélioré** : plus de nœuds, choix significatifs, nouveaux effets.
+4. **Session refacto — Extraction `Cooldown`** dans `ember_core::time` (4e occurrence).
+5. **Design docs rétroactifs** pour Pong, Breakout, Snake, Asteroids, Bullet Hell, Minesweeper, Simon, Air Hockey.
+6. **Zhuo Ji V2** — Bu Gang, Qiang Gang, Gang Shang Pao, Bao Ting, chips d'état, CJK.
 
-**Bilan Phase 23** : 12e jeu livré (ember-wars), 2 chapitres ×
-3 niveaux, upgrade tree de 18 nœuds, or persistant, étoiles, décor
-procédural, police Unicode, sol responsive, juice. **+~219 tests
-nets** (~945 total). Le workspace est prêt pour une session de
-polish (stick men) ou une session refacto moteur (`Cooldown`).
+**Bilan Phase 23** : 12e jeu livré avec campagne, upgrade tree, or persistant, étoiles, décor procédural, police Unicode, sol responsive, juice, **stick men animés 3-phases**, **6 armes procédurales**, **strike différé**. **+~265 tests nets** (~991 total). Le workspace est prêt pour une session UI (ember-wars), une session chapitre 3, ou une session refacto (`Cooldown`).

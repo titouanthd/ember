@@ -3,7 +3,7 @@
 use glam::Vec2;
 use macroquad::prelude::*;
 
-use crate::components::{Shape, Team, Tower, Unit};
+use crate::components::{Team, Tower, Unit};
 use crate::config::GameContext;
 use crate::juice;
 use crate::systems::{Game, Phase};
@@ -16,8 +16,6 @@ pub fn draw_game(ctx: &GameContext, game: &Game, shake: Vec2) {
     juice::draw_flashes(&game.juice);
 }
 
-// ---------- World ----------
-
 fn draw_world(ctx: &GameContext, game: &Game, shake: Vec2) {
     let palette = game.palette;
     let cam_x = game.camera.x;
@@ -25,37 +23,30 @@ fn draw_world(ctx: &GameContext, game: &Game, shake: Vec2) {
     let gy = game.ground_y;
     let seed = game.visual_seed;
 
-    // Décor.
     textures::draw_sky(palette, gy);
     textures::draw_far_layer(palette, cam_x, gy, seed);
     textures::draw_mid_layer(palette, cam_x, gy, seed);
     textures::draw_mist(palette, gy);
     textures::draw_ground(palette, cam_x, gy, vh);
 
-    // Tours.
     textures::draw_tower(true, palette, game.player_tower.x, cam_x, gy, shake);
     textures::draw_tower(false, palette, game.enemy_tower.x, cam_x, gy, shake);
 
-    // HP bar locales au-dessus de chaque tour.
     draw_local_hp_bar(ctx, &game.player_tower, cam_x, gy, shake);
     draw_local_hp_bar(ctx, &game.enemy_tower, cam_x, gy, shake);
 
-    // Tourelle.
     draw_turret(ctx, game, cam_x, shake);
 
-    // Unités.
     for u in &game.units {
         draw_unit(ctx, u, cam_x, shake);
     }
 
-    // Projectiles.
     for p in &game.projectiles {
         let sx = p.pos.x - cam_x + shake.x;
         let sy = p.pos.y + shake.y;
         draw_circle(sx, sy, p.radius, p.color);
     }
 
-    // Juice.
     juice::draw_particles(&game.juice, cam_x, shake);
     juice::draw_floating_texts(&game.juice, cam_x, shake);
 }
@@ -63,11 +54,11 @@ fn draw_world(ctx: &GameContext, game: &Game, shake: Vec2) {
 fn draw_local_hp_bar(ctx: &GameContext, tower: &Tower, cam_x: f32, gy: f32, shake: Vec2) {
     let sx = tower.x - cam_x + shake.x;
     let sy = shake.y;
-    let top = gy - 160.0 + sy;
-    let hp_w = 90.0;
-    let hp_h = 8.0;
+    let top = gy - 140.0 + sy;
+    let hp_w = 100.0;
+    let hp_h = 10.0;
     let hp_x = sx - hp_w * 0.5;
-    let hp_y = top - 22.0;
+    let hp_y = top - 34.0;
     let hp_col = match tower.team {
         Team::Player => ctx.colors.hp_player,
         Team::Enemy => ctx.colors.hp_enemy,
@@ -75,6 +66,16 @@ fn draw_local_hp_bar(ctx: &GameContext, tower: &Tower, cam_x: f32, gy: f32, shak
     draw_rectangle(hp_x, hp_y, hp_w, hp_h, Color::new(0.05, 0.05, 0.08, 1.0));
     draw_rectangle(hp_x, hp_y, hp_w * tower.hp_fraction(), hp_h, hp_col);
     draw_rectangle_lines(hp_x, hp_y, hp_w, hp_h, 1.0, ctx.colors.accent);
+
+    let txt = format!("{:.0} / {:.0}", tower.hp.max(0.0), tower.max_hp);
+    let dim = measure_text(&txt, None, 14, 1.0);
+    draw_text(
+        &txt,
+        sx - dim.width * 0.5,
+        hp_y - 5.0,
+        14.0,
+        ctx.colors.text,
+    );
 }
 
 fn draw_turret(ctx: &GameContext, game: &Game, cam_x: f32, shake: Vec2) {
@@ -111,48 +112,54 @@ fn draw_unit(ctx: &GameContext, u: &Unit, cam_x: f32, shake: Vec2) {
     let sx = u.pos.x - cam_x + shake.x;
     let sy = u.pos.y + shake.y;
 
-    let base_color = if u.hit_flash > 0.0 {
+    // Détection de l'attaque : l'attack_cd vient d'être armé, c'est-à-dire
+    // que le temps écoulé (attack_cd_max - attack_cd) est inférieur à la
+    // durée d'animation d'attaque.
+    let attack_elapsed = if u.attack_cd_max > 0.0 {
+        u.attack_cd_max - u.attack_cd
+    } else {
+        f32::MAX
+    };
+    let attacking = u.attack_cd > 0.0
+        && (0.0..crate::stickman::ATTACK_DURATION).contains(&attack_elapsed);
+    let pose = crate::stickman::auto_pose(u, attacking);
+
+    // Phase d'animation : attack_elapsed quand attaque, pose_phase sinon.
+    let anim_phase = if attacking {
+        attack_elapsed
+    } else {
+        u.pose_phase
+    };
+
+    let color = if u.hit_flash > 0.0 {
         WHITE
     } else {
         match u.team {
-            Team::Player => tint(stats.color(), ctx.colors.player, 0.25),
-            Team::Enemy => tint(stats.color(), ctx.colors.enemy, 0.25),
+            Team::Player => tint(stats.color(), ctx.colors.player, 0.3),
+            Team::Enemy => tint(stats.color(), ctx.colors.enemy, 0.3),
         }
     };
 
-    let top = sy - size.y;
+    let facing = match u.team {
+        Team::Player => 1.0,
+        Team::Enemy => -1.0,
+    };
 
-    match stats.shape {
-        Shape::Rect => {
-            draw_rectangle(sx - size.x * 0.5, top, size.x, size.y, base_color);
-            draw_rectangle_lines(
-                sx - size.x * 0.5,
-                top,
-                size.x,
-                size.y,
-                1.5,
-                ctx.colors.accent,
-            );
-        }
-        Shape::Circle => {
-            let r = size.x * 0.5;
-            let cy = sy - r;
-            draw_circle(sx, cy, r, base_color);
-            draw_circle_lines(sx, cy, r, 1.5, ctx.colors.accent);
-        }
-        Shape::Triangle => {
-            let p1 = Vec2::new(sx, top);
-            let p2 = Vec2::new(sx - size.x * 0.5, sy);
-            let p3 = Vec2::new(sx + size.x * 0.5, sy);
-            draw_triangle(p1, p2, p3, base_color);
-        }
-    }
+    crate::stickman::draw(
+        u,
+        Vec2::new(sx, sy),
+        size,
+        facing,
+        pose,
+        anim_phase,
+        color,
+    );
 
     if u.hp < u.max_hp {
         let bar_w = size.x + 6.0;
         let bar_h = 4.0;
         let bx = sx - bar_w * 0.5;
-        let by = top - 8.0;
+        let by = sy - size.y - 8.0;
         draw_rectangle(bx, by, bar_w, bar_h, Color::new(0.1, 0.1, 0.12, 1.0));
         let hp_col = if u.team == Team::Player {
             ctx.colors.hp_player
@@ -171,8 +178,6 @@ fn tint(base: Color, team: Color, amount: f32) -> Color {
         base.a,
     )
 }
-
-// ---------- HUD ----------
 
 fn draw_hud(ctx: &GameContext, game: &Game) {
     let x = 16.0;
@@ -220,59 +225,7 @@ fn draw_hud(ctx: &GameContext, game: &Game) {
             ctx.colors.accent,
         );
     }
-
-    draw_tower_hp_hud(ctx, game);
 }
-
-fn draw_tower_hp_hud(ctx: &GameContext, game: &Game) {
-    let vw = screen_width();
-    let bar_w = 200.0;
-    let bar_h = 22.0;
-    let gap = 16.0;
-    let total_w = bar_w * 2.0 + gap;
-    let start_x = (vw - total_w) * 0.5;
-    let y = 16.0;
-
-    draw_tower_hp_entry(
-        ctx,
-        (start_x, y, bar_w, bar_h),
-        "YOU",
-        &game.player_tower,
-        ctx.colors.hp_player,
-    );
-    draw_tower_hp_entry(
-        ctx,
-        (start_x + bar_w + gap, y, bar_w, bar_h),
-        "ENEMY",
-        &game.enemy_tower,
-        ctx.colors.hp_enemy,
-    );
-}
-
-fn draw_tower_hp_entry(
-    ctx: &GameContext,
-    rect: (f32, f32, f32, f32),
-    label: &str,
-    tower: &Tower,
-    fill_color: Color,
-) {
-    let (x, y, w, h) = rect;
-    draw_rectangle(x, y, w, h, Color::new(0.1, 0.1, 0.12, 1.0));
-    draw_rectangle(x, y, w * tower.hp_fraction(), h, fill_color);
-    draw_rectangle_lines(x, y, w, h, 1.5, ctx.colors.accent);
-
-    let txt = format!("{}  {:.0}/{:.0}", label, tower.hp.max(0.0), tower.max_hp);
-    let dim = measure_text(&txt, None, 14, 1.0);
-    draw_text(
-        &txt,
-        x + w * 0.5 - dim.width * 0.5,
-        y + h * 0.5 + 5.0,
-        14.0,
-        ctx.colors.text,
-    );
-}
-
-// ---------- End overlay ----------
 
 pub fn draw_end_overlay(ctx: &GameContext, game: &Game) {
     if game.phase == Phase::Playing {

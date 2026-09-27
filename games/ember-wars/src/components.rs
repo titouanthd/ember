@@ -46,6 +46,23 @@ impl UnitIdGen {
     }
 }
 
+/// Attaque en cours d'anim, dont le coup doit être appliqué plus tard
+/// (à la fin du windup). Permet à la cible de rester vivante pendant
+/// l'animation de windup.
+#[derive(Debug, Clone, Copy)]
+pub struct PendingAttack {
+    pub target: AttackTarget,
+    pub damage: f32,
+    /// Temps restant avant l'application des dégâts.
+    pub time_to_hit: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AttackTarget {
+    Unit(UnitId),
+    Tower(Team),
+}
+
 #[derive(Debug, Clone)]
 pub struct Unit {
     pub id: UnitId,
@@ -56,10 +73,13 @@ pub struct Unit {
     pub max_hp: f32,
     pub damage: f32,
     pub attack_cd: f32,
+    pub attack_cd_max: f32,
     pub heal_cd: f32,
-    /// Compteur de flash blanc après un hit. > 0 = flash actif.
     pub hit_flash: f32,
+    pub pose_phase: f32,
     pub target: Option<UnitId>,
+    /// Attaque en cours, dégâts à appliquer à la fin du windup.
+    pub pending_attack: Option<PendingAttack>,
 }
 
 impl Unit {

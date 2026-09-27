@@ -109,9 +109,12 @@ pub fn spawn_unit(
         max_hp,
         damage: stats.damage * damage_mult,
         attack_cd: 0.0,
+        attack_cd_max: stats.attack_cooldown,
         heal_cd: 0.0,
         hit_flash: 0.0,
+        pose_phase: 0.0,
         target: None,
+        pending_attack: None,
     })
 }
 
@@ -226,6 +229,14 @@ mod tests {
         assert_eq!(u.attack_cd, 0.0);
         assert_eq!(u.heal_cd, 0.0);
         assert_eq!(u.hit_flash, 0.0);
+        assert_eq!(u.pose_phase, 0.0);
+    }
+
+    #[test]
+    fn spawn_unit_sets_attack_cd_max_from_stats() {
+        let mut g = UnitIdGen::new();
+        let u = spawn_unit(&mut g, "grunt", Team::Player, Vec2::ZERO, 1.0, 1.0).unwrap();
+        assert!((u.attack_cd_max - 0.8).abs() < 1e-6);
     }
 
     #[test]

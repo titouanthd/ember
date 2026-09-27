@@ -104,9 +104,12 @@ mod tests {
             max_hp: stats.hp,
             damage: stats.damage,
             attack_cd: 0.0,
+            attack_cd_max: stats.attack_cooldown,
             heal_cd: 0.0,
             hit_flash: 0.0,
+            pose_phase: 0.0,
             target: None,
+            pending_attack: None,
         }
     }
 
@@ -118,8 +121,6 @@ mod tests {
             x,
         }
     }
-
-    // ---------- scroll ----------
 
     #[test]
     fn scroll_right_moves_camera_forward() {
@@ -178,8 +179,6 @@ mod tests {
         assert_eq!(cam.x, 0.0);
     }
 
-    // ---------- world/screen ----------
-
     #[test]
     fn world_screen_round_trip() {
         let cam = Camera2D::new(1280.0, 2000.0);
@@ -198,8 +197,6 @@ mod tests {
         cam.clamp();
         assert_eq!(cam.x, 720.0);
     }
-
-    // ---------- compute_target_x ----------
 
     #[test]
     fn target_uses_hp_weighted_barycenter() {

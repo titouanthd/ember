@@ -7,11 +7,8 @@ use crate::config::AiConfig;
 use crate::mana::ManaPool;
 use crate::units::{can_spawn, unit_stats};
 
-/// Sous-ensemble défensif : priorité à l'archer et au grunt quand
-/// l'IA est en infériorité numérique.
 const DEFENSIVE_ORDER: &[&str] = &["archer", "grunt", "brute"];
 
-/// Décide quel type d'unité l'IA doit spawn, selon la wave active.
 pub fn decide_spawn(
     ai_mana: &ManaPool,
     ai_units: &[Unit],
@@ -20,15 +17,12 @@ pub fn decide_spawn(
     elapsed: f32,
     cooldowns: &HashMap<String, f32>,
 ) -> Option<String> {
-    // Wave active : la dernière wave dont `start_at <= elapsed`.
     let active = ai_config.waves.iter().rfind(|w| w.start_at <= elapsed)?;
 
     let ai_alive = ai_units.iter().filter(|u| u.is_alive()).count() as i32;
     let player_alive = player_units.iter().filter(|u| u.is_alive()).count() as i32;
     let defensive = ai_alive + 2 < player_alive;
 
-    // Ordre effectif : si défensif, on filtre sur DEFENSIVE_ORDER en
-    // gardant uniquement ce qui est présent dans la wave.
     let order: Vec<&str> = if defensive {
         DEFENSIVE_ORDER
             .iter()
@@ -138,9 +132,12 @@ mod tests {
             max_hp: stats.hp,
             damage: stats.damage,
             attack_cd: 0.0,
+            attack_cd_max: stats.attack_cooldown,
             heal_cd: 0.0,
             hit_flash: 0.0,
+            pose_phase: 0.0,
             target: None,
+            pending_attack: None,
         }
     }
 
@@ -178,17 +175,14 @@ mod tests {
     #[test]
     fn wave_2_allows_brute_after_start_at() {
         let mana = ManaPool::new(50.0, 100.0, 10.0);
-        // Avant 20s : wave 1, seulement grunt dispo.
         let before = decide_spawn(&mana, &[], &[], &ai_two_waves(), 10.0, &no_cooldowns());
         assert_eq!(before.as_deref(), Some("grunt"));
-        // Après 20s : wave 2, brute dispo (coût 40 <= 50).
         let after = decide_spawn(&mana, &[], &[], &ai_two_waves(), 25.0, &no_cooldowns());
         assert_eq!(after.as_deref(), Some("brute"));
     }
 
     #[test]
     fn defensive_filters_to_archer_grunt_brute() {
-        // Wave simple mais avec bomber en priorité haute.
         let ai = AiConfig {
             aggression: 1.0,
             mana_regen_mult: 1.0,
@@ -203,22 +197,17 @@ mod tests {
             mk_unit(2, "grunt", Team::Player),
         ];
         let mana = ManaPool::new(100.0, 100.0, 10.0);
-        // En défense, bomber est filtré, archer passe en tête.
         let c = decide_spawn(&mana, &[], &player_units, &ai, 0.0, &no_cooldowns());
         assert_eq!(c.as_deref(), Some("archer"));
     }
 
     #[test]
     fn aggressive_threshold_is_lower() {
-        // Brute coûte 40. Normal : seuil = 40. Aggro 1.4 : seuil = 28.6.
         let mana = ManaPool::new(30.0, 100.0, 10.0);
         let normal = decide_spawn(&mana, &[], &[], &ai_simple(), 0.0, &no_cooldowns());
         let hard = decide_spawn(&mana, &[], &[], &ai_aggressive(), 0.0, &no_cooldowns());
-        // Normal : 30 < 40 (brute) → grunt. Mais avec 30, archer (30) passe !
-        // On veut juste vérifier que agressif permet un coût plus élevé.
         assert!(normal.is_some());
         assert!(hard.is_some());
-        // Hard permet brute, normal pas.
         assert_eq!(hard.as_deref(), Some("brute"));
         assert_ne!(normal.as_deref(), Some("brute"));
     }

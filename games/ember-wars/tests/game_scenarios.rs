@@ -141,9 +141,17 @@ fn bomber_explodes_and_damages_neighbors() {
     let e2 = spawn_unit(&mut g.id_gen, "grunt", Team::Enemy, Vec2::new(240.0, gy), 1.0, 1.0).unwrap();
     let e3 = spawn_unit(&mut g.id_gen, "grunt", Team::Enemy, Vec2::new(500.0, gy), 1.0, 1.0).unwrap();
     g.units.extend([bomber, e1, e2, e3]);
-    g.tick(SIM_DT, Vec2::ZERO, false, 0.0);
+
+    // Le bomber doit avoir le temps de finir son windup (~0.165 s).
+    // On simule 0.3 s pour être sûr que le strike a eu lieu.
+    for _ in 0..18 {
+        g.tick(1.0 / 60.0, Vec2::ZERO, false, 0.0);
+    }
+
     assert!(!g.units.iter().any(|u| u.kind == "bomber"));
     assert_eq!(g.stats.kills, 2);
+    // Le lointain est intact.
+    assert!(g.units.iter().any(|u| u.team == Team::Enemy));
 }
 
 #[test]
