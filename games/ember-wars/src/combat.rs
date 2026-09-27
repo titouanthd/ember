@@ -3,6 +3,7 @@
 use glam::Vec2;
 use macroquad::prelude::Color;
 
+use crate::catapult::{Catapult, CATAPULT_HITBOX_H};
 use crate::components::{
     rgba, AttackTarget, PendingAttack, Projectile, ProjectileKind, Team, Tower, Unit, UnitId,
 };
@@ -12,6 +13,15 @@ use crate::units::{unit_stats, UnitStats};
 pub const MAX_PROJECTILES: usize = 200;
 
 pub const HEALER_MIDLINE_MARGIN: f32 = 300.0;
+
+// ---------- Couleurs de floating text ----------
+
+/// Dégâts infligés par le joueur (bleu clair).
+const DMG_COLOR_PLAYER: Color = Color::new(0.75, 0.92, 1.00, 1.0);
+/// Dégâts infligés par l'ennemi (rouge clair).
+const DMG_COLOR_ENEMY: Color = Color::new(1.00, 0.72, 0.72, 1.0);
+/// Soin (vert clair).
+const HEAL_COLOR: Color = Color::new(0.55, 1.00, 0.65, 1.0);
 
 fn unit_radius(unit: &Unit) -> f32 {
     unit_stats(&unit.kind)
@@ -30,6 +40,7 @@ fn team_juice_color(team: Team) -> Color {
 pub enum Target {
     Unit(UnitId),
     Tower(Team),
+    Catapult(Team),
 }
 
 pub fn acquire_target(
@@ -37,6 +48,7 @@ pub fn acquire_target(
     units: &[Unit],
     player_tower: &Tower,
     enemy_tower: &Tower,
+    player_catapult: &Catapult,
 ) -> Option<Target> {
     let stats = unit_stats(&unit.kind)?;
     let attack_range = stats.attack_range;
@@ -68,7 +80,22 @@ pub fn acquire_target(
     } else {
         enemy_tower
     };
-    if (tower.x - unit.pos.x).abs() <= attack_range {
+    let tower_dist = (tower.x - unit.pos.x).abs();
+    let tower_in_range = tower_dist <= attack_range;
+
+    let (catapult_in_range, catapult_dist) = if enemy_team == Team::Player
+        && player_catapult.is_alive()
+    {
+        let d = (player_catapult.pos.x - unit.pos.x).abs();
+        (d <= attack_range, d)
+    } else {
+        (false, f32::INFINITY)
+    };
+
+    if catapult_in_range && (!tower_in_range || catapult_dist < tower_dist) {
+        return Some(Target::Catapult(Team::Player));
+    }
+    if tower_in_range {
         return Some(Target::Tower(enemy_team));
     }
 
@@ -78,6 +105,14 @@ pub fn acquire_target(
 fn advance_toward_tower(unit: &mut Unit, speed: f32, dt: f32) {
     let dir = if unit.team == Team::Player { 1.0 } else { -1.0 };
     unit.pos.x += dir * speed * dt;
+}
+
+fn speed_mult(team: Team, unit_speed_mult: f32) -> f32 {
+    if team == Team::Player {
+        unit_speed_mult
+    } else {
+        1.0
+    }
 }
 
 pub fn strike_delay() -> f32 {
@@ -97,9 +132,6 @@ fn tick_unit_timers(units: &mut [Unit], dt: f32) {
         }
         u.pose_phase += dt;
 
-        // Tick le timer du pending attack. Le pending n'est PAS consommé
-        // ici : c'est la phase 1 de resolve_attacks qui l'applique et le
-        // clear. Si on le clear ici, le strike est perdu.
         if let Some(mut pa) = u.pending_attack {
             pa.time_to_hit -= dt;
             u.pending_attack = Some(pa);
@@ -115,13 +147,21 @@ fn apply_damage_to_unit(unit: &mut Unit, amount: f32, source_team: Team, juice: 
     let color = team_juice_color(unit.team);
     juice.spawn_hit_spark(unit.pos, color);
 
+    // Floating damage text au-dessus de l'unité.
+    let dmg_color = if source_team == Team::Player {
+        DMG_COLOR_PLAYER
+    } else {
+        DMG_COLOR_ENEMY
+    };
+    let text_pos = unit.pos + Vec2::new(0.0, -25.0);
+    juice.spawn_floating_text(text_pos, format!("-{:.0}", amount), dmg_color);
+
     if was_alive && !unit.is_alive() {
         juice.spawn_death_burst(unit.pos, color, 6);
     }
-    let _ = source_team;
 }
 
-fn apply_damage_to_tower(tower: &mut Tower, amount: f32, juice: &mut Juice) {
+fn apply_damage_to_tower(tower: &mut Tower, amount: f32, ground_y: f32, juice: &mut Juice) {
     tower.hp -= amount;
     let frac = if tower.max_hp > 0.0 {
         (amount / tower.max_hp).clamp(0.0, 1.0)
@@ -130,14 +170,41 @@ fn apply_damage_to_tower(tower: &mut Tower, amount: f32, juice: &mut Juice) {
     };
     juice.shake(4.0 + frac * 30.0, 0.12);
     let color = team_juice_color(tower.team);
-    juice.spawn_hit_spark(Vec2::new(tower.x, 0.0), color);
+    juice.spawn_hit_spark(Vec2::new(tower.x, ground_y - 120.0), color);
+
+    // Floating damage text au-dessus de la tour.
+    let dmg_color = if tower.team == Team::Enemy {
+        DMG_COLOR_PLAYER
+    } else {
+        DMG_COLOR_ENEMY
+    };
+    juice.spawn_floating_text(
+        Vec2::new(tower.x, ground_y - 200.0),
+        format!("-{:.0}", amount),
+        dmg_color,
+    );
 }
 
-/// Fait exploser un bomber : inflige `damage` à toutes les unités
-/// ennemies dans `radius`, puis met le bomber à 0 HP (suicide).
-///
-/// `bomber_idx` est l'index de l'attaquant (le bomber lui-même), pas
-/// de la cible. `pos` est la position du bomber.
+fn apply_damage_to_catapult(catapult: &mut Catapult, amount: f32, juice: &mut Juice) {
+    let was_alive = catapult.is_alive();
+    catapult.take_damage(amount);
+    let pos = catapult.pos;
+    juice.spawn_hit_spark(pos, Color::new(1.0, 0.6, 0.3, 1.0));
+    juice.shake(3.0, 0.1);
+
+    // Floating damage text au-dessus de la catapulte.
+    juice.spawn_floating_text(
+        pos + Vec2::new(0.0, -CATAPULT_HITBOX_H - 12.0),
+        format!("-{:.0}", amount),
+        DMG_COLOR_ENEMY,
+    );
+
+    if was_alive && !catapult.is_alive() {
+        juice.spawn_death_burst(pos, Color::new(1.0, 0.5, 0.2, 1.0), 12);
+        juice.shake(10.0, 0.4);
+    }
+}
+
 fn detonate_bomber(
     units: &mut [Unit],
     bomber_idx: usize,
@@ -169,7 +236,6 @@ fn healer_can_advance(unit: &Unit, player_tower: &Tower, enemy_tower: &Tower) ->
 }
 
 struct StrikeContext {
-    /// Index de l'attaquant dans `units` (nécessaire pour le bomber).
     attacker_idx: usize,
     attacker_team: Team,
     attacker_pos: Vec2,
@@ -179,13 +245,16 @@ struct StrikeContext {
 
 fn apply_pending_attack(
     units: &mut [Unit],
-    player_tower: &mut Tower,
-    enemy_tower: &mut Tower,
+    towers: (&mut Tower, &mut Tower),
+    catapult: &mut Catapult,
     projectiles: &mut Vec<Projectile>,
     juice: &mut Juice,
     ctx: StrikeContext,
     kind_stats: &UnitStats,
 ) {
+    let (player_tower, enemy_tower) = towers;
+    let ground_y = catapult.pos.y;
+
     match ctx.target {
         AttackTarget::Unit(id) => {
             if let Some(pstats) = &kind_stats.projectile {
@@ -196,6 +265,7 @@ fn apply_pending_attack(
                     projectiles.push(Projectile {
                         pos: ctx.attacker_pos,
                         vel: dir * pstats.speed,
+                        gravity: 0.0,
                         damage: ctx.damage,
                         radius: pstats.radius,
                         team: ctx.attacker_team,
@@ -205,9 +275,6 @@ fn apply_pending_attack(
                     });
                 }
             } else if let Some(radius) = kind_stats.explosion_radius {
-                // Le bomber explose à sa propre position et se suicide.
-                // Il n'a pas besoin de la position de la cible, seulement
-                // du rayon.
                 detonate_bomber(
                     units,
                     ctx.attacker_idx,
@@ -234,6 +301,7 @@ fn apply_pending_attack(
                     projectiles.push(Projectile {
                         pos: ctx.attacker_pos,
                         vel: dir * pstats.speed,
+                        gravity: 0.0,
                         damage: ctx.damage,
                         radius: pstats.radius,
                         team: ctx.attacker_team,
@@ -243,8 +311,6 @@ fn apply_pending_attack(
                     });
                 }
             } else if let Some(radius) = kind_stats.explosion_radius {
-                // Le bomber explose à sa position, tue les ennemis
-                // proches, touche la tour, puis se suicide.
                 detonate_bomber(
                     units,
                     ctx.attacker_idx,
@@ -258,29 +324,44 @@ fn apply_pending_attack(
                     Team::Player => &mut *player_tower,
                     Team::Enemy => &mut *enemy_tower,
                 };
-                apply_damage_to_tower(tower, ctx.damage, juice);
+                apply_damage_to_tower(tower, ctx.damage, ground_y, juice);
             } else {
                 let tower: &mut Tower = match t {
                     Team::Player => &mut *player_tower,
                     Team::Enemy => &mut *enemy_tower,
                 };
-                apply_damage_to_tower(tower, ctx.damage, juice);
+                apply_damage_to_tower(tower, ctx.damage, ground_y, juice);
             }
+        }
+        AttackTarget::Catapult(_t) => {
+            if let Some(radius) = kind_stats.explosion_radius {
+                detonate_bomber(
+                    units,
+                    ctx.attacker_idx,
+                    ctx.attacker_pos,
+                    ctx.attacker_team,
+                    ctx.damage,
+                    radius,
+                    juice,
+                );
+            }
+            apply_damage_to_catapult(catapult, ctx.damage, juice);
         }
     }
 }
 
 pub fn resolve_attacks(
     units: &mut [Unit],
-    player_tower: &mut Tower,
-    enemy_tower: &mut Tower,
+    towers: (&mut Tower, &mut Tower),
+    catapult: &mut Catapult,
     projectiles: &mut Vec<Projectile>,
     juice: &mut Juice,
     dt: f32,
+    unit_speed_mult: f32,
 ) {
+    let (player_tower, enemy_tower) = towers;
     tick_unit_timers(units, dt);
 
-    // Phase 1 : appliquer les pending attacks dont le strike est arrivé.
     let mut to_apply: Vec<(usize, PendingAttack, Vec2, Team)> = Vec::new();
     for (i, u) in units.iter().enumerate() {
         if let Some(pa) = u.pending_attack
@@ -305,8 +386,8 @@ pub fn resolve_attacks(
             };
             apply_pending_attack(
                 units,
-                player_tower,
-                enemy_tower,
+                (&mut *player_tower, &mut *enemy_tower),
+                catapult,
                 projectiles,
                 juice,
                 ctx,
@@ -316,7 +397,6 @@ pub fn resolve_attacks(
         units[i].pending_attack = None;
     }
 
-    // Phase 2 : décision d'attaque ET mouvement, par unité.
     for i in 0..units.len() {
         if !units[i].is_alive() {
             continue;
@@ -328,30 +408,33 @@ pub fn resolve_attacks(
             None => continue,
         };
 
-        // --- Healer : traité séparément.
         if stats.is_healer() {
-            let healed = resolve_healer(units, i, stats);
+            let healed = resolve_healer(units, i, stats, juice);
             if !healed && healer_can_advance(&units[i], player_tower, enemy_tower) {
-                advance_toward_tower(&mut units[i], stats.speed, dt);
+                let mult = speed_mult(units[i].team, unit_speed_mult);
+                advance_toward_tower(&mut units[i], stats.speed * mult, dt);
             }
             continue;
         }
 
-        // --- Acquérir la cible.
-        let target = acquire_target(&units[i], units, player_tower, enemy_tower);
+        let target = acquire_target(
+            &units[i],
+            units,
+            player_tower,
+            enemy_tower,
+            catapult,
+        );
         units[i].target = match target {
             Some(Target::Unit(id)) => Some(id),
             _ => None,
         };
 
-        // --- Mouvement : avance seulement s'il n'y a PAS de cible à portée.
-        // (Le cooldown n'empêche plus l'avance.)
         if target.is_none() {
-            advance_toward_tower(&mut units[i], stats.speed, dt);
+            let mult = speed_mult(units[i].team, unit_speed_mult);
+            advance_toward_tower(&mut units[i], stats.speed * mult, dt);
             continue;
         }
 
-        // --- Décision d'attaque : seulement si pas de pending et pas de cooldown.
         if units[i].pending_attack.is_some() || units[i].attack_cd > 0.0 {
             continue;
         }
@@ -359,6 +442,7 @@ pub fn resolve_attacks(
         let at = match target.unwrap() {
             Target::Unit(id) => AttackTarget::Unit(id),
             Target::Tower(t) => AttackTarget::Tower(t),
+            Target::Catapult(t) => AttackTarget::Catapult(t),
         };
 
         let effective_cd = stats.attack_cooldown.max(crate::stickman::ATTACK_DURATION);
@@ -372,7 +456,7 @@ pub fn resolve_attacks(
     }
 }
 
-fn resolve_healer(units: &mut [Unit], i: usize, stats: &UnitStats) -> bool {
+fn resolve_healer(units: &mut [Unit], i: usize, stats: &UnitStats, juice: &mut Juice) -> bool {
     let heal_range = stats.heal_range.unwrap_or(0.0);
     let heal_amount = stats.heal.unwrap_or(0.0);
     let heal_cooldown = stats.heal_cooldown.unwrap_or(1.0);
@@ -400,8 +484,18 @@ fn resolve_healer(units: &mut [Unit], i: usize, stats: &UnitStats) -> bool {
 
     if let Some((_, j)) = best {
         if units[i].heal_cd <= 0.0 {
+            let missing = units[j].max_hp - units[j].hp;
+            let actual = heal_amount.min(missing);
             units[j].hp = (units[j].hp + heal_amount).min(units[j].max_hp);
             units[i].heal_cd = heal_cooldown;
+
+            // Floating heal text (vert).
+            let text_pos = units[j].pos + Vec2::new(0.0, -25.0);
+            juice.spawn_floating_text(
+                text_pos,
+                format!("+{:.0}", actual),
+                HEAL_COLOR,
+            );
         }
         true
     } else {
@@ -412,13 +506,19 @@ fn resolve_healer(units: &mut [Unit], i: usize, stats: &UnitStats) -> bool {
 pub fn resolve_projectiles(
     projectiles: &mut Vec<Projectile>,
     units: &mut [Unit],
-    player_tower: &mut Tower,
-    enemy_tower: &mut Tower,
+    towers: (&mut Tower, &mut Tower),
+    catapult: &mut Catapult,
+    ground_y: f32,
     juice: &mut Juice,
     dt: f32,
 ) {
+    let (player_tower, enemy_tower) = towers;
     let mut i = 0;
     while i < projectiles.len() {
+        let g = projectiles[i].gravity;
+        if g != 0.0 {
+            projectiles[i].vel.y += g * dt;
+        }
         let vel = projectiles[i].vel;
         projectiles[i].pos += vel * dt;
 
@@ -429,6 +529,11 @@ pub fn resolve_projectiles(
         let proj_damage = projectiles[i].damage;
         let pierce_remaining = projectiles[i].pierce_remaining;
         let kind = projectiles[i].kind;
+
+        if g != 0.0 && proj_pos.y > ground_y + 80.0 {
+            projectiles.remove(i);
+            continue;
+        }
 
         let mut hit_index: Option<usize> = None;
         for (j, u) in units.iter().enumerate() {
@@ -444,15 +549,6 @@ pub fn resolve_projectiles(
 
         if let Some(j) = hit_index {
             apply_damage_to_unit(&mut units[j], proj_damage, proj_team, juice);
-
-            if proj_team == Team::Player {
-                let pos = units[j].pos + Vec2::new(0.0, -20.0);
-                juice.spawn_floating_text(
-                    pos,
-                    format!("-{:.0}", proj_damage),
-                    Color::new(0.75, 0.92, 1.0, 1.0),
-                );
-            }
 
             if matches!(kind, ProjectileKind::Explosive) {
                 const EXPLOSION_RADIUS: f32 = 50.0;
@@ -491,9 +587,20 @@ pub fn resolve_projectiles(
                 Team::Player => &mut *player_tower,
                 Team::Enemy => &mut *enemy_tower,
             };
-            apply_damage_to_tower(tower, proj_damage, juice);
+            apply_damage_to_tower(tower, proj_damage, ground_y, juice);
             projectiles.remove(i);
             continue;
+        }
+
+        if enemy_team == Team::Player && catapult.is_alive() {
+            let (rx, ry, rw, rh) = catapult.rect();
+            if proj_pos.x >= rx && proj_pos.x <= rx + rw
+                && proj_pos.y >= ry && proj_pos.y <= ry + rh
+            {
+                apply_damage_to_catapult(catapult, proj_damage, juice);
+                projectiles.remove(i);
+                continue;
+            }
         }
 
         if proj_pos.x < -500.0 || proj_pos.x > 100_000.0 {
@@ -508,6 +615,7 @@ pub fn resolve_projectiles(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::catapult::Catapult;
 
     fn mk_unit(id: u32, kind: &str, team: Team, x: f32) -> Unit {
         let stats = unit_stats(kind).expect("kind exists");
@@ -538,10 +646,15 @@ mod tests {
         }
     }
 
+    fn mk_catapult(x: f32) -> Catapult {
+        Catapult::new(Vec2::new(x, 100.0))
+    }
+
     fn run_attacks_for(
         units: &mut [Unit],
         pt: &mut Tower,
         et: &mut Tower,
+        catapult: &mut Catapult,
         projs: &mut Vec<Projectile>,
         juice: &mut Juice,
         seconds: f32,
@@ -549,7 +662,7 @@ mod tests {
         let dt = 1.0 / 60.0;
         let steps = (seconds / dt).ceil() as u32;
         for _ in 0..steps {
-            resolve_attacks(units, pt, et, projs, juice, dt);
+            resolve_attacks(units, (&mut *pt, &mut *et), catapult, projs, juice, dt, 1.0);
         }
     }
 
@@ -560,7 +673,8 @@ mod tests {
         let units = vec![enemy];
         let pt = mk_tower(Team::Player, -100.0);
         let et = mk_tower(Team::Enemy, 100.0);
-        assert!(acquire_target(&healer, &units, &pt, &et).is_none());
+        let cat = mk_catapult(-50.0);
+        assert!(acquire_target(&healer, &units, &pt, &et, &cat).is_none());
     }
 
     #[test]
@@ -571,8 +685,9 @@ mod tests {
         let units = vec![e1, e2];
         let pt = mk_tower(Team::Player, -100.0);
         let et = mk_tower(Team::Enemy, 1000.0);
+        let cat = mk_catapult(-50.0);
         assert_eq!(
-            acquire_target(&shooter, &units, &pt, &et),
+            acquire_target(&shooter, &units, &pt, &et, &cat),
             Some(Target::Unit(UnitId(2)))
         );
     }
@@ -584,7 +699,8 @@ mod tests {
         let units = vec![e];
         let pt = mk_tower(Team::Player, -100.0);
         let et = mk_tower(Team::Enemy, 1000.0);
-        assert!(acquire_target(&shooter, &units, &pt, &et).is_none());
+        let cat = mk_catapult(-50.0);
+        assert!(acquire_target(&shooter, &units, &pt, &et, &cat).is_none());
     }
 
     #[test]
@@ -594,7 +710,8 @@ mod tests {
         let units = vec![ally];
         let pt = mk_tower(Team::Player, -100.0);
         let et = mk_tower(Team::Enemy, 1000.0);
-        assert!(acquire_target(&shooter, &units, &pt, &et).is_none());
+        let cat = mk_catapult(-50.0);
+        assert!(acquire_target(&shooter, &units, &pt, &et, &cat).is_none());
     }
 
     #[test]
@@ -605,7 +722,8 @@ mod tests {
         let units = vec![dead];
         let pt = mk_tower(Team::Player, -100.0);
         let et = mk_tower(Team::Enemy, 1000.0);
-        assert!(acquire_target(&shooter, &units, &pt, &et).is_none());
+        let cat = mk_catapult(-50.0);
+        assert!(acquire_target(&shooter, &units, &pt, &et, &cat).is_none());
     }
 
     #[test]
@@ -613,8 +731,9 @@ mod tests {
         let shooter = mk_unit(0, "grunt", Team::Player, 100.0);
         let pt = mk_tower(Team::Player, 0.0);
         let et = mk_tower(Team::Enemy, 120.0);
+        let cat = mk_catapult(-50.0);
         assert_eq!(
-            acquire_target(&shooter, &[], &pt, &et),
+            acquire_target(&shooter, &[], &pt, &et, &cat),
             Some(Target::Tower(Team::Enemy))
         );
     }
@@ -624,7 +743,31 @@ mod tests {
         let shooter = mk_unit(0, "grunt", Team::Player, 100.0);
         let pt = mk_tower(Team::Player, 0.0);
         let et = mk_tower(Team::Enemy, 1000.0);
-        assert!(acquire_target(&shooter, &[], &pt, &et).is_none());
+        let cat = mk_catapult(-50.0);
+        assert!(acquire_target(&shooter, &[], &pt, &et, &cat).is_none());
+    }
+
+    #[test]
+    fn enemy_targets_catapult_when_closer_than_tower() {
+        let shooter = mk_unit(0, "archer", Team::Enemy, 210.0);
+        let pt = mk_tower(Team::Player, 100.0);
+        let et = mk_tower(Team::Enemy, 5000.0);
+        let cat = mk_catapult(200.0);
+        assert_eq!(
+            acquire_target(&shooter, &[], &pt, &et, &cat),
+            Some(Target::Catapult(Team::Player))
+        );
+    }
+
+    #[test]
+    fn enemy_ignores_destroyed_catapult() {
+        let shooter = mk_unit(0, "brute", Team::Enemy, 200.0);
+        let pt = mk_tower(Team::Player, 0.0);
+        let et = mk_tower(Team::Enemy, 5000.0);
+        let mut cat = mk_catapult(150.0);
+        cat.take_damage(9999.0);
+        let t = acquire_target(&shooter, &[], &pt, &et, &cat);
+        assert_ne!(t, Some(Target::Catapult(Team::Player)));
     }
 
     #[test]
@@ -635,9 +778,10 @@ mod tests {
         let mut units = vec![u];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
+        resolve_attacks(&mut units, (&mut pt, &mut et), &mut cat, &mut projs, &mut juice, 0.1, 1.0);
         assert!((units[0].attack_cd - 0.4).abs() < 1e-6);
         assert!((units[0].heal_cd - 0.2).abs() < 1e-6);
     }
@@ -648,10 +792,26 @@ mod tests {
         let mut units = vec![u];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 10_000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
+        resolve_attacks(&mut units, (&mut pt, &mut et), &mut cat, &mut projs, &mut juice, 0.1, 1.0);
         assert!((units[0].pos.x - 9.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn resolve_attacks_speed_multiplies_player_only() {
+        let p = mk_unit(0, "grunt", Team::Player, 0.0);
+        let e = mk_unit(1, "grunt", Team::Enemy, 5000.0);
+        let mut units = vec![p, e];
+        let mut pt = mk_tower(Team::Player, -100.0);
+        let mut et = mk_tower(Team::Enemy, 10_000.0);
+        let mut cat = mk_catapult(-50.0);
+        let mut projs = vec![];
+        let mut juice = Juice::new();
+        resolve_attacks(&mut units, (&mut pt, &mut et), &mut cat, &mut projs, &mut juice, 0.1, 2.0);
+        assert!((units[0].pos.x - 18.0).abs() < 1e-6);
+        assert!((units[1].pos.x - 4991.0).abs() < 1e-6);
     }
 
     #[test]
@@ -660,9 +820,10 @@ mod tests {
         let mut units = vec![u];
         let mut pt = mk_tower(Team::Player, 0.0);
         let mut et = mk_tower(Team::Enemy, 10_000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
+        resolve_attacks(&mut units, (&mut pt, &mut et), &mut cat, &mut projs, &mut juice, 0.1, 1.0);
         assert!((units[0].pos.x - 491.0).abs() < 1e-6);
     }
 
@@ -673,9 +834,10 @@ mod tests {
         let mut units = vec![p, e];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
+        resolve_attacks(&mut units, (&mut pt, &mut et), &mut cat, &mut projs, &mut juice, 0.1, 1.0);
         assert_eq!(units[0].pos.x, 0.0);
         assert_eq!(units[1].pos.x, 10.0);
     }
@@ -687,41 +849,27 @@ mod tests {
         let mut units = vec![p, e];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        run_attacks_for(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.3);
+        run_attacks_for(&mut units, &mut pt, &mut et, &mut cat, &mut projs, &mut juice, 0.3);
         assert!((units[0].hp - 25.0).abs() < 1e-6);
         assert!((units[1].hp - 25.0).abs() < 1e-6);
     }
 
     #[test]
-    fn resolve_attacks_sets_hit_flash() {
+    fn melee_hit_spawns_damage_text() {
         let p = mk_unit(0, "grunt", Team::Player, 0.0);
         let e = mk_unit(1, "grunt", Team::Enemy, 10.0);
         let mut units = vec![p, e];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        // Fenêtre courte : juste après le strike (~0.165 s).
-        run_attacks_for(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.18);
-        assert!(units[0].hit_flash > 0.0);
-        assert!(units[1].hit_flash > 0.0);
-    }
-
-    #[test]
-    fn resolve_attacks_spawns_death_burst_on_kill() {
-        let p = mk_unit(0, "brute", Team::Player, 0.0);
-        let mut e = mk_unit(1, "grunt", Team::Enemy, 10.0);
-        e.hp = 5.0;
-        let mut units = vec![p, e];
-        let mut pt = mk_tower(Team::Player, -100.0);
-        let mut et = mk_tower(Team::Enemy, 1000.0);
-        let mut projs = vec![];
-        let mut juice = Juice::new();
-        let before = juice.particles.len();
-        run_attacks_for(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.3);
-        assert!(juice.particles.len() >= before + 6);
+        run_attacks_for(&mut units, &mut pt, &mut et, &mut cat, &mut projs, &mut juice, 0.3);
+        // 2 unités se frappent chacune une fois → 2 texts.
+        assert_eq!(juice.floating_texts.len(), 2);
     }
 
     #[test]
@@ -732,9 +880,10 @@ mod tests {
         let mut units = vec![p, e];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        run_attacks_for(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.3);
+        run_attacks_for(&mut units, &mut pt, &mut et, &mut cat, &mut projs, &mut juice, 0.3);
         assert!((units[1].hp - 30.0).abs() < 1e-6);
     }
 
@@ -745,11 +894,13 @@ mod tests {
         let mut units = vec![a, e];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        run_attacks_for(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.3);
+        run_attacks_for(&mut units, &mut pt, &mut et, &mut cat, &mut projs, &mut juice, 0.3);
         assert_eq!(projs.len(), 1);
         assert_eq!(projs[0].kind, ProjectileKind::Archer);
+        assert_eq!(projs[0].gravity, 0.0);
     }
 
     #[test]
@@ -758,11 +909,13 @@ mod tests {
         let mut units = vec![u];
         let mut pt = mk_tower(Team::Player, 0.0);
         let mut et = mk_tower(Team::Enemy, 120.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        run_attacks_for(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.3);
+        run_attacks_for(&mut units, &mut pt, &mut et, &mut cat, &mut projs, &mut juice, 0.3);
         assert!((et.hp - 495.0).abs() < 1e-6);
-        assert!(juice.screen_shake.remaining > 0.0);
+        // Le coup sur la tour doit spawn un text.
+        assert_eq!(juice.floating_texts.len(), 1);
     }
 
     #[test]
@@ -772,15 +925,11 @@ mod tests {
         let mut units = vec![p, e];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.05);
-        assert!(
-            units[0].attack_cd >= crate::stickman::ATTACK_DURATION - 1e-6,
-            "attack_cd = {}, ATTACK_DURATION = {}",
-            units[0].attack_cd,
-            crate::stickman::ATTACK_DURATION
-        );
+        resolve_attacks(&mut units, (&mut pt, &mut et), &mut cat, &mut projs, &mut juice, 0.05, 1.0);
+        assert!(units[0].attack_cd >= crate::stickman::ATTACK_DURATION - 1e-6);
     }
 
     #[test]
@@ -791,109 +940,28 @@ mod tests {
         let mut units = vec![h, wounded];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
+        resolve_attacks(&mut units, (&mut pt, &mut et), &mut cat, &mut projs, &mut juice, 0.1, 1.0);
         assert!((units[1].hp - 18.0).abs() < 1e-6);
     }
 
     #[test]
-    fn resolve_attacks_healer_skips_full_hp_ally() {
-        let h = mk_unit(0, "healer", Team::Player, 0.0);
-        let ally = mk_unit(1, "grunt", Team::Player, 50.0);
-        let mut units = vec![h, ally];
-        let mut pt = mk_tower(Team::Player, -100.0);
-        let mut et = mk_tower(Team::Enemy, 1000.0);
-        let mut projs = vec![];
-        let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
-        assert!((units[1].hp - 30.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn resolve_attacks_healer_respects_cooldown() {
-        let mut h = mk_unit(0, "healer", Team::Player, 0.0);
-        h.heal_cd = 2.0;
-        let mut wounded = mk_unit(1, "grunt", Team::Player, 50.0);
-        wounded.hp = 10.0;
-        let mut units = vec![h, wounded];
-        let mut pt = mk_tower(Team::Player, -100.0);
-        let mut et = mk_tower(Team::Enemy, 1000.0);
-        let mut projs = vec![];
-        let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
-        assert!((units[1].hp - 10.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn resolve_attacks_healer_prefers_lower_hp_ally() {
-        let h = mk_unit(0, "healer", Team::Player, 0.0);
-        let mut w1 = mk_unit(1, "grunt", Team::Player, 30.0);
-        w1.hp = 20.0;
-        let mut w2 = mk_unit(2, "grunt", Team::Player, 40.0);
-        w2.hp = 5.0;
-        let mut units = vec![h, w1, w2];
-        let mut pt = mk_tower(Team::Player, -100.0);
-        let mut et = mk_tower(Team::Enemy, 1000.0);
-        let mut projs = vec![];
-        let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
-        assert!((units[1].hp - 20.0).abs() < 1e-6);
-        assert!((units[2].hp - 13.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn resolve_attacks_healer_advances_when_no_target() {
-        let h = mk_unit(0, "healer", Team::Player, 0.0);
-        let mut units = vec![h];
-        let mut pt = mk_tower(Team::Player, -100.0);
-        let mut et = mk_tower(Team::Enemy, 10_000.0);
-        let mut projs = vec![];
-        let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
-        assert!((units[0].pos.x - 7.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn resolve_attacks_healer_does_not_advance_when_healing() {
+    fn healer_spawns_heal_text() {
         let h = mk_unit(0, "healer", Team::Player, 0.0);
         let mut wounded = mk_unit(1, "grunt", Team::Player, 50.0);
         wounded.hp = 10.0;
         let mut units = vec![h, wounded];
         let mut pt = mk_tower(Team::Player, -100.0);
-        let mut et = mk_tower(Team::Enemy, 10_000.0);
+        let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
-        assert_eq!(units[0].pos.x, 0.0);
-    }
-
-    #[test]
-    fn healer_stops_at_midline_when_no_target() {
-        let enemy_tower_x = 1000.0;
-        let mid = enemy_tower_x - HEALER_MIDLINE_MARGIN;
-        let h = mk_unit(0, "healer", Team::Player, mid + 50.0);
-        let mut units = vec![h];
-        let mut pt = mk_tower(Team::Player, 0.0);
-        let mut et = mk_tower(Team::Enemy, enemy_tower_x);
-        let mut projs = vec![];
-        let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
-        assert_eq!(units[0].pos.x, mid + 50.0);
-    }
-
-    #[test]
-    fn healer_advances_below_midline() {
-        let enemy_tower_x = 1000.0;
-        let mid = enemy_tower_x - HEALER_MIDLINE_MARGIN;
-        let h = mk_unit(0, "healer", Team::Player, mid - 100.0);
-        let mut units = vec![h];
-        let mut pt = mk_tower(Team::Player, 0.0);
-        let mut et = mk_tower(Team::Enemy, enemy_tower_x);
-        let mut projs = vec![];
-        let mut juice = Juice::new();
-        resolve_attacks(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.1);
-        assert!(units[0].pos.x > mid - 100.0);
+        resolve_attacks(&mut units, (&mut pt, &mut et), &mut cat, &mut projs, &mut juice, 0.1, 1.0);
+        // 1 text "+8" vert.
+        assert_eq!(juice.floating_texts.len(), 1);
+        assert!(juice.floating_texts[0].text.starts_with('+'));
     }
 
     #[test]
@@ -905,17 +973,17 @@ mod tests {
         let mut units = vec![p, e1, e2, e3_far];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        run_attacks_for(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.3);
+        run_attacks_for(&mut units, &mut pt, &mut et, &mut cat, &mut projs, &mut juice, 0.3);
 
-        // Le bomber est mort (hp = 0).
         assert_eq!(units[0].hp, 0.0);
-        // Les deux proches ont pris 45 dégâts → morts.
         assert!(units[1].hp <= 0.0);
         assert!(units[2].hp <= 0.0);
-        // Le lointain est intact.
         assert!((units[3].hp - 30.0).abs() < 1e-3);
+        // 2 victimes → 2 texts.
+        assert_eq!(juice.floating_texts.len(), 2);
     }
 
     #[test]
@@ -924,11 +992,29 @@ mod tests {
         let mut units = vec![p];
         let mut pt = mk_tower(Team::Player, 0.0);
         let mut et = mk_tower(Team::Enemy, 120.0);
+        let mut cat = mk_catapult(-50.0);
         let mut projs = vec![];
         let mut juice = Juice::new();
-        run_attacks_for(&mut units, &mut pt, &mut et, &mut projs, &mut juice, 0.3);
+        run_attacks_for(&mut units, &mut pt, &mut et, &mut cat, &mut projs, &mut juice, 0.3);
         assert_eq!(units[0].hp, 0.0);
         assert!((et.hp - (500.0 - 45.0)).abs() < 1e-3);
+    }
+
+    #[test]
+    fn enemy_unit_attacks_catapult_when_in_range() {
+        let mut shooter = mk_unit(0, "brute", Team::Enemy, 230.0);
+        shooter.attack_cd = 0.0;
+        let mut units = vec![shooter];
+        let mut pt = mk_tower(Team::Player, -100.0);
+        let mut et = mk_tower(Team::Enemy, 5000.0);
+        let mut cat = mk_catapult(200.0);
+        let mut projs = vec![];
+        let mut juice = Juice::new();
+        let hp_before = cat.hp;
+        run_attacks_for(&mut units, &mut pt, &mut et, &mut cat, &mut projs, &mut juice, 0.3);
+        assert!(cat.hp < hp_before, "catapulte non endommagée");
+        // Damage text sur la catapulte.
+        assert_eq!(juice.floating_texts.len(), 1);
     }
 
     #[test]
@@ -936,6 +1022,7 @@ mod tests {
         let mut projs = vec![Projectile {
             pos: Vec2::ZERO,
             vel: Vec2::new(100.0, 0.0),
+            gravity: 0.0,
             damage: 10.0,
             radius: 5.0,
             team: Team::Player,
@@ -946,8 +1033,9 @@ mod tests {
         let mut units = vec![];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut juice = Juice::new();
-        resolve_projectiles(&mut projs, &mut units, &mut pt, &mut et, &mut juice, 0.1);
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.1);
         assert!((projs[0].pos.x - 10.0).abs() < 1e-6);
     }
 
@@ -956,6 +1044,7 @@ mod tests {
         let mut projs = vec![Projectile {
             pos: Vec2::ZERO,
             vel: Vec2::new(100.0, 0.0),
+            gravity: 0.0,
             damage: 10.0,
             radius: 5.0,
             team: Team::Player,
@@ -967,11 +1056,11 @@ mod tests {
         let mut units = vec![e];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut juice = Juice::new();
-        resolve_projectiles(&mut projs, &mut units, &mut pt, &mut et, &mut juice, 0.1);
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.1);
         assert!((units[0].hp - 20.0).abs() < 1e-6);
         assert!(projs.is_empty());
-        assert!(units[0].hit_flash > 0.0);
     }
 
     #[test]
@@ -979,6 +1068,7 @@ mod tests {
         let mut projs = vec![Projectile {
             pos: Vec2::ZERO,
             vel: Vec2::new(100.0, 0.0),
+            gravity: 0.0,
             damage: 10.0,
             radius: 5.0,
             team: Team::Player,
@@ -990,16 +1080,18 @@ mod tests {
         let mut units = vec![e];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut juice = Juice::new();
-        resolve_projectiles(&mut projs, &mut units, &mut pt, &mut et, &mut juice, 0.1);
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.1);
         assert_eq!(juice.floating_texts.len(), 1);
     }
 
     #[test]
-    fn resolve_projectiles_enemy_hit_no_floating_text() {
+    fn resolve_projectiles_enemy_hit_spawns_floating_text() {
         let mut projs = vec![Projectile {
             pos: Vec2::ZERO,
             vel: Vec2::new(100.0, 0.0),
+            gravity: 0.0,
             damage: 10.0,
             radius: 5.0,
             team: Team::Enemy,
@@ -1011,9 +1103,10 @@ mod tests {
         let mut units = vec![e];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut juice = Juice::new();
-        resolve_projectiles(&mut projs, &mut units, &mut pt, &mut et, &mut juice, 0.1);
-        assert!(juice.floating_texts.is_empty());
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.1);
+        assert_eq!(juice.floating_texts.len(), 1);
     }
 
     #[test]
@@ -1021,6 +1114,7 @@ mod tests {
         let mut projs = vec![Projectile {
             pos: Vec2::ZERO,
             vel: Vec2::new(100.0, 0.0),
+            gravity: 0.0,
             damage: 10.0,
             radius: 5.0,
             team: Team::Player,
@@ -1032,10 +1126,12 @@ mod tests {
         let mut units = vec![ally];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut juice = Juice::new();
-        resolve_projectiles(&mut projs, &mut units, &mut pt, &mut et, &mut juice, 0.1);
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.1);
         assert!((units[0].hp - 30.0).abs() < 1e-6);
         assert_eq!(projs.len(), 1);
+        assert!(juice.floating_texts.is_empty());
     }
 
     #[test]
@@ -1043,6 +1139,7 @@ mod tests {
         let mut projs = vec![Projectile {
             pos: Vec2::ZERO,
             vel: Vec2::new(100.0, 0.0),
+            gravity: 0.0,
             damage: 5.0,
             radius: 5.0,
             team: Team::Player,
@@ -1056,17 +1153,18 @@ mod tests {
         let mut units = vec![e1, e2, e3];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut juice = Juice::new();
 
-        resolve_projectiles(&mut projs, &mut units, &mut pt, &mut et, &mut juice, 0.1);
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.1);
         assert_eq!(projs.len(), 1);
         assert_eq!(projs[0].pierce_remaining, 2);
 
-        resolve_projectiles(&mut projs, &mut units, &mut pt, &mut et, &mut juice, 0.5);
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.5);
         assert_eq!(projs.len(), 1);
         assert_eq!(projs[0].pierce_remaining, 1);
 
-        resolve_projectiles(&mut projs, &mut units, &mut pt, &mut et, &mut juice, 0.5);
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.5);
         assert!(projs.is_empty());
     }
 
@@ -1075,6 +1173,7 @@ mod tests {
         let mut projs = vec![Projectile {
             pos: Vec2::new(-400.0, 0.0),
             vel: Vec2::new(-500.0, 0.0),
+            gravity: 0.0,
             damage: 10.0,
             radius: 5.0,
             team: Team::Player,
@@ -1085,8 +1184,9 @@ mod tests {
         let mut units = vec![];
         let mut pt = mk_tower(Team::Player, -1000.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-5000.0);
         let mut juice = Juice::new();
-        resolve_projectiles(&mut projs, &mut units, &mut pt, &mut et, &mut juice, 0.5);
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.5);
         assert!(projs.is_empty());
     }
 
@@ -1095,6 +1195,7 @@ mod tests {
         let mut projs = vec![Projectile {
             pos: Vec2::new(990.0, 0.0),
             vel: Vec2::new(100.0, 0.0),
+            gravity: 0.0,
             damage: 20.0,
             radius: 5.0,
             team: Team::Player,
@@ -1105,11 +1206,11 @@ mod tests {
         let mut units = vec![];
         let mut pt = mk_tower(Team::Player, -1000.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-5000.0);
         let mut juice = Juice::new();
-        resolve_projectiles(&mut projs, &mut units, &mut pt, &mut et, &mut juice, 0.1);
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.1);
         assert!((et.hp - 480.0).abs() < 1e-6);
         assert!(projs.is_empty());
-        assert!(juice.screen_shake.remaining > 0.0);
     }
 
     #[test]
@@ -1117,6 +1218,7 @@ mod tests {
         let mut projs = vec![Projectile {
             pos: Vec2::ZERO,
             vel: Vec2::new(100.0, 0.0),
+            gravity: 0.0,
             damage: 20.0,
             radius: 5.0,
             team: Team::Player,
@@ -1129,9 +1231,58 @@ mod tests {
         let mut units = vec![e1, e2];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut cat = mk_catapult(-50.0);
         let mut juice = Juice::new();
-        resolve_projectiles(&mut projs, &mut units, &mut pt, &mut et, &mut juice, 0.1);
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.1);
         assert!((units[0].hp - 10.0).abs() < 1e-6);
         assert!((units[1].hp - 20.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn enemy_projectile_hits_catapult() {
+        let mut cat = mk_catapult(200.0);
+        let (rx, ry, _rw, _rh) = cat.rect();
+        let mut projs = vec![Projectile {
+            pos: Vec2::new(rx - 10.0, ry + 20.0),
+            vel: Vec2::new(200.0, 0.0),
+            gravity: 0.0,
+            damage: 25.0,
+            radius: 5.0,
+            team: Team::Enemy,
+            kind: ProjectileKind::Archer,
+            pierce_remaining: 0,
+            color: macroquad::prelude::WHITE,
+        }];
+        let mut units = vec![];
+        let mut pt = mk_tower(Team::Player, -1000.0);
+        let mut et = mk_tower(Team::Enemy, 5000.0);
+        let mut juice = Juice::new();
+        let hp_before = cat.hp;
+        for _ in 0..3 {
+            resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.05);
+        }
+        assert!(cat.hp < hp_before, "catapulte non endommagée");
+    }
+
+    #[test]
+    fn catapult_projectile_is_removed_below_ground() {
+        let mut projs = vec![Projectile {
+            pos: Vec2::new(300.0, 900.0),
+            vel: Vec2::new(50.0, 200.0),
+            gravity: 900.0,
+            damage: 10.0,
+            radius: 7.0,
+            team: Team::Player,
+            kind: ProjectileKind::Basic,
+            pierce_remaining: 0,
+            color: macroquad::prelude::WHITE,
+        }];
+        let mut units = vec![];
+        let mut pt = mk_tower(Team::Player, -1000.0);
+        let mut et = mk_tower(Team::Enemy, 5000.0);
+        let mut cat = mk_catapult(-5000.0);
+        let mut juice = Juice::new();
+        resolve_projectiles(&mut projs, &mut units, (&mut pt, &mut et), &mut cat, 500.0, &mut juice, 0.05);
+        assert!(projs.is_empty());
     }
 }

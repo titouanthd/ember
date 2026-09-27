@@ -98,7 +98,7 @@ fn phase_stays_playing_while_both_towers_alive() {
 fn turret_kill_credits_bank_gold() {
     let mut g = new_game(1);
     disable_ai(&mut g);
-    let enemy_pos = Vec2::new(g.turret.pos.x + 100.0, g.turret.pos.y);
+    let enemy_pos = Vec2::new(g.catapult.pos.x + 400.0, g.ground_y);
     let mut grunt = spawn_unit(&mut g.id_gen, "grunt", Team::Enemy, enemy_pos, 1.0, 1.0).unwrap();
     grunt.hp = 5.0;
     grunt.max_hp = 5.0;
@@ -106,7 +106,7 @@ fn turret_kill_credits_bank_gold() {
 
     let gold_before = g.player_upgrades.gold;
     let mut t = 0.0;
-    while t < 5.0 && g.units.iter().any(|u| u.team == Team::Enemy) {
+    while t < 6.0 && g.units.iter().any(|u| u.team == Team::Enemy) {
         let target = g
             .units
             .iter()
@@ -142,21 +142,24 @@ fn bomber_explodes_and_damages_neighbors() {
     let e3 = spawn_unit(&mut g.id_gen, "grunt", Team::Enemy, Vec2::new(500.0, gy), 1.0, 1.0).unwrap();
     g.units.extend([bomber, e1, e2, e3]);
 
-    // Le bomber doit avoir le temps de finir son windup (~0.165 s).
-    // On simule 0.3 s pour être sûr que le strike a eu lieu.
     for _ in 0..18 {
         g.tick(1.0 / 60.0, Vec2::ZERO, false, 0.0);
     }
 
     assert!(!g.units.iter().any(|u| u.kind == "bomber"));
     assert_eq!(g.stats.kills, 2);
-    // Le lointain est intact.
     assert!(g.units.iter().any(|u| u.team == Team::Enemy));
 }
 
 #[test]
 fn levels_load_and_run() {
-    for level_id in ["sh_01", "sh_02", "sh_03", "gy_01", "gy_02", "gy_03"] {
+    for level_id in [
+        "sh_01", "sh_02", "sh_03",
+        "gy_01", "gy_02", "gy_03",
+        "hk_01", "hk_02", "hk_03",
+        "cd_01", "cd_02", "cd_03",
+        "bj_01", "bj_02", "bj_03",
+    ] {
         let p = Progress::default();
         let mut g = Game::new(&ctx(), level_id, 1, &p).expect("level exists");
         for _ in 0..30 {
@@ -186,6 +189,57 @@ fn chapter_2_unlocked_only_after_chapter_1_cleared() {
 }
 
 #[test]
+fn chapter_3_unlocked_only_after_chapter_2_cleared() {
+    let mut p = Progress::default();
+    assert!(!p.is_chapter_unlocked(2));
+
+    p.record_win("sh_01", 1, 0.0);
+    p.record_win("sh_02", 1, 0.0);
+    p.record_win("sh_03", 1, 0.0);
+    assert!(!p.is_chapter_unlocked(2));
+
+    p.record_win("gy_01", 1, 0.0);
+    p.record_win("gy_02", 1, 0.0);
+    assert!(!p.is_chapter_unlocked(2));
+
+    p.record_win("gy_03", 1, 0.0);
+    assert!(p.is_chapter_unlocked(2));
+}
+
+#[test]
+fn chapter_4_unlocked_only_after_chapter_3_cleared() {
+    let mut p = Progress::default();
+    assert!(!p.is_chapter_unlocked(3));
+
+    for id in ["sh_01", "sh_02", "sh_03", "gy_01", "gy_02", "gy_03", "hk_01", "hk_02"] {
+        p.record_win(id, 1, 0.0);
+    }
+    assert!(!p.is_chapter_unlocked(3));
+
+    p.record_win("hk_03", 1, 0.0);
+    assert!(p.is_chapter_unlocked(3));
+}
+
+#[test]
+fn chapter_5_unlocked_only_after_chapter_4_cleared() {
+    let mut p = Progress::default();
+    assert!(!p.is_chapter_unlocked(4));
+
+    for id in [
+        "sh_01", "sh_02", "sh_03",
+        "gy_01", "gy_02", "gy_03",
+        "hk_01", "hk_02", "hk_03",
+        "cd_01", "cd_02",
+    ] {
+        p.record_win(id, 1, 0.0);
+    }
+    assert!(!p.is_chapter_unlocked(4));
+
+    p.record_win("cd_03", 1, 0.0);
+    assert!(p.is_chapter_unlocked(4));
+}
+
+#[test]
 fn stars_scale_with_tower_hp() {
     assert_eq!(stars_for_victory(1.0), 3);
     assert_eq!(stars_for_victory(0.75), 2);
@@ -195,16 +249,44 @@ fn stars_scale_with_tower_hp() {
 #[test]
 fn chapters_ron_loads() {
     use ember_wars::config::all_chapters;
-    assert_eq!(all_chapters().len(), 2);
+    assert_eq!(all_chapters().len(), 5);
     for c in all_chapters() {
         assert_eq!(c.levels.len(), 3);
     }
 }
 
 #[test]
+fn catapult_never_reaches_enemy_tower() {
+    use ember_wars::catapult::CATAPULT_MAX_RANGE;
+    use ember_wars::systems::TOWER_OFFSET_X;
+
+    for level_id in [
+        "sh_01", "sh_02", "sh_03",
+        "gy_01", "gy_02", "gy_03",
+        "hk_01", "hk_02", "hk_03",
+        "cd_01", "cd_02", "cd_03",
+        "bj_01", "bj_02", "bj_03",
+    ] {
+        let p = Progress::default();
+        let g = Game::new(&ctx(), level_id, 1, &p).expect("level exists");
+        let catapult_x = g.catapult.pos.x;
+        let tower_x = g.enemy_tower.x;
+        let distance = tower_x - catapult_x;
+        assert!(
+            distance > CATAPULT_MAX_RANGE,
+            "level {} : distance {} <= portée max {} — la tour est attaquable",
+            level_id,
+            distance,
+            CATAPULT_MAX_RANGE,
+        );
+        assert!(catapult_x > TOWER_OFFSET_X);
+    }
+}
+
+#[test]
 fn upgrade_tree_ron_loads() {
     use ember_wars::upgrades::load_defs;
-    assert_eq!(load_defs().nodes.len(), 18);
+    assert_eq!(load_defs().nodes.len(), 28);
 }
 
 #[test]

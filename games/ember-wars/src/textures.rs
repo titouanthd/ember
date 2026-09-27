@@ -511,8 +511,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn palettes_ron_loads_two_entries() {
-        assert_eq!(all_palettes().len(), 2);
+    fn palettes_ron_loads_five_entries() {
+        assert_eq!(all_palettes().len(), 5);
+    }
+
+    #[test]
+    fn palette_by_id_finds_known() {
+        assert!(palette_by_id("shanghai").is_some());
+        assert!(palette_by_id("guiyang").is_some());
+        assert!(palette_by_id("hongkong").is_some());
+        assert!(palette_by_id("chengdu").is_some());
+        assert!(palette_by_id("beijing").is_some());
+        assert!(palette_by_id("nope").is_none());
     }
 
     #[test]
@@ -522,13 +532,6 @@ mod tests {
         let before = ids.len();
         ids.dedup();
         assert_eq!(ids.len(), before);
-    }
-
-    #[test]
-    fn palette_by_id_finds_known() {
-        assert!(palette_by_id("shanghai").is_some());
-        assert!(palette_by_id("guiyang").is_some());
-        assert!(palette_by_id("nope").is_none());
     }
 
     #[test]

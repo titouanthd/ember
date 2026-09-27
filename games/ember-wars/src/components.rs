@@ -61,6 +61,9 @@ pub struct PendingAttack {
 pub enum AttackTarget {
     Unit(UnitId),
     Tower(Team),
+    /// Catapulte de l'équipe donnée (actuellement seule la Player
+    /// catapult existe, mais le type reste symétrique).
+    Catapult(Team),
 }
 
 #[derive(Debug, Clone)]
@@ -107,6 +110,8 @@ pub enum ProjectileKind {
 pub struct Projectile {
     pub pos: Vec2,
     pub vel: Vec2,
+    /// Accélération verticale (0 = ligne droite, > 0 = balistique).
+    pub gravity: f32,
     pub damage: f32,
     pub radius: f32,
     pub team: Team,
@@ -182,5 +187,11 @@ mod tests {
         assert!((c.g - 0.2).abs() < 1e-6);
         assert!((c.b - 0.3).abs() < 1e-6);
         assert!((c.a - 0.4).abs() < 1e-6);
+    }
+
+    #[test]
+    fn attack_target_catapult_variant_exists() {
+        let t = AttackTarget::Catapult(Team::Player);
+        assert_eq!(t, AttackTarget::Catapult(Team::Player));
     }
 }

@@ -2,6 +2,7 @@
 
 pub mod ai;
 pub mod camera;
+pub mod catapult;
 pub mod combat;
 pub mod components;
 pub mod config;
@@ -15,7 +16,6 @@ pub mod render;
 pub mod stickman;
 pub mod systems;
 pub mod textures;
-pub mod tower;
 pub mod ui;
 pub mod units;
 pub mod upgrades;

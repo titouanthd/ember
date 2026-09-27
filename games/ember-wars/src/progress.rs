@@ -196,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn flat_levels_has_six_entries() {
-        assert_eq!(Progress::flat_levels().len(), 6);
+    fn flat_levels_has_fifteen_entries() {
+        assert_eq!(Progress::flat_levels().len(), 15);
     }
 }

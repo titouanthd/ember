@@ -148,8 +148,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn chapters_ron_loads_two_chapters() {
-        assert_eq!(all_chapters().len(), 2);
+    fn chapters_ron_loads_five_chapters() {
+        assert_eq!(all_chapters().len(), 5);
     }
 
     #[test]
@@ -175,6 +175,9 @@ mod tests {
     fn level_by_id_finds_level() {
         assert!(level_by_id("sh_01").is_some());
         assert!(level_by_id("gy_03").is_some());
+        assert!(level_by_id("hk_01").is_some());
+        assert!(level_by_id("cd_02").is_some());
+        assert!(level_by_id("bj_03").is_some());
         assert!(level_by_id("nope").is_none());
     }
 
@@ -182,6 +185,9 @@ mod tests {
     fn chapter_of_level_works() {
         assert_eq!(chapter_of_level("sh_01").unwrap().id, "shanghai");
         assert_eq!(chapter_of_level("gy_02").unwrap().id, "guiyang");
+        assert_eq!(chapter_of_level("hk_03").unwrap().id, "hongkong");
+        assert_eq!(chapter_of_level("cd_01").unwrap().id, "chengdu");
+        assert_eq!(chapter_of_level("bj_02").unwrap().id, "beijing");
         assert!(chapter_of_level("nope").is_none());
     }
 

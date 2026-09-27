@@ -19,13 +19,19 @@ pub enum UpgradeEffect {
     Fortress,
     UnitHpMult(f32),
     UnitDamageMult(f32),
+    UnitSpeedMult(f32),
     UnlockUnit(String),
     TurretDamageMult(f32),
     TurretFireRateMult(f32),
     MultiShot(u32),
+    TurretCritChance(f32),
     ManaRegenMult(f32),
     ManaCapMult(f32),
+    ManaOnKillAdd(f32),
     GoldPerKillAdd(f32),
+    CatapultRangeAdd(f32),
+    CatapultHpMult(f32),
+    CatapultRebuildMult(f32),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -198,7 +204,6 @@ impl UpgradeTree {
     }
 
     /// Force l'ajout d'un nœud sans vérifier le coût ni les prérequis.
-    /// Utile pour les tests et les futures mécaniques de triche.
     pub fn grant(&mut self, id: &str) {
         self.purchased.insert(id.to_string());
     }
@@ -246,6 +251,13 @@ impl UpgradeTree {
         })
     }
 
+    pub fn unit_speed_mult(&self) -> f32 {
+        self.aggregate_mult(|e| match e {
+            UpgradeEffect::UnitSpeedMult(m) => Some(*m),
+            _ => None,
+        })
+    }
+
     pub fn unlocked_units(&self, defaults: &[&str]) -> HashSet<String> {
         let mut set: HashSet<String> = defaults.iter().map(|s| s.to_string()).collect();
         for id in &self.purchased {
@@ -284,6 +296,14 @@ impl UpgradeTree {
             .unwrap_or(1)
     }
 
+    pub fn turret_crit_chance(&self) -> f32 {
+        self.aggregate_add(|e| match e {
+            UpgradeEffect::TurretCritChance(c) => Some(*c),
+            _ => None,
+        })
+        .clamp(0.0, 1.0)
+    }
+
     pub fn mana_regen_mult(&self) -> f32 {
         self.aggregate_mult(|e| match e {
             UpgradeEffect::ManaRegenMult(m) => Some(*m),
@@ -298,9 +318,37 @@ impl UpgradeTree {
         })
     }
 
+    pub fn mana_on_kill_add(&self) -> f32 {
+        self.aggregate_add(|e| match e {
+            UpgradeEffect::ManaOnKillAdd(v) => Some(*v),
+            _ => None,
+        })
+    }
+
     pub fn gold_per_kill_add(&self) -> f32 {
         self.aggregate_add(|e| match e {
             UpgradeEffect::GoldPerKillAdd(v) => Some(*v),
+            _ => None,
+        })
+    }
+
+    pub fn catapult_range_add(&self) -> f32 {
+        self.aggregate_add(|e| match e {
+            UpgradeEffect::CatapultRangeAdd(v) => Some(*v),
+            _ => None,
+        })
+    }
+
+    pub fn catapult_hp_mult(&self) -> f32 {
+        self.aggregate_mult(|e| match e {
+            UpgradeEffect::CatapultHpMult(m) => Some(*m),
+            _ => None,
+        })
+    }
+
+    pub fn catapult_rebuild_mult(&self) -> f32 {
+        self.aggregate_mult(|e| match e {
+            UpgradeEffect::CatapultRebuildMult(m) => Some(*m),
             _ => None,
         })
     }
@@ -343,8 +391,8 @@ mod tests {
     }
 
     #[test]
-    fn tree_ron_loads_and_has_18_nodes() {
-        assert_eq!(defs().nodes.len(), 18);
+    fn tree_ron_loads_and_has_28_nodes() {
+        assert_eq!(defs().nodes.len(), 28);
     }
 
     #[test]
@@ -416,9 +464,8 @@ mod tests {
         let t = fresh(0.0);
         assert!(t.is_accessible("tower_hp_1"));
         assert!(t.is_accessible("unit_hp_1"));
-        assert!(t.is_accessible("turret_dmg_1"));
+        assert!(t.is_accessible("catapult_range_1"));
         assert!(t.is_accessible("mana_regen_1"));
-        assert!(t.is_accessible("gold_per_kill"));
     }
 
     #[test]
@@ -426,6 +473,7 @@ mod tests {
         let t = fresh(0.0);
         assert!(!t.is_accessible("tower_hp_2"));
         assert!(!t.is_accessible("unlock_archer"));
+        assert!(!t.is_accessible("catapult_hp_1"));
     }
 
     #[test]
@@ -467,7 +515,16 @@ mod tests {
         let mut t = fresh(0.0);
         t.grant("tower_hp_1");
         t.grant("tower_hp_2");
-        assert!((t.tower_hp_mult() - 1.20 * 1.25).abs() < 1e-6);
+        t.grant("tower_hp_3");
+        assert!((t.tower_hp_mult() - 1.20 * 1.25 * 1.30).abs() < 1e-6);
+    }
+
+    #[test]
+    fn tower_regen_sums_across_nodes() {
+        let mut t = fresh(0.0);
+        t.grant("tower_regen");
+        t.grant("tower_regen_2");
+        assert!((t.tower_regen() - 3.5).abs() < 1e-6);
     }
 
     #[test]
@@ -503,6 +560,81 @@ mod tests {
         let mut t = fresh(0.0);
         t.grant("multi_shot");
         assert_eq!(t.multi_shot_count(), 2);
+    }
+
+    #[test]
+    fn unit_speed_mult_default_is_one() {
+        let t = fresh(0.0);
+        assert!((t.unit_speed_mult() - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn unit_speed_mult_after_purchase() {
+        let mut t = fresh(0.0);
+        t.grant("unit_speed");
+        assert!((t.unit_speed_mult() - 1.20).abs() < 1e-6);
+    }
+
+    #[test]
+    fn turret_crit_default_is_zero() {
+        let t = fresh(0.0);
+        assert!((t.turret_crit_chance() - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn turret_crit_after_purchase() {
+        let mut t = fresh(0.0);
+        t.grant("turret_crit");
+        assert!((t.turret_crit_chance() - 0.20).abs() < 1e-6);
+    }
+
+    #[test]
+    fn mana_on_kill_default_is_zero() {
+        let t = fresh(0.0);
+        assert!((t.mana_on_kill_add() - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn mana_on_kill_after_purchase() {
+        let mut t = fresh(0.0);
+        t.grant("mana_on_kill");
+        assert!((t.mana_on_kill_add() - 3.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn catapult_range_add_sums() {
+        let mut t = fresh(0.0);
+        t.grant("catapult_range_1");
+        t.grant("catapult_range_2");
+        assert!((t.catapult_range_add() - 500.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn catapult_hp_mult_default_is_one() {
+        let t = fresh(0.0);
+        assert!((t.catapult_hp_mult() - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn catapult_rebuild_mult_default_is_one() {
+        let t = fresh(0.0);
+        assert!((t.catapult_rebuild_mult() - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn catapult_rebuild_mult_after_purchase() {
+        let mut t = fresh(0.0);
+        t.grant("catapult_rebuild");
+        assert!((t.catapult_rebuild_mult() - 0.60).abs() < 1e-6);
+    }
+
+    #[test]
+    fn gold_per_kill_sums() {
+        let mut t = fresh(0.0);
+        t.grant("gold_per_kill");
+        t.grant("gold_per_kill_2");
+        t.grant("gold_per_kill_3");
+        assert!((t.gold_per_kill_add() - 6.0).abs() < 1e-6);
     }
 
     #[test]

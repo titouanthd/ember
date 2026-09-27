@@ -3,6 +3,7 @@
 use glam::Vec2;
 use macroquad::prelude::*;
 
+use crate::catapult::{CATAPULT_HITBOX_H, CATAPULT_HITBOX_W};
 use crate::components::{Team, Tower, Unit};
 use crate::config::GameContext;
 use crate::juice;
@@ -35,7 +36,10 @@ fn draw_world(ctx: &GameContext, game: &Game, shake: Vec2) {
     draw_local_hp_bar(ctx, &game.player_tower, cam_x, gy, shake);
     draw_local_hp_bar(ctx, &game.enemy_tower, cam_x, gy, shake);
 
-    draw_turret(ctx, game, cam_x, shake);
+    // Preview de la trajectoire (avant le projectile).
+    draw_catapult_preview(ctx, game, cam_x, shake);
+
+    draw_catapult(ctx, game, cam_x, shake);
 
     for u in &game.units {
         draw_unit(ctx, u, cam_x, shake);
@@ -78,29 +82,97 @@ fn draw_local_hp_bar(ctx: &GameContext, tower: &Tower, cam_x: f32, gy: f32, shak
     );
 }
 
-fn draw_turret(ctx: &GameContext, game: &Game, cam_x: f32, shake: Vec2) {
-    let t = &game.turret;
-    let sx = t.pos.x - cam_x + shake.x;
-    let sy = t.pos.y + shake.y;
-    let base_r = 18.0;
-    draw_circle(sx, sy, base_r, ctx.colors.turret);
-    draw_circle_lines(sx, sy, base_r, 2.0, ctx.colors.accent);
+fn draw_catapult(ctx: &GameContext, game: &Game, cam_x: f32, shake: Vec2) {
+    let c = &game.catapult;
+    let sx = c.pos.x - cam_x + shake.x;
+    let sy = c.pos.y + shake.y;
 
-    let dir = Vec2::new(t.angle.cos(), t.angle.sin());
-    let tip = Vec2::new(sx, sy) + dir * 30.0;
-    draw_line(sx, sy, tip.x, tip.y, 5.0, ctx.colors.turret);
-
-    if t.multi_shot >= 2 {
-        let perp = Vec2::new(-dir.y, dir.x) * 5.0;
-        let tip2 = Vec2::new(sx, sy) + perp + dir * 30.0;
-        let tip3 = Vec2::new(sx, sy) - perp + dir * 30.0;
-        draw_line(sx + perp.x, sy + perp.y, tip2.x, tip2.y, 3.0, ctx.colors.turret);
-        draw_line(sx - perp.x, sy - perp.y, tip3.x, tip3.y, 3.0, ctx.colors.turret);
+    if c.is_rebuilding() {
+        // Silhouette fantôme + compte à rebours.
+        let ghost = Color::new(0.35, 0.35, 0.40, 0.35);
+        draw_rectangle(
+            sx - CATAPULT_HITBOX_W * 0.5,
+            sy - CATAPULT_HITBOX_H,
+            CATAPULT_HITBOX_W,
+            CATAPULT_HITBOX_H,
+            ghost,
+        );
+        let txt = format!("REBUILD {:.1}s", c.rebuild_timer);
+        let dim = measure_text(&txt, None, 14, 1.0);
+        draw_text(&txt, sx - dim.width * 0.5, sy - CATAPULT_HITBOX_H - 12.0, 14.0, ghost);
+        return;
     }
 
-    let label = t.shot_kind.label();
-    let dim = measure_text(label, None, 14, 1.0);
-    draw_text(label, sx - dim.width * 0.5, sy - 30.0, 14.0, ctx.colors.text);
+    // Base (bois sombre).
+    let base_col = Color::new(0.42, 0.30, 0.20, 1.0);
+    draw_rectangle(
+        sx - CATAPULT_HITBOX_W * 0.5,
+        sy - 20.0,
+        CATAPULT_HITBOX_W,
+        20.0,
+        base_col,
+    );
+    draw_rectangle_lines(
+        sx - CATAPULT_HITBOX_W * 0.5,
+        sy - 20.0,
+        CATAPULT_HITBOX_W,
+        20.0,
+        1.5,
+        ctx.colors.accent,
+    );
+
+    // Fulcrum.
+    let fulcrum = Vec2::new(sx, sy - 20.0);
+
+    // Bras : angle dérivé de la vélocité de tir courante.
+    let angle = match c.launch_velocity() {
+        Some(v) => v.y.atan2(v.x),  // en repère écran (y vers le bas)
+        None => -0.4,
+    };
+    let arm_len = 38.0;
+    let tip = fulcrum + Vec2::new(angle.cos() * arm_len, angle.sin() * arm_len);
+    draw_line(fulcrum.x, fulcrum.y, tip.x, tip.y, 4.0, base_col);
+    draw_circle(tip.x, tip.y, 5.0, Color::new(0.75, 0.55, 0.35, 1.0));
+
+    // Contrepoids.
+    let counter = fulcrum - Vec2::new(angle.cos() * 12.0, angle.sin() * 12.0);
+    draw_circle(counter.x, counter.y, 5.0, Color::new(0.30, 0.22, 0.15, 1.0));
+
+    // Barre de HP.
+    let bar_w = CATAPULT_HITBOX_W + 10.0;
+    let bar_h = 5.0;
+    let bar_x = sx - bar_w * 0.5;
+    let bar_y = sy - CATAPULT_HITBOX_H - 12.0;
+    draw_rectangle(bar_x, bar_y, bar_w, bar_h, Color::new(0.05, 0.05, 0.08, 1.0));
+    draw_rectangle(
+        bar_x,
+        bar_y,
+        bar_w * c.hp_fraction(),
+        bar_h,
+        Color::new(0.95, 0.55, 0.30, 1.0),
+    );
+    draw_rectangle_lines(bar_x, bar_y, bar_w, bar_h, 1.0, ctx.colors.accent);
+}
+
+fn draw_catapult_preview(ctx: &GameContext, game: &Game, cam_x: f32, shake: Vec2) {
+    let c = &game.catapult;
+    if !c.is_alive() {
+        return;
+    }
+    let points = c.preview_points(24);
+    if points.len() < 2 {
+        return;
+    }
+    let accent = ctx.colors.accent;
+    let n = points.len() as f32;
+    for (i, p) in points.iter().enumerate() {
+        let alpha = 1.0 - (i as f32 / n);
+        let sx = p.x - cam_x + shake.x;
+        let sy = p.y + shake.y;
+        let r = 2.5 * alpha + 0.8;
+        let col = Color::new(accent.r, accent.g, accent.b, 0.65 * alpha);
+        draw_circle(sx, sy, r, col);
+    }
 }
 
 fn draw_unit(ctx: &GameContext, u: &Unit, cam_x: f32, shake: Vec2) {
@@ -112,9 +184,6 @@ fn draw_unit(ctx: &GameContext, u: &Unit, cam_x: f32, shake: Vec2) {
     let sx = u.pos.x - cam_x + shake.x;
     let sy = u.pos.y + shake.y;
 
-    // Détection de l'attaque : l'attack_cd vient d'être armé, c'est-à-dire
-    // que le temps écoulé (attack_cd_max - attack_cd) est inférieur à la
-    // durée d'animation d'attaque.
     let attack_elapsed = if u.attack_cd_max > 0.0 {
         u.attack_cd_max - u.attack_cd
     } else {
@@ -124,7 +193,6 @@ fn draw_unit(ctx: &GameContext, u: &Unit, cam_x: f32, shake: Vec2) {
         && (0.0..crate::stickman::ATTACK_DURATION).contains(&attack_elapsed);
     let pose = crate::stickman::auto_pose(u, attacking);
 
-    // Phase d'animation : attack_elapsed quand attaque, pose_phase sinon.
     let anim_phase = if attacking {
         attack_elapsed
     } else {
@@ -199,6 +267,19 @@ fn draw_hud(ctx: &GameContext, game: &Game) {
     );
     draw_text(&gold_txt, x, y + 40.0, 14.0, ctx.colors.gold);
 
+    // HP catapulte (petite barre séparée).
+    let cat_txt = format!(
+        "CATAPULT  {:.0}/{:.0}",
+        game.catapult.hp.max(0.0),
+        game.catapult.max_hp
+    );
+    let cat_col = if game.catapult.is_alive() {
+        Color::new(0.95, 0.55, 0.30, 1.0)
+    } else {
+        Color::new(0.6, 0.35, 0.30, 1.0)
+    };
+    draw_text(&cat_txt, x, y + 60.0, 13.0, cat_col);
+
     let title = "EMBER WARS";
     let dim = measure_text(title, None, 22, 1.0);
     let tx = screen_width() - dim.width - 20.0;
@@ -225,6 +306,18 @@ fn draw_hud(ctx: &GameContext, game: &Game) {
             ctx.colors.accent,
         );
     }
+
+    // Indicateur ShotKind.
+    let kind_label = game.catapult.shot_kind.label();
+    let kind_txt = format!("[1/2/3] {}", kind_label);
+    let dim3 = measure_text(&kind_txt, None, 14, 1.0);
+    draw_text(
+        &kind_txt,
+        screen_width() - dim3.width - 20.0,
+        80.0,
+        14.0,
+        ctx.colors.text,
+    );
 }
 
 pub fn draw_end_overlay(ctx: &GameContext, game: &Game) {

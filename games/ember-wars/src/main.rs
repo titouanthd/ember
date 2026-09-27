@@ -2,17 +2,30 @@
 
 use std::path::Path;
 
+use ember_wars::catapult::ShotKind;
 use ember_wars::config::GameContext;
 use ember_wars::menu::{self, AppScreen, MenuState};
 use ember_wars::progress::{self, stars_for_victory};
 use ember_wars::render;
 use ember_wars::systems::{Game, Phase};
-use ember_wars::tower::ShotKind;
 use ember_wars::ui::spawn_bar::SpawnBar;
 use ember_wars::ui::upgrade_modal;
 use macroquad::prelude::*;
 
-#[macroquad::main("ember-wars")]
+/// Taille de fenêtre au lancement. 1600×900 (16:9) évite les layouts
+/// écrasés du 800×600 par défaut.
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "ember-wars".to_owned(),
+        window_width: 1600,
+        window_height: 900,
+        window_resizable: true,
+        high_dpi: true,
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_conf)]
 async fn main() {
     // Charge DejaVu Sans Mono comme police par défaut (Unicode complet :
     // ★☆, accents, symboles étendus). Fallback silencieux vers la police
@@ -51,19 +64,13 @@ async fn main() {
                 }
 
                 if menu_state.upgrade_modal_open {
-                    let bought = upgrade_modal::handle_modal_input(
-                        &mut progress_data.tree,
-                        &mut menu_state.upgrade_focus,
-                    );
+                    let bought =
+                        upgrade_modal::handle_modal_input(&mut progress_data.tree, &mut menu_state);
                     if bought {
                         progress_store.save(&progress_data);
                     }
                     menu::draw_menu(&ctx, &menu_state, &progress_data);
-                    upgrade_modal::draw_modal(
-                        &ctx,
-                        &progress_data.tree,
-                        menu_state.upgrade_focus,
-                    );
+                    upgrade_modal::draw_modal(&ctx, &progress_data.tree, &menu_state);
                 } else {
                     menu::draw_menu(&ctx, &menu_state, &progress_data);
                     if let Some(level_id) =
@@ -135,9 +142,6 @@ async fn main() {
                         progress_data.tree.gold = g.player_upgrades.gold + reward;
                         if g.phase == Phase::Won {
                             let stars = stars_for_victory(g.tower_hp_fraction());
-                            // NB : record_win crédite aussi `gold_earned`,
-                            // mais ici on a déjà mis la bank à jour. On
-                            // utilise une version qui n'ajoute pas d'or.
                             let prev = progress_data.stars_for(&level_id);
                             if stars > prev {
                                 progress_data.stars.insert(level_id, stars);
@@ -189,13 +193,13 @@ async fn main() {
             && let Some(g) = game.as_mut()
         {
             if is_key_pressed(KeyCode::Key1) {
-                g.turret.shot_kind = ShotKind::Basic;
+                g.catapult.shot_kind = ShotKind::Basic;
             }
             if is_key_pressed(KeyCode::Key2) {
-                g.turret.shot_kind = ShotKind::Piercing;
+                g.catapult.shot_kind = ShotKind::Piercing;
             }
             if is_key_pressed(KeyCode::Key3) {
-                g.turret.shot_kind = ShotKind::Explosive;
+                g.catapult.shot_kind = ShotKind::Explosive;
             }
         }
 
