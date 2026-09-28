@@ -83,6 +83,9 @@ pub struct LevelConfig {
     pub objective: Objective,
     pub reward_gold: f32,
     pub ai: AiConfig,
+    /// Si `true`, l'ennemi déploie une catapulte défensive.
+    #[serde(default)]
+    pub enemy_catapult: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]

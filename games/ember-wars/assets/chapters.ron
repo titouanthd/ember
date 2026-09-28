@@ -239,6 +239,7 @@
                 tower_hp: 1100.0,
                 objective: Destroy,
                 reward_gold: 750.0,
+                enemy_catapult: true,
                 ai: (
                     aggression: 1.45,
                     mana_regen_mult: 1.40,
@@ -285,6 +286,7 @@
                 tower_hp: 1000.0,
                 objective: Destroy,
                 reward_gold: 700.0,
+                enemy_catapult: true,
                 ai: (
                     aggression: 1.50,
                     mana_regen_mult: 1.40,
@@ -305,6 +307,7 @@
                 tower_hp: 1300.0,
                 objective: Destroy,
                 reward_gold: 1200.0,
+                enemy_catapult: true,
                 ai: (
                     aggression: 1.65,
                     mana_regen_mult: 1.50,

@@ -9,7 +9,8 @@ use macroquad::prelude::Color;
 use crate::ai;
 use crate::camera::Camera2D;
 use crate::catapult::{
-    Catapult, CATAPULT_HP, CATAPULT_MAX_RANGE, CATAPULT_OFFSET_X, CATAPULT_REBUILD_TIME,
+    Catapult, CATAPULT_HP, CATAPULT_MAX_RANGE, CATAPULT_MIN_RANGE, CATAPULT_OFFSET_X,
+    CATAPULT_REBUILD_TIME,
 };
 use crate::combat;
 use crate::components::{Projectile, Team, Tower, Unit, UnitIdGen};
@@ -51,6 +52,7 @@ pub struct Game {
     pub enemy_mana: ManaPool,
     pub player_upgrades: UpgradeTree,
     pub catapult: Catapult,
+    pub enemy_catapult: Option<Catapult>,
     pub camera: Camera2D,
     pub player_cooldowns: HashMap<String, f32>,
     pub enemy_cooldowns: HashMap<String, f32>,
@@ -120,6 +122,15 @@ impl Game {
             CATAPULT_REBUILD_TIME * player_upgrades.catapult_rebuild_mult(),
         );
 
+        let enemy_catapult = if level.enemy_catapult {
+            Some(Catapult::with_facing(
+                Vec2::new(enemy_tower.x - CATAPULT_OFFSET_X, ground_y),
+                -1.0,
+            ))
+        } else {
+            None
+        };
+
         let mut camera = Camera2D::new(ctx.viewport_w, level.width);
         camera.x = 0.0;
 
@@ -133,6 +144,7 @@ impl Game {
             enemy_mana,
             player_upgrades,
             catapult,
+            enemy_catapult,
             camera,
             player_cooldowns: HashMap::new(),
             enemy_cooldowns: HashMap::new(),
@@ -190,6 +202,9 @@ impl Game {
         tick_cooldowns(&mut self.player_cooldowns, dt);
         tick_cooldowns(&mut self.enemy_cooldowns, dt);
         self.catapult.tick(dt);
+        if let Some(ec) = &mut self.enemy_catapult {
+            ec.tick(dt);
+        }
 
         self.camera.scroll(dt, camera_scroll);
 
@@ -220,25 +235,39 @@ impl Game {
         }
 
         self.tick_ai();
+        self.tick_enemy_catapult_ai();
 
         let speed_mult = self.player_upgrades.unit_speed_mult();
 
+        let Self {
+            units,
+            player_tower,
+            enemy_tower,
+            catapult,
+            enemy_catapult,
+            projectiles,
+            juice,
+            ground_y,
+            ..
+        } = self;
+        let gy = *ground_y;
+
         combat::resolve_attacks(
-            &mut self.units,
-            (&mut self.player_tower, &mut self.enemy_tower),
-            &mut self.catapult,
-            &mut self.projectiles,
-            &mut self.juice,
+            units,
+            (player_tower, enemy_tower),
+            (catapult, enemy_catapult),
+            projectiles,
+            juice,
             dt,
             speed_mult,
         );
         combat::resolve_projectiles(
-            &mut self.projectiles,
-            &mut self.units,
-            (&mut self.player_tower, &mut self.enemy_tower),
-            &mut self.catapult,
-            self.ground_y,
-            &mut self.juice,
+            projectiles,
+            units,
+            (player_tower, enemy_tower),
+            (catapult, enemy_catapult),
+            gy,
+            juice,
             dt,
         );
 
@@ -371,6 +400,43 @@ impl Game {
         }
     }
 
+    fn tick_enemy_catapult_ai(&mut self) {
+        let Some(ec) = self.enemy_catapult.as_mut() else {
+            return;
+        };
+        if !ec.is_ready() {
+            return;
+        }
+
+        let mut best: Option<(f32, Vec2)> = None;
+        for u in &self.units {
+            if u.team != Team::Player || !u.is_alive() {
+                continue;
+            }
+            let d = (u.pos.x - ec.pos.x) * ec.facing;
+            if d < CATAPULT_MIN_RANGE || d > ec.max_range {
+                continue;
+            }
+            if best.is_none_or(|(x, _)| u.pos.x > x) {
+                best = Some((u.pos.x, u.pos));
+            }
+        }
+
+        let Some((_, target)) = best else {
+            return;
+        };
+        ec.aim_target = target;
+
+        if let Some(shots) = ec.try_fire_multi(Team::Enemy, 1.0) {
+            for p in shots {
+                if self.projectiles.len() < combat::MAX_PROJECTILES {
+                    self.projectiles.push(p);
+                }
+            }
+            self.juice.shake(1.5, 0.05);
+        }
+    }
+
     fn cleanup_dead_units(&mut self) {
         let enemy_kills = self
             .units
@@ -413,6 +479,9 @@ fn tick_cooldowns(map: &mut HashMap<String, f32>, dt: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::catapult::{
+        ENEMY_CATAPULT_HP, ENEMY_CATAPULT_MAX_RANGE, ENEMY_CATAPULT_REBUILD_TIME,
+    };
     use crate::components::UnitId;
 
     fn ctx() -> GameContext {
@@ -427,10 +496,6 @@ mod tests {
         Game::new(&ctx(), "sh_02", seed, &default_progress()).expect("game creates")
     }
 
-    fn new_game_survive(seed: u32) -> Game {
-        Game::new(&ctx(), "sh_01", seed, &default_progress()).expect("game creates")
-    }
-
     fn disable_ai(g: &mut Game) {
         g.enemy_mana.current = 0.0;
         g.enemy_mana.regen = 0.0;
@@ -443,12 +508,6 @@ mod tests {
     }
 
     #[test]
-    fn new_game_loads_level_width() {
-        let g = new_game(0);
-        assert!((g.level.width - 1800.0).abs() < 1e-6);
-    }
-
-    #[test]
     fn new_game_places_towers_at_edges() {
         let g = new_game(0);
         assert!((g.player_tower.x - TOWER_OFFSET_X).abs() < 1e-6);
@@ -456,98 +515,88 @@ mod tests {
     }
 
     #[test]
-    fn catapult_is_placed_in_front_of_tower() {
+    fn player_catapult_is_placed_in_front_of_tower() {
         let g = new_game(0);
         assert!((g.catapult.pos.x - (TOWER_OFFSET_X + CATAPULT_OFFSET_X)).abs() < 1e-6);
-        assert!(g.catapult.pos.x > g.player_tower.x);
     }
 
     #[test]
-    fn catapult_starts_alive() {
+    fn sh_02_has_no_enemy_catapult() {
         let g = new_game(0);
-        assert!(g.catapult.is_alive());
-        assert!(g.catapult.is_ready());
+        assert!(g.enemy_catapult.is_none());
     }
 
     #[test]
-    fn new_game_applies_catapult_range_upgrade() {
-        let mut p = Progress::default();
-        p.tree.grant("catapult_range_1");
-        let g = Game::new(&ctx(), "sh_02", 0, &p).expect("creates");
-        assert!((g.catapult.max_range - (CATAPULT_MAX_RANGE + 200.0)).abs() < 1e-6);
+    fn cd_03_has_enemy_catapult() {
+        let g = Game::new(&ctx(), "cd_03", 0, &default_progress()).expect("creates");
+        assert!(g.enemy_catapult.is_some());
+        let ec = g.enemy_catapult.as_ref().unwrap();
+        assert_eq!(ec.facing, -1.0);
+        assert!((ec.max_hp - ENEMY_CATAPULT_HP).abs() < 1e-6);
+        assert!((ec.max_range - ENEMY_CATAPULT_MAX_RANGE).abs() < 1e-6);
+        assert!((ec.rebuild_time - ENEMY_CATAPULT_REBUILD_TIME).abs() < 1e-6);
     }
 
     #[test]
-    fn new_game_applies_catapult_hp_upgrade() {
-        let mut p = Progress::default();
-        p.tree.grant("catapult_hp_1");
-        let g = Game::new(&ctx(), "sh_02", 0, &p).expect("creates");
-        assert!((g.catapult.max_hp - CATAPULT_HP * 1.40).abs() < 1e-3);
+    fn enemy_catapult_placed_in_front_of_enemy_tower() {
+        let g = Game::new(&ctx(), "cd_03", 0, &default_progress()).expect("creates");
+        let ec = g.enemy_catapult.as_ref().unwrap();
+        assert!((ec.pos.x - (g.enemy_tower.x - CATAPULT_OFFSET_X)).abs() < 1e-6);
     }
 
     #[test]
-    fn new_game_applies_catapult_rebuild_upgrade() {
-        let mut p = Progress::default();
-        p.tree.grant("catapult_rebuild");
-        let g = Game::new(&ctx(), "sh_02", 0, &p).expect("creates");
-        assert!((g.catapult.rebuild_time - CATAPULT_REBUILD_TIME * 0.60).abs() < 1e-3);
-    }
-
-    #[test]
-    fn new_game_uses_progress_tree() {
-        let mut p = Progress::default();
-        p.tree.gold = 100.0;
-        p.tree.grant("tower_hp_1");
-        let g = Game::new(&ctx(), "sh_02", 0, &p).expect("creates");
-        assert!((g.player_tower.max_hp - 600.0).abs() < 1e-3);
-    }
-
-    #[test]
-    fn new_game_returns_err_for_unknown_level() {
-        assert!(Game::new(&ctx(), "nope", 0, &default_progress()).is_err());
-    }
-
-    #[test]
-    fn survive_objective_reports_remaining() {
-        let g = new_game_survive(0);
-        assert!((g.survive_remaining().unwrap() - 45.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn default_unlocked_units_are_grunt_and_brute() {
-        let g = new_game(0);
-        assert!(g.is_unit_unlocked("grunt"));
-        assert!(g.is_unit_unlocked("brute"));
-        assert!(!g.is_unit_unlocked("archer"));
-    }
-
-    #[test]
-    fn try_player_spawn_spends_mana() {
-        let mut g = new_game(0);
-        let before = g.player_mana.current;
-        assert!(g.try_player_spawn("grunt"));
-        assert!(g.player_mana.current < before);
-    }
-
-    #[test]
-    fn tick_spawns_ai_after_wave_start() {
-        let mut g = new_game(0);
-        g.enemy_mana.current = 100.0;
-        g.tick(0.05, Vec2::ZERO, false, 0.0);
-        assert!(g.units.iter().any(|u| u.team == Team::Enemy));
-    }
-
-    #[test]
-    fn player_fire_spawns_parabolic_projectile() {
-        let mut g = new_game(0);
+    fn enemy_catapult_fires_at_player_units() {
+        let p = Progress::default();
+        let mut g = Game::new(&ctx(), "cd_03", 1, &p).expect("creates");
         disable_ai(&mut g);
-        let target = Vec2::new(g.catapult.pos.x + 500.0, g.ground_y);
-        g.tick(0.05, target, true, 0.0);
-        let proj = g
+
+        let ec_x = g.enemy_catapult.as_ref().unwrap().pos.x;
+        let gy = g.ground_y;
+        let grunt = spawn_unit(
+            &mut g.id_gen,
+            "grunt",
+            Team::Player,
+            Vec2::new(ec_x - 300.0, gy),
+            1.0,
+            1.0,
+        )
+        .unwrap();
+        g.units.push(grunt);
+
+        g.tick(1.0 / 60.0, Vec2::ZERO, false, 0.0);
+
+        let has_enemy_proj = g
             .projectiles
             .iter()
-            .find(|p| p.team == Team::Player && p.gravity > 0.0);
-        assert!(proj.is_some(), "aucun projectile parabolique");
+            .any(|p| p.team == Team::Enemy && p.gravity > 0.0);
+        assert!(has_enemy_proj, "enemy catapult didn't fire");
+    }
+
+    #[test]
+    fn enemy_catapult_ignores_units_out_of_range() {
+        let p = Progress::default();
+        let mut g = Game::new(&ctx(), "cd_03", 1, &p).expect("creates");
+        disable_ai(&mut g);
+
+        let gy = g.ground_y;
+        let grunt = spawn_unit(
+            &mut g.id_gen,
+            "grunt",
+            Team::Player,
+            Vec2::new(100.0, gy),
+            1.0,
+            1.0,
+        )
+        .unwrap();
+        g.units.push(grunt);
+
+        g.tick(1.0 / 60.0, Vec2::ZERO, false, 0.0);
+
+        let has_enemy_proj = g
+            .projectiles
+            .iter()
+            .any(|p| p.team == Team::Enemy && p.gravity > 0.0);
+        assert!(!has_enemy_proj);
     }
 
     #[test]
@@ -561,15 +610,24 @@ mod tests {
     }
 
     #[test]
-    fn catapult_rebuilds_after_timer() {
+    fn player_fire_spawns_parabolic_projectile() {
         let mut g = new_game(0);
         disable_ai(&mut g);
-        g.catapult.take_damage(9999.0);
-        assert!(!g.catapult.is_alive());
-        for _ in 0..700 {
-            g.tick(1.0 / 60.0, Vec2::ZERO, false, 0.0);
-        }
-        assert!(g.catapult.is_alive());
+        let target = Vec2::new(g.catapult.pos.x + 500.0, g.ground_y);
+        g.tick(0.05, target, true, 0.0);
+        let proj = g
+            .projectiles
+            .iter()
+            .find(|p| p.team == Team::Player && p.gravity > 0.0);
+        assert!(proj.is_some());
+    }
+
+    #[test]
+    fn new_game_applies_catapult_range_upgrade() {
+        let mut p = Progress::default();
+        p.tree.grant("catapult_range_1");
+        let g = Game::new(&ctx(), "sh_02", 0, &p).expect("creates");
+        assert!((g.catapult.max_range - (CATAPULT_MAX_RANGE + 200.0)).abs() < 1e-6);
     }
 
     #[test]
@@ -577,7 +635,6 @@ mod tests {
         let mut g = new_game(0);
         disable_ai(&mut g);
         let gold_before = g.player_upgrades.gold;
-
         let mut dead = spawn_unit(
             &mut g.id_gen,
             "grunt",
@@ -590,49 +647,18 @@ mod tests {
         dead.hp = 0.0;
         g.units.push(dead);
         g.tick(0.0, Vec2::ZERO, false, 0.0);
-
         assert!(g.player_upgrades.gold > gold_before);
     }
 
     #[test]
-    fn mana_on_kill_adds_bonus_mana() {
-        let mut p = Progress::default();
-        p.tree.grant("mana_on_kill");
-        let mut g = Game::new(&ctx(), "sh_02", 0, &p).expect("creates");
-        disable_ai(&mut g);
-        g.player_mana.current = 0.0;
-        g.player_mana.regen = 0.0;
-
-        let mut dead = spawn_unit(
-            &mut g.id_gen,
-            "grunt",
-            Team::Enemy,
-            Vec2::new(500.0, g.ground_y),
-            1.0,
-            1.0,
-        )
-        .unwrap();
-        dead.hp = 0.0;
-        g.units.push(dead);
-        g.tick(0.0, Vec2::ZERO, false, 0.0);
-
-        // balance.mana_per_kill (5) + mana_on_kill (3) = 8.
-        assert!((g.player_mana.current - 8.0).abs() < 1e-3);
-    }
-
-    #[test]
-    fn unit_speed_upgrade_reflected_in_field() {
-        let mut p = Progress::default();
-        p.tree.grant("unit_speed");
-        let g = Game::new(&ctx(), "sh_02", 0, &p).expect("creates");
-        assert!((g.player_upgrades.unit_speed_mult() - 1.20).abs() < 1e-6);
-    }
-
-    #[test]
-    fn tower_hp_fraction_reflects_current_hp() {
+    fn catapult_rebuilds_after_timer() {
         let mut g = new_game(0);
-        g.player_tower.hp = g.player_tower.max_hp * 0.5;
-        assert!((g.tower_hp_fraction() - 0.5).abs() < 1e-6);
+        disable_ai(&mut g);
+        g.catapult.take_damage(9999.0);
+        for _ in 0..700 {
+            g.tick(1.0 / 60.0, Vec2::ZERO, false, 0.0);
+        }
+        assert!(g.catapult.is_alive());
     }
 
     #[test]

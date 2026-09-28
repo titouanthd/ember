@@ -143,6 +143,8 @@ pub const MID_CHUNK_W: f32 = 70.0;
 pub const FAR_PARALLAX: f32 = 0.25;
 pub const MID_PARALLAX: f32 = 0.55;
 pub const NEON_PARALLAX: f32 = 0.75;
+/// Hauteur visuelle totale de la tour (body + créneaux).
+pub const TOWER_VISUAL_H: f32 = 152.0;
 
 // ---------- Dessin : ciel ----------
 
@@ -460,48 +462,156 @@ pub fn draw_tower(
     let window_c = palette.window_c();
     let top = ground_y - h + sy_off;
 
-    // Corps.
-    draw_rectangle(sx - w * 0.5, top, w, h, base);
-    draw_rectangle_lines(sx - w * 0.5, top, w, h, 2.0, accent);
+    // Couleur d'assombrissement pour les détails de maçonnerie.
+    let detail = Color::new(base.r * 0.72, base.g * 0.72, base.b * 0.72, 1.0);
+    let bright = Color::new(
+        (base.r * 1.15).min(1.0),
+        (base.g * 1.15).min(1.0),
+        (base.b * 1.15).min(1.0),
+        1.0,
+    );
 
-    // Fenêtres verticales (3 colonnes).
-    let win_cols = 3;
-    let win_rows = 5;
-    for wx in 0..win_cols {
-        for wy in 0..win_rows {
-            let fx = sx - w * 0.5 + 8.0 + wx as f32 * 14.0;
-            let fy = top + 24.0 + wy as f32 * 22.0;
-            draw_rectangle(fx, fy, 6.0, 10.0, window_c);
+    // Corps de la tour (rectangle principal).
+    draw_rectangle(sx - w * 0.5, top, w, h, base);
+
+    // Bande verticale plus claire sur la gauche (effet de relief).
+    draw_rectangle(sx - w * 0.5, top, 4.0, h, bright);
+
+    // Bandes horizontales (suggestion de niveaux).
+    let n_bands = 6;
+    for i in 1..n_bands {
+        let y = top + i as f32 * (h / n_bands as f32);
+        draw_line(
+            sx - w * 0.5 + 3.0,
+            y,
+            sx + w * 0.5 - 3.0,
+            y,
+            1.0,
+            detail,
+        );
+    }
+
+    // Lignes verticales courtes (briques / pierres).
+    let n_cols = 3;
+    for i in 1..n_cols {
+        let x = sx - w * 0.5 + i as f32 * (w / n_cols as f32);
+        for band in 0..n_bands {
+            let y0 = top + band as f32 * (h / n_bands as f32) + 2.0;
+            let y1 = top + (band + 1) as f32 * (h / n_bands as f32) - 2.0;
+            // Décalage alterné (staggered masonry)
+            let offset = if band % 2 == 0 { 0.0 } else { 5.0 };
+            draw_line(x + offset, y0, x + offset, y1, 0.8, detail);
         }
     }
 
-    // Créneaux en haut.
-    let slots = 3;
-    for i in 0..slots {
-        let slot_x = sx - w * 0.5 + 6.0 + i as f32 * (w - 12.0) / (slots as f32 - 1.0) - 5.0;
-        draw_rectangle(slot_x, top - 8.0, 10.0, 8.0, base);
-        draw_rectangle_lines(slot_x, top - 8.0, 10.0, 8.0, 1.0, accent);
+    // Bordure extérieure.
+    draw_rectangle_lines(sx - w * 0.5, top, w, h, 2.0, accent);
+
+    // Créneaux au sommet (battlements).
+    let merlon_w = 10.0;
+    let merlon_h = 12.0;
+    let gap = 6.0;
+    let total_merlons_w = 3.0 * merlon_w + 2.0 * gap;
+    let start_x = sx - total_merlons_w * 0.5;
+    for i in 0..3 {
+        let mx = start_x + i as f32 * (merlon_w + gap);
+        draw_rectangle(mx, top - merlon_h, merlon_w, merlon_h, base);
+        draw_rectangle_lines(mx, top - merlon_h, merlon_w, merlon_h, 1.5, accent);
+        // Petit créneau interne
+        draw_rectangle(
+            mx + 2.0,
+            top - merlon_h + 2.0,
+            merlon_w - 4.0,
+            3.0,
+            detail,
+        );
     }
 
-    // Porte.
-    let door_w = 16.0;
-    let door_h = 22.0;
-    let door_x = sx - door_w * 0.5;
-    let door_y = top + h - door_h - 4.0;
-    draw_rectangle(door_x, door_y, door_w, door_h, Color::new(0.02, 0.02, 0.04, 1.0));
-    draw_rectangle_lines(door_x, door_y, door_w, door_h, 1.0, accent);
+    // Fenêtres (arche romane, 3 étages).
+    let win_w = 10.0;
+    let win_h = 16.0;
+    let win_x = sx - win_w * 0.5;
+    let win_rows = 3;
+    let win_top_margin = 26.0;
+    let win_bottom_margin = 46.0;
+    let win_area_h = h - win_top_margin - win_bottom_margin;
+    let win_gap = (win_area_h - win_rows as f32 * win_h) / (win_rows as f32 - 1.0).max(1.0);
 
-    // Antenne + voyant.
-    let antenna_top = top - 26.0;
-    draw_line(sx, top - 8.0, sx, antenna_top, 3.0, base);
+    for i in 0..win_rows {
+        let wy = top + win_top_margin + i as f32 * (win_h + win_gap);
+        // Partie rectangulaire de la fenêtre.
+        draw_rectangle(
+            win_x,
+            wy + win_w * 0.5,
+            win_w,
+            win_h - win_w * 0.5,
+            window_c,
+        );
+        // Partie en arche (cercle).
+        draw_circle(win_x + win_w * 0.5, wy + win_w * 0.5, win_w * 0.5, window_c);
+        // Bordure fine.
+        draw_rectangle_lines(
+            win_x,
+            wy + win_w * 0.5,
+            win_w,
+            win_h - win_w * 0.5,
+            1.0,
+            accent,
+        );
+        // Petite barre horizontale au milieu (meneau).
+        draw_line(
+            win_x,
+            wy + win_w * 0.5 + (win_h - win_w * 0.5) * 0.5,
+            win_x + win_w,
+            wy + win_w * 0.5 + (win_h - win_w * 0.5) * 0.5,
+            0.8,
+            accent,
+        );
+    }
+
+    // Porte en arche au pied de la tour.
+    let door_w = 18.0;
+    let door_h = 26.0;
+    let door_x = sx - door_w * 0.5;
+    let door_y = top + h - door_h;
+    let door_color = Color::new(0.02, 0.02, 0.04, 1.0);
+    draw_rectangle(
+        door_x,
+        door_y + door_w * 0.5,
+        door_w,
+        door_h - door_w * 0.5,
+        door_color,
+    );
+    draw_circle(door_x + door_w * 0.5, door_y + door_w * 0.5, door_w * 0.5, door_color);
+    // Encadrement.
+    draw_rectangle_lines(
+        door_x,
+        door_y + door_w * 0.5,
+        door_w,
+        door_h - door_w * 0.5,
+        1.5,
+        accent,
+    );
+    // Petite lumière au-dessus de la porte.
+    draw_circle(sx, door_y - 4.0, 2.5, window_c);
+
+    // Antenne + voyant au sommet.
+    let antenna_base = top - merlon_h;
+    let antenna_top = antenna_base - 14.0;
+    draw_line(sx, antenna_base, sx, antenna_top, 2.0, base);
     let light = if player {
         Color::new(0.35, 1.0, 0.45, 1.0)
     } else {
         Color::new(1.0, 0.35, 0.35, 1.0)
     };
-    draw_circle(sx, antenna_top, 5.0, light);
-    // Halo du voyant.
-    draw_circle(sx, antenna_top, 9.0, Color::new(light.r, light.g, light.b, 0.3));
+    // Halo.
+    draw_circle(
+        sx,
+        antenna_top,
+        8.0,
+        Color::new(light.r, light.g, light.b, 0.28),
+    );
+    draw_circle(sx, antenna_top, 4.0, light);
 }
 
 // ---------- Tests ----------

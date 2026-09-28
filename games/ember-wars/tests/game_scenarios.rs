@@ -299,3 +299,48 @@ fn units_ron_loads() {
     let data: Vec<UnitStats> = load_from_file(&path).expect("units.ron");
     assert_eq!(data.len(), 6);
 }
+
+#[test]
+fn enemy_catapult_present_only_on_flagged_levels() {
+    // Niveaux sans catapulte ennemie.
+    for id in ["sh_01", "sh_02", "gy_01", "hk_01", "cd_01"] {
+        let p = Progress::default();
+        let g = Game::new(&ctx(), id, 1, &p).expect("level exists");
+        assert!(g.enemy_catapult.is_none(), "level {id} should NOT have enemy catapult");
+    }
+    // Niveaux avec catapulte ennemie.
+    for id in ["cd_03", "bj_02", "bj_03"] {
+        let p = Progress::default();
+        let g = Game::new(&ctx(), id, 1, &p).expect("level exists");
+        assert!(g.enemy_catapult.is_some(), "level {id} should have enemy catapult");
+    }
+}
+
+#[test]
+fn enemy_catapult_fires_when_player_unit_in_range() {
+    let p = Progress::default();
+    let mut g = Game::new(&ctx(), "cd_03", 1, &p).expect("creates");
+    g.enemy_mana.current = 0.0;
+    g.enemy_mana.regen = 0.0;
+
+    let ec_x = g.enemy_catapult.as_ref().unwrap().pos.x;
+    let gy = g.ground_y;
+    let grunt = spawn_unit(
+        &mut g.id_gen,
+        "grunt",
+        Team::Player,
+        Vec2::new(ec_x - 300.0, gy),
+        1.0,
+        1.0,
+    )
+    .unwrap();
+    g.units.push(grunt);
+
+    g.tick(SIM_DT, Vec2::ZERO, false, 0.0);
+
+    let has_enemy_proj = g
+        .projectiles
+        .iter()
+        .any(|p| p.team == Team::Enemy && p.gravity > 0.0);
+    assert!(has_enemy_proj, "enemy catapult should fire at player unit");
+}
