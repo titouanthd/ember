@@ -2,8 +2,8 @@
 
 Document destiné au prochain agent qui reprendra le projet.
 
-Dernière mise à jour : Phase 25 (ember-wars — catapulte balistique, 5 chapitres, tree 28 nœuds).
-État du workspace : 12 jeux fonctionnels, 1040 tests verts (0 failed, 1 doctest exécuté, 8 ignored).
+Dernière mise à jour : Phase 26 (extraction `Cooldown` + restauration de tests ember-wars).
+État du workspace : 12 jeux fonctionnels, 1093 tests verts (0 failed, 3 doctests exécutés, 2 ignored).
 
 ---
 
@@ -45,7 +45,7 @@ Conventions clés :
   Règle générale : si la fonction prend impl AsRef<str> ou impl Into<String>, retirer le &. Clippy râle (needless_borrows_for_generic_args) sinon.
 - TextDimensions : macroquad::draw_text retourne TextDimensions, pas (). Pour ignorer, terminer par ;.
 - manual_range_contains : écrire (a..=b).contains(&x) au lieu de x >= a && x <= b.
-- **Design docs (Phase 17)** : chaque nouveau jeu doit avoir un `DESIGN.md` dans son dossier. Premier : `games/memory/DESIGN.md`. À faire rétroactivement pour Pong, Breakout, Snake, Asteroids, Bullet Hell, Minesweeper, Simon.
+- **Design docs (Phase 17)** : chaque nouveau jeu doit avoir un `DESIGN.md` dans son dossier. Fait : memory, freecell, zhuo-ji, ember-wars, asteroids (rétroactif Phase 25), bullet-hell (rétroactif Phase 25). Reste : pong, breakout, snake, minesweeper, simon, air-hockey.
 - **Clavier AZERTY vs QWERTY (Phase 18)** : macroquad utilise les scancodes QWERTY, pas les caractères du layout. Sur AZERTY : `M` → `KeyCode::Semicolon`, `Z` → `KeyCode::W`, `A` ↔ `Q`, `W` ↔ `Z`. Toujours préférer `Tab`, `Escape`, `Space`, `Enter`, ou les touches de fonction pour les raccourcis critiques.
 - **`clippy::collapsible_if` (Phase 21)** : let-chains (`if let Some(x) = ... && cond { }`) stables depuis Rust 1.88, à utiliser.
 - **`clippy::doc_overindented_list_items` (Phase 21)** : sous-items doc-comment alignés à 2 espaces après le `-`.
@@ -55,7 +55,8 @@ Conventions clés :
 - **`clippy::vec_init_then_push` (Phase 23)** : préférer `vec![...]` à `let mut v = Vec::new(); v.push(...); ...`.
 - **`clippy::manual_is_multiple_of` (Phase 23)** : `.is_multiple_of(n)` au lieu de `% n == 0`.
 - **`set_default_font` après `load_ttf_font` (Phase 23)** : pattern canonique Ember pour les polices Unicode. Utilisé par FreeCell et ember-wars.
-- **Fence Markdown à 4 backticks (Phase 25)** : quand un document Markdown (ou un récap de session, un DESIGN.md, un version.txt) contient des blocs de code délimités par des fences ```` ``` ````, il faut **entourer tout le document d'un fence à 4 backticks** ` ```` `. Sinon le parser Markdown ferme prématurément le bloc externe au premier fence interne et casse tout le rendu à partir de cet endroit. Règle générale : **le fence externe doit être d'un niveau de plus que le fence interne le plus profond**. Vérifier visuellement après publication que rien n'est cassé.
+- **Fence Markdown à 4 backticks (Phase 25)** : quand un document Markdown contient des blocs de code délimités par des fences ` ``` `, il faut **entourer tout le document d'un fence à 4 backticks** ` ```` `. Sinon le parser Markdown ferme prématurément le bloc externe au premier fence interne et casse tout le rendu à partir de cet endroit. Règle générale : **le fence externe doit être d'un niveau de plus que le fence interne le plus profond**. Vérifier visuellement après publication que rien n'est cassé.
+- **Timers mixtes (Phase 26)** : distinguer les *countdowns* (f32 qui décrémente → `Cooldown`), les *timestamps absolus* (f32 comparé à `now`), les *accumulateurs* (f32 qui compte vers le haut) et les *progressions [0,1]* (animations). Seuls les countdowns migrent vers `Cooldown`.
 
 ---
 
@@ -66,11 +67,11 @@ ember-workspace/
 ├── Cargo.toml
 ├── Cargo.lock
 ├── Makefile
-├── version.txt                     # ce document
+├── version.txt
 ├── README.md
 ├── crates/
 │   ├── ember-core/
-│   │   └── src/{lib,io,rng}.rs, math/, time/, app/
+│   │   └── src/{lib,io,rng}.rs, math/, time/{tick,cooldown}.rs, app/
 │   ├── ember-stdlib/
 │   │   └── src/{lib,transform,sprite,collider,config,persistence,grid,input,audio}.rs, graphics/, ui/
 │   └── ember-editor/
@@ -79,16 +80,10 @@ ember-workspace/
     ├── minesweeper/, simon/, memory/, freecell/, air-hockey/, zhuo-ji/
     └── ember-wars/
         ├── assets/
-        │   ├── chapters.ron        # 5 chapitres × 3 niveaux
-        │   ├── palettes.ron        # 5 palettes
-        │   ├── balance.ron
-        │   ├── units.ron
-        │   ├── upgrade_tree.ron    # 28 nœuds
-        │   └── DejaVuSansMono.ttf
         ├── src/
         │   ├── main.rs, lib.rs, config.rs, components.rs
         │   ├── units.rs, stickman.rs, weapons.rs, combat.rs, mana.rs
-        │   ├── catapult.rs         # Phase 25, remplace tower.rs
+        │   ├── catapult.rs
         │   ├── ai.rs, upgrades.rs, progress.rs, camera.rs, layout.rs
         │   ├── textures.rs, juice.rs, fonts.rs, render.rs, menu.rs
         │   ├── systems.rs
@@ -115,20 +110,22 @@ Total : 12 jeux fonctionnels.
 | FreeCell | 78 | 8 | 86 |
 | Air Hockey | 58 | 10 | 68 |
 | Zhuo Ji | 187 | 10 | 197 |
-| **ember-wars** | **296** | **18** | **314** |
+| **ember-wars** | **317** | **20** | **337** |
 
-Total jeux : **892 tests**.
+Total jeux : **915 tests**.
 
 Framework :
-- ember_core : 47 unit + 1 integration (collision.rs) = **48**
+- ember_core : 77 unit + 1 integration (collision.rs) = **78** (+ 3 doctests exécutés)
 - ember_stdlib : **99**
 - ember_editor : **1**
 
-Total framework : **148 tests**.
+Total framework : **178 tests**.
 
-**Total workspace : 892 + 148 = 1040 tests verts.**
+**Total workspace : 915 + 178 = 1093 tests verts.**
 
-Doctests : 1 exécuté (Rng dans ember_core), 8 ignored (1 TickTimer + 7 ember_stdlib liés à macroquad/dotenv).
+Doctests : 3 exécutés (Rng + 2 Cooldown), 2 ignored (TickTimer + le bloc `ignore` de Cooldown).
+
+**Note historique** : ember-wars a perdu ~52 tests en Phase 26 lors de la migration `Cooldown` (blocs `mod tests` réécrits en simplifiant). Restaurés dans la même phase → 317 unit + 20 integration = 337.
 
 ---
 
@@ -136,9 +133,11 @@ Doctests : 1 exécuté (Rng dans ember_core), 8 ignored (1 TickTimer + 7 ember_s
 
 Crate pur : aucune dépendance graphique.
 
-Dépendances : glam, serde, ron.
+Dépendances (via .workspace = true) : glam, serde, ron.
 
 ### io.rs
+
+Chargement/sauvegarde RON génériques.
 
 ```rust
 pub fn save_to_file<T: Serialize>(path: &Path, data: &T) -> Result<(), String>;
@@ -155,6 +154,8 @@ Méthodes : `new`, `from_state`, `state`, `set_state`, `next_u32`, `next_f32`, `
 
 Tests : 10. Doctest exécuté.
 
+Utilisé par : Bullet Hell, Minesweeper, Simon, Memory, FreeCell, Air Hockey, Zhuo Ji, **ember-wars**.
+
 ### math/aabb.rs — Aabb
 
 Struct : `{ min: Vec2, max: Vec2 }`. Tests : 15.
@@ -167,7 +168,29 @@ Struct : `{ center: Vec2, radius: f32 }`. Tests : 9.
 
 Accumulateur pour simulations à pas fixe. Tests : 11.
 
-**Note importante** : TickTimer est un accumulateur de ticks, pas un cooldown booléen. Pour un cooldown "prêt / pas prêt", utiliser un f32 qui décrémente (voir Asteroids, Bullet Hell, Zhuo Ji, **ember-wars**).
+**Note importante** : TickTimer est un accumulateur de ticks, pas un cooldown booléen. Pour un cooldown "prêt / pas prêt", utiliser `Cooldown` (voir ci-dessous).
+
+### time/cooldown.rs — Cooldown (Phase 26)
+
+Countdown timer — un `f32` qui décrémente vers 0. Extrait de 4 jeux (Asteroids, Bullet Hell, Zhuo Ji, ember-wars). Rule of Three dépassée.
+
+**API** :
+- `new(d)` / `running(d)` / `from_remaining(rem, dur)` / `ready()` / `default()`
+- `tick(dt)` / `tick_returning(dt) -> bool`
+- `trigger(d)` / `reset()` / `clear()`
+- `is_ready()` / `is_active()`
+- `remaining()` / `duration()`
+- `fraction()` (progression 0→1) / `remaining_fraction()` (1→0)
+
+**Dérivations** : `Debug`, `Clone`, `Copy`, `Default`, `PartialEq`, `Serialize`, `Deserialize`.
+
+**Note importante** : `tick_returning` est le seul moyen sûr de détecter la transition active → ready. `tick` + `is_ready` rate la transition si `is_ready` est appelé après que d'autres events ont été traités.
+
+**Quand utiliser Cooldown vs f32** :
+- `Cooldown` : countdowns réutilisables avec trigger/reset (cooldowns de tir, invincibilité, rebuild).
+- `f32` : timestamps absolus comparés à `now` (`invincible_until`, `hitstop_until`, `level_cleared_until`), accumulateurs qui comptent vers le haut (`Phase::Deal { t }`), et phases de `[0, 1]` pour animations.
+
+Tests : 26 unit (dont 2 sur `running`). 2 doctests exécutés.
 
 ### app/state.rs — GameState
 
@@ -183,7 +206,7 @@ Zhuo Ji **n'utilise pas** GameState (Phase propre). ember-wars **non plus** (Pha
 
 ## ember_stdlib — Détail
 
-Ré-exporte `ember_core::*`.
+Ré-exporte `ember_core::*` (donc `use ember_stdlib::time::Cooldown` marche).
 
 ### transform.rs — Transform
 
@@ -257,7 +280,20 @@ Tests : 11.
 
 Inspiré de **Cartoon Wars** (Gamevil, 2009) : hybride Tower Defense / RTS side-scrolling. Deux tours s'affrontent, chaque camp spawn des unités qui avancent automatiquement, le joueur gère une ressource (Mana) et pilote une **catapulte balistique**. Objectif : détruire la tour ennemie OU survivre N secondes.
 
-### Phase 25 — Ce qui a changé
+### Phase 23 — Contenu initial
+
+- Design doc complet.
+- Units, Tower (Turret), Combat, AI, Camera, Systems, Render.
+- Menu campagne scrollable.
+- Spawn bar, Juice, Upgrade tree (18 nœuds).
+- Progress (étoiles, or persistant, chapitres verrouillés).
+- Textures procédurales (2 palettes).
+- Fonts DejaVu Sans Mono.
+- Session F1 — Stick men procéduraux (3 phases).
+- Session F2 — 6 armes procédurales.
+- Strike différé (PendingAttack).
+
+### Phase 25 — Contenu
 
 1. **Tourelle → Catapulte balistique** :
    - Tir parabolique (résolution de vélocité initiale).
@@ -266,13 +302,27 @@ Inspiré de **Cartoon Wars** (Gamevil, 2009) : hybride Tower Defense / RTS side-
    - Ciblée en priorité par l'AI si plus proche que la tour.
    - Multi-tir resserré : 20px entre arcs.
 
-2. **2 chapitres supplémentaires** (Chengdu, Beijing) → **5 chapitres × 3 niveaux = 15 niveaux**.
+2. **5 chapitres × 3 niveaux** = **15 niveaux** (Shanghai, Guiyang, Hong Kong, Chengdu, Beijing).
 
 3. **Upgrade tree 18 → 28 nœuds** avec 6 nouveaux effets (`UnitSpeedMult`, `TurretCritChance`, `ManaOnKillAdd`, `CatapultRangeAdd`, `CatapultHpMult`, `CatapultRebuildMult`). Modal scrollable.
 
 4. **Floating damage/heal texts partout** — spawn dans les fonctions `apply_damage_*`. Couleurs : bleu (dégâts joueur), rouge (dégâts ennemis), vert (heal).
 
 5. **Menu polish** : scrollbar verticale, header/footer opaques, fenêtre 1600×900.
+
+6. **Session catapulte ennemie** : miroir du joueur, stats réduites (250 HP, portée 700px, rebuild 12s, cd 1.4s, damage 10). Activée sur `cd_03`, `bj_02`, `bj_03` via `LevelConfig::enemy_catapult`. Redesign visuel : trébuchet (base bois + A-frame + plaque pivot + bras + caisse de contrepoids + fronde) et tour médiévale (créneaux + fenêtres en arche + porte).
+
+### Phase 26 — Migration Cooldown
+
+- `Unit::attack_cd` / `heal_cd` / `hit_flash` → `Cooldown`. Champ `attack_cd_max` supprimé (la durée vit dans le Cooldown).
+- `Catapult::cooldown` → `Cooldown`. `rebuild_timer` + `rebuild_time` fusionnés en `rebuild: Cooldown`.
+- `Game::player_cooldowns` / `enemy_cooldowns` : `HashMap<String, f32>` → `HashMap<String, Cooldown>`.
+- `render.rs` : `attack_cd.duration() - attack_cd.remaining()` pour l'anim ; `rebuild_remaining()` pour l'overlay.
+- `spawn_bar.rs` : `remaining_fraction()` pour l'overlay de cooldown.
+- `ai.rs` : signature prend `&HashMap<String, Cooldown>`.
+- **52 tests restaurés** après perte silencieuse lors de la migration.
+
+**Note** : `PendingAttack::time_to_hit` reste en `f32` — c'est un sous-compteur interne, pas un cooldown de premier ordre.
 
 ### Chapitres
 
@@ -286,49 +336,56 @@ Inspiré de **Cartoon Wars** (Gamevil, 2009) : hybride Tower Defense / RTS side-
 
 ### Niveaux (15)
 
-| ID | Nom | Obj | Width | Tower HP | Waves |
-|---|---|---|---|---|---|
-| sh_01 | Les quais | Survive 45 | 1600 | 400 | 2 |
-| sh_02 | Le Bund | Destroy | 1800 | 500 | 3 |
-| sh_03 | Pudong | Destroy | 2000 | 600 | 5 |
-| gy_01 | Les rizières | Survive 60 | 1700 | 500 | 3 |
-| gy_02 | La montagne | Destroy | 1900 | 700 | 4 |
-| gy_03 | La citadelle | Destroy | 2100 | 800 | 5 |
-| hk_01 | Kowloon | Survive 50 | 1900 | 550 | 3 |
-| hk_02 | Victoria Harbour | Destroy | 2100 | 700 | 4 |
-| hk_03 | The Peak | Destroy | 2300 | 900 | 5 |
-| cd_01 | Les bambous | Survive 65 | 2000 | 600 | 3 |
-| cd_02 | Le temple Wuhou | Destroy | 2200 | 850 | 4 |
-| cd_03 | Le mont Qingcheng | Destroy | 2400 | 1100 | 5 |
-| bj_01 | La Cité Interdite | Survive 70 | 2100 | 750 | 4 |
-| bj_02 | Le Temple du Ciel | Destroy | 2300 | 1000 | 5 |
-| bj_03 | La Grande Muraille | Destroy | 2600 | 1300 | 6 |
+| ID | Nom | Obj | Width | Tower HP | Waves | Enemy cat |
+|---|---|---|---|---|---|---|
+| sh_01 | Les quais | Survive 45 | 1600 | 400 | 2 | — |
+| sh_02 | Le Bund | Destroy | 1800 | 500 | 3 | — |
+| sh_03 | Pudong | Destroy | 2000 | 600 | 5 | — |
+| gy_01 | Les rizières | Survive 60 | 1700 | 500 | 3 | — |
+| gy_02 | La montagne | Destroy | 1900 | 700 | 4 | — |
+| gy_03 | La citadelle | Destroy | 2100 | 800 | 5 | — |
+| hk_01 | Kowloon | Survive 50 | 1900 | 550 | 3 | — |
+| hk_02 | Victoria Harbour | Destroy | 2100 | 700 | 4 | — |
+| hk_03 | The Peak | Destroy | 2300 | 900 | 5 | — |
+| cd_01 | Les bambous | Survive 65 | 2000 | 600 | 3 | — |
+| cd_02 | Le temple Wuhou | Destroy | 2200 | 850 | 4 | — |
+| cd_03 | Le mont Qingcheng | Destroy | 2400 | 1100 | 5 | ✅ |
+| bj_01 | La Cité Interdite | Survive 70 | 2100 | 750 | 4 | — |
+| bj_02 | Le Temple du Ciel | Destroy | 2300 | 1000 | 5 | ✅ |
+| bj_03 | La Grande Muraille | Destroy | 2600 | 1300 | 6 | ✅ |
 
 ### Catapulte — Constantes
 
-- `CATAPULT_HP = 300.0`
-- `CATAPULT_REBUILD_TIME = 10.0`
+**Joueur** :
+- `CATAPULT_HP = 300.0`, `CATAPULT_REBUILD_TIME = 10.0`
 - `CATAPULT_OFFSET_X = 150.0`
-- `CATAPULT_MIN_RANGE = 150.0`, `CATAPULT_MAX_RANGE = 1000.0` (base)
+- `CATAPULT_MIN_RANGE = 150.0`, `CATAPULT_MAX_RANGE = 1000.0`
 - `CATAPULT_FIRE_COOLDOWN = 0.9`, `CATAPULT_BASE_DAMAGE = 14.0`
 - `CATAPULT_H_SPEED = 650.0`, `CATAPULT_GRAVITY = 900.0`
 - `MULTI_SHOT_SPREAD_PX = 20.0`
+
+**Ennemi** :
+- `ENEMY_CATAPULT_HP = 250.0`, `ENEMY_CATAPULT_REBUILD_TIME = 12.0`
+- `ENEMY_CATAPULT_MAX_RANGE = 700.0`
+- `ENEMY_CATAPULT_FIRE_COOLDOWN = 1.4`, `ENEMY_CATAPULT_DAMAGE = 10.0`
+
+`Catapult::with_facing(pos, -1.0)` applique automatiquement les stats ennemi.
 
 ### Upgrade tree (28 nœuds)
 
 4 branches × 7 nœuds :
 
-- **Défense (col -4)** : HP I → HP II → HP III → Regen → Regen II → Forteresse
+- **Défense (col -4)** : HP I → II → III → Regen → Regen II → Forteresse
 - **Armée (col -2)** : Unit HP I → II → Speed → Unlock Archer → Healer → Bomber → Hero
 - **Catapulte (col +2)** : Range I → II → HP → Rebuild → Dmg → Fire rate → Multi-shot → Crit
 - **Économie (col +4)** : Mana I → Cap → Mana/kill → Gold I → II → III
 
-### Prochaines étapes
+### Prochaines étapes (ember-wars)
 
-1. Playtest réel + tuning (difficulté Survive, bj_03).
-2. Catapulte ennemie (symétrie).
-3. Upgrades mutuellement exclusifs.
-4. Nouveaux ShotKind (Slow, Poison).
+1. Playtest réel + tuning (difficulté Survive, bj_03 avec catapulte ennemie).
+2. Upgrades mutuellement exclusifs (2 choix par branche).
+3. Nouveaux ShotKind (Slow, Poison).
+4. Plus de chapitres.
 
 ---
 
@@ -409,19 +466,62 @@ Sessions 1-5 (Tile model, hand eval, AI, claims, scoring), puis V2 (scoring éte
 - **Modal upgrade scrollable** (molette, PageUp/Down, Home/End, auto-scroll).
 - **Floating damage/heal texts partout** (spawn dans apply_damage_*).
 - **Fenêtre 1600×900** au lancement.
+- **Session catapulte ennemie** (avec stats réduites) + redesign visuel (trébuchet + tour médiévale).
+- **DESIGN.md rétroactifs** pour Asteroids et Bullet Hell.
 - Tests : ember-wars passe de 265 → **314**.
+
+### Phase 26 — Refacto `Cooldown` + restauration
+
+**Extraction dans `ember_core::time::Cooldown`** — 4e occurrence du pattern "f32 qui décrémente", Rule of Three dépassée.
+
+- `ember_core::time::cooldown` avec 26 tests unit + 2 doctests.
+- API : `new`, `running`, `from_remaining`, `ready`, `tick`, `tick_returning`, `trigger`, `reset`, `clear`, `is_ready`, `is_active`, `remaining`, `duration`, `fraction`, `remaining_fraction`.
+
+**Migration ember-wars** (pilote) :
+- `Unit::attack_cd` / `heal_cd` / `hit_flash` → `Cooldown`.
+- `Catapult::cooldown` / `rebuild` → `Cooldown` (fusion `rebuild_timer`+`rebuild_time`).
+- `player_cooldowns` / `enemy_cooldowns` → `HashMap<String, Cooldown>`.
+- `render.rs`, `spawn_bar.rs`, `ai.rs` adaptés.
+
+**Migration Asteroids** :
+- `Bullet::lifetime: f32` → `Cooldown`.
+- `GameWorld::shoot_cooldown: f32` → `Cooldown`.
+- `GameWorld::invincible_until: f32` → renommé `invincibility: Cooldown`.
+- `level_cleared_timer: f32` **inchangé** (timer de phase one-shot).
+
+**Migration Bullet Hell** :
+- `Bullet::ttl: f32` → `Cooldown`.
+- `Player::cooldown: f32` → `Cooldown`.
+- `Enemy::fire_cooldown: f32` → `Cooldown`.
+- `Enemy::flash: f32` → `Cooldown`.
+- `invincible_until`, `level_cleared_until`, `hitstop_until` : timestamps absolus, **inchangés**.
+- `Particle::ttl` : juice pur, **inchangé** (candidat cosmétique).
+
+**Migration Zhuo Ji** :
+- `Game::turn_timer: f32` → `Cooldown`.
+- `Phase::AiThinking { t: f32 }` → `Phase::AiThinking { timer: Cooldown }`.
+- `Phase::AwaitingClaims { t: f32 }` → `Phase::AwaitingClaims { timer: Cooldown }`.
+- `Phase::ClaimAnim { t: f32 }` → `Phase::ClaimAnim { timer: Cooldown }`.
+- `Phase::Deal { t }` et `Phase::DrawAnim { t }` **inchangés** (comptent vers le haut).
+
+**Restauration de tests ember-wars** :
+- Blocs `mod tests` de `catapult.rs`, `combat.rs`, `systems.rs` réécrits lors de la migration.
+- 52 tests perdus (24 + 29 + 18 = 71 ré-ajoutés, -19 déjà présents dans les nouveaux blocs).
+- Tous adaptés à l'API `Cooldown`.
+
+**Résultat** : `Cooldown` utilisé dans 4 jeux, tous les countdowns migrés. Les timestamps absolus et accumulateurs restent en `f32` (décision délibérée). ember-wars = 337 tests.
 
 ---
 
 ## Décisions à prendre
 
-1. Sprite : renommer en Tint ou assumer qu'on ajoutera des textures ?
+1. Sprite : renommer en Tint ou assumer qu'on ajoutera des textures ? (Reporté depuis Session 2.)
 2. SnakeState::new(duration) : paramètre vestigial. Le retirer ou le documenter ?
 3. Shape::as_aabb / as_circle : inutilisés. Supprimer ou utiliser ?
 4. Uniformiser UpdateEvent : Snake/Breakout en ont, Pong/Bullet Hell non.
-5. **Drag-and-drop** : extraire dans ember_stdlib ? Rule of Three : 1re occurrence (FreeCell).
+5. **Drag-and-drop** : extraire dans ember_stdlib ? Rule of Three : 1re occurrence (FreeCell). Attendre Klondike.
 6. **Animation / tween / easing** : 0 occurrence.
-7. **Turn-based state machine** : 1x (Zhuo Ji).
+7. **Turn-based state machine** : 1x (Zhuo Ji). À extraire si 2e jeu tour par tour.
 8. **Fenêtre de décision temporisée** : 1x (Zhuo Ji).
 9. **AI avec information cachée** : 1x (Zhuo Ji).
 10. **Boutons contextuels attachés à une phase** : 1x (Zhuo Ji).
@@ -430,8 +530,8 @@ Sessions 1-5 (Tile model, hand eval, AI, claims, scoring), puis V2 (scoring éte
 13. **Hand evaluation / backtracking** : 1x (Zhuo Ji).
 14. **Modals multi-onglets** : 1x (Zhuo Ji).
 15. **Écran titre / menu principal** : 2x (Zhuo Ji, ember-wars).
-16. **Halo tuile** : 1x (Zhuo Ji).
-17. **`Cooldown` (f32 qui décrémente)** : **4x** (Asteroids, Bullet Hell, Zhuo Ji, ember-wars). **Prêt à extraire.**
+16. **Halo tuile (2 rectangles superposés)** : 1x (Zhuo Ji).
+17. ~~**`Cooldown` (f32 qui décrémente)**~~ : **EXTRAIT** (Phase 26).
 18. **Police Unicode via `set_default_font`** : 2x (FreeCell, ember-wars).
 19. **Juice (particles + shake)** : 2x (Bullet Hell, ember-wars).
 20. **Camera2D / scroll** : 1x (ember-wars).
@@ -456,11 +556,11 @@ Sessions 1-5 (Tile model, hand eval, AI, claims, scoring), puis V2 (scoring éte
 7. **FreeCell : `max_super_move` ne prend pas la destination en compte.**
 8. Air Hockey : DESIGN.md manquant (rétroactif).
 9. Air Hockey : pas de tests d'intégration pour l'IA.
-10. Zhuo Ji : `hands_per_match` hardcodé à 4.
+10. Zhuo Ji : `hands_per_match` hardcodé à 4 dans `Game::hands_per_match()` et `main.rs`, alors que `Layout` lit `AH_HANDS_PER_MATCH`.
 11. Zhuo Ji : Bu Gang (爬坡豆) non implémenté.
 12. Zhuo Ji : pas de tests d'intégration pour Ming Gang et An Gang en situation de jeu.
 13. Zhuo Ji : `Layout::from_env` ne lit que `AH_HANDS_PER_MATCH`.
-14. Zhuo Ji : timer de claim window non affiché.
+14. Zhuo Ji : timer de claim window affiché (barre de progression).
 15. Zhuo Ji : pas de rendu CJK.
 16. Zhuo Ji : Dou passport rule non-enforcée.
 17. Zhuo Ji : Qiang Gang (抢杠) non implémenté.
@@ -468,11 +568,11 @@ Sessions 1-5 (Tile model, hand eval, AI, claims, scoring), puis V2 (scoring éte
 19. Zhuo Ji : Bao Ting (报听) non implémenté.
 20. Zhuo Ji : chips d'état sous avatars non implémentés.
 21. Zhuo Ji : TENPAI permanent + chips transitoires non implémentés.
-22. **ember-wars : stick men ragdoll** — mort statique.
-23. **ember-wars : Fortress** — effet de l'upgrade pas implémenté (2e barre HP).
-24. **ember-wars : pas de sons** (`AudioClip` existe).
-25. **ember-wars : pas de cadavres persistants**.
-26. **ember-wars : pas de catapulte ennemie** (symétrie possible).
+22. ember-wars : stick men ragdoll — mort statique.
+23. ember-wars : Fortress — effet de l'upgrade pas implémenté (2e barre HP).
+24. ember-wars : pas de sons.
+25. ember-wars : pas de cadavres persistants.
+26. **DESIGN.md rétroactifs manquants** : Pong, Breakout, Snake, Minesweeper, Simon, Air Hockey.
 
 ---
 
@@ -495,7 +595,7 @@ Aujourd'hui :
 - Hit testing rectangulaire : 6x → EXTRAIT (Phase 22).
 - Best-time map update : 3x → EXTRAIT (Phase 22).
 - Right-aligned text : 4x → EXTRAIT (Phase 22).
-- **`Cooldown`** : **4x → PRÊT À EXTRAIRE**.
+- **`Cooldown`** : **4x → EXTRAIT** (Phase 26).
 - **Police Unicode** : 2x → attendre 3e.
 - **Juice (particles + shake)** : 2x → attendre 3e.
 - **Layout runtime screen_width** : 2x → attendre 3e.
@@ -524,13 +624,20 @@ Aujourd'hui :
 
 ## Pistes pour le 13e jeu
 
-Le moteur a maintenant : collisions, grille, input souris + clavier, UI, audio, persistance typée, data-driven, machine à états, sélection 2 temps, drag-and-drop local, IA adversaire local, menu de modes, design docs, tour par tour, évaluation de main, AI avec information cachée, 4-player state, fenêtres de décision temporisées, tiles custom, modals multi-onglets, écran titre, hit testing partagé, caméra scroll, auto-combat, spawner, upgrade tree persistant, décor procédural, police Unicode, juice, sol responsive, campagne à chapitres, stick men animés, armes procédurales, strike différé, artillerie balistique, floating damage texts.
+Le moteur a maintenant : collisions, grille, input souris + clavier, UI, audio, persistance typée, data-driven, machine à états, sélection 2 temps, drag-and-drop local, IA adversaire local, menu de modes, design docs, tour par tour, évaluation de main, AI avec information cachée, 4-player state, fenêtres de décision temporisées, tiles custom, modals multi-onglets, écran titre, hit testing partagé, caméra scroll, auto-combat, spawner, upgrade tree persistant, décor procédural, police Unicode, juice, sol responsive, campagne à chapitres, stick men animés, armes procédurales, strike différé, artillerie balistique, floating damage texts, **Cooldown réutilisable**.
+
+Ce qui MANQUE encore :
+- Extraction drag-and-drop dans la stdlib (attendre 3e occurrence).
+- Extraction animation / tween / easing dans la stdlib (0 occurrence).
+- Pathfinding (Tower Defense, roguelike).
+- Procédural gameplay (roguelike).
+- Ragdoll / physique de mort.
 
 ### Recommandations fortes
 
 1. **Tower Defense** — pathfinding, ciblage, économie.
 2. **Match-3** — déclenche ANIMATIONS / TWEEN / EASING.
-3. **Plateformer** — caméra/scroll déjà là. Manque les collisions multi-axes.
+3. **Plateformer** — caméra/scroll déjà là.
 
 ### Recommandations moyennes
 
@@ -543,111 +650,122 @@ Le moteur a maintenant : collisions, grille, input souris + clavier, UI, audio, 
 
 ## Pièges connus (récap)
 
-1. glam version mismatch.
-2. Shape::AABB vs Shape::Aabb.
+1. glam version mismatch : vérifier cargo tree -i glam avant d'ajouter un crate externe.
+2. Shape::AABB vs Shape::Aabb : la variante s'appelle Aabb.
 3. overlaps_strict : rejette les bords touchants.
-4. TickTimer ≠ cooldown.
-5. GameState ajout de variante.
-6. SnakeState::new(duration) : écrasé au premier update.
+4. TickTimer ≠ cooldown : utiliser un f32 qui décrémente (ou `Cooldown`).
+5. GameState ajout de variante : mettre à jour TOUS les match state.
+6. SnakeState::new(duration) : la durée est écrasée au premier update.
 7. SnakeWorld::apply_level : ne reset PAS self.score.
-8. env_color format : {PREFIX}_R/_G/_B/_A.
-9. draw_arc macroquad 0.4.16 : segments: u8.
-10. HP indicators : assombrissement hp/max_hp.
-11. Button UI : update() et draw() même instance.
+8. env_color format : {PREFIX}_R/_G/_B/_A, pas r,g,b,a.
+9. draw_arc macroquad 0.4.16 : segments: u8 en 3e position, radius en 6e.
+10. HP indicators : préférer l'assombrissement par hp/max_hp.
+11. Button UI : update() et draw() sur la MÊME instance.
 12. TextDimensions : draw_text retourne TextDimensions.
-13. field_reassign_with_default.
-14. Grid : neighbors_8 retourne des &T.
-15. Flood fill Démineur.
-16. BoardState vs GameState.
-17. needless_borrows_for_generic_args.
-18. manual_range_contains.
-19. macroquad audio feature.
+13. field_reassign_with_default (clippy).
+14. Grid : neighbors_8 retourne des &T (borrow).
+15. Flood fill Démineur : révèle la frontière chiffrée.
+16. BoardState vs GameState : deux enums séparés.
+17. needless_borrows_for_generic_args (clippy).
+18. manual_range_contains (clippy).
+19. macroquad audio feature : à activer dans Cargo.toml racine.
 20. CircleButton tessellation custom.
 21. tick_playback en boucle.
-22. `load_dotenv_once` : manifest_dir du crate appelant.
+22. `load_dotenv_once` : `manifest_dir` du crate appelant.
 23. `from_macroquad*` : non testable unitairement.
-24. `GameContext` dans `config.rs`.
-25. `Persistence<T>` : Clone mais pas Copy.
-26. Migration .txt → .ron (Asteroids).
-27. `env!("CARGO_MANIFEST_DIR")` dans la stdlib.
+24. `GameContext` uniformisé dans `config.rs`.
+25. `Persistence<T>` a `Clone` mais **pas** `Copy`.
+26. Migration `.txt` → `.ron` (Asteroids).
+27. `env!("CARGO_MANIFEST_DIR")` dans la stdlib pointe vers la stdlib.
 28. Memory : symboles ASCII peuvent ne pas rendre.
-29. Memory : NO_MATCH_DELAY.
-30. `cargo new --lib games/<name>`.
-31. macroquad default font ne couvre pas Unicode étendu.
-32. macroquad scancodes QWERTY (AZERTY).
+29. Memory : `NO_MATCH_DELAY` doit laisser le temps de voir. 0.8s.
+30. `cargo new --lib games/<name>` ajoute au workspace.
+31. macroquad default font ne couvre pas les symboles Unicode étendus.
+32. macroquad utilise les scancodes QWERTY (voir AZERTY).
 33. Fondations noires invisibles sur fond sombre.
-34. Super-move : destination compte comme buffer.
+34. Super-move : destination compte comme buffer (ou pas).
 35. Drag : run contigu du bas seulement.
-36. Timer positionné en dur peut chevaucher.
-37. Ne pas appeler step_world_substepped quand dt_eff == 0.0.
-38. Ne jamais animer font_size. Utiliser font_scale.
-39. Overlay sur grille → scrim alpha ≥ 0.55.
-40. IA qui chasse le puck : vertical-only plus sûr.
-41. Clavier AZERTY vs QWERTY.
-42. Zhuo Ji : Tile Copy → Vec::remove.
+36. Timer positionné en dur peut chevaucher les boutons.
+37. Ne pas appeler `step_world_substepped` quand `dt_eff == 0.0`.
+38. Ne jamais animer `font_size`. Utiliser `TextParams::font_scale`.
+39. Un overlay de texte sur une grille a besoin d'un scrim (alpha ≥ 0.55).
+40. IA qui chasse le puck dans son propre camp : vertical-only plus sûr.
+41. Clavier AZERTY vs QWERTY : alias de touches nécessaires.
+42. Zhuo Ji : Tile `Copy` → `Vec::remove`, pas `swap_remove`.
 43. Zhuo Ji : claim priority Hu > Gang = Peng.
 44. Zhuo Ji : pas de Chi.
 45. Zhuo Ji : Gang → re-draw.
 46. Zhuo Ji : Dou passport rule.
-47. Zhuo Ji : twin fixed Ji — 1 Tiao ET 8 Tong.
+47. Zhuo Ji : twin fixed Ji — 1 Tiao **et** 8 Tong.
 48. Zhuo Ji : Huangzhuang ne compte pas Dou/Ji.
 49. Zhuo Ji : HashMap iter closures.
 50. Zhuo Ji : shanten formula edge cases.
-51. Layout runtime : screen_width() / screen_height().
+51. Layout runtime : `screen_width()` / `screen_height()`.
 52. Pendule centrée : ne pas compter la flèche.
 53. Clippy 1.93+ : nouveaux lints activés.
-54. Zhuo Ji : first_discard propagation.
-55. Zhuo Ji : HandSnapshot capture avant start_next_hand().
-56. Zhuo Ji : measure_text hors thread → offset calculé.
-57. const _: () = assert!(...) au lieu de assert!(CONSTANT > CONSTANT).
+54. Zhuo Ji : `first_discard` propagation.
+55. Zhuo Ji : `HandSnapshot` capture avant `start_next_hand()`.
+56. Zhuo Ji : `measure_text` hors thread macroquad → offset calculé.
+57. `assert!(CONSTANT > CONSTANT)` → `const _: () = assert!(...)`.
 58. Test "neutre" Zhuo Ji.
-59. f32::min ambiguïté : suffixer 56.0_f32.
-60. clippy::needless_range_loop.
-61. clippy::collapsible_if → let-chains.
-62. clippy::doc_overindented_list_items.
-63. clippy::too_many_arguments → tuple.
-64. Zhuo Ji : melds z-index → 2 passes.
+59. Ambiguité `f32::min` : suffixer `56.0_f32`.
+60. `clippy::needless_range_loop`.
+61. `clippy::collapsible_if` → let-chains.
+62. `clippy::doc_overindented_list_items`.
+63. `clippy::too_many_arguments` → tuple.
+64. Zhuo Ji : melds z-index (East) → 2 passes.
 65. Zhuo Ji : melds largeur (Peng = Gang).
 66. Zhuo Ji : Tong bleu vs Tiao vert → const assert compile-time.
-67. Input::from_macroquad_with_keys peuple les 3 vecteurs.
-68. ui::hit : 4 variantes, bords inclusifs.
-69. persistence::update_best_in_map<K: ToString>.
-70. draw_right / draw_left : font_size: u16.
-71. Panneau "premium" Zhuo Ji : draw_premium_panel.
+67. `Input::from_macroquad_with_keys` peuple les 3 vecteurs.
+68. `ui::hit` : 4 variantes, bords inclusifs.
+69. `persistence::update_best_in_map<K: ToString>`.
+70. `draw_right` / `draw_left` : `font_size: u16`.
+71. Panneau "premium" Zhuo Ji : `draw_premium_panel`.
 72. **`gen` réservé en édition 2024**.
-73. **clippy::should_implement_trait** sur next() → next_id().
-74. **clippy::vec_init_then_push** → vec![...].
-75. **E0502 sur a[i].field = a[i].other * x**.
+73. **`clippy::should_implement_trait`** sur `next()` custom → `next_id()`.
+74. **`clippy::vec_init_then_push`** → `vec![...]`.
+75. **E0502 sur `a[i].field = a[i].other * x`**.
 76. **ember-wars : catapulte launch_origin ≠ pos**.
 77. **ember-wars : comparer les difficultés sur HP déployés**.
 78. **ember-wars : viewport dynamique**.
 79. **ember-wars : sol responsive**.
-80. **palettes.ron doit commencer par `[`**.
-81. **clippy::manual_is_multiple_of**.
+80. **`palettes.ron` doit commencer par `[`**.
+81. **`clippy::manual_is_multiple_of`**.
 82. **ember-wars : upgrades dans le menu**.
 83. **ember-wars : or persistant**.
 84. **ember-wars : chapitres verrouillés**.
-85. **ember-wars : PendingAttack — ne JAMAIS clear dans tick_unit_timers**.
-86. **ember-wars : strike_delay = ATTACK_DURATION * WINDUP_END**.
-87. **ember-wars : REST_ARM_R / REST_ARM_L partagés**.
-88. **ember-wars : detonate_bomber prend attacker_idx**.
-89. **ember-wars : mouvement indépendant du cooldown**.
-90. **Fence Markdown à 4 backticks** : entourer d'un fence d'un niveau supérieur au plus profond interne.
-91. **ember-wars : modal_rect_for testable** (modal_rect lit screen_width).
-92. **ember-wars : menu draw order** (header/footer avec fond opaque en dernier).
-93. **ember-wars : upgrade modal draw order** (header/description en dernier).
-94. **ember-wars : catapulte ne peut jamais toucher la tour ennemie** (invariant).
-95. **ember-wars : floating texts spawn dans apply_damage_*** (pas au call site).
+85. **ember-wars : `PendingAttack`** — ne JAMAIS clear dans `tick_unit_timers`.
+86. **ember-wars : `strike_delay()`** — cohérent avec `stickman::WINDUP_END`.
+87. **ember-wars : `REST_ARM_R` / `REST_ARM_L`** — partagés.
+88. **ember-wars : `detonate_bomber`** — prend l'index de l'attaquant.
+89. **ember-wars : mouvement** — cooldown n'empêche pas l'avance sans cible.
+90. **Fence Markdown à 4 backticks**.
+91. **ember-wars : `modal_rect_for` testable** (panique hors contexte macroquad).
+92. **ember-wars : menu draw order** (header/footer opaques en dernier).
+93. **ember-wars : upgrade modal draw order**.
+94. **ember-wars : catapulte ne peut jamais toucher la tour ennemie**.
+95. **ember-wars : floating texts spawn dans `apply_damage_*`**.
+96. **Timers mixtes (Phase 26)** : distinguer countdowns / timestamps absolus / accumulateurs / progressions.
+97. **`Cooldown::tick_returning`** : seule méthode sûre pour la transition active → ready.
+98. **`Cooldown::reset`** : redémarre avec la durée **stockée**.
+99. **`Cooldown::clear`** : force ready sans toucher à la durée stockée.
+100. **`Cooldown::from_remaining(rem, dur)`** : pour reconstruire depuis une sérialisation.
+101. **Reborrow pour `Catapults`** : `(&mut *catapults.0, &mut *catapults.1)`.
+102. **`HashMap<String, Cooldown>`** : `.unwrap_or_default()`.
+103. **ember-wars `attack_cd`** : la durée effective doit être ré-appliquée à chaque `trigger`.
+104. **Restauration de tests post-refacto (Phase 26)** : les refactos qui touchent au code de production migrent aussi les blocs `mod tests`. Il faut **adapter** chaque assertion à la nouvelle API, pas réécrire le bloc en simplifiant. Sinon on perd silencieusement des tests — comparer le compte de tests avant/après.
+105. **`HashMap<String, Cooldown>`** : `.unwrap_or_default()` est le pattern correct (retourne un `Cooldown::default()` qui est ready). `.unwrap_or(Cooldown::default())` est redondant.
+106. **`Cooldown` dans les tests** : préférer `Cooldown::running(d)` pour simuler un cooldown déjà actif, `Cooldown::default()` pour ready, `Cooldown::new(d)` quand seule la durée compte.
 
 ---
 
 ## Prochaines étapes suggérées
 
-1. **Playtest réel + tuning** — vérifier que les 5 Survive ne sont pas triviaux, que bj_03 reste gagnable, que le rebuild 10s est bien calibré.
-2. **Session G — Catapulte ennemie** (symétrie).
-3. **Session H — Upgrades mutuellement exclusifs** (2 choix par branche).
-4. **Session I — Nouveaux ShotKind** (Slow, Poison).
-5. **Session refacto — Extraction `Cooldown`** dans `ember_core::time` (4e occurrence).
-6. **Design docs rétroactifs** pour Pong, Breakout, Snake, Asteroids, Bullet Hell, Minesweeper, Simon, Air Hockey.
+1. **DESIGN.md rétroactifs** pour Pong, Breakout, Snake, Minesweeper, Simon, Air Hockey.
+2. **Playtest ember-wars** — vérifier les 5 Survive, bj_03 avec catapulte ennemie.
+3. **Session G — ember-wars Upgrades mutuellement exclusifs**.
+4. **Session H — ember-wars Nouveaux ShotKind** (Slow, Poison).
+5. **Zhuo Ji V2** — Bu Gang, Qiang Gang, Gang Shang Pao, Bao Ting, chips d'état, CJK.
+6. **13e jeu** — Tower Defense / Match-3 / Plateformer.
 
-**Bilan Phase 25** : catapulte balistique livrée, 15 niveaux, tree 28 nœuds, floating texts partout, UI polishée. **+49 tests nets** dans ember-wars (265 → 314). **Total workspace : 1040 tests verts.**
+**Bilan Phase 26** : `Cooldown` extrait dans `ember_core::time` avec 26 tests + 2 doctests. Migré dans 4 jeux (ember-wars, Asteroids, Bullet Hell, Zhuo Ji). 52 tests restaurés dans ember-wars après une perte silencieuse lors de la migration. **Workspace 1093 tests verts.**

@@ -307,6 +307,8 @@ mod tests {
         Catapult::with_facing(Vec2::new(800.0, 500.0), -1.0)
     }
 
+    // ---------- Construction / orientation ----------
+
     #[test]
     fn new_catapult_is_alive_and_ready() {
         let c = mk();
@@ -332,6 +334,48 @@ mod tests {
         assert_eq!(c.rebuild.duration(), ENEMY_CATAPULT_REBUILD_TIME);
         assert_eq!(c.base_damage, ENEMY_CATAPULT_DAMAGE);
     }
+
+    // ---------- Configure ----------
+
+    #[test]
+    fn configure_changes_stats() {
+        let mut c = mk();
+        c.configure(1500.0, 500.0, 8.0);
+        assert!((c.max_range - 1500.0).abs() < 1e-6);
+        assert!((c.max_hp - 500.0).abs() < 1e-6);
+        assert!((c.rebuild.duration() - 8.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn configure_changes_range() {
+        let mut c = mk();
+        c.configure(1500.0, 500.0, 8.0);
+        assert!((c.max_range - 1500.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn configure_changes_hp() {
+        let mut c = mk();
+        c.configure(1000.0, 500.0, 8.0);
+        assert!((c.max_hp - 500.0).abs() < 1e-6);
+        assert!((c.hp - 500.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn configure_clamps_range_to_min() {
+        let mut c = mk();
+        c.configure(50.0, 300.0, 10.0);
+        assert!((c.max_range - CATAPULT_MIN_RANGE).abs() < 1e-6);
+    }
+
+    #[test]
+    fn configure_clamps_rebuild_to_min() {
+        let mut c = mk();
+        c.configure(1000.0, 300.0, 0.0);
+        assert!((c.rebuild.duration() - 0.5).abs() < 1e-6);
+    }
+
+    // ---------- Aim ----------
 
     #[test]
     fn player_aim_clamps_to_max_range() {
@@ -362,6 +406,15 @@ mod tests {
     }
 
     #[test]
+    fn aim_keeps_target_y() {
+        let mut c = mk();
+        c.aim(Vec2::new(500.0, 420.0));
+        assert!((c.aim_target.y - 420.0).abs() < 1e-6);
+    }
+
+    // ---------- Trajectoire ----------
+
+    #[test]
     fn player_solve_trajectory_rightward() {
         let c = mk();
         let v = c.solve_trajectory(Vec2::new(600.0, 500.0)).unwrap();
@@ -382,6 +435,142 @@ mod tests {
     }
 
     #[test]
+    fn solve_trajectory_returns_none_for_left_target() {
+        let c = mk();
+        assert!(c.solve_trajectory(Vec2::new(100.0, 500.0)).is_none());
+    }
+
+    #[test]
+    fn solve_trajectory_returns_positive_vx() {
+        let c = mk();
+        let v = c.solve_trajectory(Vec2::new(600.0, 500.0)).unwrap();
+        assert!(v.x > 0.0);
+    }
+
+    #[test]
+    fn solve_trajectory_launches_upward_for_same_height() {
+        let c = mk();
+        // launch_origin.y = 500 - 45 = 455. Target y = 500 (au sol).
+        let v = c.solve_trajectory(Vec2::new(900.0, 500.0)).unwrap();
+        assert!(v.y < 0.0);
+    }
+
+    #[test]
+    fn solve_trajectory_long_range_has_taller_arc() {
+        let c = mk();
+        let v_short = c.solve_trajectory(Vec2::new(400.0, 500.0)).unwrap();
+        let v_long = c.solve_trajectory(Vec2::new(1000.0, 500.0)).unwrap();
+        assert!(v_long.y < v_short.y);
+    }
+
+    // ---------- Preview ----------
+
+    #[test]
+    fn preview_points_are_monotonic_in_x() {
+        let c = mk();
+        let pts = c.preview_points(10);
+        assert!(!pts.is_empty());
+        for w in pts.windows(2) {
+            assert!(w[1].x >= w[0].x);
+        }
+    }
+
+    // ---------- Damage / rebuild ----------
+
+    #[test]
+    fn take_damage_reduces_hp() {
+        let mut c = mk();
+        c.take_damage(50.0);
+        assert!((c.hp - 250.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn destruction_starts_rebuild_timer() {
+        let mut c = mk();
+        c.take_damage(400.0);
+        assert!(!c.is_alive());
+        assert!(c.is_rebuilding());
+        assert!((c.rebuild.remaining() - CATAPULT_REBUILD_TIME).abs() < 1e-6);
+    }
+
+    #[test]
+    fn destruction_uses_configured_rebuild_time() {
+        let mut c = mk();
+        c.configure(1000.0, 300.0, 6.0);
+        c.take_damage(400.0);
+        assert!((c.rebuild.remaining() - 6.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn rebuild_completes_after_timer() {
+        let mut c = mk();
+        c.take_damage(400.0);
+        c.tick(CATAPULT_REBUILD_TIME + 0.1);
+        assert!(c.is_alive());
+        assert!(c.rebuild.is_ready());
+    }
+
+    #[test]
+    fn rebuild_uses_configured_max_hp() {
+        let mut c = mk();
+        c.configure(1000.0, 500.0, 6.0);
+        c.take_damage(9999.0);
+        c.tick(7.0);
+        assert!((c.hp - 500.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn hp_fraction_is_clamped() {
+        let mut c = mk();
+        c.hp = 600.0;
+        assert!((c.hp_fraction() - 1.0).abs() < 1e-6);
+        c.hp = 150.0;
+        assert!((c.hp_fraction() - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn rect_has_correct_position() {
+        let c = mk();
+        let (x, y, w, h) = c.rect();
+        assert!((x - (200.0 - CATAPULT_HITBOX_W * 0.5)).abs() < 1e-6);
+        assert!((y - (500.0 - CATAPULT_HITBOX_H)).abs() < 1e-6);
+        assert!((w - CATAPULT_HITBOX_W).abs() < 1e-6);
+        assert!((h - CATAPULT_HITBOX_H).abs() < 1e-6);
+    }
+
+    // ---------- Fire ----------
+
+    #[test]
+    fn destroyed_catapult_cannot_fire() {
+        let mut c = mk();
+        c.take_damage(400.0);
+        assert!(c.try_fire_multi(Team::Player, 1.0).is_none());
+    }
+
+    #[test]
+    fn fire_sets_cooldown() {
+        let mut c = mk();
+        let shots = c.try_fire_multi(Team::Player, 1.0).unwrap();
+        assert_eq!(shots.len(), 1);
+        assert!((c.cooldown.remaining() - CATAPULT_FIRE_COOLDOWN).abs() < 1e-6);
+    }
+
+    #[test]
+    fn fire_blocked_while_cooldown() {
+        let mut c = mk();
+        c.try_fire_multi(Team::Player, 1.0).unwrap();
+        assert!(c.try_fire_multi(Team::Player, 1.0).is_none());
+    }
+
+    #[test]
+    fn projectiles_are_parabolic() {
+        let mut c = mk();
+        let shots = c.try_fire_multi(Team::Player, 1.0).unwrap();
+        assert_eq!(shots[0].gravity, CATAPULT_GRAVITY);
+        assert!(shots[0].gravity > 0.0);
+    }
+
+    #[test]
     fn enemy_fire_produces_leftward_projectiles() {
         let mut c = mk_enemy();
         let shots = c.try_fire_multi(Team::Enemy, 1.0).unwrap();
@@ -396,29 +585,70 @@ mod tests {
     }
 
     #[test]
-    fn destruction_starts_rebuild_timer() {
+    fn fire_rate_mult_affects_cooldown() {
         let mut c = mk();
-        c.take_damage(400.0);
-        assert!(!c.is_alive());
-        assert!(c.is_rebuilding());
-        assert!((c.rebuild.remaining() - CATAPULT_REBUILD_TIME).abs() < 1e-6);
+        c.fire_rate_mult = 0.5;
+        c.try_fire_multi(Team::Player, 1.0).unwrap();
+        assert!((c.cooldown.remaining() - CATAPULT_FIRE_COOLDOWN * 0.5).abs() < 1e-6);
+    }
+
+    // ---------- Multi-shot ----------
+
+    #[test]
+    fn multi_shot_produces_n_projectiles() {
+        let mut c = mk();
+        c.multi_shot = 3;
+        let shots = c.try_fire_multi(Team::Player, 1.0).unwrap();
+        assert_eq!(shots.len(), 3);
     }
 
     #[test]
-    fn rebuild_completes_after_timer() {
+    fn multi_shot_velocities_are_close() {
         let mut c = mk();
-        c.take_damage(400.0);
-        c.tick(CATAPULT_REBUILD_TIME + 0.1);
-        assert!(c.is_alive());
-        assert!(c.rebuild.is_ready());
+        c.multi_shot = 3;
+        let shots = c.try_fire_multi(Team::Player, 1.0).unwrap();
+        assert!((shots[0].vel.x - shots[1].vel.x).abs() < 1e-6);
+        assert!((shots[1].vel.x - shots[2].vel.x).abs() < 1e-6);
+        let dy01 = (shots[0].vel.y - shots[1].vel.y).abs();
+        assert!(dy01 < 100.0, "vy trop différents: {}", dy01);
     }
 
     #[test]
-    fn configure_changes_stats() {
+    fn multi_shot_spread_moves_targets_apart() {
         let mut c = mk();
-        c.configure(1500.0, 500.0, 8.0);
-        assert!((c.max_range - 1500.0).abs() < 1e-6);
-        assert!((c.max_hp - 500.0).abs() < 1e-6);
-        assert!((c.rebuild.duration() - 8.0).abs() < 1e-6);
+        c.multi_shot = 3;
+        let shots = c.try_fire_multi(Team::Player, 1.0).unwrap();
+        assert!(shots[2].vel.y < shots[0].vel.y);
+    }
+
+    // ---------- Shot kinds ----------
+
+    #[test]
+    fn piercing_shot_has_pierce_remaining() {
+        let mut c = mk();
+        c.shot_kind = ShotKind::Piercing;
+        let shots = c.try_fire_multi(Team::Player, 1.0).unwrap();
+        assert_eq!(shots[0].pierce_remaining, 3);
+    }
+
+    #[test]
+    fn explosive_shot_deals_more_damage() {
+        let mut c = mk();
+        c.shot_kind = ShotKind::Explosive;
+        let shots = c.try_fire_multi(Team::Player, 1.0).unwrap();
+        assert!(shots[0].damage > CATAPULT_BASE_DAMAGE);
+        assert_eq!(shots[0].kind, ProjectileKind::Explosive);
+    }
+
+    #[test]
+    fn cycle_shot_kind_wraps_around() {
+        let mut c = mk();
+        assert_eq!(c.shot_kind, ShotKind::Basic);
+        c.cycle_shot_kind();
+        assert_eq!(c.shot_kind, ShotKind::Piercing);
+        c.cycle_shot_kind();
+        assert_eq!(c.shot_kind, ShotKind::Explosive);
+        c.cycle_shot_kind();
+        assert_eq!(c.shot_kind, ShotKind::Basic);
     }
 }

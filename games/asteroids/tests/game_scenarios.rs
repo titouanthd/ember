@@ -147,7 +147,7 @@ fn test_ship_hit_loses_one_life() {
     world.ship = ship_at(Vec2::new(100.0, 100.0));
     world.asteroids = vec![asteroid_at(Vec2::new(105.0, 100.0), 1)];
     world.lives = 3;
-    world.invincible_until = 0.0;
+    world.invincibility = ember_stdlib::time::Cooldown::default();
 
     let hit = world.step_ship_asteroid_collision(&cx, 0.016);
 
@@ -163,7 +163,7 @@ fn test_invincibility_blocks_life_loss() {
     world.ship = ship_at(Vec2::new(100.0, 100.0));
     world.asteroids = vec![asteroid_at(Vec2::new(105.0, 100.0), 1)];
     world.lives = 3;
-    world.invincible_until = 1.5;
+    world.invincibility = ember_stdlib::time::Cooldown::running(1.5);
 
     let hit = world.step_ship_asteroid_collision(&cx, 0.016);
 
@@ -179,7 +179,7 @@ fn test_third_hit_triggers_game_over() {
     world.ship = ship_at(Vec2::new(100.0, 100.0));
     world.asteroids = vec![asteroid_at(Vec2::new(105.0, 100.0), 1)];
     world.lives = 1;
-    world.invincible_until = 0.0;
+    world.invincibility = ember_stdlib::time::Cooldown::default();
 
     let hit = world.step_ship_asteroid_collision(&cx, 0.016);
 

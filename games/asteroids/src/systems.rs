@@ -5,6 +5,7 @@ use crate::components::{Asteroid, Bullet, Ship};
 use crate::persistence::{self, HighScore};
 use ember_core::app::GameState;
 use ember_stdlib::collider::collides;
+use ember_stdlib::time::Cooldown;
 use glam::Vec2;
 use macroquad::prelude::Color;
 
@@ -15,8 +16,6 @@ pub use crate::config::GameContext;
 // ============================================================================
 
 /// All mutable state for one Asteroids run.
-///
-/// Same convention as the other games: one struct owns everything mutable.
 pub struct GameWorld {
     pub ship: Ship,
     pub bullets: Vec<Bullet>,
@@ -24,19 +23,19 @@ pub struct GameWorld {
     pub score: i32,
     pub lives: u32,
     pub wave: u32,
-    pub invincible_until: f32,
-    pub shoot_cooldown: f32,
+    /// Invincibilité post-respawn. `is_active()` = invincible.
+    pub invincibility: Cooldown,
+    /// Cooldown entre deux tirs. `is_ready()` = peut tirer.
+    pub shoot_cooldown: Cooldown,
     pub state: GameState,
     /// Seconds remaining in the LevelCleared transition.
+    /// Timer one-shot interne à la phase, pas un cooldown réutilisable.
     pub level_cleared_timer: f32,
-    /// In-memory high score, kept in sync with `high_score_handle`.
     pub high_score: i32,
-    /// Typed handle to `highscore.ron`.
     pub high_score_handle: HighScore,
 }
 
 impl GameWorld {
-    /// Fresh world, in `Start` state, centered ship, no entities.
     pub fn new(ctx: &GameContext) -> Self {
         let high_score_handle = persistence::default();
         let high_score = high_score_handle.load_or(0);
@@ -51,8 +50,8 @@ impl GameWorld {
             score: 0,
             lives: ctx.lives_start,
             wave: 1,
-            invincible_until: 0.0,
-            shoot_cooldown: 0.0,
+            invincibility: Cooldown::default(),
+            shoot_cooldown: Cooldown::default(),
             state: GameState::Start,
             level_cleared_timer: 0.0,
             high_score,
@@ -60,9 +59,6 @@ impl GameWorld {
         }
     }
 
-    /// Record the current score as the new high score if it beats the
-    /// previous one. Persists to disk on improvement. Returns `true` if
-    /// a new record was written.
     fn record_high_score_if_needed(&mut self) -> bool {
         if self.score > self.high_score {
             self.high_score = self.score;
@@ -73,7 +69,6 @@ impl GameWorld {
         }
     }
 
-    /// Reset everything and start wave 1. Sets state to `Playing`.
     pub fn start_new_game(&mut self, ctx: &GameContext) {
         self.ship = Ship::new(
             Vec2::new(ctx.screen_w / 2.0, ctx.screen_h / 2.0),
@@ -85,15 +80,13 @@ impl GameWorld {
         self.score = 0;
         self.lives = ctx.lives_start;
         self.wave = 1;
-        self.invincible_until = ctx.invincibility_secs;
-        self.shoot_cooldown = 0.0;
+        self.invincibility = Cooldown::running(ctx.invincibility_secs);
+        self.shoot_cooldown = Cooldown::default();
         self.level_cleared_timer = 0.0;
         spawn_asteroid_wave(&mut self.asteroids, ctx.asteroids_for_wave(1), ctx);
         self.state = GameState::Playing;
     }
 
-    /// Prepare `self.wave` (already incremented by the caller). Sets state
-    /// back to `Playing`.
     pub fn start_next_wave(&mut self, ctx: &GameContext) {
         self.ship = Ship::new(
             Vec2::new(ctx.screen_w / 2.0, ctx.screen_h / 2.0),
@@ -102,14 +95,12 @@ impl GameWorld {
         );
         self.bullets.clear();
         self.asteroids.clear();
-        self.invincible_until = ctx.invincibility_secs;
-        self.shoot_cooldown = 0.0;
+        self.invincibility = Cooldown::running(ctx.invincibility_secs);
+        self.shoot_cooldown = Cooldown::default();
         spawn_asteroid_wave(&mut self.asteroids, ctx.asteroids_for_wave(self.wave), ctx);
         self.state = GameState::Playing;
     }
 
-    /// Player lost a life. Returns true if this was the last life.
-    /// Otherwise respawns the ship and grants invincibility.
     pub fn on_ship_hit(&mut self, ctx: &GameContext) -> bool {
         self.lives = self.lives.saturating_sub(1);
         if self.lives == 0 {
@@ -122,13 +113,11 @@ impl GameWorld {
             ctx.ship_radius,
             ctx.ship_color,
         );
-        self.invincible_until = ctx.invincibility_secs;
-        self.shoot_cooldown = 0.0;
+        self.invincibility = Cooldown::running(ctx.invincibility_secs);
+        self.shoot_cooldown = Cooldown::default();
         false
     }
 
-    /// Called when the last asteroid is destroyed. Starts the wave-clear
-    /// timer, or transitions to `Win` if this was the last wave.
     pub fn on_wave_cleared(&mut self, ctx: &GameContext) {
         if self.wave >= ctx.max_waves {
             self.record_high_score_if_needed();
@@ -139,7 +128,6 @@ impl GameWorld {
         }
     }
 
-    /// Tick the LevelCleared timer; if expired, advance the wave (or Win).
     pub fn tick_level_cleared(&mut self, ctx: &GameContext, dt: f32) {
         self.level_cleared_timer -= dt;
         if self.level_cleared_timer <= 0.0 {
@@ -149,19 +137,13 @@ impl GameWorld {
     }
 
     /// Advance invincibility by `dt`, then check ship↔asteroid collision.
-    /// Calls `on_ship_hit` if the ship is hit and not invincible.
-    ///
-    /// Returns `true` if the ship took a hit this frame.
     ///
     /// Order matters: the invincibility timer is decremented first, so a
     /// ship whose invincibility just expired **can** be hit on the same
-    /// frame. This matches the previous inline logic in `main.rs` (and
-    /// keeps tests honest).
+    /// frame. This matches the previous inline logic in `main.rs`.
     pub fn step_ship_asteroid_collision(&mut self, ctx: &GameContext, dt: f32) -> bool {
-        if self.invincible_until > 0.0 {
-            self.invincible_until = (self.invincible_until - dt).max(0.0);
-        }
-        let invincible = self.invincible_until > 0.0;
+        self.invincibility.tick(dt);
+        let invincible = self.invincibility.is_active();
 
         if !invincible && resolve_ship_asteroid_collision(&self.ship, &self.asteroids) {
             self.on_ship_hit(ctx);
@@ -171,8 +153,6 @@ impl GameWorld {
         }
     }
 
-    /// Full reset back to the Start screen (R key from GameOver/Win).
-    /// Preserves the high score and the handle.
     pub fn reset_to_start(&mut self, ctx: &GameContext) {
         let high = self.high_score;
         let handle = self.high_score_handle.clone();
@@ -198,7 +178,6 @@ pub struct ShipInput {
 // Helpers
 // ============================================================================
 
-/// Wrap une position dans [0, screen_w] × [0, screen_h].
 pub fn wrap_position(p: Vec2, w: f32, h: f32) -> Vec2 {
     Vec2::new(((p.x % w) + w) % w, ((p.y % h) + h) % h)
 }
@@ -211,8 +190,6 @@ fn random_angle() -> f32 {
 // Couleurs par taille
 // ============================================================================
 
-/// Couleur d'un astéroïde selon sa taille.
-/// 3 = grand (clair), 2 = moyen, 1 = petit (foncé).
 pub fn asteroid_color_for_size(size: u8, base: Color) -> Color {
     let factor = match size {
         3 => 1.0,
@@ -255,12 +232,11 @@ pub fn update_bullets(bullets: &mut Vec<Bullet>, ctx: &GameContext, dt: f32) {
     for b in bullets.iter_mut() {
         b.transform.position += b.velocity * dt;
         b.transform.position = wrap_position(b.transform.position, ctx.screen_w, ctx.screen_h);
-        b.lifetime -= dt;
+        b.lifetime.tick(dt);
     }
     bullets.retain(|b| b.is_alive());
 }
 
-/// Tire une balle depuis le vaisseau. Ne gère PAS le cooldown.
 pub fn try_shoot(ship: &Ship, bullets: &mut Vec<Bullet>, ctx: &GameContext) {
     let dir = ship.forward();
     let spawn = ship.nose();
@@ -299,7 +275,6 @@ pub fn asteroid_radius(size: u8) -> f32 {
     }
 }
 
-/// Spawn `count` astéroïdes de taille 3 (grands) sur les bords de l'écran.
 pub fn spawn_asteroid_wave(asteroids: &mut Vec<Asteroid>, count: u32, ctx: &GameContext) {
     use macroquad::rand::gen_range;
 
@@ -331,7 +306,6 @@ pub fn spawn_asteroid_wave(asteroids: &mut Vec<Asteroid>, count: u32, ctx: &Game
 // Collisions
 // ============================================================================
 
-/// Détecte et résout les collisions balle ↔ astéroïde.
 pub fn resolve_bullet_asteroid_collisions(
     bullets: &mut Vec<Bullet>,
     asteroids: &mut Vec<Asteroid>,
@@ -392,7 +366,6 @@ pub fn resolve_bullet_asteroid_collisions(
     destroyed
 }
 
-/// Détecte les collisions vaisseau ↔ astéroïde.
 pub fn resolve_ship_asteroid_collision(ship: &Ship, asteroids: &[Asteroid]) -> bool {
     for a in asteroids {
         if collides(
@@ -425,8 +398,6 @@ mod tests {
         Color::new(1.0, 1.0, 1.0, 1.0)
     }
 
-    // --- wrap_position ---
-
     #[test]
     fn test_wrap_inside_stays() {
         let p = wrap_position(Vec2::new(100.0, 200.0), 800.0, 600.0);
@@ -444,8 +415,6 @@ mod tests {
         let p = wrap_position(Vec2::new(810.0, 100.0), 800.0, 600.0);
         assert!((p.x - 10.0).abs() < 1e-4);
     }
-
-    // --- ship ---
 
     #[test]
     fn test_ship_rotate_left() {
@@ -483,8 +452,6 @@ mod tests {
         assert!(ship.velocity.length() <= cx.ship_max_speed + 1e-3);
     }
 
-    // --- bullets ---
-
     #[test]
     fn test_bullet_moves_and_dies() {
         let cx = ctx();
@@ -508,11 +475,9 @@ mod tests {
         assert_eq!(bullets.len(), 1);
     }
 
-    // --- wave / progression ---
-
     #[test]
     fn test_asteroids_for_wave() {
-        let cx = ctx(); // asteroid_count_start = 4
+        let cx = ctx();
         assert_eq!(cx.asteroids_for_wave(1), 4);
         assert_eq!(cx.asteroids_for_wave(2), 6);
         assert_eq!(cx.asteroids_for_wave(3), 8);
@@ -528,8 +493,6 @@ mod tests {
         assert!(c3.r >= c2.r);
         assert!(c2.r >= c1.r);
     }
-
-    // --- collisions ---
 
     #[test]
     fn test_bullet_destroys_small_asteroid() {

@@ -109,7 +109,6 @@ async fn main() {
             break;
         }
 
-        // --- Input ---
         let input = ShipInput {
             rotate_left: is_key_down(KeyCode::Left) || is_key_down(KeyCode::A),
             rotate_right: is_key_down(KeyCode::Right) || is_key_down(KeyCode::D),
@@ -117,7 +116,6 @@ async fn main() {
             shoot: is_key_down(KeyCode::Space),
         };
 
-        // --- Machine à états ---
         match world.state {
             GameState::Start => {
                 if is_key_pressed(KeyCode::Space) {
@@ -128,12 +126,13 @@ async fn main() {
             GameState::Playing => {
                 systems::update_ship(&mut world.ship, &input, &ctx, dt);
 
-                if world.shoot_cooldown > 0.0 {
-                    world.shoot_cooldown = (world.shoot_cooldown - dt).max(0.0);
-                }
-                if input.shoot && world.shoot_cooldown <= 0.0 {
+                // Cooldown de tir : tick puis test ready.
+                world.shoot_cooldown.tick(dt);
+                if input.shoot && world.shoot_cooldown.is_ready() {
                     systems::try_shoot(&world.ship, &mut world.bullets, &ctx);
-                    world.shoot_cooldown = ctx.bullet_cooldown_ms as f32 / 1000.0;
+                    world
+                        .shoot_cooldown
+                        .trigger(ctx.bullet_cooldown_ms as f32 / 1000.0);
                 }
 
                 systems::update_bullets(&mut world.bullets, &ctx, dt);
@@ -146,7 +145,6 @@ async fn main() {
                 );
                 world.score += destroyed as i32 * 10;
 
-                // Ship↔asteroid collision + invincibility tick, in one call.
                 world.step_ship_asteroid_collision(&ctx, dt);
 
                 if world.asteroids.is_empty() && world.state == GameState::Playing {
@@ -176,7 +174,7 @@ async fn main() {
             draw_bullet(b);
         }
         if matches!(world.state, GameState::Playing | GameState::LevelCleared) {
-            let invincible = world.invincible_until > 0.0;
+            let invincible = world.invincibility.is_active();
             draw_ship(&world.ship, invincible);
         }
 

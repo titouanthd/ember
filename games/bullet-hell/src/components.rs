@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 use ember_core::rng::Rng;
 use ember_stdlib::collider::{Collider, Shape};
+use ember_stdlib::time::Cooldown;
 use ember_stdlib::transform::Transform;
 
 use crate::config::GameContext;
@@ -22,8 +23,11 @@ pub struct Player {
     pub transform: Transform,
     pub hitbox: Collider,
     pub graze: Collider,
-    pub cooldown: f32,
+    /// Cooldown de tir. `is_ready()` = peut tirer.
+    pub cooldown: Cooldown,
     pub focus: bool,
+    /// Timestamp absolu d'invincibilité (`now + 2.0`). Pas un countdown —
+    /// on compare à `now`. Voir `is_invincible`.
     pub invincible_until: f32,
     pub alive: bool,
 }
@@ -48,7 +52,7 @@ impl Player {
                 },
                 active: true,
             },
-            cooldown: 0.0,
+            cooldown: Cooldown::default(),
             focus: false,
             invincible_until: 0.0,
             alive: true,
@@ -57,7 +61,7 @@ impl Player {
 
     pub fn respawn(&mut self, center: Vec2, ctx: &GameContext, now: f32) {
         self.transform.position = center;
-        self.cooldown = 0.0;
+        self.cooldown.clear();
         self.focus = false;
         self.invincible_until = now + 2.0;
         self.alive = true;
@@ -105,15 +109,13 @@ impl Player {
 
 /// A projectile. Position + velocity + TTL.
 ///
-/// Deliberately no `Transform` — bullets don't rotate or scale, so wrapping
-/// one would be ceremony. Same reasoning as Snake skipping `Transform` on
-/// grid logic.
+/// `ttl` est un `Cooldown` : `is_active()` = la balle est vivante.
 #[derive(Debug, Clone)]
 pub struct Bullet {
     pub pos: Vec2,
     pub vel: Vec2,
     pub radius: f32,
-    pub ttl: f32,
+    pub ttl: Cooldown,
     pub from_player: bool,
     pub color: Color,
 }
@@ -124,7 +126,7 @@ impl Bullet {
             pos,
             vel,
             radius: ctx.bullet_player_radius,
-            ttl: ctx.bullet_ttl,
+            ttl: Cooldown::running(ctx.bullet_ttl),
             from_player: true,
             color: ctx.color_bullet_player,
         }
@@ -135,14 +137,14 @@ impl Bullet {
             pos,
             vel,
             radius: ctx.bullet_enemy_radius,
-            ttl: ctx.bullet_ttl,
+            ttl: Cooldown::running(ctx.bullet_ttl),
             from_player: false,
             color: ctx.color_bullet_enemy,
         }
     }
 
     pub fn is_alive(&self) -> bool {
-        self.ttl > 0.0
+        self.ttl.is_active()
     }
 }
 
@@ -151,8 +153,6 @@ impl Bullet {
 // ---------------------------------------------------------------------------
 
 /// How an enemy enters and moves through the field.
-///
-/// `Drift.vel` and `Sine` are in playfield-space pixels.
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub enum EntryMotion {
     /// Sits at its spawn position forever.
@@ -170,29 +170,23 @@ pub enum EntryMotion {
 /// A bullet pattern. Each variant's `cooldown` is the seconds between bursts.
 #[derive(Debug, Clone, Deserialize)]
 pub enum Emitter {
-    /// Fires `count` bullets evenly around a full circle.
     Radial {
         count: u32,
         speed: f32,
         cooldown: f32,
     },
-    /// Fires `count` bullets in a fan aimed at the player's current position.
     Aimed {
         count: u32,
         spread: f32,
         speed: f32,
         cooldown: f32,
     },
-    /// Fires `arms` bullets radiating outward, rotating each burst by
-    /// `rotation_rate * cooldown` radians.
     Spiral {
         arms: u32,
         speed: f32,
         cooldown: f32,
         rotation_rate: f32,
     },
-    /// Fires a horizontal wall of bullets descending, with a gap centered at
-    /// `gap_x` of width `gap_w`.
     Wall {
         gap_x: f32,
         gap_w: f32,
@@ -204,33 +198,29 @@ pub enum Emitter {
 /// A live enemy in the world. Built from [`EnemyData`] via [`Enemy::from_data`].
 #[derive(Debug, Clone)]
 pub struct Enemy {
-    /// Current position (center). Updated by entry motion each frame.
     pub center: Vec2,
-    /// Spawn position. `Sine` oscillates around `base_center.x`.
     pub base_center: Vec2,
     pub radius: f32,
     pub hp: i32,
     pub max_hp: i32,
     pub emitter: Emitter,
-    /// Seconds until the next burst.
-    pub fire_cooldown: f32,
+    /// Cooldown avant la prochaine burst. `is_ready()` = peut tirer.
+    pub fire_cooldown: Cooldown,
     /// Seconds since spawn. Drives `Sine` phase and is available to emitters.
     pub age: f32,
     /// Rotation accumulator used by `Spiral`, incremented per burst.
     pub phase: f32,
     pub entry: EntryMotion,
     pub color: Color,
-    /// Free-form tag from the RON, used for styling and (later) scoring.
     pub kind: String,
-    /// White-flash timer, set on hit, decremented each frame.
-    pub flash: f32,
+    /// White-flash timer. `is_active()` = l'ennemi clignote blanc.
+    pub flash: Cooldown,
 }
 
 impl Enemy {
     pub fn from_data(data: &EnemyData, ctx: &GameContext) -> Self {
         let center = pos_vec(data.pos);
         let (radius, default_color) = enemy_style(&data.kind);
-        // "grunt" uses the config-tunable color; others get their style color.
         let color = if data.kind == "grunt" {
             ctx.color_enemy
         } else {
@@ -252,13 +242,13 @@ impl Enemy {
             emitter: data.emitter.clone(),
             // Grace period before the first shot, so the player can react
             // to the wave spawning.
-            fire_cooldown: cooldown + 0.6,
+            fire_cooldown: Cooldown::running(cooldown + 0.6),
             age: 0.0,
             phase: 0.0,
             entry: data.entry,
             color,
             kind: data.kind.clone(),
-            flash: 0.0,
+            flash: Cooldown::default(),
         }
     }
 
@@ -266,13 +256,11 @@ impl Enemy {
         self.hp > 0
     }
 
-    /// Color to draw with, accounting for damage and the hit flash.
     pub fn render_color(&self) -> Color {
-        if self.flash > 0.0 {
+        if self.flash.is_active() {
             return Color::new(1.0, 1.0, 1.0, self.color.a);
         }
         let frac = (self.hp as f32 / self.max_hp as f32).clamp(0.0, 1.0);
-        // Keep a floor so near-dead enemies stay visible.
         let brightness = 0.35 + 0.65 * frac;
         Color::new(
             self.color.r * brightness,
@@ -298,7 +286,6 @@ pub struct Particle {
 }
 
 impl Particle {
-    /// Radial burst of `count` particles from `pos`.
     pub fn burst(pos: Vec2, count: u32, color: Color, rng: &mut Rng) -> Vec<Particle> {
         let mut out = Vec::with_capacity(count as usize);
         for _ in 0..count {
@@ -338,7 +325,7 @@ mod tests {
     fn test_bullet_dies_at_zero_ttl() {
         let ctx = crate::config::load_config();
         let mut b = Bullet::enemy(Vec2::ZERO, Vec2::ZERO, &ctx);
-        b.ttl = 0.0;
+        b.ttl.clear();
         assert!(!b.is_alive());
     }
 
@@ -346,7 +333,8 @@ mod tests {
     fn test_bullet_dies_below_zero_ttl() {
         let ctx = crate::config::load_config();
         let mut b = Bullet::enemy(Vec2::ZERO, Vec2::ZERO, &ctx);
-        b.ttl = -0.1;
+        // tick amène à 0 → clear automatique par clamp
+        b.ttl.tick(ctx.bullet_ttl + 1.0);
         assert!(!b.is_alive());
     }
 

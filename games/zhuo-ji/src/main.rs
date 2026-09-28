@@ -614,9 +614,15 @@ fn draw_wall(game: &Game, layout: &TableLayout, ctx: &GameContext) {
 
 fn clock_value(game: &Game, ctx: &GameContext) -> Option<(f32, f32)> {
     match game.phase {
-        Phase::AwaitingDiscard { player: 0 } => Some((game.turn_timer, ctx.layout.turn_window)),
-        Phase::AwaitingClaims { t, .. } => Some((t, ctx.layout.claim_window)),
-        Phase::AiThinking { t, .. } => Some((t, ctx.layout.ai_think_duration)),
+        Phase::AwaitingDiscard { player: 0 } => {
+            Some((game.turn_timer.remaining(), ctx.layout.turn_window))
+        }
+        Phase::AwaitingClaims { timer, .. } => {
+            Some((timer.remaining(), ctx.layout.claim_window))
+        }
+        Phase::AiThinking { timer, .. } => {
+            Some((timer.remaining(), ctx.layout.ai_think_duration))
+        }
         _ => None,
     }
 }
@@ -1077,7 +1083,9 @@ fn phase_label(game: &Game) -> String {
         Phase::AiThinking { .. } => "Thinking...".into(),
         Phase::AwaitingDiscard { player: 0 } => "Your discard".into(),
         Phase::AwaitingDiscard { .. } => "Discarding...".into(),
-        Phase::AwaitingClaims { t, .. } => format!("Claims... ({:.1}s)", t.max(0.0)),
+        Phase::AwaitingClaims { timer, .. } => {
+            format!("Claims... ({:.1}s)", timer.remaining().max(0.0))
+        }
         Phase::ClaimAnim { .. } => "Claim...".into(),
         Phase::Hu { winner, .. } => {
             if winner == 0 { "You win! (Space)".into() }
@@ -1189,8 +1197,8 @@ fn waiting_tiles(concealed: &[Tile], melds: &[Meld]) -> Vec<Tile> {
 }
 
 fn draw_claim_buttons(game: &Game, layout: &TableLayout, ctx: &GameContext, mouse: Vec2) {
-    if let Phase::AwaitingClaims { t, .. } = game.phase {
-        let frac = (t / ctx.layout.claim_window).clamp(0.0, 1.0);
+    if let Phase::AwaitingClaims { timer, .. } = game.phase {
+        let frac = (timer.remaining() / ctx.layout.claim_window).clamp(0.0, 1.0);
         let bar_w = 330.0;
         let bar_h = 6.0;
         let bar_x = layout.cx() - bar_w * 0.5;

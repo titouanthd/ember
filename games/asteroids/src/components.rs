@@ -1,6 +1,7 @@
 // games/asteroids/src/components.rs
 //! Composants de jeu : vaisseau, balle, astéroïde.
 
+use ember_stdlib::time::Cooldown;
 use ember_stdlib::{Collider, Shape, Sprite, Transform};
 use glam::Vec2;
 use macroquad::prelude::Color;
@@ -60,8 +61,8 @@ pub struct Bullet {
     pub sprite: Sprite,
     pub collider: Collider,
     pub velocity: Vec2,
-    /// Temps de vie restant (en secondes). 0 → la balle meurt.
-    pub lifetime: f32,
+    /// Temps de vie restant. `is_active()` = la balle est vivante.
+    pub lifetime: Cooldown,
 }
 
 impl Bullet {
@@ -75,7 +76,7 @@ impl Bullet {
             sprite,
             collider,
             velocity,
-            lifetime,
+            lifetime: Cooldown::running(lifetime),
         }
     }
 
@@ -84,7 +85,7 @@ impl Bullet {
     }
 
     pub fn is_alive(&self) -> bool {
-        self.lifetime > 0.0
+        self.lifetime.is_active()
     }
 }
 
@@ -194,7 +195,7 @@ mod tests {
             1.0,
             Color::new(1.0, 1.0, 1.0, 1.0),
         );
-        b.lifetime = 0.0;
+        b.lifetime.clear();
         assert!(!b.is_alive());
     }
 

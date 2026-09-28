@@ -1,8 +1,7 @@
 //! Game logic. The single entry point is [`update`].
 //!
 //! `World` owns all mutable state. This is the 3rd state struct in the
-//! workspace (after Pong's `MatchState` and Snake's `SnakeWorld`) — a
-//! convention, not a shared type. See `version.txt`.
+//! workspace — a convention, not a shared type. See `version.txt`.
 
 use glam::Vec2;
 
@@ -43,12 +42,13 @@ pub struct World {
     /// Seconds the current wave has been running.
     pub wave_elapsed: f32,
     /// Wall-clock time at which `LevelCleared` will transition to the next
-    /// wave. Only valid while `state == LevelCleared`.
+    /// wave. Timestamp absolu (pas un countdown) — voir `update`.
     pub level_cleared_until: f32,
 
     // --- Juice ---
     pub shake_magnitude: f32,
     pub shake_decay: f32,
+    /// Timestamp absolu de fin de hitstop (freeze). Voir `update`.
     pub hitstop_until: f32,
     pub rng: Rng,
 
@@ -208,20 +208,18 @@ pub fn update_player(world: &mut World, input: ShipInput, ctx: &GameContext, dt:
     world.player.transform.position.x = world.player.transform.position.x.clamp(r, max_x);
     world.player.transform.position.y = world.player.transform.position.y.clamp(r, max_y);
 
-    if world.player.cooldown > 0.0 {
-        world.player.cooldown -= dt;
-    }
+    world.player.cooldown.tick(dt);
 }
 
 /// Fire a player bullet when `fire` is held and cooldown is ready.
 pub fn try_fire_player(world: &mut World, input: ShipInput, ctx: &GameContext) {
-    if !world.player.alive || !input.fire || world.player.cooldown > 0.0 {
+    if !world.player.alive || !input.fire || world.player.cooldown.is_active() {
         return;
     }
     let origin = world.player.transform.position + Vec2::new(0.0, -ctx.player_radius);
     let vel = Vec2::new(0.0, -ctx.bullet_player_speed);
     world.player_bullets.push(Bullet::player(origin, vel, ctx));
-    world.player.cooldown = ctx.player_fire_rate;
+    world.player.cooldown.trigger(ctx.player_fire_rate);
 }
 
 // ---------------------------------------------------------------------------
@@ -235,12 +233,11 @@ pub fn update_bullets(world: &mut World, ctx: &GameContext, dt: f32) {
         .chain(world.enemy_bullets.iter_mut())
     {
         b.pos += b.vel * dt;
-        b.ttl -= dt;
+        b.ttl.tick(dt);
     }
 
     let w = ctx.playfield_w();
     let h = ctx.playfield_h();
-    // Give a small margin so bullets don't visually pop at the edge.
     let margin = 24.0;
     let in_bounds = |p: Vec2| -> bool {
         p.x >= -margin && p.x <= w + margin && p.y >= -margin && p.y <= h + margin
@@ -262,23 +259,18 @@ pub fn update_enemies(world: &mut World, ctx: &GameContext, dt: f32) {
     let player_pos = world.player.transform.position;
     let playfield_w = ctx.playfield_w();
 
-    // Collect spawn requests first to avoid borrowing `world.enemy_bullets`
-    // while `world.enemies` is borrowed mutably.
     let mut to_spawn: Vec<(Vec2, Vec2)> = Vec::new();
 
     for e in world.enemies.iter_mut() {
         e.age += dt;
-        e.fire_cooldown -= dt;
-        if e.flash > 0.0 {
-            e.flash = (e.flash - dt).max(0.0);
-        }
+        e.fire_cooldown.tick(dt);
+        e.flash.tick(dt);
 
         // --- Entry motion ---
         match e.entry {
             EntryMotion::Static => {}
             EntryMotion::Drift { vel } => {
                 e.center += Vec2::new(vel.0, vel.1) * dt;
-                // Bounce horizontally at edges.
                 if e.center.x < e.radius {
                     e.center.x = e.radius;
                 } else if e.center.x > playfield_w - e.radius {
@@ -297,7 +289,7 @@ pub fn update_enemies(world: &mut World, ctx: &GameContext, dt: f32) {
         }
 
         // --- Emitter ---
-        if e.fire_cooldown > 0.0 {
+        if e.fire_cooldown.is_active() {
             continue;
         }
 
@@ -308,13 +300,12 @@ pub fn update_enemies(world: &mut World, ctx: &GameContext, dt: f32) {
                 speed,
                 cooldown,
             } => {
-                e.fire_cooldown = cooldown;
+                e.fire_cooldown.trigger(cooldown);
                 let n = count.max(1);
                 for i in 0..n {
                     let a = e.phase + (i as f32) * std::f32::consts::TAU / (n as f32);
                     to_spawn.push((e.center, Vec2::new(a.cos(), a.sin()) * speed));
                 }
-                // Small phase offset each burst so consecutive rings differ.
                 e.phase += 0.13;
             }
             Emitter::Aimed {
@@ -323,7 +314,7 @@ pub fn update_enemies(world: &mut World, ctx: &GameContext, dt: f32) {
                 speed,
                 cooldown,
             } => {
-                e.fire_cooldown = cooldown;
+                e.fire_cooldown.trigger(cooldown);
                 let n = count.max(1);
                 let base = (player_pos - e.center).to_angle();
                 for i in 0..n {
@@ -342,7 +333,7 @@ pub fn update_enemies(world: &mut World, ctx: &GameContext, dt: f32) {
                 cooldown,
                 rotation_rate,
             } => {
-                e.fire_cooldown = cooldown;
+                e.fire_cooldown.trigger(cooldown);
                 let n = arms.max(1);
                 for i in 0..n {
                     let a = e.phase + (i as f32) * std::f32::consts::TAU / (n as f32);
@@ -356,7 +347,7 @@ pub fn update_enemies(world: &mut World, ctx: &GameContext, dt: f32) {
                 speed,
                 cooldown,
             } => {
-                e.fire_cooldown = cooldown;
+                e.fire_cooldown.trigger(cooldown);
                 let spacing = 40.0;
                 let mut x = 20.0;
                 while x < playfield_w - 20.0 {
@@ -395,8 +386,8 @@ pub fn resolve_player_bullet_vs_enemies(world: &mut World, _ctx: &GameContext) {
             let r = e.radius + b.radius;
             if (e.center - b.pos).length_squared() <= r * r {
                 e.hp -= 1;
-                e.flash = 0.08;
-                b.ttl = 0.0; // consume the bullet
+                e.flash.trigger(0.08);
+                b.ttl.clear(); // consume the bullet
                 if !e.is_alive() {
                     score_gain += (100.0 * world.multiplier) as u32;
                     died.push((e.center, e.color));
@@ -407,7 +398,6 @@ pub fn resolve_player_bullet_vs_enemies(world: &mut World, _ctx: &GameContext) {
 
     world.score += score_gain;
 
-    // Death feedback: particles + a small shake.
     if !died.is_empty() {
         world.shake_magnitude = world.shake_magnitude.max(5.0);
         for (pos, color) in died {
@@ -440,7 +430,7 @@ pub fn resolve_enemy_bullet_vs_player(world: &mut World, ctx: &GameContext) {
         let graze_d = graze_r + b.radius;
 
         if d2 <= hit_d * hit_d {
-            b.ttl = 0.0;
+            b.ttl.clear();
             if !invincible {
                 hit = true;
             }
@@ -459,11 +449,9 @@ pub fn resolve_enemy_bullet_vs_player(world: &mut World, ctx: &GameContext) {
 }
 
 fn on_player_hit(world: &mut World, ctx: &GameContext) {
-    // Juice: strong shake + a brief hitstop.
     world.shake_magnitude = 14.0;
     world.hitstop_until = world.now + 0.08;
 
-    // Death burst at the player position.
     let pos = world.player.transform.position;
     let burst = Particle::burst(pos, 20, ctx.color_player, &mut world.rng);
     world.particles.extend(burst);
@@ -475,10 +463,8 @@ fn on_player_hit(world: &mut World, ctx: &GameContext) {
         return;
     }
 
-    // Respawn at bottom-center with invincibility.
     let center = Vec2::new(ctx.playfield_w() * 0.5, ctx.playfield_h() * 0.8);
     world.player.respawn(center, ctx, world.now);
-    // Multiplier resets on death — the risk-reward loop restarts.
     world.multiplier = 1.0;
 }
 
@@ -490,7 +476,6 @@ pub fn update_particles(world: &mut World, dt: f32) {
     for p in world.particles.iter_mut() {
         p.pos += p.vel * dt;
         p.ttl -= dt;
-        // Drag so particles slow down, feels less linear.
         p.vel *= 1.0 - 3.0 * dt;
     }
     world.particles.retain(|p| p.ttl > 0.0);
@@ -500,8 +485,6 @@ pub fn update_particles(world: &mut World, dt: f32) {
 // Waves
 // ---------------------------------------------------------------------------
 
-/// Spawn the enemies for wave `wave_idx`, clearing any existing enemies and
-/// enemy bullets. If `wave_idx` is out of range, transitions to `Win`.
 pub fn spawn_wave(world: &mut World, ctx: &GameContext, wave_idx: u32) {
     let Some(data) = world.waves.get(wave_idx as usize).cloned() else {
         world.state = GameState::Win;
@@ -523,7 +506,6 @@ pub fn spawn_wave(world: &mut World, ctx: &GameContext, wave_idx: u32) {
 // Reset
 // ---------------------------------------------------------------------------
 
-/// Full reset back to the Start screen.
 pub fn reset(world: &mut World, ctx: &GameContext) {
     world.reset(ctx);
     world.state = GameState::Start;
@@ -586,7 +568,6 @@ mod tests {
         let ctx = ctx();
         let mut w1 = play_world(&ctx);
         let mut w2 = play_world(&ctx);
-        // Move both from a known position so no clamping interferes.
         let start = Vec2::new(ctx.playfield_w() * 0.5, ctx.playfield_h() * 0.5);
         w1.player.transform.position = start;
         w2.player.transform.position = start;
@@ -618,7 +599,6 @@ mod tests {
     fn test_player_clamped_to_playfield() {
         let ctx = ctx();
         let mut w = play_world(&ctx);
-        // Try to shove the player far outside.
         let input = ShipInput {
             dx: -1.0,
             dy: 0.0,
@@ -670,7 +650,7 @@ mod tests {
         let mut w = play_world(&ctx);
         w.player_bullets
             .push(Bullet::player(Vec2::ZERO, Vec2::ZERO, &ctx));
-        w.player_bullets[0].ttl = 0.0;
+        w.player_bullets[0].ttl.clear();
         update_bullets(&mut w, &ctx, 0.016);
         assert!(w.player_bullets.is_empty());
     }
@@ -694,7 +674,6 @@ mod tests {
         w.player_bullets
             .push(Bullet::player(e_pos, Vec2::ZERO, &ctx));
         resolve_player_bullet_vs_enemies(&mut w, &ctx);
-        // Either the enemy took damage, or it died and was removed.
         let hp_after = w.enemies.first().map(|e| e.hp).unwrap_or(0);
         assert!(hp_after < hp_before);
     }
@@ -737,7 +716,6 @@ mod tests {
         let ctx = ctx();
         let mut w = play_world(&ctx);
         let pp = w.player.transform.position;
-        // Place a bullet just outside hit radius but inside graze radius.
         let offset = Vec2::new(ctx.player_graze_radius * 0.7, 0.0);
         w.enemy_bullets
             .push(Bullet::enemy(pp + offset, Vec2::ZERO, &ctx));
@@ -778,7 +756,6 @@ mod tests {
         let mut w = play_world(&ctx);
         w.enemies.clear();
         w.wave_elapsed = 2.0;
-        // Advance without any input — just checking transition.
         let input = ShipInput::default();
         update(&mut w, input, &ctx, 0.016);
         assert!(matches!(w.state, GameState::LevelCleared | GameState::Win));
@@ -789,7 +766,7 @@ mod tests {
         let ctx = ctx();
         let mut w = play_world(&ctx);
         w.state = GameState::LevelCleared;
-        w.level_cleared_until = w.now - 1.0; // already elapsed
+        w.level_cleared_until = w.now - 1.0;
         let input = ShipInput::default();
         update(&mut w, input, &ctx, 0.016);
         assert_eq!(w.state, GameState::Playing);
@@ -818,7 +795,6 @@ mod tests {
     fn test_sine_entry_oscillates() {
         let ctx = ctx();
         let mut w = play_world(&ctx);
-        // Push a controlled sine enemy in.
         let mut e = Enemy::from_data(
             &crate::waves::EnemyData {
                 kind: "grunt".into(),
@@ -837,7 +813,7 @@ mod tests {
             },
             &ctx,
         );
-        e.fire_cooldown = 100.0; // don't fire, we only care about motion
+        e.fire_cooldown = ember_stdlib::time::Cooldown::running(100.0);
         w.enemies.clear();
         w.enemies.push(e);
 
@@ -847,7 +823,6 @@ mod tests {
         update_enemies(&mut w, &ctx, 0.25);
         let x2 = w.enemies[0].center.x;
 
-        // Two samples a quarter-period apart should differ for a sine wave.
         assert!((x1 - x2).abs() > 0.5, "sine should move: {x1} vs {x2}");
     }
 
@@ -869,7 +844,7 @@ mod tests {
             },
             &ctx,
         );
-        e.fire_cooldown = 100.0;
+        e.fire_cooldown = ember_stdlib::time::Cooldown::running(100.0);
         w.enemies.clear();
         w.enemies.push(e);
 
@@ -896,7 +871,7 @@ mod tests {
             },
             &ctx,
         );
-        e.fire_cooldown = 0.0;
+        e.fire_cooldown.clear();
         w.enemies.clear();
         w.enemies.push(e);
         w.enemy_bullets.clear();
@@ -924,14 +899,13 @@ mod tests {
             },
             &ctx,
         );
-        e.fire_cooldown = 0.0;
+        e.fire_cooldown.clear();
         w.enemies.clear();
         w.enemies.push(e);
         w.enemy_bullets.clear();
 
         update_enemies(&mut w, &ctx, 0.016);
 
-        // No bullet should be within gap_w/2 of gap_x.
         for b in &w.enemy_bullets {
             let dist = (b.pos.x - 400.0).abs();
             assert!(dist > 60.0, "bullet at x={} inside gap", b.pos.x);

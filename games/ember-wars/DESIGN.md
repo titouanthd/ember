@@ -6,9 +6,8 @@
 > le joueur gère une ressource et pilote une **catapulte** à tir
 > balistique. Objectif : détruire la tour ennemie ou survivre.
 
-Dernière mise à jour : Phase 25, après catapulte balistique +
-chapitres Chengdu/Beijing + tree 28 nœuds + floating damage texts.
-Statut : **V1 jouable, 15 niveaux, tree étendu, UI polishée.**
+Dernière mise à jour : Phase 26 (extraction `Cooldown` + restauration
+de tests). Statut : **V1 jouable, 15 niveaux, tree étendu, UI polishée.**
 
 ---
 
@@ -90,7 +89,8 @@ défaut, redimensionnable.
 | **Tours** | HP data-driven par niveau | +attaques de tour, +passifs |
 | **Unités** | 6 types : Grunt, Brute, Archer, Healer, Bomber, Hero | +volants, +soigneurs avancés |
 | **Stick men** | 3 phases, 6 armes, strike différé | +ragdoll, +cadavres persistants |
-| **Catapulte** | Tir balistique, 3 tirs, HP, rebuild auto | +catapulte ennemie, +nouveaux tirs |
+| **Catapulte** | Tir balistique, 3 tirs, HP, rebuild auto | +nouveaux tirs |
+| **Catapulte ennemie** | Symétrique, stats réduites, sur 3 niveaux | +IA adaptative |
 | **Mana** | Régén passive + bonus kill | +upgrades actifs |
 | **Or** | Gagné sur kill, persistant entre niveaux | — |
 | **Upgrade tree** | 28 nœuds, 4 branches, menu scrollable | +choix mutuellement exclusifs |
@@ -101,8 +101,9 @@ défaut, redimensionnable.
 | **Police** | DejaVu Sans Mono (Unicode) | +Noto Sans CJK |
 | **Écrans** | Menu + modal upgrade, tous scrollables | +écran de fin enrichi |
 | **Feedback** | Floating damage/heal texts, juice, screen shake | +sons |
+| **Cooldowns** | `ember_core::time::Cooldown` (Phase 26) | — |
 
-**Tests actuels** : **~295 unit + ~20 integration = ~315 tests** dans `ember-wars`.
+**Tests actuels** : **317 unit + 20 integration = 337 tests** dans `ember-wars`.
 
 ---
 
@@ -191,23 +192,23 @@ et un `AiConfig` avec des waves temporelles.
 
 **Tableau des 15 niveaux** :
 
-| ID | Nom | Obj | Width | Tower HP | Waves |
-|---|---|---|---|---|---|
-| sh_01 | Les quais | Survive 45 | 1600 | 400 | 2 |
-| sh_02 | Le Bund | Destroy | 1800 | 500 | 3 |
-| sh_03 | Pudong | Destroy | 2000 | 600 | 5 |
-| gy_01 | Les rizières | Survive 60 | 1700 | 500 | 3 |
-| gy_02 | La montagne | Destroy | 1900 | 700 | 4 |
-| gy_03 | La citadelle | Destroy | 2100 | 800 | 5 |
-| hk_01 | Kowloon | Survive 50 | 1900 | 550 | 3 |
-| hk_02 | Victoria Harbour | Destroy | 2100 | 700 | 4 |
-| hk_03 | The Peak | Destroy | 2300 | 900 | 5 |
-| cd_01 | Les bambous | Survive 65 | 2000 | 600 | 3 |
-| cd_02 | Le temple Wuhou | Destroy | 2200 | 850 | 4 |
-| cd_03 | Le mont Qingcheng | Destroy | 2400 | 1100 | 5 |
-| bj_01 | La Cité Interdite | Survive 70 | 2100 | 750 | 4 |
-| bj_02 | Le Temple du Ciel | Destroy | 2300 | 1000 | 5 |
-| bj_03 | La Grande Muraille | Destroy | 2600 | 1300 | 6 |
+| ID | Nom | Obj | Width | Tower HP | Waves | Enemy catapult |
+|---|---|---|---|---|---|---|
+| sh_01 | Les quais | Survive 45 | 1600 | 400 | 2 | — |
+| sh_02 | Le Bund | Destroy | 1800 | 500 | 3 | — |
+| sh_03 | Pudong | Destroy | 2000 | 600 | 5 | — |
+| gy_01 | Les rizières | Survive 60 | 1700 | 500 | 3 | — |
+| gy_02 | La montagne | Destroy | 1900 | 700 | 4 | — |
+| gy_03 | La citadelle | Destroy | 2100 | 800 | 5 | — |
+| hk_01 | Kowloon | Survive 50 | 1900 | 550 | 3 | — |
+| hk_02 | Victoria Harbour | Destroy | 2100 | 700 | 4 | — |
+| hk_03 | The Peak | Destroy | 2300 | 900 | 5 | — |
+| cd_01 | Les bambous | Survive 65 | 2000 | 600 | 3 | — |
+| cd_02 | Le temple Wuhou | Destroy | 2200 | 850 | 4 | — |
+| cd_03 | Le mont Qingcheng | Destroy | 2400 | 1100 | 5 | ✅ |
+| bj_01 | La Cité Interdite | Survive 70 | 2100 | 750 | 4 | — |
+| bj_02 | Le Temple du Ciel | Destroy | 2300 | 1000 | 5 | ✅ |
+| bj_03 | La Grande Muraille | Destroy | 2600 | 1300 | 6 | ✅ |
 
 **Notes** :
 - `objective` : `Destroy` (détruire) ou `Survive(f32)` (tenir N secondes).
@@ -216,6 +217,8 @@ et un `AiConfig` avec des waves temporelles.
 - `ai.aggression` : divise le seuil de Mana (Hard = spawn plus tôt).
 - `reward_gold` : or crédité à la victoire.
 - `palette` : id dans `palettes.ron`.
+- `enemy_catapult` : bool (défaut `false`) — active une catapulte
+  ennemie symétrique.
 
 ### 5.2 `assets/palettes.ron`
 
@@ -317,19 +320,19 @@ pub enum UpgradeEffect {
     Fortress,                   // 2e barre HP (V2)
     UnitHpMult(f32),
     UnitDamageMult(f32),
-    UnitSpeedMult(f32),         // NOUVEAU
+    UnitSpeedMult(f32),
     UnlockUnit(String),
     TurretDamageMult(f32),      // catapult damage
     TurretFireRateMult(f32),    // <1 = plus rapide
     MultiShot(u32),
-    TurretCritChance(f32),      // NOUVEAU
+    TurretCritChance(f32),
     ManaRegenMult(f32),
     ManaCapMult(f32),
-    ManaOnKillAdd(f32),         // NOUVEAU
+    ManaOnKillAdd(f32),
     GoldPerKillAdd(f32),
-    CatapultRangeAdd(f32),      // NOUVEAU
-    CatapultHpMult(f32),        // NOUVEAU
-    CatapultRebuildMult(f32),   // NOUVEAU (<1 = plus rapide)
+    CatapultRangeAdd(f32),
+    CatapultHpMult(f32),
+    CatapultRebuildMult(f32),   // <1 = plus rapide
 }
 ```
 
@@ -358,10 +361,9 @@ pub struct Unit {
     pub hp: f32,
     pub max_hp: f32,
     pub damage: f32,
-    pub attack_cd: f32,
-    pub attack_cd_max: f32,
-    pub heal_cd: f32,
-    pub hit_flash: f32,
+    pub attack_cd: Cooldown,      // Phase 26
+    pub heal_cd: Cooldown,        // Phase 26
+    pub hit_flash: Cooldown,      // Phase 26
     pub pose_phase: f32,
     pub target: Option<UnitId>,
     pub pending_attack: Option<PendingAttack>,
@@ -370,19 +372,19 @@ pub struct Unit {
 pub struct PendingAttack {
     pub target: AttackTarget,
     pub damage: f32,
-    pub time_to_hit: f32,
+    pub time_to_hit: f32,         // reste f32 (sous-compteur interne)
 }
 
 pub enum AttackTarget {
     Unit(UnitId),
     Tower(Team),
-    Catapult(Team),      // NOUVEAU
+    Catapult(Team),
 }
 
 pub struct Projectile {
     pub pos: Vec2,
     pub vel: Vec2,
-    pub gravity: f32,    // NOUVEAU : 0 = ligne droite, > 0 = balistique
+    pub gravity: f32,             // 0 = ligne droite, > 0 = balistique
     pub damage: f32,
     pub radius: f32,
     pub team: Team,
@@ -398,42 +400,45 @@ pub struct Tower { ... }
 
 - Charge `units.ron` via `OnceLock`.
 - `spawn_unit(gen, kind, team, pos, hp_mult, damage_mult) -> Option<Unit>`.
+- Initialise les `Cooldown` en mode ready avec leur durée enregistrée.
 - `can_spawn(kind, team, units)` respecte `max_alive`.
 - `alive_count(kind, team, units)`.
 
 ### 6.3 `catapult.rs` — Catapulte balistique
-
-Remplace l'ancienne `tower.rs::Turret`.
 
 ```rust
 pub struct Catapult {
     pub pos: Vec2,           // bas-centre, posé au sol
     pub hp: f32,
     pub max_hp: f32,
-    pub cooldown: f32,
+    pub cooldown: Cooldown,  // Phase 26
     pub shot_kind: ShotKind, // Basic | Piercing | Explosive
     pub fire_rate_mult: f32,
     pub multi_shot: u32,
-    pub rebuild_timer: f32,  // > 0 = détruite
-    pub rebuild_time: f32,   // configurable via upgrades
-    pub max_range: f32,      // configurable via upgrades
-    pub aim_target: Vec2,    // point de chute visé
+    pub rebuild: Cooldown,   // Phase 26 (fusion rebuild_timer + rebuild_time)
+    pub max_range: f32,
+    pub aim_target: Vec2,
+    pub facing: f32,         // 1.0 = joueur, -1.0 = ennemi
+    pub base_damage: f32,
 }
 ```
 
-**Constantes de base** :
-- `CATAPULT_HP = 300.0`
-- `CATAPULT_REBUILD_TIME = 10.0`
-- `CATAPULT_OFFSET_X = 150.0` (devant la tour joueur)
-- `CATAPULT_MIN_RANGE = 150.0`
-- `CATAPULT_MAX_RANGE = 1000.0` (base — augmentable via upgrades)
-- `CATAPULT_FIRE_COOLDOWN = 0.9`
-- `CATAPULT_BASE_DAMAGE = 14.0`
-- `CATAPULT_H_SPEED = 650.0` (fixe, détermine le temps de vol)
-- `CATAPULT_GRAVITY = 900.0`
+**Constantes joueur** :
+- `CATAPULT_HP = 300.0`, `CATAPULT_REBUILD_TIME = 10.0`
+- `CATAPULT_OFFSET_X = 150.0`
+- `CATAPULT_MIN_RANGE = 150.0`, `CATAPULT_MAX_RANGE = 1000.0`
+- `CATAPULT_FIRE_COOLDOWN = 0.9`, `CATAPULT_BASE_DAMAGE = 14.0`
+- `CATAPULT_H_SPEED = 650.0`, `CATAPULT_GRAVITY = 900.0`
 - `MULTI_SHOT_SPREAD_PX = 20.0`
 - `CATAPULT_HITBOX_W = 50.0`, `CATAPULT_HITBOX_H = 60.0`
 - `LAUNCH_HEIGHT = 45.0`
+
+**Constantes ennemi** :
+- `ENEMY_CATAPULT_HP = 250.0`
+- `ENEMY_CATAPULT_REBUILD_TIME = 12.0`
+- `ENEMY_CATAPULT_MAX_RANGE = 700.0`
+- `ENEMY_CATAPULT_FIRE_COOLDOWN = 1.4`
+- `ENEMY_CATAPULT_DAMAGE = 10.0`
 
 **Trajectoire balistique** :
 
@@ -445,26 +450,21 @@ pub fn solve_trajectory(&self, target: Vec2) -> Option<Vec2>
 ```
 
 **Multi-tir** : N projectiles espacés de `MULTI_SHOT_SPREAD_PX` en X
-de cible (donc arcs quasi-parallèles). 20px entre le tir de gauche
-et le tir central.
+de cible (arcs quasi-parallèles).
 
-**Reconstruction** : `take_damage` met `rebuild_timer` à
-`rebuild_time`. `tick` décrémente, à 0 restaure `hp = max_hp`.
+**Reconstruction** : `take_damage` → `rebuild.reset()`. `tick` fait
+`rebuild.tick_returning(dt)` → restaure `hp = max_hp` à expiration.
 
 **Méthodes clés** :
-- `configure(max_range, max_hp, rebuild_time)` — applique les upgrades.
-- `is_alive() / is_rebuilding() / is_ready()`.
-- `aim(mouse_world)` — clamp à [MIN_RANGE, max_range].
-- `solve_trajectory(target)` — vélocité balistique.
-- `preview_points(steps)` — échantillonne l'arc pour le rendu.
-- `try_fire_multi(team, damage_mult)` — spawn N projectiles.
-- `cycle_shot_kind()` — Basic → Piercing → Explosive.
+- `configure(max_range, max_hp, rebuild_time)`.
+- `is_alive() / is_rebuilding() / is_ready() / rebuild_remaining()`.
+- `aim(mouse_world)` — clamp à [MIN_RANGE, max_range] selon `facing`.
+- `solve_trajectory(target)`, `launch_velocity()`, `preview_points(steps)`.
+- `try_fire_multi(team, damage_mult)`, `cycle_shot_kind()`.
 
 **Important** : la catapulte ne peut JAMAIS atteindre la tour
-ennemie. Portée max après tous les upgrades = 1500px, et la
-distance minimale catapulte → tour ennemie est de 1330px (sur
-sh_01, niveau le plus court). Test d'intégration
-`catapult_never_reaches_enemy_tower` vérifie cette invariant.
+ennemie. Test d'intégration `catapult_never_reaches_enemy_tower`
+vérifie cet invariant sur les 15 niveaux.
 
 ### 6.4 `combat.rs` — Targeting, attaques, projectiles, juice
 
@@ -486,12 +486,11 @@ sh_01, niveau le plus court). Test d'intégration
   soigner, avance (jusqu'à `enemy_tower.x - HEALER_MIDLINE_MARGIN`).
 - **Autres** : `acquire_target`.
   - Pas de cible → avance (`speed * unit_speed_mult` si joueur).
-  - Cible → si `pending_attack.is_none()` et `attack_cd == 0` →
-    crée pending, arme `attack_cd = max(stats.attack_cooldown,
-    ATTACK_DURATION)`.
+  - Cible → si `pending_attack.is_none()` et `attack_cd.is_active() == false`
+    → crée pending, `attack_cd.trigger(effective_cd)`.
 
-**`tick_unit_timers`** : décrémente `attack_cd`, `heal_cd`,
-`hit_flash`, incrémente `pose_phase`. **Ne consomme PAS**
+**`tick_unit_timers`** : `attack_cd.tick(dt)`, `heal_cd.tick(dt)`,
+`hit_flash.tick(dt)`, incrémente `pose_phase`. **Ne consomme PAS**
 `pending_attack`.
 
 **`resolve_projectiles`** : avance (avec gravité si > 0),
@@ -500,9 +499,9 @@ collision unité, tour, catapulte, AoE explosive, pierce.
 **Floating texts** : `apply_damage_to_unit` /
 `apply_damage_to_tower` / `apply_damage_to_catapult` / healer
 spawn un floating text à chaque application.
-- Dégâts joueur → `DMG_COLOR_PLAYER` (bleu clair).
-- Dégâts ennemis → `DMG_COLOR_ENEMY` (rouge clair).
-- Heal → `HEAL_COLOR` (vert clair).
+- Dégâts joueur → bleu clair (`DMG_COLOR_PLAYER`).
+- Dégâts ennemis → rouge clair (`DMG_COLOR_ENEMY`).
+- Heal → vert clair (`HEAL_COLOR`).
 
 ### 6.5 `mana.rs` — Ressource
 
@@ -516,7 +515,7 @@ pub struct ManaPool { pub current: f32, pub max: f32, pub regen: f32 }
 ### 6.6 `ai.rs` — IA adverse
 
 `decide_spawn(ai_mana, ai_units, player_units, ai_config, elapsed,
-cooldowns)`.
+cooldowns)` où `cooldowns: &HashMap<String, Cooldown>` (Phase 26).
 
 Détermine la wave active = dernière avec `start_at <= elapsed`.
 Ordre défensif si `ai_alive + 2 < player_alive`. Prend le premier
@@ -589,7 +588,9 @@ externe. Utilise une `Palette` et un `visual_seed`.
 - `draw_ground(palette, cam_x, ground_y, vh)` — sol + pavés / herbe
   + néons au sol (Urban).
 - `draw_mist(palette, ground_y)` — bande de brume (Mountain).
-- `draw_tower(player, palette, world_x, cam_x, ground_y, shake)`.
+- `draw_tower(player, palette, world_x, cam_x, ground_y, shake)` —
+  tour médiévale avec créneaux, fenêtres en arche, porte.
+- `TOWER_VISUAL_H = 152.0` — hauteur visuelle totale (body + créneaux).
 
 **Hash déterministe** : `hash_u32(seed, x)` (murmur-inspired).
 
@@ -608,9 +609,9 @@ pub struct Juice {
   + fade), shake (décroissance), flashes (fade).
 - `shake(intensity, duration)` : remplace si plus fort.
 - `flash(color, duration)` : plein écran semi-transparent.
-- `spawn_hit_spark(pos, color)` : petit particle au hit.
-- `spawn_death_burst(pos, color, count)` : explosion de particles.
-- `spawn_floating_text(pos, text, color)` : texte qui monte.
+- `spawn_hit_spark(pos, color)`.
+- `spawn_death_burst(pos, color, count)`.
+- `spawn_floating_text(pos, text, color)`.
 - `draw_particles`, `draw_floating_texts`, `draw_flashes`.
 
 ### 6.13 `fonts.rs` — Police Unicode
@@ -640,7 +641,7 @@ pub struct Juice {
 - 6 slots en bas de l'écran.
 - Chaque slot : nom, coût Mana, état (locked / ready / no mana /
   cooldown / max).
-- Cooldown overlay (voile noir proportionnel).
+- Cooldown overlay utilise `Cooldown::remaining_fraction()` (Phase 26).
 
 ### 6.16 `ui/upgrade_modal.rs` — Modal arbre
 
@@ -668,9 +669,10 @@ pub struct Game {
     pub enemy_mana: ManaPool,
     pub player_upgrades: UpgradeTree,   // snapshot au démarrage
     pub catapult: Catapult,
+    pub enemy_catapult: Option<Catapult>,
     pub camera: Camera2D,
-    pub player_cooldowns: HashMap<String, f32>,
-    pub enemy_cooldowns: HashMap<String, f32>,
+    pub player_cooldowns: HashMap<String, Cooldown>,   // Phase 26
+    pub enemy_cooldowns: HashMap<String, Cooldown>,    // Phase 26
     pub id_gen: UnitIdGen,
     pub rng: Rng,
     pub level: &'static LevelConfig,
@@ -687,7 +689,8 @@ pub enum Phase { Playing, Won, Lost }
 
 **Méthodes clés** :
 - `new(ctx, level_id, seed, progress) -> Result<Self, String>` —
-  configure la catapulte avec les upgrades du progress.
+  configure la catapulte avec les upgrades du progress, spawn la
+  catapulte ennemie si `level.enemy_catapult`.
 - `tick(dt, mouse_world, mouse_left_pressed, camera_scroll)`.
 - `try_player_spawn(kind) -> bool`.
 - `survive_remaining() -> Option<f32>`.
@@ -726,16 +729,18 @@ Modal Upgrade Tree (jeu pas lancé)
 AppScreen::Menu
 ```
 
-### 7.2 Timers
+### 7.2 Timers (Phase 26)
 
-- `attack_cd`, `heal_cd` : f32 qui décrémente.
-- `pending_attack.time_to_hit` : f32 qui décrémente.
-- `cooldowns[kind]`, `catapult.cooldown`, `catapult.rebuild_timer` :
-  f32 qui décrémente.
+- `Unit::attack_cd`, `heal_cd`, `hit_flash` : `Cooldown`.
+- `Catapult::cooldown`, `rebuild` : `Cooldown`.
+- `player_cooldowns[kind]`, `enemy_cooldowns[kind]` :
+  `HashMap<String, Cooldown>`.
+- `PendingAttack::time_to_hit` : **reste f32** — sous-compteur
+  interne à un concept plus large.
 
-**Note** : le pattern « cooldown f32 qui décrémente » est utilisé
-dans **4 jeux** (Asteroids, Bullet Hell, Zhuo Ji, ember-wars).
-Extraction `Cooldown` dans `ember_core::time` planifiée.
+**Note** : le pattern `Cooldown` est extrait depuis Phase 26 dans
+`ember_core::time::Cooldown`, utilisé dans 4 jeux (Asteroids, Bullet
+Hell, Zhuo Ji, ember-wars).
 
 ---
 
@@ -790,7 +795,7 @@ games/ember-wars/
 
 | Primitive | Occurrences | Action |
 |---|---|---|
-| `Cooldown` (f32 qui décrémente) | 4 (Asteroids, BH, Zhuo Ji, EW) | **Prêt à extraire** |
+| `Cooldown` (f32 qui décrémente) | 4 | ✅ **EXTRAIT** (Phase 26) |
 | `Camera2D` | 1 (EW) | Local |
 | `AutoCombat` | 1 (EW) | Local |
 | `Stickman` | 1 (EW) | Local |
@@ -803,14 +808,14 @@ games/ember-wars/
 | `Parallax` | 1 (EW) | Local |
 | Police Unicode via `set_default_font` | 2 (FreeCell, EW) | Attendre 3e |
 | Menu campagne scrollable | 1 (EW) | Local |
-| **Floating damage texts** | 1 (EW) | Local |
+| Floating damage texts | 1 (EW) | Local |
 
 ---
 
 ## 10. Stratégie de tests
 
-Objectif actuel : **~295 tests unit + ~20 integration = ~315 tests**
-dans `ember-wars`.
+Objectif atteint : **317 unit + 20 integration = 337 tests** dans
+`ember-wars`.
 
 ### 10.1 Couverture par module
 
@@ -820,8 +825,8 @@ dans `ember-wars`.
 | `units.rs` | 18 |
 | `stickman.rs` | 22 |
 | `weapons.rs` | 9 |
-| `catapult.rs` | 27 |
-| `combat.rs` | 44 |
+| `catapult.rs` | 39 |
+| `combat.rs` | 38 |
 | `mana.rs` | 4 |
 | `ai.rs` | 12 |
 | `upgrades.rs` | 35 |
@@ -829,11 +834,14 @@ dans `ember-wars`.
 | `camera.rs` | 17 |
 | `textures.rs` | 13 |
 | `juice.rs` | 15 |
-| `systems.rs` | 25 |
+| `systems.rs` | 34 |
+| `config.rs` | 7 |
 | `menu.rs` | 10 |
 | `ui/spawn_bar.rs` | 3 |
 | `ui/upgrade_modal.rs` | 13 |
-| **Total** | **~295** |
+| **Total unit** | **317** |
+| `tests/game_scenarios.rs` | **20** |
+| **Total** | **337** |
 
 ### 10.2 Tests d'intégration (`tests/game_scenarios.rs`)
 
@@ -855,6 +863,8 @@ dans `ember-wars`.
 16. `catapult_never_reaches_enemy_tower` (invariant clé)
 17. `upgrade_tree_ron_loads` (28 nœuds)
 18. `units_ron_loads`
+19. `enemy_catapult_present_only_on_flagged_levels`
+20. `enemy_catapult_fires_when_player_unit_in_range`
 
 ### 10.3 Ce qu'on ne teste PAS
 
@@ -884,16 +894,17 @@ dans `ember-wars`.
 
 - **UnitId stable** : `target` pointe vers un `UnitId`, jamais un
   index.
-- **Catapulte ≠ sol** : launch_origin à `pos.y - LAUNCH_HEIGHT`.
+- **Catapulte ≠ sol** : `launch_origin` à `pos.y - LAUNCH_HEIGHT`.
 - **Comparer les difficultés sur les HP déployés**, pas le nombre.
 - **Sol responsive** : `ground_y = viewport_h * GROUND_Y_RATIO`.
 - **`palettes.ron` doit commencer par `[`**.
 - **Strike différé** : ne JAMAIS clear `pending_attack` dans
   `tick_unit_timers` — c'est la Phase 1 qui le consomme.
-- **`attack_cd` minimum = `ATTACK_DURATION`**.
+- **`attack_cd`** : la durée effective = `max(stats.attack_cooldown,
+  ATTACK_DURATION)` doit être ré-appliquée à chaque `trigger`.
 - **`strike_delay = ATTACK_DURATION * WINDUP_END`**.
 - **`REST_ARM_R` / `REST_ARM_L` partagés**.
-- **Phase d'anim = `attack_cd_max - attack_cd`**.
+- **Phase d'anim = `attack_cd.duration() - attack_cd.remaining()`**.
 - **Bomber** : `detonate_bomber` prend l'index de l'**attaquant**.
 - **Healer midline** : `HEALER_MIDLINE_MARGIN = 300.0`.
 - **Mouvement** : le cooldown n'empêche pas l'avance si pas de
@@ -903,14 +914,14 @@ dans `ember-wars`.
 - **Modal rect** : `modal_rect_for(vw, vh)` testable, `modal_rect()`
   wrapper runtime.
 - **Menu draw order** : chapitres → scrollbar → panneau info →
-  header → footer. Header/footer ont un fond opaque pour masquer le
-  scroll.
-- **Upgrade modal draw order** : tree (connexions + nœuds) →
-  scrollbar → header → description. Header/description masquent le
-  débordement.
+  header → footer. Header/footer ont un fond opaque.
+- **Upgrade modal draw order** : tree → scrollbar → header →
+  description.
 - **Floating texts** : spawn dans les fonctions `apply_damage_*`,
-  pas au call site. Comme ça toutes les attaques en bénéficient
-  automatiquement.
+  pas au call site.
+- **Reborrow pour `Catapults`** : les tuples de `&mut` sont
+  non-Copy. Dans une boucle, reborrow : `(&mut *catapults.0,
+  &mut *catapults.1)`.
 
 ### 11.3 Décisions validées
 
@@ -920,6 +931,7 @@ dans `ember-wars`.
 - ✅ **Catapulte balistique** (remplace la tourelle).
 - ✅ **Catapulte = structure destructible** (300 HP, rebuild 10s).
 - ✅ **Multi-tir resserré** (20px entre arcs).
+- ✅ **Catapulte ennemie** sur 3 niveaux (cd_03, bj_02, bj_03).
 - ✅ Mana = régén passive + bonus kill.
 - ✅ IA = waves temporelles + agressivité data-driven.
 - ✅ **Upgrades dans le menu** (Tab).
@@ -936,6 +948,7 @@ dans `ember-wars`.
 - ✅ **Strike différé**.
 - ✅ **Floating damage/heal texts partout**.
 - ✅ **Fenêtre 1600×900** au lancement.
+- ✅ **`Cooldown` extrait** dans `ember_core::time` (Phase 26).
 
 ---
 
@@ -948,7 +961,6 @@ dans `ember-wars`.
 - **Sons** (`AudioClip` existe, mais rien).
 - **Fortress effect** (2e barre HP) — présent dans l'arbre mais pas
   appliqué.
-- **Catapulte ennemie** (symétrie).
 - **Nouveaux ShotKind** (Slow, Poison).
 - **Upgrades mutuellement exclusifs** (arbres de choix).
 - **Nouvelles unités** (7e, 8e...).
@@ -960,7 +972,7 @@ dans `ember-wars`.
 2. **Équilibre Beijing bj_03** : 6 waves, aggression 1.65 — trop
    dur ?
 3. **Reconstruire la catapulte** : 10s c'est trop long / trop court ?
-4. **Catapulte ennemie** : est-ce qu'on l'ajoute pour symétrie ?
+4. **Catapulte ennemie** : portée 700px, damage 10 — à playtester.
 
 ---
 
@@ -968,39 +980,25 @@ dans `ember-wars`.
 
 ### Session playtest — Tuning
 - Vérifier la difficulté des 5 Survive (triviaux avec catapulte ?).
-- Vérifier que bj_03 reste gagnable.
+- Vérifier que bj_03 reste gagnable avec catapulte ennemie.
 - Tester le rebuild 10s en conditions réelles.
 
-### Session G — Catapulte ennemie (symétrie)
-- L'IA aurait sa propre catapulte.
-- Le joueur doit gérer 2 menaces.
-
-### Session H — Upgrades mutuellement exclusifs
+### Session G — Upgrades mutuellement exclusifs
 - 2 choix par branche.
 - Décision meaningful à chaque palier.
 
-### Session I — Nouveaux ShotKind
+### Session H — Nouveaux ShotKind
 - Slow, Poison.
 - Plus de variété dans le choix 1/2/3.
 
-### Session refacto
-- Extraction `Cooldown` (4e occurrence).
-- DESIGN.md à rafraîchir au fil de l'eau.
+### Session I — Plus de chapitres
+- Chapitre 6 (Nanjing, Xi'an, Suzhou ?).
 
 ---
 
 ## 14. Changelog
 
-### Phase 25 (session actuelle)
-- Catapulte balistique remplace la tourelle.
-- 2 chapitres (Chengdu, Beijing).
-- Tree 18 → 28 nœuds, 6 nouveaux effets.
-- Floating damage/heal texts partout.
-- Modal upgrade scrollable.
-- Fenêtre 1600×900.
-- Menu : scrollbar + fix superposition header.
-
-### Phase 23 (session précédente)
+### Phase 23 (construction initiale)
 - Refonte UI menu (Session A).
 - Chapitre Hong Kong.
 - Stick men 3-phases + 6 armes.
@@ -1010,3 +1008,29 @@ dans `ember-wars`.
 - Juice (particles, shake, flashes).
 - Caméra manuelle.
 - Upgrade tree (18 nœuds originel).
+
+### Phase 25 (extension)
+- Catapulte balistique remplace la tourelle.
+- Chapitres Chengdu et Beijing.
+- Tree 18 → 28 nœuds, 6 nouveaux effets.
+- Floating damage/heal texts partout.
+- Modal upgrade scrollable.
+- Fenêtre 1600×900.
+- Menu : scrollbar + fix superposition header.
+- Catapulte ennemie (symétrie) sur 3 niveaux.
+- Redesign visuel tour + catapulte.
+- DESIGN.md rétroactifs pour Asteroids et Bullet Hell.
+- Tests : 265 → 314.
+
+### Phase 26 — Refacto `Cooldown` + restauration de tests
+
+- **Extraction `Cooldown`** dans `ember_core::time` (4e occurrence,
+  Rule of Three dépassée).
+- **Migration ember-wars** : `Unit` (attack_cd / heal_cd / hit_flash),
+  `Catapult` (cooldown / rebuild), `player_cooldowns` /
+  `enemy_cooldowns` → `HashMap<String, Cooldown>`.
+- `render.rs`, `spawn_bar.rs`, `ai.rs` adaptés.
+- **Restauré 52 tests perdus** pendant la migration : blocs `mod tests`
+  de `catapult.rs` (+24), `combat.rs` (+29), `systems.rs` (+18) réécrits
+  en conservant l'API `Cooldown`.
+- Tests : 314 → 264 (perte) → **317 unit + 20 integration = 337 tests**.
