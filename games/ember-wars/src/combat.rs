@@ -128,16 +128,14 @@ pub fn strike_delay() -> f32 {
 
 fn tick_unit_timers(units: &mut [Unit], dt: f32) {
     for u in units.iter_mut() {
-        if u.attack_cd > 0.0 {
-            u.attack_cd = (u.attack_cd - dt).max(0.0);
-        }
-        if u.heal_cd > 0.0 {
-            u.heal_cd = (u.heal_cd - dt).max(0.0);
-        }
-        if u.hit_flash > 0.0 {
-            u.hit_flash = (u.hit_flash - dt).max(0.0);
-        }
+        u.attack_cd.tick(dt);
+        u.heal_cd.tick(dt);
+        u.hit_flash.tick(dt);
         u.pose_phase += dt;
+
+        // Le pending attack n'est PAS consommé ici : c'est la Phase 1
+        // qui l'applique et le clear. `time_to_hit` reste un f32 brut,
+        // c'est un sous-compteur dans un concept plus large.
         if let Some(mut pa) = u.pending_attack {
             pa.time_to_hit -= dt;
             u.pending_attack = Some(pa);
@@ -148,7 +146,7 @@ fn tick_unit_timers(units: &mut [Unit], dt: f32) {
 fn apply_damage_to_unit(unit: &mut Unit, amount: f32, source_team: Team, juice: &mut Juice) {
     let was_alive = unit.is_alive();
     unit.hp -= amount;
-    unit.hit_flash = HIT_FLASH_DURATION;
+    unit.hit_flash.trigger(HIT_FLASH_DURATION);
 
     let color = team_juice_color(unit.team);
     juice.spawn_hit_spark(unit.pos, color);
@@ -448,7 +446,7 @@ pub fn resolve_attacks(
             continue;
         }
 
-        if units[i].pending_attack.is_some() || units[i].attack_cd > 0.0 {
+        if units[i].pending_attack.is_some() || units[i].attack_cd.is_active() {
             continue;
         }
 
@@ -458,14 +456,15 @@ pub fn resolve_attacks(
             Target::Catapult(t) => AttackTarget::Catapult(t),
         };
 
-        let effective_cd = stats.attack_cooldown.max(crate::stickman::ATTACK_DURATION);
+        let effective_cd = stats
+            .attack_cooldown
+            .max(crate::stickman::ATTACK_DURATION);
         units[i].pending_attack = Some(PendingAttack {
             target: at,
             damage: units[i].damage,
             time_to_hit: strike_delay(),
         });
-        units[i].attack_cd = effective_cd;
-        units[i].attack_cd_max = effective_cd;
+        units[i].attack_cd.trigger(effective_cd);
     }
 }
 
@@ -496,11 +495,11 @@ fn resolve_healer(units: &mut [Unit], i: usize, stats: &UnitStats, juice: &mut J
     }
 
     if let Some((_, j)) = best {
-        if units[i].heal_cd <= 0.0 {
+        if units[i].heal_cd.is_ready() {
             let missing = units[j].max_hp - units[j].hp;
             let actual = heal_amount.min(missing);
             units[j].hp = (units[j].hp + heal_amount).min(units[j].max_hp);
-            units[i].heal_cd = heal_cooldown;
+            units[i].heal_cd.trigger(heal_cooldown);
             let text_pos = units[j].pos + Vec2::new(0.0, -25.0);
             juice.spawn_floating_text(text_pos, format!("+{:.0}", actual), HEAL_COLOR);
         }
@@ -647,6 +646,7 @@ pub fn resolve_projectiles(
 mod tests {
     use super::*;
     use crate::catapult::Catapult;
+    use ember_stdlib::time::Cooldown;
 
     fn mk_unit(id: u32, kind: &str, team: Team, x: f32) -> Unit {
         let stats = unit_stats(kind).expect("kind exists");
@@ -658,10 +658,9 @@ mod tests {
             hp: stats.hp,
             max_hp: stats.hp,
             damage: stats.damage,
-            attack_cd: 0.0,
-            attack_cd_max: stats.attack_cooldown,
-            heal_cd: 0.0,
-            hit_flash: 0.0,
+            attack_cd: Cooldown::new(stats.attack_cooldown),
+            heal_cd: Cooldown::new(stats.heal_cooldown.unwrap_or(0.0)),
+            hit_flash: Cooldown::default(),
             pose_phase: 0.0,
             target: None,
             pending_attack: None,
@@ -669,7 +668,12 @@ mod tests {
     }
 
     fn mk_tower(team: Team, x: f32) -> Tower {
-        Tower { team, hp: 500.0, max_hp: 500.0, x }
+        Tower {
+            team,
+            hp: 500.0,
+            max_hp: 500.0,
+            x,
+        }
     }
 
     fn mk_catapult(x: f32) -> Catapult {
@@ -775,6 +779,31 @@ mod tests {
     }
 
     #[test]
+    fn healer_respects_cooldown() {
+        let mut h = mk_unit(0, "healer", Team::Player, 0.0);
+        h.heal_cd = Cooldown::running(2.0);
+        let mut wounded = mk_unit(1, "grunt", Team::Player, 50.0);
+        wounded.hp = 10.0;
+        let mut units = vec![h, wounded];
+        let mut pt = mk_tower(Team::Player, -100.0);
+        let mut et = mk_tower(Team::Enemy, 1000.0);
+        let mut pc = mk_catapult(-50.0);
+        let mut ec = no_enemy_catapult();
+        let mut projs = vec![];
+        let mut juice = Juice::new();
+        resolve_attacks(
+            &mut units,
+            (&mut pt, &mut et),
+            (&mut pc, &mut ec),
+            &mut projs,
+            &mut juice,
+            0.1,
+            1.0,
+        );
+        assert!((units[1].hp - 10.0).abs() < 1e-6);
+    }
+
+    #[test]
     fn enemy_projectile_hits_player_catapult() {
         let mut pc = mk_catapult(200.0);
         let (rx, ry, _rw, _rh) = pc.rect();
@@ -858,7 +887,15 @@ mod tests {
         let mut ec = no_enemy_catapult();
         let mut projs = vec![];
         let mut juice = Juice::new();
-        run_attacks_for(&mut units, &mut pt, &mut et, (&mut pc, &mut ec), &mut projs, &mut juice, 0.3);
+        run_attacks_for(
+            &mut units,
+            &mut pt,
+            &mut et,
+            (&mut pc, &mut ec),
+            &mut projs,
+            &mut juice,
+            0.3,
+        );
         assert_eq!(units[0].hp, 0.0);
         assert!(units[1].hp <= 0.0);
         assert!(units[2].hp <= 0.0);

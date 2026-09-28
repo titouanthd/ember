@@ -3,6 +3,7 @@
 //! Remplace l'ancienne `Turret`. Peut être orientée à droite (joueur)
 //! ou à gauche (ennemi) via le champ `facing`.
 
+use ember_stdlib::time::Cooldown;
 use glam::Vec2;
 
 use crate::components::{Projectile, ProjectileKind, Team};
@@ -59,12 +60,13 @@ pub struct Catapult {
     pub pos: Vec2,
     pub hp: f32,
     pub max_hp: f32,
-    pub cooldown: f32,
+    /// Cooldown entre deux tirs.
+    pub cooldown: Cooldown,
     pub shot_kind: ShotKind,
     pub fire_rate_mult: f32,
     pub multi_shot: u32,
-    pub rebuild_timer: f32,
-    pub rebuild_time: f32,
+    /// Timer de reconstruction. `is_active()` = détruite.
+    pub rebuild: Cooldown,
     pub max_range: f32,
     pub aim_target: Vec2,
     /// 1.0 = tire vers la droite (joueur), -1.0 = tire vers la gauche (ennemi).
@@ -102,12 +104,11 @@ impl Catapult {
             pos,
             hp,
             max_hp: hp,
-            cooldown: 0.0,
+            cooldown: Cooldown::new(CATAPULT_FIRE_COOLDOWN),
             shot_kind: ShotKind::Basic,
             fire_rate_mult: 1.0,
             multi_shot: 1,
-            rebuild_timer: 0.0,
-            rebuild_time,
+            rebuild: Cooldown::new(rebuild_time),
             max_range,
             aim_target: pos + Vec2::new(CATAPULT_MIN_RANGE * facing, 0.0),
             facing,
@@ -120,15 +121,20 @@ impl Catapult {
         self.max_range = max_range.max(CATAPULT_MIN_RANGE);
         self.max_hp = max_hp.max(1.0);
         self.hp = self.max_hp;
-        self.rebuild_time = rebuild_time.max(0.5);
+        self.rebuild = Cooldown::new(rebuild_time.max(0.5));
     }
 
     pub fn is_alive(&self) -> bool {
-        self.hp > 0.0 && self.rebuild_timer <= 0.0
+        self.hp > 0.0 && self.rebuild.is_ready()
     }
 
     pub fn is_rebuilding(&self) -> bool {
-        self.rebuild_timer > 0.0
+        self.rebuild.is_active()
+    }
+
+    /// Temps restant avant reconstruction (0 si vivante).
+    pub fn rebuild_remaining(&self) -> f32 {
+        self.rebuild.remaining()
     }
 
     pub fn hp_fraction(&self) -> f32 {
@@ -165,19 +171,15 @@ impl Catapult {
         if dt <= 0.0 {
             return;
         }
-        if self.cooldown > 0.0 {
-            self.cooldown = (self.cooldown - dt).max(0.0);
-        }
-        if self.rebuild_timer > 0.0 {
-            self.rebuild_timer = (self.rebuild_timer - dt).max(0.0);
-            if self.rebuild_timer <= 0.0 {
-                self.hp = self.max_hp;
-            }
+        self.cooldown.tick(dt);
+        // tick_returning nous dit si le rebuild VIENT de finir.
+        if self.rebuild.tick_returning(dt) {
+            self.hp = self.max_hp;
         }
     }
 
     pub fn is_ready(&self) -> bool {
-        self.is_alive() && self.cooldown <= 0.0
+        self.is_alive() && self.cooldown.is_ready()
     }
 
     pub fn take_damage(&mut self, amount: f32) {
@@ -187,7 +189,8 @@ impl Catapult {
         self.hp -= amount;
         if self.hp <= 0.0 {
             self.hp = 0.0;
-            self.rebuild_timer = self.rebuild_time;
+            // reset() utilise la durée stockée dans `rebuild`.
+            self.rebuild.reset();
         }
     }
 
@@ -279,7 +282,7 @@ impl Catapult {
         } else {
             CATAPULT_FIRE_COOLDOWN
         };
-        self.cooldown = cd * self.fire_rate_mult;
+        self.cooldown.trigger(cd * self.fire_rate_mult);
         Some(shots)
     }
 
@@ -311,6 +314,8 @@ mod tests {
         assert!(c.is_ready());
         assert_eq!(c.hp, CATAPULT_HP);
         assert_eq!(c.facing, 1.0);
+        assert!(c.cooldown.is_ready());
+        assert!(c.rebuild.is_ready());
     }
 
     #[test]
@@ -324,7 +329,7 @@ mod tests {
         let c = mk_enemy();
         assert_eq!(c.hp, ENEMY_CATAPULT_HP);
         assert_eq!(c.max_range, ENEMY_CATAPULT_MAX_RANGE);
-        assert_eq!(c.rebuild_time, ENEMY_CATAPULT_REBUILD_TIME);
+        assert_eq!(c.rebuild.duration(), ENEMY_CATAPULT_REBUILD_TIME);
         assert_eq!(c.base_damage, ENEMY_CATAPULT_DAMAGE);
     }
 
@@ -396,6 +401,7 @@ mod tests {
         c.take_damage(400.0);
         assert!(!c.is_alive());
         assert!(c.is_rebuilding());
+        assert!((c.rebuild.remaining() - CATAPULT_REBUILD_TIME).abs() < 1e-6);
     }
 
     #[test]
@@ -404,6 +410,7 @@ mod tests {
         c.take_damage(400.0);
         c.tick(CATAPULT_REBUILD_TIME + 0.1);
         assert!(c.is_alive());
+        assert!(c.rebuild.is_ready());
     }
 
     #[test]
@@ -412,6 +419,6 @@ mod tests {
         c.configure(1500.0, 500.0, 8.0);
         assert!((c.max_range - 1500.0).abs() < 1e-6);
         assert!((c.max_hp - 500.0).abs() < 1e-6);
-        assert!((c.rebuild_time - 8.0).abs() < 1e-6);
+        assert!((c.rebuild.duration() - 8.0).abs() < 1e-6);
     }
 }

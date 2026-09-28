@@ -251,6 +251,7 @@ pub fn auto_pose(unit: &Unit, is_attacking: bool) -> Pose {
 mod tests {
     use super::*;
     use crate::components::{Team, UnitId};
+    use ember_stdlib::time::Cooldown;
 
     fn mk_unit(id: u32, hp: f32) -> Unit {
         Unit {
@@ -261,10 +262,9 @@ mod tests {
             hp,
             max_hp: 30.0,
             damage: 5.0,
-            attack_cd: 0.0,
-            attack_cd_max: 0.8,
-            heal_cd: 0.0,
-            hit_flash: 0.0,
+            attack_cd: Cooldown::new(0.8),
+            heal_cd: Cooldown::default(),
+            hit_flash: Cooldown::default(),
             pose_phase: 0.0,
             target: None,
             pending_attack: None,

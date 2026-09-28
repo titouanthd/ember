@@ -1,5 +1,6 @@
 //! Types de base du jeu : équipes, formes, identifiants, entités.
 
+use ember_stdlib::time::Cooldown;
 use glam::Vec2;
 use macroquad::prelude::Color;
 use serde::Deserialize;
@@ -49,6 +50,9 @@ impl UnitIdGen {
 /// Attaque en cours d'anim, dont le coup doit être appliqué plus tard
 /// (à la fin du windup). Permet à la cible de rester vivante pendant
 /// l'animation de windup.
+///
+/// `time_to_hit` reste un `f32` brut : c'est un sous-compteur dans un
+/// concept plus large, pas un cooldown top-level réutilisable.
 #[derive(Debug, Clone, Copy)]
 pub struct PendingAttack {
     pub target: AttackTarget,
@@ -61,8 +65,6 @@ pub struct PendingAttack {
 pub enum AttackTarget {
     Unit(UnitId),
     Tower(Team),
-    /// Catapulte de l'équipe donnée (actuellement seule la Player
-    /// catapult existe, mais le type reste symétrique).
     Catapult(Team),
 }
 
@@ -75,10 +77,10 @@ pub struct Unit {
     pub hp: f32,
     pub max_hp: f32,
     pub damage: f32,
-    pub attack_cd: f32,
-    pub attack_cd_max: f32,
-    pub heal_cd: f32,
-    pub hit_flash: f32,
+    /// Cooldown d'attaque. Durée = `max(stats.attack_cooldown, ATTACK_DURATION)`.
+    pub attack_cd: Cooldown,
+    pub heal_cd: Cooldown,
+    pub hit_flash: Cooldown,
     pub pose_phase: f32,
     pub target: Option<UnitId>,
     /// Attaque en cours, dégâts à appliquer à la fin du windup.

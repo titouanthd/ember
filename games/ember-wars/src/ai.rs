@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+use ember_stdlib::time::Cooldown;
+
 use crate::components::{Team, Unit};
 use crate::config::AiConfig;
 use crate::mana::ManaPool;
@@ -15,7 +17,7 @@ pub fn decide_spawn(
     player_units: &[Unit],
     ai_config: &AiConfig,
     elapsed: f32,
-    cooldowns: &HashMap<String, f32>,
+    cooldowns: &HashMap<String, Cooldown>,
 ) -> Option<String> {
     let active = ai_config.waves.iter().rfind(|w| w.start_at <= elapsed)?;
 
@@ -51,8 +53,8 @@ pub fn decide_spawn(
         if ai_mana.current < stats.cost * threshold_mult {
             continue;
         }
-        let cd = cooldowns.get(kind).copied().unwrap_or(0.0);
-        if cd > 0.0 {
+        let cd = cooldowns.get(kind).copied().unwrap_or_default();
+        if cd.is_active() {
             continue;
         }
         return Some(kind.to_string());
@@ -131,17 +133,16 @@ mod tests {
             hp: stats.hp,
             max_hp: stats.hp,
             damage: stats.damage,
-            attack_cd: 0.0,
-            attack_cd_max: stats.attack_cooldown,
-            heal_cd: 0.0,
-            hit_flash: 0.0,
+            attack_cd: Cooldown::new(stats.attack_cooldown),
+            heal_cd: Cooldown::new(stats.heal_cooldown.unwrap_or(0.0)),
+            hit_flash: Cooldown::default(),
             pose_phase: 0.0,
             target: None,
             pending_attack: None,
         }
     }
 
-    fn no_cooldowns() -> HashMap<String, f32> {
+    fn no_cooldowns() -> HashMap<String, Cooldown> {
         HashMap::new()
     }
 
@@ -215,8 +216,8 @@ mod tests {
     #[test]
     fn skips_kind_with_running_cooldown() {
         let mut cds = HashMap::new();
-        cds.insert("hero".to_string(), 10.0);
-        cds.insert("brute".to_string(), 5.0);
+        cds.insert("hero".to_string(), Cooldown::running(10.0));
+        cds.insert("brute".to_string(), Cooldown::running(5.0));
         let mana = ManaPool::new(100.0, 100.0, 10.0);
         let c = decide_spawn(&mana, &[], &[], &ai_simple(), 0.0, &cds);
         assert_eq!(c.as_deref(), Some("archer"));

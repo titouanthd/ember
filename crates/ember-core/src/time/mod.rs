@@ -1,9 +1,7 @@
-// crates/ember-core/src/time/mod.rs
-//! Primitives temporelles du moteur.
-//!
-//! Contient `TickTimer`, un accumulateur de temps pour les simulations
-//! à pas fixe (Snake, Dolly Dot, Tower Defense, etc.).
+//! Time primitives.
 
+pub mod cooldown;
 pub mod tick;
 
+pub use cooldown::Cooldown;
 pub use tick::TickTimer;

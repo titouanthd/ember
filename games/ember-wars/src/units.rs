@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use ember_core::io::load_from_file;
+use ember_stdlib::time::Cooldown;
 use glam::Vec2;
 use macroquad::prelude::Color;
 use serde::Deserialize;
@@ -100,6 +101,14 @@ pub fn spawn_unit(
 ) -> Option<Unit> {
     let stats = unit_stats(kind)?;
     let max_hp = stats.hp * hp_mult;
+
+    // Cooldowns initialisés "ready" avec leur durée enregistrée.
+    // attack_cd : la durée effective est appliquée à chaque trigger
+    // (elle dépend de max(stats.attack_cooldown, ATTACK_DURATION)).
+    let attack_cd = Cooldown::new(stats.attack_cooldown.max(crate::stickman::ATTACK_DURATION));
+    let heal_cd = Cooldown::new(stats.heal_cooldown.unwrap_or(0.0));
+    let hit_flash = Cooldown::new(crate::juice::HIT_FLASH_DURATION);
+
     Some(Unit {
         id: id_gen.next_id(),
         kind: kind.to_owned(),
@@ -108,10 +117,9 @@ pub fn spawn_unit(
         hp: max_hp,
         max_hp,
         damage: stats.damage * damage_mult,
-        attack_cd: 0.0,
-        attack_cd_max: stats.attack_cooldown,
-        heal_cd: 0.0,
-        hit_flash: 0.0,
+        attack_cd,
+        heal_cd,
+        hit_flash,
         pose_phase: 0.0,
         target: None,
         pending_attack: None,
@@ -222,21 +230,22 @@ mod tests {
     }
 
     #[test]
-    fn spawn_unit_has_no_target_and_zero_cooldowns() {
+    fn spawn_unit_has_no_target_and_ready_cooldowns() {
         let mut g = UnitIdGen::new();
         let u = spawn_unit(&mut g, "grunt", Team::Player, Vec2::ZERO, 1.0, 1.0).unwrap();
         assert!(u.target.is_none());
-        assert_eq!(u.attack_cd, 0.0);
-        assert_eq!(u.heal_cd, 0.0);
-        assert_eq!(u.hit_flash, 0.0);
+        assert!(u.attack_cd.is_ready());
+        assert!(u.heal_cd.is_ready());
+        assert!(u.hit_flash.is_ready());
         assert_eq!(u.pose_phase, 0.0);
     }
 
     #[test]
-    fn spawn_unit_sets_attack_cd_max_from_stats() {
+    fn spawn_unit_attack_cd_records_effective_duration() {
         let mut g = UnitIdGen::new();
         let u = spawn_unit(&mut g, "grunt", Team::Player, Vec2::ZERO, 1.0, 1.0).unwrap();
-        assert!((u.attack_cd_max - 0.8).abs() < 1e-6);
+        // max(0.8, ATTACK_DURATION=0.55) = 0.8
+        assert!((u.attack_cd.duration() - 0.8).abs() < 1e-6);
     }
 
     #[test]

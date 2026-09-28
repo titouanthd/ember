@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use ember_stdlib::Rng;
+use ember_stdlib::time::Cooldown;
 use glam::Vec2;
 use macroquad::prelude::Color;
 
@@ -54,8 +55,8 @@ pub struct Game {
     pub catapult: Catapult,
     pub enemy_catapult: Option<Catapult>,
     pub camera: Camera2D,
-    pub player_cooldowns: HashMap<String, f32>,
-    pub enemy_cooldowns: HashMap<String, f32>,
+    pub player_cooldowns: HashMap<String, Cooldown>,
+    pub enemy_cooldowns: HashMap<String, Cooldown>,
     pub id_gen: UnitIdGen,
     pub rng: Rng,
     pub level: &'static LevelConfig,
@@ -300,8 +301,12 @@ impl Game {
         if !can_spawn(kind, Team::Player, &self.units) {
             return false;
         }
-        let cd = self.player_cooldowns.get(kind).copied().unwrap_or(0.0);
-        if cd > 0.0 {
+        let cd = self
+            .player_cooldowns
+            .get(kind)
+            .copied()
+            .unwrap_or_default();
+        if cd.is_active() {
             return false;
         }
         if !self.player_mana.try_spend(stats.cost) {
@@ -325,7 +330,7 @@ impl Game {
                     .spawn_hit_spark(Vec2::new(x, self.ground_y - 20.0), stats.color());
                 self.units.push(unit);
                 self.player_cooldowns
-                    .insert(kind.to_string(), stats.cooldown);
+                    .insert(kind.to_string(), Cooldown::running(stats.cooldown));
                 true
             }
             None => false,
@@ -396,7 +401,8 @@ impl Game {
             1.0,
         ) {
             self.units.push(unit);
-            self.enemy_cooldowns.insert(kind, stats.cooldown);
+            self.enemy_cooldowns
+                .insert(kind, Cooldown::running(stats.cooldown));
         }
     }
 
@@ -470,9 +476,9 @@ impl Game {
     }
 }
 
-fn tick_cooldowns(map: &mut HashMap<String, f32>, dt: f32) {
+fn tick_cooldowns(map: &mut HashMap<String, Cooldown>, dt: f32) {
     for cd in map.values_mut() {
-        *cd = (*cd - dt).max(0.0);
+        cd.tick(dt);
     }
 }
 
@@ -534,7 +540,7 @@ mod tests {
         assert_eq!(ec.facing, -1.0);
         assert!((ec.max_hp - ENEMY_CATAPULT_HP).abs() < 1e-6);
         assert!((ec.max_range - ENEMY_CATAPULT_MAX_RANGE).abs() < 1e-6);
-        assert!((ec.rebuild_time - ENEMY_CATAPULT_REBUILD_TIME).abs() < 1e-6);
+        assert!((ec.rebuild.duration() - ENEMY_CATAPULT_REBUILD_TIME).abs() < 1e-6);
     }
 
     #[test]
@@ -678,5 +684,14 @@ mod tests {
             let g = Game::new(&ctx(), id, 1, &p).expect("level loads");
             assert_eq!(g.phase, Phase::Playing);
         }
+    }
+
+    #[test]
+    fn player_spawn_cooldown_starts_after_spawn() {
+        let mut g = new_game(0);
+        disable_ai(&mut g);
+        assert!(g.try_player_spawn("grunt"));
+        let cd = g.player_cooldowns.get("grunt").copied().unwrap_or_default();
+        assert!(cd.is_active());
     }
 }

@@ -88,6 +88,7 @@ fn towers_center_x(towers: &[Tower]) -> f32 {
 mod tests {
     use super::*;
 
+    use ember_stdlib::time::Cooldown;
     use glam::Vec2;
 
     use crate::components::{Team, UnitId};
@@ -103,10 +104,9 @@ mod tests {
             hp: stats.hp * hp_frac,
             max_hp: stats.hp,
             damage: stats.damage,
-            attack_cd: 0.0,
-            attack_cd_max: stats.attack_cooldown,
-            heal_cd: 0.0,
-            hit_flash: 0.0,
+            attack_cd: Cooldown::new(stats.attack_cooldown),
+            heal_cd: Cooldown::new(stats.heal_cooldown.unwrap_or(0.0)),
+            hit_flash: Cooldown::default(),
             pose_phase: 0.0,
             target: None,
             pending_attack: None,

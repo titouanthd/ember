@@ -51,10 +51,10 @@ impl SpawnBar {
                 .player_cooldowns
                 .get(&s.id)
                 .copied()
-                .unwrap_or(0.0);
+                .unwrap_or_default();
             let enough_mana = game.player_mana.current >= s.cost;
             let max_alive_ok = can_spawn(&s.id, crate::components::Team::Player, &game.units);
-            let ready = is_unlocked && cooldown <= 0.0 && enough_mana && max_alive_ok;
+            let ready = is_unlocked && cooldown.is_ready() && enough_mana && max_alive_ok;
 
             let hovered = hit::contains(r, mouse);
             let base = s.color();
@@ -82,9 +82,11 @@ impl SpawnBar {
             draw_rectangle(r.x, r.y, r.w, r.h, bg);
             draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, border);
 
-            // Cooldown overlay.
-            if is_unlocked && cooldown > 0.0 {
-                let frac = (cooldown / s.cooldown).clamp(0.0, 1.0);
+            // Cooldown overlay : voile noir qui se réduit de haut en bas
+            // à mesure que le cooldown expire. `remaining_fraction()`
+            // vaut 1 juste après le spawn, 0 quand c'est prêt.
+            if is_unlocked && cooldown.is_active() {
+                let frac = cooldown.remaining_fraction();
                 let h = r.h * frac;
                 draw_rectangle(r.x, r.y, r.w, h, Color::new(0.0, 0.0, 0.0, 0.55));
             }
@@ -114,8 +116,8 @@ impl SpawnBar {
                 "max".to_string()
             } else if !enough_mana {
                 "no mana".to_string()
-            } else if cooldown > 0.0 {
-                format!("{:.1}s", cooldown)
+            } else if cooldown.is_active() {
+                format!("{:.1}s", cooldown.remaining())
             } else {
                 String::new()
             };
@@ -145,10 +147,10 @@ impl SpawnBar {
                     .player_cooldowns
                     .get(&s.id)
                     .copied()
-                    .unwrap_or(0.0);
+                    .unwrap_or_default();
                 let enough_mana = game.player_mana.current >= s.cost;
                 let max_ok = can_spawn(&s.id, crate::components::Team::Player, &game.units);
-                if cooldown <= 0.0 && enough_mana && max_ok {
+                if cooldown.is_ready() && enough_mana && max_ok {
                     return Some(s.id.clone());
                 }
                 return None;

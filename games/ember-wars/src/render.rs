@@ -36,10 +36,8 @@ fn draw_world(ctx: &GameContext, game: &Game, shake: Vec2) {
     draw_local_hp_bar(ctx, &game.player_tower, cam_x, gy, shake);
     draw_local_hp_bar(ctx, &game.enemy_tower, cam_x, gy, shake);
 
-    // Preview de la trajectoire (uniquement pour le joueur).
     draw_catapult_preview(ctx, game, cam_x, shake);
 
-    // Catapultes.
     draw_catapult_visual(ctx, &game.catapult, cam_x, shake, Team::Player);
     if let Some(ec) = &game.enemy_catapult {
         draw_catapult_visual(ctx, ec, cam_x, shake, Team::Enemy);
@@ -62,7 +60,6 @@ fn draw_world(ctx: &GameContext, game: &Game, shake: Vec2) {
 fn draw_local_hp_bar(ctx: &GameContext, tower: &Tower, cam_x: f32, gy: f32, shake: Vec2) {
     let sx = tower.x - cam_x + shake.x;
     let sy = shake.y;
-    // Le sommet visuel de la tour est à gy - 152 (body 140 + créneaux 12).
     let top = gy - textures::TOWER_VISUAL_H + sy;
     let hp_w = 100.0;
     let hp_h = 10.0;
@@ -98,7 +95,6 @@ fn draw_catapult_visual(
         return;
     }
 
-    // Couleurs bois (communes aux deux camps).
     let wood = Color::new(0.48, 0.32, 0.20, 1.0);
     let wood_dark = Color::new(0.28, 0.18, 0.11, 1.0);
     let wood_light = Color::new(0.64, 0.46, 0.28, 1.0);
@@ -110,22 +106,20 @@ fn draw_catapult_visual(
         Team::Enemy => Color::new(1.0, 0.35, 0.35, 1.0),
     };
 
-    // ----- Base (longue poutre au sol) -----
+    // Base
     let base_w = 90.0;
     let base_h = 10.0;
     let base_x = sx - base_w * 0.5;
     let base_y = sy - base_h;
     draw_rectangle(base_x, base_y, base_w, base_h, wood);
     draw_rectangle_lines(base_x, base_y, base_w, base_h, 1.5, wood_dark);
-    // Détail : 2 lignes horizontales
     for i in 1..3 {
         let y = base_y + i as f32 * (base_h / 3.0);
         draw_line(base_x + 3.0, y, base_x + base_w - 3.0, y, 0.8, wood_dark);
     }
-    // Accent team en bas de la base.
     draw_rectangle(base_x + 2.0, base_y + base_h - 2.5, base_w - 4.0, 2.0, accent);
 
-    // ----- Roues (2 cercles décoratifs) -----
+    // Roues
     let wheel_r = 4.5;
     let wheel_y = sy - wheel_r;
     draw_circle(base_x + 7.0, wheel_y, wheel_r, wood_dark);
@@ -133,19 +127,18 @@ fn draw_catapult_visual(
     draw_circle(base_x + base_w - 7.0, wheel_y, wheel_r, wood_dark);
     draw_circle_lines(base_x + base_w - 7.0, wheel_y, wheel_r, 1.0, wood_light);
 
-    // ----- A-frame (deux pieds convergents) -----
+    // A-frame
     let pivot_h = 45.0;
     let pivot = Vec2::new(sx, sy - base_h - pivot_h);
 
     draw_line(base_x + 8.0, base_y, pivot.x - 3.0, pivot.y, 5.0, wood);
     draw_line(base_x + base_w - 8.0, base_y, pivot.x + 3.0, pivot.y, 5.0, wood);
-    // Renforts croisés
     let leg_mid_y = (base_y + pivot.y) * 0.5;
     let leg_a_x = (base_x + 8.0 + pivot.x - 3.0) * 0.5;
     let leg_b_x = (base_x + base_w - 8.0 + pivot.x + 3.0) * 0.5;
     draw_line(leg_a_x, leg_mid_y, leg_b_x, leg_mid_y, 2.0, wood_dark);
 
-    // ----- Plaque métallique au pivot -----
+    // Plaque pivot
     let plate_w = 12.0;
     let plate_h = 12.0;
     draw_rectangle(
@@ -163,32 +156,28 @@ fn draw_catapult_visual(
         1.0,
         metal_dark,
     );
-    // Boulons
     for (dx, dy) in [(-3.0, -3.0), (3.0, -3.0), (-3.0, 3.0), (3.0, 3.0)] {
         draw_circle(pivot.x + dx, pivot.y + dy, 1.1, metal_dark);
     }
 
-    // ----- Bras (angle variable selon la cible) -----
+    // Bras
     let aim_dist = (c.aim_target.x - c.pos.x).abs();
     let aim_frac = ((aim_dist - crate::catapult::CATAPULT_MIN_RANGE)
         / (c.max_range - crate::catapult::CATAPULT_MIN_RANGE))
         .clamp(0.0, 1.0);
-    let arm_angle = 0.55 + aim_frac * 0.40; // 31° à 55° au-dessus de l'horizontale
+    let arm_angle = 0.55 + aim_frac * 0.40;
 
     let arm_len_front = 52.0;
     let arm_len_back = 18.0;
-
     let dir_front = Vec2::new(arm_angle.cos() * c.facing, -arm_angle.sin());
     let dir_back = -dir_front;
-
     let tip = pivot + dir_front * arm_len_front;
     let counter_pos = pivot + dir_back * arm_len_back;
 
-    // Poutre du bras (double ligne pour effet 3D léger)
     draw_line(counter_pos.x, counter_pos.y, tip.x, tip.y, 6.0, wood);
     draw_line(counter_pos.x, counter_pos.y, tip.x, tip.y, 2.0, wood_light);
 
-    // ----- Contrepoids (caisse en bois) -----
+    // Contrepoids
     let cw = 13.0;
     draw_rectangle(counter_pos.x - cw * 0.5, counter_pos.y - cw * 0.5, cw, cw, wood_dark);
     draw_rectangle_lines(
@@ -199,7 +188,6 @@ fn draw_catapult_visual(
         1.5,
         wood_light,
     );
-    // X sur la caisse
     draw_line(
         counter_pos.x - cw * 0.5,
         counter_pos.y - cw * 0.5,
@@ -217,17 +205,15 @@ fn draw_catapult_visual(
         wood_light,
     );
 
-    // ----- Fronde (corde + poche) -----
+    // Fronde
     let sling_len = 14.0;
     let sling_bottom = Vec2::new(tip.x, tip.y + sling_len);
     draw_line(tip.x, tip.y, sling_bottom.x, sling_bottom.y, 1.5, rope);
-    // Poche
     draw_circle(sling_bottom.x, sling_bottom.y, 5.0, Color::new(0.55, 0.42, 0.28, 1.0));
     draw_circle_lines(sling_bottom.x, sling_bottom.y, 5.0, 1.0, wood_dark);
-    // Petit éclat (projectile) dans la poche
     draw_circle(sling_bottom.x, sling_bottom.y, 2.0, Color::new(0.85, 0.85, 0.85, 1.0));
 
-    // ----- Barre de HP -----
+    // Barre HP
     let bar_w = 62.0;
     let bar_h = 5.0;
     let bar_x = sx - bar_w * 0.5;
@@ -261,11 +247,9 @@ fn draw_catapult_ghost(c: &Catapult, sx: f32, sy: f32, team: Team) {
     draw_line(base_x + 8.0, base_y, pivot.x - 3.0, pivot.y, 5.0, ghost);
     draw_line(base_x + base_w - 8.0, base_y, pivot.x + 3.0, pivot.y, 5.0, ghost);
 
-    // Accent
     draw_rectangle(base_x + 2.0, base_y + base_h - 2.5, base_w - 4.0, 2.0, accent);
 
-    // Compte à rebours
-    let txt = format!("REBUILD {:.1}s", c.rebuild_timer);
+    let txt = format!("REBUILD {:.1}s", c.rebuild_remaining());
     let dim = measure_text(&txt, None, 14, 1.0);
     draw_text(&txt, sx - dim.width * 0.5, pivot.y - 12.0, 14.0, ghost);
 }
@@ -302,12 +286,13 @@ fn draw_unit(ctx: &GameContext, u: &Unit, cam_x: f32, shake: Vec2) {
     let sx = u.pos.x - cam_x + shake.x;
     let sy = u.pos.y + shake.y;
 
-    let attack_elapsed = if u.attack_cd_max > 0.0 {
-        u.attack_cd_max - u.attack_cd
+    // L'anim d'attaque se joue sur la durée écoulée depuis le trigger.
+    let attack_elapsed = if u.attack_cd.is_active() {
+        u.attack_cd.duration() - u.attack_cd.remaining()
     } else {
         f32::MAX
     };
-    let attacking = u.attack_cd > 0.0
+    let attacking = u.attack_cd.is_active()
         && (0.0..crate::stickman::ATTACK_DURATION).contains(&attack_elapsed);
     let pose = crate::stickman::auto_pose(u, attacking);
 
@@ -317,7 +302,7 @@ fn draw_unit(ctx: &GameContext, u: &Unit, cam_x: f32, shake: Vec2) {
         u.pose_phase
     };
 
-    let color = if u.hit_flash > 0.0 {
+    let color = if u.hit_flash.is_active() {
         WHITE
     } else {
         match u.team {
