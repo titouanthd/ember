@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" width="960" height="400">
+  <defs>
+    <radialGradient id="stage" cx="0.72" cy="0.5" r="0.72">
+      <stop offset="0%"  stop-color="#1C1712"/>
+      <stop offset="65%" stop-color="#0E0B08"/>
+      <stop offset="100%" stop-color="#080605"/>
+    </radialGradient>
+    <linearGradient id="jadeBody" x1="0.35" y1="0" x2="0.65" y2="1">
+      <stop offset="0%"   stop-color="#C4F7DE"/>
+      <stop offset="14%"  stop-color="#7FD9A6"/>
+      <stop offset="35%"  stop-color="#4E9D78"/>
+      <stop offset="58%"  stop-color="#2A6748"/>
+      <stop offset="80%"  stop-color="#123522"/>
+      <stop offset="100%" stop-color="#061410"/>
+    </linearGradient>
+    <radialGradient id="jadeHalo" cx="0.5" cy="0.5" r="0.62">
+      <stop offset="0%"  stop-color="#4FB880" stop-opacity="0.22"/>
+      <stop offset="45%" stop-color="#2A6E4A" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#2A6E4A" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="contact" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"  stop-color="#000000" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#000000" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="specHalo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"  stop-color="#FFFFFF" stop-opacity="0.75"/>
+      <stop offset="28%" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bottomRim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#A8F0C8" stop-opacity="0"/>
+      <stop offset="70%" stop-color="#A8F0C8" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#A8F0C8" stop-opacity="0.55"/>
+    </linearGradient>
+    <clipPath id="hexClip">
+      <polygon points="0,-85 73.6,-42.5 73.6,42.5 0,85 -73.6,42.5 -73.6,-42.5"/>
+    </clipPath>
+    <filter id="blur8" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <filter id="blur12" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="blur3" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+
+  <rect width="960" height="400" fill="url(#stage)"/>
+
+  <!-- Left: title block -->
+  <text x="96" y="182"
+        font-family="'DejaVu Sans Mono', Menlo, Monaco, monospace"
+        font-size="38"
+        fill="#D9B96A" letter-spacing="8">JADE GARDEN</text>
+
+  <g opacity="0.7">
+    <line x1="96" y1="204" x2="238" y2="204" stroke="#B88A42" stroke-width="0.55"/>
+    <line x1="258" y1="204" x2="400" y2="204" stroke="#B88A42" stroke-width="0.55"/>
+    <polygon points="248,201 251,204 248,207 245,204" fill="#D9B96A"/>
+  </g>
+
+  <text x="96" y="232"
+        font-family="'DejaVu Sans Mono', Menlo, Monaco, monospace"
+        font-size="10"
+        fill="#8A7A62" letter-spacing="5">A CONTEMPLATIVE MATCH-3</text>
+
+  <!-- Right: jade, center (740, 200), radius 85 -->
+  <ellipse cx="740" cy="200" rx="170" ry="155" fill="url(#jadeHalo)"/>
+  <ellipse cx="740" cy="293" rx="85" ry="7" fill="url(#contact)"/>
+
+  <g transform="translate(740 200)">
+    <polygon points="0,-88 76.2,-44 76.2,44 0,88 -76.2,44 -76.2,-44"
+             fill="#04120C"/>
+    <polygon points="0,-85 73.6,-42.5 73.6,42.5 0,85 -73.6,42.5 -73.6,-42.5"
+             fill="url(#jadeBody)"/>
+
+    <g clip-path="url(#hexClip)">
+      <ellipse cx="-26" cy="-36" rx="42" ry="29"
+               fill="#E0FBEA" opacity="0.36" filter="url(#blur12)"/>
+      <ellipse cx="31" cy="-20" rx="28" ry="20"
+               fill="#D0F8E0" opacity="0.14" filter="url(#blur12)"/>
+      <ellipse cx="34" cy="42" rx="50" ry="32"
+               fill="#020E08" opacity="0.60" filter="url(#blur12)"/>
+      <path d="M -69,6 Q -20,-8 15,20 T 69,15"
+            fill="none" stroke="#C0F0D4" stroke-width="1.8" opacity="0.13"
+            filter="url(#blur3)"/>
+      <path d="M -55,-27 Q -14,-20 28,-34"
+            fill="none" stroke="#D0F8E0" stroke-width="1.1" opacity="0.09"
+            filter="url(#blur3)"/>
+    </g>
+
+    <polygon points="0,-79 68.4,-39.5 68.4,39.5 0,79 -68.4,39.5 -68.4,-39.5"
+             fill="none" stroke="#B8F4D4" stroke-width="2.5" opacity="0.13"
+             filter="url(#blur8)"/>
+    <polygon points="0,-80 69.3,-40 69.3,40 0,80 -69.3,40 -69.3,-40"
+             fill="none" stroke="#C8F8DC" stroke-width="0.45" opacity="0.22"/>
+    <polygon points="0,-85 73.6,-42.5 73.6,42.5 0,85 -73.6,42.5 -73.6,-42.5"
+             fill="none" stroke="#E8FCF2" stroke-width="0.85" opacity="0.55"/>
+    <polygon points="0,-85 73.6,-42.5 73.6,42.5 0,85 -73.6,42.5 -73.6,-42.5"
+             fill="none" stroke="url(#bottomRim)" stroke-width="2" opacity="0.9"/>
+
+    <ellipse cx="-32" cy="-38" rx="23" ry="17"
+             fill="url(#specHalo)" opacity="0.88"/>
+    <circle cx="-32" cy="-38" r="4" fill="#FFFFFF" opacity="0.98"/>
+    <circle cx="-32" cy="-38" r="1.6" fill="#FFFFFF"/>
+    <circle cx="29" cy="37" r="1.2" fill="#FFFFFF" opacity="0.30"/>
+    <circle cx="29" cy="37" r="0.5" fill="#FFFFFF" opacity="0.65"/>
+  </g>
+</svg>
