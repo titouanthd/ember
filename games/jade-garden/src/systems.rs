@@ -420,8 +420,6 @@ impl Game {
         let gained = score_for_match(to_remove.len(), self.cascade_level);
         self.score += gained;
 
-        self.check_time_thresholds();
-
         match self.level.objective {
             Objective::ClearJade(jade, _) => {
                 let n = to_remove
@@ -450,6 +448,8 @@ impl Game {
             }
             Objective::Score(_) => {}
         }
+
+        self.check_time_thresholds();
 
         let center = self.tile_center_avg(&to_remove);
         let tier = cascade_tier(self.cascade_level);
@@ -707,18 +707,30 @@ impl Game {
 
     /// Records the first time each star threshold was crossed during
     /// this run, plus the time of the peak score.
+    ///
+    /// 1-star is objective-based (Score / ClearJade / FillPoem), while
+    /// 2-star and 3-star are always score-based on `star_target`. This
+    /// mirrors how stars are granted at win time — see `handle_won` in
+    /// main.rs which uses `compute_stars(...).max(1)`.
     fn check_time_thresholds(&mut self) {
-        let target = self.level.star_target as f32;
-        let s = self.score as f32;
-        if self.crossed_1_star.is_none() && s >= target {
+        let one_star = match self.level.objective {
+            Objective::Score(n) => self.score >= n,
+            Objective::ClearJade(_, n) => self.objective_progress >= n,
+            Objective::FillPoem(n) => self.objective_progress >= n as u32,
+        };
+        if self.crossed_1_star.is_none() && one_star {
             self.crossed_1_star = Some(self.elapsed);
         }
+
+        let target = self.level.star_target as f32;
+        let s = self.score as f32;
         if self.crossed_2_star.is_none() && s >= target * 1.5 {
             self.crossed_2_star = Some(self.elapsed);
         }
         if self.crossed_3_star.is_none() && s >= target * 2.0 {
             self.crossed_3_star = Some(self.elapsed);
         }
+
         if self.score > self.peak_score {
             self.peak_score = self.score;
             self.peak_score_time = self.elapsed;

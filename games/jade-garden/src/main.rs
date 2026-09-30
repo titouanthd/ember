@@ -44,11 +44,41 @@ const REVEAL_TAIL_PAUSE: f32 = 0.9;
 fn window_conf() -> Conf {
     Conf {
         window_title: "jade-garden".to_owned(),
-        window_width: 1200,
+        window_width: 1400,
         window_height: 900,
         window_resizable: true,
+        icon: load_window_icon(),
         ..Default::default()
     }
+}
+
+fn load_window_icon() -> Option<macroquad::miniquad::conf::Icon> {
+    let bytes = include_bytes!("../assets/icon-256.png");
+    let img = image::load_from_memory_with_format(
+        bytes,
+        image::ImageFormat::Png,
+    )
+    .ok()?;
+
+    let small = image::imageops::resize(
+        &img, 16, 16, image::imageops::FilterType::Lanczos3,
+    );
+    let medium = image::imageops::resize(
+        &img, 32, 32, image::imageops::FilterType::Lanczos3,
+    );
+    let big = image::imageops::resize(
+        &img, 64, 64, image::imageops::FilterType::Lanczos3,
+    );
+
+    let mut icon = macroquad::miniquad::conf::Icon {
+        small: [0; 16 * 16 * 4],
+        medium: [0; 32 * 32 * 4],
+        big: [0; 64 * 64 * 4],
+    };
+    icon.small.copy_from_slice(small.as_raw());
+    icon.medium.copy_from_slice(medium.as_raw());
+    icon.big.copy_from_slice(big.as_raw());
+    Some(icon)
 }
 
 #[derive(Clone, Copy)]
@@ -79,6 +109,7 @@ struct AppState {
     poem_font: PoemFont,
     audio: MusicPlayer,
     help_open: bool,
+    help_scroll: f32,
     epilogue_elapsed: f32,
     epilogue_from_debug: bool,
     halloween_elapsed: f32,
@@ -104,6 +135,7 @@ impl AppState {
             poem_font,
             audio,
             help_open: false,
+            help_scroll: 0.0,
             epilogue_elapsed: 0.0,
             epilogue_from_debug: false,
             halloween_elapsed: 0.0,
@@ -337,14 +369,17 @@ async fn main() {
             state.screen,
             AppScreen::Menu | AppScreen::Intro(_) | AppScreen::Game(_)
         );
+
         if help_allowed {
             if is_key_pressed(KeyCode::F1) || is_key_pressed(KeyCode::Tab) {
                 state.help_open = !state.help_open;
+                if state.help_open {
+                    state.help_scroll = 0.0; // reset on open
+                }
             } else if state.help_open && is_key_pressed(KeyCode::Escape) {
                 state.help_open = false;
             }
         } else {
-            // Cinematics: force-close the help if it was open.
             state.help_open = false;
         }
 
@@ -462,7 +497,8 @@ async fn main() {
             AppScreen::Menu => state.menu.draw(&ctx, &state.poem_font),
             AppScreen::Intro(idx) => draw_intro(&ctx, &state, idx),
             AppScreen::Game(_) => {
-                draw_game_background(&state);
+                let chapter = state.game.as_ref().map(|g| g.level.chapter).unwrap_or(0);
+                draw_game_background(&state, chapter);
 
                 let shake = state
                     .game
@@ -484,7 +520,7 @@ async fn main() {
 
         // Help overlay, drawn on top of everything.
         if state.help_open {
-            jade_garden::help::draw(&ctx, &state.poem_font);
+            jade_garden::help::draw(&ctx, &state.poem_font, &mut state.help_scroll);
         }
 
         next_frame().await;
@@ -561,7 +597,7 @@ fn handle_won(state: &mut AppState, idx: usize, dt: f32) {
 
 // ─── Epilogue ──────────────────────────────────────────────────────
 
-fn draw_epilogue(ctx: &GameContext, state: &AppState) {
+fn draw_epilogue(_ctx: &GameContext, state: &AppState) {
     let vw = screen_width();
     let vh = screen_height();
     let t_abs = state.epilogue_elapsed;
@@ -726,8 +762,6 @@ fn draw_epilogue(ctx: &GameContext, state: &AppState) {
             Color::new(0.85, 0.35, 0.25, 0.75),
         );
     }
-
-    let _ = ctx;
 }
 
 // ─── Halloween teaser ──────────────────────────────────────────────
@@ -1135,12 +1169,13 @@ fn draw_halloween_message(vw: f32, vh: f32, t: f32) {
 
 // ─── Game background & board ───────────────────────────────────────
 
-fn draw_game_background(state: &AppState) {
+fn draw_game_background(state: &AppState, chapter: u32) {
     let vh = screen_height();
     let ground_y = vh * HORIZON_FRAC;
-    scroll_painting::draw_sky(ground_y);
+    let palette = scroll_painting::Palette::for_chapter(chapter);
+    scroll_painting::draw_sky(ground_y, palette);
     let cam_x = state.drift * DRIFT_SPEED;
-    scroll_painting::draw_mountains(cam_x, ground_y, 0xBEEF);
+    scroll_painting::draw_mountains(cam_x, ground_y, 0xBEEF, palette);
 }
 
 fn draw_game(ctx: &GameContext, game: &Game, shake: Vec2) {
@@ -1448,11 +1483,13 @@ fn draw_intro(ctx: &GameContext, state: &AppState, level_idx: usize) {
     let vw = screen_width();
     let vh = screen_height();
 
-    draw_game_background(state);
+    let chapter_idx = state.menu.levels[level_idx].chapter;
+    draw_game_background(state, chapter_idx);
+
     draw_rectangle(0.0, 0.0, vw, vh, Color::new(0.02, 0.03, 0.02, 0.72));
 
     let lvl = &state.menu.levels[level_idx];
-    let chapter = &state.menu.chapters[lvl.chapter as usize];
+    let chapter = &state.menu.chapters[chapter_idx as usize];
 
     let title = Color::new(0.94, 0.90, 0.80, 1.0);
     let dim = Color::new(0.72, 0.68, 0.58, 1.0);

@@ -13,7 +13,7 @@ use macroquad::prelude::*;
 
 use crate::config::GameContext;
 use crate::fonts::PoemFont;
-use crate::level::{objective_label, ChapterConfig, LevelConfig};
+use crate::level::{objective_label, star_tier_label, ChapterConfig, LevelConfig};
 use crate::progress::Progress;
 
 // ---------- Local palette (does not depend on .env) ----------
@@ -382,7 +382,7 @@ impl Menu {
         );
 
         // Stars + thresholds, top-right.
-        draw_star_rating_with_thresholds(r, stars, unlocked, level.star_target);
+        draw_star_rating_with_thresholds(r, stars, unlocked, level);
 
         // Best score, bottom-right.
         if unlocked && best > 0 {
@@ -461,18 +461,16 @@ impl Menu {
         draw_line(x, y, x + w, y, 1.0, PANEL_INNER);
         y += 28.0;
 
-        // Section: Stars — one line per tier with its threshold.
+        // Section: Stars — one line per tier.
+        //
+        // Tier 1 shows "obj" for ClearJade / FillPoem levels, because
+        // the actual requirement is completing the objective, not
+        // reaching the numeric star_target (which only gates tiers 2
+        // and 3). Tiers 2 and 3 are always score thresholds.
         draw_text("STARS", x, y, 10.0, SEPIA);
         y += 26.0;
 
-        let thresholds = [
-            level.star_target,
-            (level.star_target as f32 * 1.5).round() as u32,
-            level.star_target.saturating_mul(2),
-        ];
-
-        for (i, thr) in thresholds.iter().enumerate() {
-            let tier = (i + 1) as u8;
+        for tier in 1..=3u8 {
             let is_achieved = unlocked && stars >= tier;
 
             // "★", "★★", "★★★"
@@ -486,10 +484,11 @@ impl Menu {
                 (SEPIA, SEPIA)
             };
 
+            let label = star_tier_label(level, tier);
+
             draw_text(&star_str, x, y, 16.0, star_color);
-            draw_text(format!("{thr}"), x + 62.0, y, 14.0, thr_color);
+            draw_text(&label, x + 62.0, y, 14.0, thr_color);
             if is_achieved {
-                // Small tick to the right.
                 draw_text("✓", x + 130.0, y, 14.0, GOLD);
             }
             y += 22.0;
@@ -688,7 +687,7 @@ fn draw_section(x: f32, y: f32, label: &str, value: &str) {
 fn rect_contains(r: Rect, x: f32, y: f32) -> bool {
     x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h
 }
-    
+
 #[cfg(test)]
 fn star_string(stars: u8, unlocked: bool) -> String {
     let mut s = String::with_capacity(3);
@@ -728,13 +727,15 @@ fn debug_epilogue_button_rect(vw: f32, vh: f32) -> Rect {
     Rect::new(x, y, w, h)
 }
 
-/// Draws 3 stars right-aligned inside `r`, with the numeric threshold
-/// under each star. Achieved tiers glow softly.
+/// Draws 3 stars right-aligned inside `r`, with a per-tier label
+/// under each star. The label is either a numeric score threshold
+/// (for Score levels, and for tiers 2-3 of every level) or "obj" for
+/// tier 1 of ClearJade / FillPoem levels.
 fn draw_star_rating_with_thresholds(
     r: Rect,
     stars: u8,
     unlocked: bool,
-    star_target: u32,
+    level: &LevelConfig,
 ) {
     use palette::*;
 
@@ -745,15 +746,10 @@ fn draw_star_rating_with_thresholds(
     let total_w = 3.0 * star_size + 2.0 * gap;
     let start_x = r.x + r.w - 22.0 - total_w;
 
-    let thresholds = [
-        star_target,
-        (star_target as f32 * 1.5).round() as u32,
-        star_target.saturating_mul(2),
-    ];
-
     let t = get_time() as f32;
 
     for i in 0..3u8 {
+        let tier = i + 1;
         let filled = unlocked && i < stars;
         let x = start_x + i as f32 * slot_w;
         let glyph = if filled { "★" } else { "☆" };
@@ -780,9 +776,9 @@ fn draw_star_rating_with_thresholds(
         }
         draw_text(glyph, x, star_y + y_off, size, color);
 
-        // Numeric threshold below the star.
-        let txt = format!("{}", thresholds[i as usize]);
-        let dim = measure_text(&txt, None, 10, 1.0);
+        // Tier label below the star.
+        let label = star_tier_label(level, tier);
+        let dim = measure_text(&label, None, 10, 1.0);
         let tx = x + (star_size - dim.width) * 0.5;
         let tc = if !unlocked {
             SEPIA_DIM
@@ -791,7 +787,7 @@ fn draw_star_rating_with_thresholds(
         } else {
             SEPIA
         };
-        draw_text(txt, tx, star_y + 16.0, 10.0, tc);
+        draw_text(&label, tx, star_y + 16.0, 10.0, tc);
     }
 }
 

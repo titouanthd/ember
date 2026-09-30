@@ -74,7 +74,22 @@ pub fn objective_label(obj: Objective) -> String {
     match obj {
         Objective::Score(n) => format!("Score {n}"),
         Objective::ClearJade(j, n) => format!("Clear {n} {}", j.latin_name()),
-                Objective::FillPoem(n) => format!("Trigger {n} cascades"),
+        Objective::FillPoem(n) => format!("Trigger {n} cascades"),
+    }
+}
+
+/// Human-readable requirement for a given star tier (1, 2, or 3).
+///
+/// For Score levels, all three tiers are score thresholds. For
+/// ClearJade and FillPoem levels, tier 1 is objective-based and
+/// tiers 2 and 3 remain score thresholds on `star_target`.
+pub fn star_tier_label(level: &LevelConfig, tier: u8) -> String {
+    match (tier, level.objective) {
+        (1, Objective::Score(_)) => level.star_target.to_string(),
+        (1, _) => "obj".to_string(),
+        (2, _) => ((level.star_target as f32) * 1.5).round().to_string(),
+        (3, _) => level.star_target.saturating_mul(2).to_string(),
+        _ => String::new(),
     }
 }
 
@@ -147,5 +162,29 @@ mod tests {
             objective_label(Objective::FillPoem(4)),
             "Trigger 4 cascades"
         );
+    }
+
+    #[test]
+    fn star_tier_label_score_level() {
+        let lvl = LevelConfig {
+            objective: Objective::Score(1000),
+            star_target: 1000,
+            ..Default::default()
+        };
+        assert_eq!(star_tier_label(&lvl, 1), "1000");
+        assert_eq!(star_tier_label(&lvl, 2), "1500");
+        assert_eq!(star_tier_label(&lvl, 3), "2000");
+    }
+
+    #[test]
+    fn star_tier_label_clear_jade_level() {
+        let lvl = LevelConfig {
+            objective: Objective::ClearJade(crate::components::Jade::Bi, 15),
+            star_target: 2400,
+            ..Default::default()
+        };
+        assert_eq!(star_tier_label(&lvl, 1), "obj");
+        assert_eq!(star_tier_label(&lvl, 2), "3600");
+        assert_eq!(star_tier_label(&lvl, 3), "4800");
     }
 }

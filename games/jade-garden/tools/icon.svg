@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="jade-body" x1="0.3" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#7DD9A4"/>
+      <stop offset="40%" stop-color="#4DB07C"/>
+      <stop offset="100%" stop-color="#1F5A3C"/>
+    </linearGradient>
+    <radialGradient id="jade-glow" cx="0.5" cy="0.45" r="0.55">
+      <stop offset="0%" stop-color="#8EE8B8" stop-opacity="0.55"/>
+      <stop offset="70%" stop-color="#4DB07C" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#4DB07C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="spec-core" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1"/>
+      <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="jade-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="22"/>
+      <feOffset dx="0" dy="28"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.55"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+
+  <!-- Transparent canvas — macOS adds a white container around it -->
+
+  <!-- Outer green glow -->
+  <circle cx="512" cy="500" r="420" fill="url(#jade-glow)"/>
+
+  <g transform="translate(512 512)">
+    <!-- Drop shadow -->
+    <polygon points="311,180 0,360 -311,180 -311,-180 0,-360 311,-180"
+             fill="#000" filter="url(#jade-shadow)" opacity="0.75"
+             transform="translate(0 20)"/>
+
+    <!-- Deep rim -->
+    <polygon points="311,180 0,360 -311,180 -311,-180 0,-360 311,-180"
+             fill="#0E2418"/>
+
+    <!-- Main body -->
+    <g transform="translate(0 -6) scale(0.95)">
+      <polygon points="311,180 0,360 -311,180 -311,-180 0,-360 311,-180"
+               fill="url(#jade-body)"/>
+    </g>
+
+    <!-- Top sheen -->
+    <ellipse cx="-90" cy="-160" rx="200" ry="120"
+             fill="#C8F4D8" opacity="0.22"/>
+    <ellipse cx="-90" cy="-160" rx="200" ry="120"
+             fill="#C8F4D8" opacity="0.15" filter="url(#jade-shadow)"/>
+
+    <!-- Inner light rim -->
+    <g transform="translate(0 -8) scale(0.90)">
+      <polygon points="311,180 0,360 -311,180 -311,-180 0,-360 311,-180"
+               fill="none" stroke="#A8ECC8" stroke-width="2.5" opacity="0.35"/>
+    </g>
+
+    <!-- Outer bright rim -->
+    <polygon points="311,180 0,360 -311,180 -311,-180 0,-360 311,-180"
+             fill="none" stroke="#D8F8E4" stroke-width="3" opacity="0.55"/>
+
+    <!-- Main specular -->
+    <circle cx="-145" cy="-190" r="48" fill="url(#spec-core)"/>
+    <circle cx="-145" cy="-190" r="14" fill="#FFFFFF" opacity="0.95"/>
+
+    <!-- Secondary specular -->
+    <circle cx="135" cy="185" r="7" fill="#FFFFFF" opacity="0.35"/>
+  </g>
+</svg>

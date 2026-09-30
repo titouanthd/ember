@@ -12,6 +12,7 @@ serde.workspace = true
 ron.workspace = true
 dotenvy.workspace = true
 soloud = "1.1"
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [lib]
 name = "jade_garden"
