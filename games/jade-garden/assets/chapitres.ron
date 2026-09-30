@@ -1,0 +1,26 @@
+[
+    (
+        id: 0,
+        name: "The Arrival",
+        subtitle: "Chapter I",
+        intro: "Xiao Lin has walked for three days. At dusk, a wall of moss-covered stone appears. Behind it: an abandoned garden. At its centre, a stele carved with a poem whose characters are almost worn away.",
+    ),
+    (
+        id: 1,
+        name: "The Silence of Stones",
+        subtitle: "Chapter II",
+        intro: "The garden is silent, but the stones carry memory. Xiao Lin finds shards of pottery, fossilised petals. He understands that he must awaken the jades one by one.",
+    ),
+    (
+        id: 2,
+        name: "The Breath of Spring",
+        subtitle: "Chapter III",
+        intro: "One morning, Xiao Lin hears a bird. It is the first sound since his arrival. The jades fall into place more easily, as if the garden were answering his patience.",
+    ),
+    (
+        id: 3,
+        name: "The Awakening",
+        subtitle: "Chapter IV",
+        intro: "The poem comes together. Xiao Lin reads the restored characters aloud. The garden shivers. A soft green light rises from the ground.",
+    ),
+]

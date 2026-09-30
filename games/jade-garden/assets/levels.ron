@@ -1,0 +1,14 @@
+[
+    (id: "l01", name: "Arrival at the Garden", chapter: 0, moves: 20, objective: Score(2100), star_target: 2100, poem_reveal: 2, seed: 5),
+    (id: "l02", name: "The Broken Stele", chapter: 0, moves: 20, objective: ClearJade(Bi, 15), star_target: 2400, poem_reveal: 2, seed: 2),
+    (id: "l03", name: "First Steps", chapter: 0, moves: 18, objective: Score(2200), star_target: 2200, poem_reveal: 2, seed: 202),
+    (id: "l04", name: "The Pottery", chapter: 1, moves: 20, objective: Score(3500), star_target: 3500, poem_reveal: 2, seed: 16),
+    (id: "l05", name: "Fallen Petals", chapter: 1, moves: 18, objective: ClearJade(Hong, 18), star_target: 3100, poem_reveal: 2, seed: 12),
+    (id: "l06", name: "The First Awakening", chapter: 1, moves: 22, objective: Score(2800), star_target: 2800, poem_reveal: 2, seed: 98),
+    (id: "l07", name: "The First Bird", chapter: 2, moves: 22, objective: Score(2700), star_target: 2700, poem_reveal: 1, seed: 78),
+    (id: "l08", name: "Wind in the Pines", chapter: 2, moves: 20, objective: ClearJade(Qing, 22), star_target: 1700, poem_reveal: 1, seed: 137),
+    (id: "l09", name: "The Fragrance of Flowers", chapter: 2, moves: 25, objective: FillPoem(4), star_target: 2400, poem_reveal: 1, seed: 9),
+    (id: "l10", name: "The Missing Characters", chapter: 3, moves: 28, objective: FillPoem(6), star_target: 2600, poem_reveal: 1, seed: 10),
+    (id: "l11", name: "The Imperial Seal", chapter: 3, moves: 24, objective: ClearJade(Mo, 30), star_target: 2400, poem_reveal: 2, seed: 173),
+    (id: "l12", name: "The Garden Awakens", chapter: 3, moves: 35, objective: FillPoem(10), star_target: 5300, poem_reveal: 2, seed: 12),
+]

@@ -1,0 +1,22 @@
+[package]
+name = "jade-garden"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ember-core.workspace = true
+ember-stdlib.workspace = true
+macroquad.workspace = true
+glam.workspace = true
+serde.workspace = true
+ron.workspace = true
+dotenvy.workspace = true
+soloud = "1.1"
+
+[lib]
+name = "jade_garden"
+path = "src/lib.rs"
+
+[[bin]]
+name = "jade-garden"
+path = "src/main.rs"
