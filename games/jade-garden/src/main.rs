@@ -771,7 +771,7 @@ fn draw_halloween(state: &AppState) {
     let vh = screen_height();
     let t = state.halloween_elapsed;
 
-        // ─── Final jumpscare phase ───
+    // ─── Final jumpscare phase ───
     if state.halloween_entered_final {
         let ft = state.halloween_final_elapsed;
 

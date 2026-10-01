@@ -47,6 +47,11 @@ const IVORY: Color = Color::new(0.96, 0.92, 0.82, 1.0);
 const SEPIA: Color = Color::new(0.62, 0.56, 0.46, 1.0);
 const DIM: Color = Color::new(0.45, 0.40, 0.32, 1.0);
 
+/// Screen dim used behind the modal. Must match the mask color used
+/// to hide content that scrolled out of the modal bounds, so the
+/// masking is invisible against the overlay.
+const OVERLAY: Color = Color::new(0.0, 0.0, 0.0, 0.78);
+
 // ---------- Public entry point ----------
 
 /// Renders the help modal on top of whatever is currently on screen.
@@ -83,26 +88,60 @@ pub fn draw(ctx: &GameContext, poem_font: &PoemFont, scroll_y: &mut f32) {
     let y = (vh - MODAL_H) * 0.5;
 
     // ─── 1. Dim overlay ───
-    draw_rectangle(0.0, 0.0, vw, vh, Color::new(0.0, 0.0, 0.0, 0.80));
+    draw_rectangle(0.0, 0.0, vw, vh, OVERLAY);
 
     // ─── 2. Modal background ───
     draw_rectangle(x, y, MODAL_W, MODAL_H, MODAL_BG);
 
-    // ─── 3. Scrollable content ───
+    // ─── 3. Scrollable content, clipped to the modal's content band ───
+    //
+    // Real clipping (via scissor test), not mask rectangles: content
+    // that scrolls out of the band is simply not rasterised, so
+    // nothing bleeds into the surrounding overlay.
     let content_top = y + HEADER_BAND_H;
+    let content_band_h = MODAL_H - HEADER_BAND_H - FOOTER_BAND_H;
+
+    {
+        unsafe {
+            let gl = get_internal_gl();
+            gl.quad_gl.scissor(Some((
+                x as i32,
+                content_top as i32,
+                MODAL_W as i32,
+                content_band_h as i32,
+            )));
+        }
+    }
+
     draw_content(x + PAD, content_top - scroll, ctx.colors.gold, poem_font);
 
-    // ─── 4. Opaque header band — hides content that scrolled up ───
-    draw_rectangle(x, y, MODAL_W, HEADER_BAND_H, MODAL_BG);
+    {
+        unsafe {
+            let gl = get_internal_gl();
+            gl.quad_gl.scissor(None);
+        }
+    }
 
-    // ─── 5. Opaque footer band — hides content that scrolled down ───
-    draw_rectangle(
-        x,
-        y + MODAL_H - FOOTER_BAND_H,
-        MODAL_W,
-        FOOTER_BAND_H,
-        MODAL_BG,
-    );
+    // ─── 4. Header masks ───
+    // 4a. Inside the modal: mask with MODAL_BG so the header band
+    //     stays part of the modal, not the overlay.
+    draw_rectangle(x, y, MODAL_W, HEADER_BAND_H, MODAL_BG);
+    // 4b. Above the modal: mask with OVERLAY so it blends perfectly
+    //     with the dim layer behind the modal. Uses the modal's
+    //     x-range only, so the surrounding overlay stays untouched.
+    if y > 0.0 {
+        draw_rectangle(x, 0.0, MODAL_W, y, OVERLAY);
+    }
+
+    // ─── 5. Footer masks ───
+    let footer_top = y + MODAL_H - FOOTER_BAND_H;
+    let modal_bottom = y + MODAL_H;
+    // 5a. Inside the modal.
+    draw_rectangle(x, footer_top, MODAL_W, FOOTER_BAND_H, MODAL_BG);
+    // 5b. Below the modal.
+    if modal_bottom < vh {
+        draw_rectangle(x, modal_bottom, MODAL_W, vh - modal_bottom, OVERLAY);
+    }
 
     // ─── 6. Separators between bands and content ───
     let sep_top = y + HEADER_BAND_H;
@@ -408,5 +447,16 @@ mod tests {
         // The title baseline and its decorative diamond must sit
         // comfortably inside the header band.
         assert!(TITLE_BASELINE + 20.0 < HEADER_BAND_H);
+    }
+
+    #[test]
+    fn overlay_color_is_a_dim_layer() {
+        // OVERLAY must be a semi-transparent black. Guards against a
+        // future refactor that would silently change the mood.
+        assert!(OVERLAY.r < 0.1);
+        assert!(OVERLAY.g < 0.1);
+        assert!(OVERLAY.b < 0.1);
+        assert!(OVERLAY.a > 0.5);
+        assert!(OVERLAY.a < 1.0);
     }
 }

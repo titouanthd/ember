@@ -7,3 +7,5 @@ progress.ron
 /tools/AppIcon.icns
 /tools/AppIcon.iconset/
 /dist/
+# Local screenshots for the store page
+/screenshots/
