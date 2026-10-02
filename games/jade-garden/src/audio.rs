@@ -1,33 +1,36 @@
 //! Background music: hybrid player.
 //!
-//! Tries, in order:
+//! **Native** (macOS, Linux, Windows):
+//! 1. **soloud** (bundled, dlopens the system audio library).
+//! 2. **OS-native player subprocess** (`afplay`, `ffplay`, `mpv`).
 //!
-//! 1. **soloud** (bundled miniaudio backend, dlopens the system audio
-//!    library). Works out of the box on most setups, no external
-//!    runtime dependency.
-//! 2. **OS-native player subprocess**:
-//!    - macOS: `afplay` (part of the base system)
-//!    - Linux / Windows: `ffplay` (ffmpeg) or `mpv`
+//! **Web** (WASM):
+//! Uses `macroquad::audio` (backed by quad-snd → WebAudio).
+//! Tracks are preloaded asynchronously before the main loop via
+//! [`MusicPlayer::preload`] — required because on web
+//! `macroquad::audio::load_sound` fetches the file. Playback is then
+//! synchronous (`play_sound` / `stop_sound`).
 //!
-//! If neither works, music is disabled and the game keeps running.
+//! No `wasm-bindgen`-based crates are used: miniquad (via macroquad)
+//! has its own import system, incompatible with wasm-bindgen's
+//! `__wbindgen_placeholder__` imports.
 //!
-//! Why not rodio / cpal / kira? They collide with macroquad at the
-//! Cargo level: both end up declaring `links = "alsa"` and Cargo
-//! refuses to resolve the graph — even on macOS, because Cargo
-//! resolves for all targets.
+//! Time tracking: `std::time::Instant` is unavailable on
+//! `wasm32-unknown-unknown`, so the wasm backend accumulates `dt` in a
+//! plain `f32` (fed by `MusicPlayer::tick`). The native backend keeps
+//! using `Instant`.
 
-use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
-use std::time::Instant;
-use crate::paths;
-use soloud::*;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
+
+// ─── Shared ────────────────────────────────────────────────────────
 
 /// Volume applied to every track (0.0–1.0).
 const MUSIC_VOLUME: f32 = 0.4;
 
 /// One entry in the background music playlist.
 pub struct TrackSpec {
-    /// Filename relative to the assets directory (e.g. `foo.mp3`).
+    /// Path relative to the assets directory (e.g. `foo.mp3`).
     pub path: &'static str,
     /// Duration in seconds.
     pub duration: f32,
@@ -35,147 +38,350 @@ pub struct TrackSpec {
     pub is_intro: bool,
 }
 
-enum Backend {
-    /// Native soloud engine, kept alive for the player's lifetime.
-    Soloud {
-        soloud: Soloud,
-        loaded: Option<audio::Wav>,
-    },
-    /// External player subprocess.
-    Subprocess {
-        /// Name of the executable we detected, for reference.
-        player: &'static str,
-        child: Option<Child>,
-    },
+// ─── Native backend ────────────────────────────────────────────────
+
+#[cfg(not(target_arch = "wasm32"))]
+mod backend {
+    use super::*;
+    use std::process::{Child, Command, Stdio};
+    use std::time::Instant;
+    use soloud::*;
+
+    enum Backend {
+        Soloud {
+            soloud: Soloud,
+            loaded: Option<audio::Wav>,
+        },
+        Subprocess {
+            player: &'static str,
+            child: Option<Child>,
+        },
+    }
+
+    pub struct MusicBackend {
+        inner: Backend,
+        started_at: Instant,
+        playing: bool,
+    }
+
+    impl MusicBackend {
+        pub fn new() -> Self {
+            match Soloud::default() {
+                Ok(soloud) => {
+                    eprintln!("🎵 Music backend: soloud (native)");
+                    Self {
+                        inner: Backend::Soloud { soloud, loaded: None },
+                        started_at: Instant::now(),
+                        playing: false,
+                    }
+                }
+                Err(e) => {
+                    eprintln!("⚠️  soloud unavailable ({e:?}), trying OS player...");
+                    match detect_player() {
+                        Some(player) => {
+                            eprintln!("🎵 Music backend: {player} (subprocess)");
+                            Self {
+                                inner: Backend::Subprocess { player, child: None },
+                                started_at: Instant::now(),
+                                playing: false,
+                            }
+                        }
+                        None => {
+                            eprintln!("⚠️  No audio backend available. Music disabled.");
+                            Self {
+                                inner: Backend::Subprocess { player: "", child: None },
+                                started_at: Instant::now(),
+                                playing: false,
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// No-op on native: loading is lazy, done by `play`.
+        pub async fn preload(&mut self, _specs: &[TrackSpec]) {}
+
+        pub fn play(&mut self, path: &PathBuf) -> bool {
+            match &mut self.inner {
+                Backend::Soloud { soloud, loaded } => {
+                    soloud.stop_all();
+                    *loaded = None;
+                    let mut wav = audio::Wav::default();
+                    if let Err(e) = wav.load(path) {
+                        eprintln!("⚠️  soloud: failed to load {path:?}: {e:?}");
+                        return false;
+                    }
+                    soloud.set_global_volume(MUSIC_VOLUME);
+                    soloud.play(&wav);
+                    *loaded = Some(wav);
+                    self.started_at = Instant::now();
+                    true
+                }
+                Backend::Subprocess { player, child } => {
+                    if let Some(mut c) = child.take() {
+                        let _ = c.kill();
+                        let _ = c.wait();
+                    }
+                    match spawn_player(player, path) {
+                        Some(c) => {
+                            *child = Some(c);
+                            self.started_at = Instant::now();
+                            true
+                        }
+                        None => {
+                            eprintln!("⚠️  {player} failed to start for {path:?}");
+                            false
+                        }
+                    }
+                }
+            }
+        }
+
+        pub fn stop(&mut self) {
+            match &mut self.inner {
+                Backend::Soloud { soloud, loaded } => {
+                    soloud.stop_all();
+                    *loaded = None;
+                }
+                Backend::Subprocess { child, .. } => {
+                    if let Some(mut c) = child.take() {
+                        let _ = c.kill();
+                        let _ = c.wait();
+                    }
+                }
+            }
+        }
+
+        /// Native uses `Instant` internally; `dt` is ignored.
+        pub fn advance_elapsed(&mut self, _dt: f32) {}
+
+        /// Seconds elapsed since the current track started.
+        pub fn elapsed(&self) -> f32 {
+            self.started_at.elapsed().as_secs_f32()
+        }
+
+        pub fn set_playing(&mut self, v: bool) {
+            self.playing = v;
+        }
+
+        pub fn is_playing(&self) -> bool {
+            self.playing
+        }
+    }
+
+    impl Drop for MusicBackend {
+        fn drop(&mut self) {
+            if let Backend::Subprocess { child, .. } = &mut self.inner
+                && let Some(mut c) = child.take()
+            {
+                let _ = c.kill();
+                let _ = c.wait();
+            }
+        }
+    }
+
+    pub fn detect_player() -> Option<&'static str> {
+        #[cfg(target_os = "macos")]
+        const CANDIDATES: &[&str] = &["afplay", "ffplay", "mpv"];
+        #[cfg(not(target_os = "macos"))]
+        const CANDIDATES: &[&str] = &["ffplay", "mpv", "afplay"];
+
+        for &name in CANDIDATES {
+            let ok = Command::new(name)
+                .arg("-version")
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+                .map(|_| true)
+                .unwrap_or(false);
+            if ok {
+                return Some(name);
+            }
+        }
+        None
+    }
+
+    pub fn spawn_player(player: &str, path: &std::path::Path) -> Option<Child> {
+        let path_str = path.to_string_lossy().into_owned();
+        let mut cmd = Command::new(player);
+        match player {
+            "afplay" => {
+                cmd.arg(&path_str);
+            }
+            "ffplay" => {
+                cmd.args(["-nodisp", "-autoexit", "-loglevel", "quiet", &path_str]);
+            }
+            "mpv" => {
+                cmd.args(["--no-video", "--really-quiet", &path_str]);
+            }
+            _ => {
+                cmd.arg(&path_str);
+            }
+        }
+        cmd.stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok()
+    }
 }
 
+// ─── Web backend ───────────────────────────────────────────────────
+
+#[cfg(target_arch = "wasm32")]
+mod backend {
+    use super::*;
+    use macroquad::audio::{
+        load_sound, play_sound, stop_sound, PlaySoundParams, Sound,
+    };
+
+    pub struct MusicBackend {
+        /// One slot per track. `None` if that track failed to load.
+        sounds: Vec<Option<Sound>>,
+        current: usize,
+        /// Seconds elapsed since the current track started. We track
+        /// this manually because `std::time::Instant` is unavailable
+        /// on `wasm32-unknown-unknown`.
+        elapsed: f32,
+        playing: bool,
+    }
+
+    impl MusicBackend {
+        pub fn new() -> Self {
+            eprintln!("🎵 Music backend: macroquad::audio (WebAudio)");
+            Self {
+                sounds: Vec::new(),
+                current: 0,
+                elapsed: 0.0,
+                playing: false,
+            }
+        }
+
+        /// Preload every track. Async because on web
+        /// `macroquad::audio::load_sound` fetches the file via HTTP.
+        /// Called from `main` before the loop starts.
+        pub async fn preload(&mut self, specs: &[TrackSpec]) {
+            self.sounds.reserve(specs.len());
+            for spec in specs {
+                let path = crate::paths::asset_str(spec.path);
+                match load_sound(&path).await {
+                    Ok(snd) => {
+                        eprintln!("🎵 loaded {}", spec.path);
+                        self.sounds.push(Some(snd));
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "⚠️  web audio: failed to load {}: {e:?}",
+                            spec.path
+                        );
+                        self.sounds.push(None);
+                    }
+                }
+            }
+        }
+
+        /// Play the track at `idx` (looping). Stops the previous one
+        /// first. Returns `false` if that track failed to load.
+        pub fn play(&mut self, idx: usize) -> bool {
+            if let Some(Some(prev)) = self.sounds.get(self.current) {
+                stop_sound(prev);
+            }
+            self.current = idx;
+            self.elapsed = 0.0;
+            match self.sounds.get(idx) {
+                Some(Some(snd)) => {
+                    play_sound(
+                        snd,
+                        PlaySoundParams {
+                            looped: true,
+                            volume: MUSIC_VOLUME,
+                        },
+                    );
+                    true
+                }
+                _ => false,
+            }
+        }
+
+        pub fn stop(&mut self) {
+            if let Some(Some(snd)) = self.sounds.get(self.current) {
+                stop_sound(snd);
+            }
+        }
+
+        /// Called from `MusicPlayer::tick` with the frame delta.
+        pub fn advance_elapsed(&mut self, dt: f32) {
+            self.elapsed += dt;
+        }
+
+        /// Seconds elapsed since the current track started.
+        pub fn elapsed(&self) -> f32 {
+            self.elapsed
+        }
+
+        pub fn set_playing(&mut self, v: bool) {
+            self.playing = v;
+        }
+
+        pub fn is_playing(&self) -> bool {
+            self.playing
+        }
+    }
+}
+
+// ─── Public wrapper ────────────────────────────────────────────────
+
 pub struct MusicPlayer {
-    backend: Backend,
+    backend: backend::MusicBackend,
     tracks: Vec<TrackSpec>,
     current: usize,
-    started_at: Instant,
-    playing: bool,
 }
 
 impl MusicPlayer {
     pub fn load(specs: Vec<TrackSpec>) -> Self {
-        // Try soloud first.
-        match Soloud::default() {
-            Ok(soloud) => {
-                eprintln!("🎵 Music backend: soloud (native)");
-                Self {
-                    backend: Backend::Soloud {
-                        soloud,
-                        loaded: None,
-                    },
-                    tracks: specs,
-                    current: 0,
-                    started_at: Instant::now(),
-                    playing: false,
-                }
-            }
-            Err(e) => {
-                eprintln!("⚠️  soloud unavailable ({e:?}), trying OS player...");
-                match detect_player() {
-                    Some(player) => {
-                        eprintln!("🎵 Music backend: {player} (subprocess)");
-                        Self {
-                            backend: Backend::Subprocess {
-                                player,
-                                child: None,
-                            },
-                            tracks: specs,
-                            current: 0,
-                            started_at: Instant::now(),
-                            playing: false,
-                        }
-                    }
-                    None => {
-                        eprintln!(
-                            "⚠️  No audio backend available. Music disabled.\n\
-                             Install one of: afplay (macOS, built-in), \
-                             ffplay (ffmpeg), or mpv."
-                        );
-                        // Fall back to soloud anyway so the API stays
-                        // consistent; `start()` will just no-op.
-                        Self {
-                            backend: Backend::Subprocess {
-                                player: "",
-                                child: None,
-                            },
-                            tracks: specs,
-                            current: 0,
-                            started_at: Instant::now(),
-                            playing: false,
-                        }
-                    }
-                }
-            }
+        Self {
+            backend: backend::MusicBackend::new(),
+            tracks: specs,
+            current: 0,
         }
     }
 
-    pub fn stop(&mut self) {
-        match &mut self.backend {
-            Backend::Soloud { soloud, loaded } => {
-                soloud.stop_all();
-                *loaded = None;
-            }
-            Backend::Subprocess { child, .. } => {
-                if let Some(mut c) = child.take() {
-                    let _ = c.kill();
-                    let _ = c.wait();
-                }
-            }
-        }
-        self.playing = false;
-    }
-
-    pub fn is_playing(&self) -> bool {
-        self.playing
-    }
-
-    /// Advances the playlist. Call once per frame.
-    pub fn tick(&mut self, _dt: f32) {
-        if !self.playing || self.tracks.is_empty() {
-            return;
-        }
-
-        // Subprocess: rely on the OS process exit to know when a track
-        // ended. Soloud: use wall-clock duration.
-        let finished = match &mut self.backend {
-            Backend::Soloud { .. } => {
-                let spec = &self.tracks[self.current];
-                self.started_at.elapsed().as_secs_f32() >= spec.duration
-            }
-            Backend::Subprocess { child, .. } => match child.as_mut() {
-                Some(c) => match c.try_wait() {
-                    Ok(Some(_)) | Err(_) => {
-                        *child = None;
-                        true
-                    }
-                    Ok(None) => false,
-                },
-                None => true,
-            },
-        };
-
-        if finished {
-            self.advance();
-        }
+    /// Preloads every track. **Must be awaited before `start()` on
+    /// web** (it fetches the files). No-op on native.
+    pub async fn preload(&mut self) {
+        self.backend.preload(&self.tracks).await;
     }
 
     pub fn start(&mut self) {
         if self.tracks.is_empty() {
             return;
         }
-        if let Backend::Subprocess { player, .. } = &self.backend
-            && player.is_empty()
-        {
+        self.current = 0;
+        self.backend.set_playing(true);
+        self.play_current();
+    }
+
+    pub fn stop(&mut self) {
+        self.backend.stop();
+        self.backend.set_playing(false);
+    }
+
+    pub fn is_playing(&self) -> bool {
+        self.backend.is_playing()
+    }
+
+    /// Advances the playlist. Call once per frame.
+    pub fn tick(&mut self, dt: f32) {
+        if !self.backend.is_playing() || self.tracks.is_empty() {
             return;
         }
-        self.current = 0;
-        self.playing = true;
-        self.play_current_with_skip();
+        self.backend.advance_elapsed(dt);
+        let duration = self.tracks[self.current].duration;
+        if self.backend.elapsed() >= duration {
+            self.advance();
+        }
     }
 
     fn advance(&mut self) {
@@ -190,136 +396,120 @@ impl MusicPlayer {
             loop_start
         };
         self.current = next;
-        self.play_current_with_skip();
+        self.play_current();
     }
 
-    /// Tries to play the current track. On failure, tries every other
-    /// track once. If none work, disables music.
-    fn play_current_with_skip(&mut self) {
-        let original = self.current;
-        for offset in 0..self.tracks.len() {
-            self.current = (original + offset) % self.tracks.len();
-            if self.play_current_inner() {
-                return;
-            }
-        }
-        eprintln!(
-            "⚠️  All {} music tracks failed to play; disabling music.",
-            self.tracks.len()
-        );
-        self.playing = false;
-    }
-
-    /// Attempts to play the current track. Returns `true` on success.
-    fn play_current_inner(&mut self) -> bool {
+    /// Native: synchronous load + play.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn play_current(&mut self) {
         let spec = &self.tracks[self.current];
-        let full = paths::asset(spec.path);
-        let label = spec.path;
+        let full = crate::paths::asset(spec.path);
 
         if !full.exists() {
-            eprintln!("⚠️  Music file not found: {}", full.display());
-            return false;
+            eprintln!("⚠️  Music file not found: {full:?}");
+            self.backend.set_playing(false);
+            return;
         }
 
-        match &mut self.backend {
-            Backend::Soloud { soloud, loaded } => {
-                soloud.stop_all();
-                *loaded = None;
-                let mut wav = audio::Wav::default();
-                if let Err(e) = wav.load(&full) {
-                    eprintln!("⚠️  soloud: failed to load {label}: {e:?}");
-                    return false;
-                }
-                soloud.set_global_volume(MUSIC_VOLUME);
-                soloud.play(&wav);
-                *loaded = Some(wav);
-                self.started_at = Instant::now();
-                true
+        if !self.backend.play(&full) {
+            self.backend.set_playing(false);
+        }
+    }
+
+    /// Web: play a preloaded track. No async needed here — preload
+    /// already fetched everything.
+    #[cfg(target_arch = "wasm32")]
+    fn play_current(&mut self) {
+        let idx = self.current;
+        if !self.backend.play(idx) {
+            eprintln!("⚠️  web audio: track {idx} unavailable");
+            self.backend.set_playing(false);
+        }
+    }
+}
+
+// ─── SFX (teaser Halloween) ────────────────────────────────────────
+
+/// Plays a piercing one-shot scare sound for the Halloween teaser.
+///
+/// On native, prefers `assets/scare.wav` then macOS system sound.
+/// On web, silent (the teaser is disabled on web anyway — see
+/// `is_spooky_season` in main.rs).
+pub fn play_scare() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        // Silent on web for now — the Halloween teaser is disabled.
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let custom_wav = manifest.join("assets/scare.wav");
+        let custom_ogg = manifest.join("assets/scare.ogg");
+
+        let target: Option<std::path::PathBuf> = if custom_wav.exists() {
+            Some(custom_wav)
+        } else if custom_ogg.exists() {
+            Some(custom_ogg)
+        } else {
+            #[cfg(target_os = "macos")]
+            {
+                Some(std::path::PathBuf::from(
+                    "/System/Library/Sounds/Glass.aiff",
+                ))
             }
-            Backend::Subprocess { player, child } => {
-                if let Some(mut c) = child.take() {
-                    let _ = c.kill();
-                    let _ = c.wait();
-                }
-                match spawn_player(player, &full) {
-                    Some(c) => {
-                        *child = Some(c);
-                        self.started_at = Instant::now();
-                        true
-                    }
-                    None => {
-                        eprintln!("⚠️  {player} failed to start for {label}");
-                        false
-                    }
-                }
+            #[cfg(not(target_os = "macos"))]
+            {
+                None
             }
+        };
+
+        let Some(path) = target else { return };
+        if let Some(player) = backend::detect_player() {
+            let _ = backend::spawn_player(player, &path);
         }
     }
 }
 
-impl Drop for MusicPlayer {
-    fn drop(&mut self) {
-        if let Backend::Subprocess { child, .. } = &mut self.backend
-            && let Some(mut c) = child.take()
-        {
-            let _ = c.kill();
-            let _ = c.wait();
+/// Plays the second-stage scare sound (final jumpscare).
+pub fn play_scream() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        // Silent on web for now.
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let custom_wav = manifest.join("assets/scream.wav");
+        let custom_ogg = manifest.join("assets/scream.ogg");
+
+        let target: Option<std::path::PathBuf> = if custom_wav.exists() {
+            Some(custom_wav)
+        } else if custom_ogg.exists() {
+            Some(custom_ogg)
+        } else {
+            #[cfg(target_os = "macos")]
+            {
+                Some(std::path::PathBuf::from(
+                    "/System/Library/Sounds/Sosumi.aiff",
+                ))
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                None
+            }
+        };
+
+        let Some(path) = target else { return };
+        if let Some(player) = backend::detect_player() {
+            let _ = backend::spawn_player(player, &path);
         }
     }
 }
 
-/// Tries `--version` on a list of candidate players, returns the first
-/// one whose executable exists and runs.
-fn detect_player() -> Option<&'static str> {
-    // On macOS afplay is guaranteed by the system.
-    #[cfg(target_os = "macos")]
-    const CANDIDATES: &[&str] = &["afplay", "ffplay", "mpv"];
-    #[cfg(not(target_os = "macos"))]
-    const CANDIDATES: &[&str] = &["ffplay", "mpv", "afplay"];
+// ─── Playlist ─────────────────────────────────────────────────────
 
-    for &name in CANDIDATES {
-        let ok = Command::new(name)
-            .arg("-version")
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .map(|_| true)
-            .unwrap_or(false);
-        if ok {
-            return Some(name);
-        }
-    }
-    None
-}
-
-/// Spawns the given player with arguments tuned to `player`.
-fn spawn_player(player: &str, path: &Path) -> Option<Child> {
-    let path_str = path.to_string_lossy().into_owned();
-    let mut cmd = Command::new(player);
-    match player {
-        "afplay" => {
-            // afplay has no volume flag; leave default.
-            cmd.arg(&path_str);
-        }
-        "ffplay" => {
-            cmd.args(["-nodisp", "-autoexit", "-loglevel", "quiet", &path_str]);
-        }
-        "mpv" => {
-            cmd.args(["--no-video", "--really-quiet", &path_str]);
-        }
-        _ => {
-            cmd.arg(&path_str);
-        }
-    }
-    cmd.stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()
-}
-
-/// Convenience: the jade-garden default playlist.
 pub fn default_playlist() -> Vec<TrackSpec> {
     vec![
         TrackSpec {
@@ -338,56 +528,6 @@ pub fn default_playlist() -> Vec<TrackSpec> {
             is_intro: false,
         },
     ]
-}
-
-pub fn play_scare() {
-    let custom_wav = paths::asset("scare.wav");
-    let custom_ogg = paths::asset("scare.ogg");
-
-    let target: Option<PathBuf> = if custom_wav.exists() {
-        Some(custom_wav)
-    } else if custom_ogg.exists() {
-        Some(custom_ogg)
-    } else {
-        #[cfg(target_os = "macos")]
-        {
-            Some(PathBuf::from("/System/Library/Sounds/Glass.aiff"))
-        }
-        #[cfg(not(target_os = "macos"))]
-        {
-            None
-        }
-    };
-
-    let Some(path) = target else { return };
-    if let Some(player) = detect_player() {
-        let _ = spawn_player(player, &path);
-    }
-}
-
-pub fn play_scream() {
-    let custom_wav = paths::asset("scream.wav");
-    let custom_ogg = paths::asset("scream.ogg");
-
-    let target: Option<PathBuf> = if custom_wav.exists() {
-        Some(custom_wav)
-    } else if custom_ogg.exists() {
-        Some(custom_ogg)
-    } else {
-        #[cfg(target_os = "macos")]
-        {
-            Some(PathBuf::from("/System/Library/Sounds/Sosumi.aiff"))
-        }
-        #[cfg(not(target_os = "macos"))]
-        {
-            None
-        }
-    };
-
-    let Some(path) = target else { return };
-    if let Some(player) = detect_player() {
-        let _ = spawn_player(player, &path);
-    }
 }
 
 #[cfg(test)]
@@ -412,25 +552,5 @@ mod tests {
         for t in default_playlist() {
             assert!(t.duration > 0.0, "{} has non-positive duration", t.path);
         }
-    }
-
-    #[test]
-    fn spawn_player_returns_none_for_missing_binary() {
-        let path = std::path::Path::new("/dev/null");
-        let result = spawn_player("this-binary-does-not-exist-jade-xyz", path);
-        assert!(result.is_none(), "unknown player must return None");
-    }
-
-    #[test]
-    fn detect_player_does_not_panic() {
-        // Result depends on the host; we only check it doesn't panic.
-        let _ = detect_player();
-    }
-
-    #[test]
-    fn play_scare_and_play_scream_do_not_panic() {
-        // Fire-and-forget; must never panic even without system sounds.
-        play_scare();
-        play_scream();
     }
 }

@@ -2,10 +2,12 @@
 //!
 //! Loaded once from `.env` via `ember_stdlib::config`. The colors
 //! have sane defaults when the `.env` file is missing.
-
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
+#[cfg(not(target_arch = "wasm32"))]
 use ember_stdlib::config::{env_color, load_dotenv_once};
+
 use macroquad::prelude::*;
 
 use crate::components::{GRID_H, GRID_W};
@@ -57,6 +59,7 @@ impl Colors {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn from_env() -> Self {
         let d = Self::defaults();
         Self {
@@ -82,6 +85,7 @@ pub struct GameContext {
 }
 
 impl GameContext {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_env() -> Self {
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
         load_dotenv_once(manifest_dir, "jade-garden");
@@ -90,6 +94,17 @@ impl GameContext {
         let vh = screen_height();
         Self {
             colors: Colors::from_env(),
+            viewport_w: vw,
+            viewport_h: vh,
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn from_env() -> Self {
+        let vw = screen_width();
+        let vh = screen_height();
+        Self {
+            colors: Colors::defaults(),
             viewport_w: vw,
             viewport_h: vh,
         }

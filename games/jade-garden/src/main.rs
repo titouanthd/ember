@@ -42,16 +42,31 @@ const CHAR_REVEAL_DURATION: f32 = 0.35;
 const REVEAL_TAIL_PAUSE: f32 = 0.9;
 
 fn window_conf() -> Conf {
-    Conf {
-        window_title: "jade-garden".to_owned(),
-        window_width: 1400,
-        window_height: 900,
-        window_resizable: true,
-        icon: load_window_icon(),
-        ..Default::default()
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        Conf {
+            window_title: "jade-garden".to_owned(),
+            window_width: 1400,
+            window_height: 900,
+            window_resizable: true,
+            icon: load_window_icon(),
+            ..Default::default()
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        Conf {
+            window_title: "jade-garden".to_owned(),
+            window_width: 1400,
+            window_height: 900,
+            window_resizable: true,
+            ..Default::default()
+        }
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn load_window_icon() -> Option<macroquad::miniquad::conf::Icon> {
     let bytes = include_bytes!("../assets/icon-256.png");
     let img = image::load_from_memory_with_format(
@@ -83,6 +98,10 @@ fn load_window_icon() -> Option<macroquad::miniquad::conf::Icon> {
 
 #[derive(Clone, Copy)]
 enum AppScreen {
+    /// Web only: blocks audio autoplay until the user clicks.
+    /// Native jumps straight to Menu.
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    WebStart,
     Menu,
     Intro(usize),
     Game(usize),
@@ -120,9 +139,9 @@ struct AppState {
 }
 
 impl AppState {
-    fn new(poem_font: PoemFont, audio: MusicPlayer) -> Self {
-        let chapters = level::load_chapters().unwrap_or_default();
-        let levels = level::load_levels().unwrap_or_default();
+    async fn new(poem_font: PoemFont, audio: MusicPlayer) -> Self {
+        let chapters = level::load_chapters().await.unwrap_or_default();
+        let levels = level::load_levels().await.unwrap_or_default();
         let progress = progress::load_progress();
         Self {
             screen: AppScreen::Menu,
@@ -246,6 +265,7 @@ impl AppState {
 /// True if we're in the Halloween window: **September 1 through
 /// November 30**, every year. The date is approximated from the Unix
 /// epoch (±1-2 days of drift), which is fine for a seasonal trigger.
+#[cfg(not(target_arch = "wasm32"))]
 fn is_spooky_season() -> bool {
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
@@ -255,7 +275,13 @@ fn is_spooky_season() -> bool {
     is_spooky_month(month_from_unix(secs))
 }
 
+#[cfg(target_arch = "wasm32")]
+fn is_spooky_season() -> bool {
+    false
+}
+
 /// Pure predicate: is the given 1-indexed month inside the window?
+#[cfg(not(target_arch = "wasm32"))]
 fn is_spooky_month(month: u64) -> bool {
     matches!(month, 9..=11)
 }
@@ -265,6 +291,7 @@ fn is_spooky_month(month: u64) -> bool {
 /// Handles the Gregorian leap-year rules (÷4, except ÷100, except
 /// ÷400). Uses a 400-year cycle jump to keep the loop bounded even
 /// for far-future timestamps.
+#[cfg(not(target_arch = "wasm32"))]
 fn month_from_unix(secs: u64) -> u64 {
     const SECS_PER_DAY: u64 = 86_400;
     const DAYS_PER_400Y: i64 = 146_097; // 400 * 365 + 97 leap days
@@ -305,6 +332,7 @@ fn month_from_unix(secs: u64) -> u64 {
     month
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn is_leap_year(year: i64) -> bool {
     (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 }
@@ -339,17 +367,44 @@ fn next_reveal_step(
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    jade_garden::fonts::load_default_font().await;
-    let poem_font = PoemFont::load().await;
+    println!("START: main");
 
+    println!("START: default font");
+    jade_garden::fonts::load_default_font().await;
+    println!("DONE: default font");
+
+    println!("START: poem font");
+    let poem_font = PoemFont::load().await;
+    println!("DONE: poem font");
+
+    println!("START: audio load");
     let mut audio = MusicPlayer::load(default_playlist());
+    println!("DONE: audio load");
+
+    println!("START: audio preload");
+    audio.preload().await;
+    println!("DONE: audio preload");
+
+    #[cfg(not(target_arch = "wasm32"))]
     audio.start();
 
+    println!("START: GameContext");
     let mut ctx = GameContext::from_env();
+    println!("DONE: GameContext");
+
     ctx.viewport_w = screen_width();
     ctx.viewport_h = screen_height();
 
-    let mut state = AppState::new(poem_font, audio);
+    println!("START: AppState");
+    let mut state = AppState::new(poem_font, audio).await;
+    println!("DONE: AppState");
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        state.screen = AppScreen::WebStart;
+    }
+
+    println!("START: game loop");
 
     loop {
         let dt = get_frame_time().min(0.05);
@@ -385,6 +440,12 @@ async fn main() {
 
         if !state.help_open {
             match state.screen {
+                AppScreen::WebStart => {
+                    if click || is_key_pressed(KeyCode::Space) {
+                        state.audio.start();
+                        state.screen = AppScreen::Menu;
+                    }
+                }
                 AppScreen::Menu => {
                     if let Some(action) = state.menu.tick(dt, mouse, click) {
                         match action {
@@ -494,6 +555,37 @@ async fn main() {
         clear_background(ctx.colors.paper_bottom);
 
         match state.screen {
+            AppScreen::WebStart => {
+                clear_background(Color::new(0.04, 0.03, 0.02, 1.0));
+                let title = "jade-garden";
+                let d = measure_text(title, None, 48, 1.0);
+                draw_text(
+                    title,
+                    screen_width() * 0.5 - d.width * 0.5,
+                    screen_height() * 0.42,
+                    48.0,
+                    ctx.colors.gold,
+                );
+                let sub = "A contemplative match-3";
+                let d = measure_text(sub, None, 18, 1.0);
+                draw_text(
+                    sub,
+                    screen_width() * 0.5 - d.width * 0.5,
+                    screen_height() * 0.42 + 34.0,
+                    18.0,
+                    Color::new(0.72, 0.68, 0.58, 1.0),
+                );
+                let prompt = "Click anywhere to begin";
+                let d = measure_text(prompt, None, 20, 1.0);
+                let pulse = 0.6 + 0.4 * (get_time() as f32 * 2.0).sin().abs();
+                draw_text(
+                    prompt,
+                    screen_width() * 0.5 - d.width * 0.5,
+                    screen_height() * 0.72,
+                    20.0,
+                    Color::new(0.94, 0.78, 0.40, pulse),
+                );
+            }
             AppScreen::Menu => state.menu.draw(&ctx, &state.poem_font),
             AppScreen::Intro(idx) => draw_intro(&ctx, &state, idx),
             AppScreen::Game(_) => {

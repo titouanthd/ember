@@ -7,9 +7,10 @@
 > où chaque niveau restaure un fragment d'un jardin de jade abandonné,
 > et révèle un caractère d'un poème des Tang.
 
-Dernière mise à jour : Session 7 (release prep).
-Statut : **release candidate**. Voir [`RELEASE.md`](RELEASE.md) pour
-la checklist et l'état des tests.
+Dernière mise à jour : Session 8 (release + web port).
+Statut : **released v0.1.0**. Deux builds publiés sur itch.io :
+native macOS (downloadable) et HTML5 / WASM (jouable dans le
+navigateur). Voir [`RELEASE.md`](RELEASE.md) pour l'état détaillé.
 
 ---
 
@@ -54,8 +55,8 @@ pinyin et prose finale) puis, si la date système tombe entre
 septembre et novembre, un **teaser Halloween** (fausse alerte, alien
 procédural, jumpscare).
 
-**Plateforme** : desktop, clavier + souris. Fenêtre 1200×900 par
-défaut, redimensionnable.
+**Plateforme** : desktop (macOS, Linux, Windows) + **navigateur
+(WebAssembly)**. Fenêtre 1400×900 par défaut, redimensionnable.
 
 ---
 
@@ -90,20 +91,21 @@ défaut, redimensionnable.
 | **Objectifs** | Score / ClearJade / FillPoem (compte les cascades) | + obstacles, + cage, + glace |
 | **Coups** | Limités (18-35 selon niveau) | + moves bonus |
 | **Narration** | 12 niveaux, 4 chapitres, poème 20 caractères, épilogue | + saisons, + autres poèmes |
-| **Progression** | Étoiles (1-3), **meilleurs temps par palier**, persistance RON | + achievements, + mode zen |
+| **Progression** | Étoiles (1-3), **meilleurs temps par palier**, persistance RON (native), mémoire (web) | + achievements, + mode zen |
 | **Juice** | Tween, particules polygonales, floating text, screen shake, **shockwave, radial burst, vignette, flash, slow-mo** | — |
 | **Animations** | Fall, bounce, shrink, spawn | + trail, + wave |
 | **Art** | Jades procéduraux, board en bois laqué, cadre doré | + textures |
 | **Police** | DejaVu Sans Mono (défaut) + subset Noto Sans SC (poème) | — |
-| **Écrans** | Menu, intro chapitre, jeu, victoire, défaite, aide, épilogue, teaser Halloween | + boutique, + carte |
-| **Sons** | Playlist séquentielle 3 pistes (soloud → afplay/ffplay/mpv) + SFX tease jumpscare | + slider volume |
+| **Écrans** | WebStart (wasm), menu, intro chapitre, jeu, victoire, défaite, aide, épilogue, teaser Halloween | + boutique, + carte |
+| **Sons** | Playlist séquentielle 3 pistes (soloud → afplay/ffplay/mpv sur natif, WebAudio sur wasm) + SFX tease jumpscare (natif uniquement) | + slider volume, + SFX web |
 | **Cinématiques** | Épilogue, teaser Halloween, jumpscare final | — |
 | **Aide** | Modal in-game (Tab/F1) : 6 jades, gameplay, objectifs, contrôles | — |
 | **Hints** | 3 par partie, shape-matched, 3 s, `[H]` | — |
 | **Replay** | Continue au-delà du 1er seuil si le niveau est déjà complété | — |
+| **Web (WASM)** | Build `tools/build-web.sh`, joue sur itch.io | + localStorage, + SFX web, + teaser |
 
-**Tests livrés** : 265 unit (lib) + 10 (main) + 1 balance + 22
-intégration + 1 objectives (+1 ignoré) = **299 tests verts**.
+**Tests livrés** : ~295 unit (lib) + 10 (main) + 1 balance + 22
+intégration + 1 objectives (+1 ignoré) = **~330 tests verts**.
 
 ---
 
@@ -165,7 +167,16 @@ Jeu → Victoire → Épilogue (poème complet, pinyin, prose)
 ```
 
 Pas de sauvegarde mid-partie. Score, étoiles, temps, fragments de
-poème et flags cinématiques persistent dans `progress.ron`.
+poème et flags cinématiques persistent dans `progress.ron` (natif)
+ou en mémoire (web).
+
+### 4.3 Spécificités web
+
+Sur web, un écran `WebStart` s'affiche avant le menu : « Click
+anywhere to begin ». Il débloque la lecture audio (politique
+d'autoplay des navigateurs) et démarre la musique. Le teaser
+Halloween est désactivé (pas de `SystemTime::now()` fiable sur
+`wasm32-unknown-unknown`).
 
 ---
 
@@ -281,8 +292,15 @@ pub struct LevelTimes {
 }
 ```
 
-Le fichier est écrit dans le dossier utilisateur de la plateforme
-(voir §6.13 `paths.rs`). Il est créé à la première sauvegarde.
+**Native** : le fichier est écrit dans le dossier utilisateur de la
+plateforme (voir §6.13 `paths.rs`). Créé à la première sauvegarde.
+
+**Web (WASM)** : la progression est conservée **en mémoire**
+(`thread_local<RefCell<Option<String>>>`). Elle ne survit pas à la
+fermeture de l'onglet. Un bridge `localStorage` est prévu
+post-release — `wasm-bindgen` étant incompatible avec le système
+d'import de miniquad, il faudra passer par un plugin miniquad custom
+(~30 lignes de JS + un wrapper Rust).
 
 ### 5.5 Étoiles
 
@@ -309,6 +327,10 @@ sans `macroquad`. Testable headless.
 Palette (dark lacquer + gold + cinnabar), layout, helpers de hit-test.
 Chargé depuis `.env` en dev (`COLOR_*`), avec valeurs par défaut
 codées en dur.
+
+**Note web** : `from_env` est `#[cfg(not(target_arch = "wasm32"))]`.
+Sur wasm, `from_env` retourne directement `Colors::defaults()` —
+pas de `dotenvy`, pas de `env!`, pas de `.env` à charger.
 
 ### 6.3 `grid.rs` — Logique de match-3
 
@@ -437,24 +459,31 @@ pub struct Game {
 Accessible via Tab/F1 depuis le menu, l'intro ou le jeu. Détaille les
 6 jades (icône, nom chinois, latin, signification), le gameplay, les
 3 types d'objectifs, et les contrôles. Fond assombri, double cadre
-doré.
+doré, contenu scrollable avec vrai clipping (scissor test via
+`get_internal_gl`).
 
 ### 6.13 `paths.rs` — Résolution des chemins runtime
 
-Résolution en cascade, sans dépendance :
+**Native** :
 
-**Assets (lecture)** :
+*Assets (lecture)* :
 1. `$JADE_GARDEN_ASSETS`
 2. `<exe_dir>/assets` (layout release)
 3. `CARGO_MANIFEST_DIR/assets` (dev)
 
-**`progress.ron` (lecture/écriture)** :
+*`progress.ron` (lecture/écriture)* :
 1. `$JADE_GARDEN_PROGRESS`
 2. Dossier utilisateur de la plateforme
    (`~/Library/Application Support/jade-garden/` sur macOS, etc.)
 3. `CARGO_MANIFEST_DIR/progress.ron` (dev)
 
 `ensure_parent_dir` crée le dossier cible à la première sauvegarde.
+
+**Web (WASM)** : `assets_dir()` retourne simplement
+`PathBuf::from("assets")`. Les URLs sont relatives à la page, donc
+`fetch` résout contre l'origine du `index.html`. Tous les helpers
+natifs (`progress_path`, `ensure_parent_dir`, `current_exe_dir`,
+`user_data_dir`) sont `#[cfg(not(target_arch = "wasm32"))]`.
 
 ### 6.14 `fonts.rs` — Chargement des polices
 
@@ -464,9 +493,12 @@ Résolution en cascade, sans dépendance :
   titre, de l'auteur et des noms de jades. Chargée séparément via
   `PoemFont`. Fallback gracieux si absente (tofu, pas de crash).
 
+**Note web** : les polices sont préchargées via
+`load_ttf_font().await` (fetch HTTP) dans `main` avant la boucle.
+
 ### 6.15 `audio.rs` — Musique + SFX
 
-Backend hybride :
+**Native** — backend hybride :
 1. **soloud** (bundled) si disponible.
 2. Sinon **sous-processus** : `afplay` (macOS), `ffplay`/`mpv`
    (Linux, Windows).
@@ -475,9 +507,21 @@ Playlist séquentielle : intro → boucle sur les pistes non-intro. Si
 une piste manque, essaie les suivantes en round-robin. Si aucune ne
 marche, musique désactivée, jeu continue.
 
-SFX : `play_scare()` / `play_scream()` pour le teaser Halloween,
+**Web (WASM)** — `macroquad::audio` (quad-snd → WebAudio). Les
+pistes sont **préchargées en async** dans `main()` via
+`MusicPlayer::preload().await` — obligatoire, car `load_sound` fait
+un `fetch`. La lecture est ensuite synchrone (`play_sound`). Pas de
+`wasm-bindgen` : le glue JS est `mq_js_bundle.js`, fourni par
+macroquad.
+
+Le suivi du temps utilise un `f32` accumulé (`advance_elapsed`) au
+lieu de `Instant::now`, indisponible sur
+`wasm32-unknown-unknown`.
+
+**SFX** : `play_scare()` / `play_scream()` pour le teaser Halloween,
 avec override `assets/scare.wav` / `assets/scream.wav`, fallback
-sur les sons système macOS (`Glass.aiff` / `Sosumi.aiff`).
+sur les sons système macOS (`Glass.aiff` / `Sosumi.aiff`). Silencieux
+sur web.
 
 ### 6.16 `poem.rs` — Poème《春晓》
 
@@ -486,16 +530,25 @@ titre, auteur.
 
 ### 6.17 `level.rs` — Chargement des niveaux et chapitres
 
-Charge `levels.ron` et `chapitres.ron` via `paths::asset`.
+Charge `levels.ron` et `chapitres.ron` via `paths::asset` (natif :
+lecture fichier sync déguisée en future ; web : `macroquad::file::load_string`).
 `objective_label` produit les libellés anglais pour le HUD et le menu.
+`star_tier_label` produit le label sous chaque étoile (`obj` pour les
+niveaux non-Score).
 
 ### 6.18 `main.rs` — Boucle
 
-Machine à états à 5 écrans : `Menu`, `Intro(idx)`, `Game(idx)`,
-`Epilogue`, `Halloween`. Deux cinématiques implémentées en dur
-(épilogue = poème animé ; teaser = zoom alien + jumpscare final avec
-`play_scream` à 0.7 s). `is_spooky_season()` utilise une conversion
-Unix → mois **exacte** (règles grégoriennes complètes).
+Machine à états à 6 écrans : `WebStart` (wasm), `Menu`, `Intro(idx)`,
+`Game(idx)`, `Epilogue`, `Halloween`. Deux cinématiques implémentées
+en dur (épilogue = poème animé ; teaser = zoom alien + jumpscare
+final avec `play_scream` à 0.7 s). `is_spooky_season()` utilise une
+conversion Unix → mois **exacte** (règles grégoriennes complètes) et
+retourne `false` sur wasm.
+
+Un 6e écran, `AppScreen::WebStart`, existe uniquement sur web. Il
+bloque l'audio tant que le joueur n'a pas cliqué (politique
+d'autoplay des navigateurs). Sur natif, `main()` saute directement
+au menu.
 
 ---
 
@@ -504,6 +557,8 @@ Unix → mois **exacte** (règles grégoriennes complètes).
 ### 7.1 Machine à états
 
 ```
+AppScreen::WebStart (wasm uniquement)
+    ↓ clic
 AppScreen::Menu
     ↓ clic niveau débloqué
 AppScreen::Intro(idx)  (1er niveau du chapitre uniquement)
@@ -542,21 +597,32 @@ AppScreen::Game(idx)
 ```
 games/jade-garden/
 ├── DESIGN.md                (ce fichier)
-├── RELEASE.md               checklist release
+├── RELEASE.md               état de release + limitations
 ├── README.md                contrôles, install, dev
 ├── CREDITS.md               musique, polices, poème
 ├── Cargo.toml
 ├── .env                     overrides couleur (dev)
-├── .gitignore               (progress.ron, .env)
+├── .gitignore               (progress.ron, .env, dist/, tools/.cache/)
 ├── subset_font.sh           génère NotoSansSC-JadeGarden.otf
 ├── assets/
 │   ├── levels.ron           12 niveaux
 │   ├── chapitres.ron        4 chapitres × 3 niveaux
 │   ├── DejaVuSansMono.ttf
 │   ├── NotoSansSC-JadeGarden.otf   (subset CJK)
+│   ├── icon-256.png         icône de fenêtre (native)
 │   └── sonican-*.mp3        3 pistes musicales
+├── web/
+│   └── index.html           shell HTML5 pour le build WASM
+├── tools/
+│   ├── build-icon.sh        génère icon.svg → PNG + .icns
+│   ├── icon.svg             source de l'icône
+│   ├── build-web.sh         bundle WASM pour itch.io
+│   └── itch-media/
+│       ├── cover.svg        cover 630×500 (rice paper, jade héros)
+│       ├── banner.svg       banner 960×400 (nuit, portail de lune)
+│       └── build-media.sh   SVG → PNG (Chromium headless)
 ├── src/
-│   ├── main.rs              boucle + cinématiques
+│   ├── main.rs              boucle + cinématiques + écran WebStart
 │   ├── lib.rs               exports publics
 │   ├── paths.rs             résolution runtime
 │   ├── config.rs            GameContext + palette
@@ -571,11 +637,11 @@ games/jade-garden/
 │   ├── hud.rs               affichage in-game
 │   ├── help.rs              modal d'aide
 │   ├── level.rs             chargement niveaux + chapitres
-│   ├── poem.rs             《春晓》 + pinyin
-│   ├── progress.rs          persistance RON + temps
+│   ├── poem.rs              《春晓》 + pinyin
+│   ├── progress.rs          persistance RON (natif) / mémoire (web)
 │   ├── systems.rs           Game state + tick
 │   ├── fonts.rs             DejaVu + subset CJK
-│   └── audio.rs             playlist + SFX
+│   └── audio.rs             playlist + SFX (hybride natif/web)
 └── tests/
     ├── game_scenarios.rs    22 tests d'intégration
     ├── balance.rs           rapport d'équilibrage (greedy AI)
@@ -594,7 +660,8 @@ games/jade-garden/
 | Fond parallax shan shui | 2 (ember-wars → jade-garden) | Attendre 3e |
 | Menu campagne scrollable | 2 (ember-wars → jade-garden) | Attendre 3e |
 | `Persistence<T>` | déjà extrait | — |
-| `Cooldown` | déjà extrait | — |
+| `Cooldown` | déjà extrait (Phase 26) | — |
+| Preload async sur wasm, sync sur natif | 2 (audio + fonts) | Peut-être extraire |
 
 **Note stratégique** : après jade-garden, `Juice` et la police Unicode
 sont mûrs pour `ember_stdlib`. À traiter en phase refacto dédiée,
@@ -604,8 +671,8 @@ post-release.
 
 ## 10. Stratégie de tests
 
-**Livrés** : 265 unit (lib) + 10 (main) + 1 balance + 22 intégration
-+ 1 objectives (+1 ignoré) = **299 verts**.
+**Livrés** : ~295 unit (lib) + 10 (main) + 1 balance + 22 intégration
++ 1 objectives (+1 ignoré) = **~330 verts**.
 
 ### 10.1 Couverture par module
 
@@ -617,18 +684,18 @@ post-release.
 | `config.rs` | 10 |
 | `fonts.rs` | 1 |
 | `grid.rs` | 32 |
-| `help.rs` | 3 |
+| `help.rs` | 11 |
 | `juice.rs` | 26 |
-| `level.rs` | 9 |
+| `level.rs` | 11 |
 | `menu.rs` | 22 |
 | `paths.rs` | 5 |
 | `poem.rs` | 9 |
 | `progress.rs` | 16 |
 | `scoring.rs` | 32 |
-| `scroll_painting.rs` | 11 |
+| `scroll_painting.rs` | 30 |
 | `systems.rs` | 33 |
 | `tile_render.rs` | 17 |
-| **Total unit (lib)** | **265** |
+| **Total unit (lib)** | **~295** |
 | `main.rs` (reveal + dates) | 10 |
 | `tests/game_scenarios.rs` | 22 |
 | `tests/balance.rs` | 1 |
@@ -725,7 +792,8 @@ Titre, auteur, prose finale (« Xiao Lin sits down… »), puis prompt
 (yeux qui suivent la souris) → message personnalisé (« Wang Yi, you
 weren't supposed to see this. ») → fausse fin sur `[Enter]` → écran
 noir 0.7 s → `play_scream()` + alien plein écran → retour menu.
-Déclenché **une seule fois**, entre septembre et novembre.
+Déclenché **une seule fois**, entre septembre et novembre. Désactivé
+sur web.
 
 ---
 
@@ -820,6 +888,18 @@ Banner `CASCADE ×N` flottant, taille croissante.
 - **Clip d'anneaux de sélection** : utiliser la **silhouette** du
   jade pour dessiner les anneaux pulsés, pas un rectangle — sinon
   coupé par la tuile du dessous.
+- **`next_frame().await` unique** : un double appel dans la même
+  itération provoque un flickering GPU (buffer swap à moitié lu).
+- **`get_screen_data()` sur macOS/Metal** : non implémenté côté
+  miniquad, provoque des erreurs GPU et des PNG noirs. Ne pas
+  utiliser pour les screenshots.
+- **`Instant::now()` sur wasm32-unknown-unknown** : indisponible.
+  Utiliser un `f32` accumulé depuis `dt`.
+- **`wasm-bindgen` incompatible avec miniquad** : les deux ont des
+  systèmes d'import WASM différents (`__wbindgen_placeholder__` vs
+  `env.console_log`). Choisir l'un ou l'autre, pas les deux.
+- **Cairosvg + SVG avec `width`/`height` explicites** : padding blanc
+  garanti. Préférer Chrome headless pour SVG → PNG.
 
 ### 13.3 Décisions validées
 
@@ -831,15 +911,15 @@ Banner `CASCADE ×N` flottant, taille croissante.
 - ✅ Poème《春晓》de Meng Haoran.
 - ✅ 3 types d'objectifs : Score, ClearJade, FillPoem.
 - ✅ Étoiles 1-3 basées sur le score vs `star_target`.
-- ✅ Persistance RON dans le dossier utilisateur.
+- ✅ Persistance RON (native), mémoire (web).
 - ✅ Juice riche : shockwave, rayons, vignette, flash, slow-mo.
 - ✅ Fond parallax shan shui, dérive automatique.
 - ✅ Jades procéduraux, board en bois laqué.
-- ✅ Fenêtre 1200×900, redimensionnable.
-- ✅ Code 100 % anglais, sauf les données chinoises volontaires
-  (poème, noms des jades, auteur).
-- ✅ Audio hybride soloud → sous-processus système.
-- ✅ Cinématiques épilogue + teaser Halloween.
+- ✅ Fenêtre 1400×900, redimensionnable.
+- ✅ Code 100 % anglais, sauf les données chinoises volontaires.
+- ✅ Audio hybride natif (soloud → sous-processus) + WebAudio web.
+- ✅ Cinématiques épilogue + teaser Halloween (natif).
+- ✅ WebAssembly support sans `wasm-bindgen`.
 
 ---
 
@@ -847,6 +927,9 @@ Banner `CASCADE ×N` flottant, taille croissante.
 
 ### 14.1 Post-release
 
+- **Bridge `localStorage`** pour la persistance web (plugin
+  miniquad, ~30 lignes de JS + wrapper Rust).
+- **SFX web** pour `play_scare` / `play_scream`.
 - **Stèle dans le menu** après 20/20 : bouton pour revoir le poème
   complet avec pinyin.
 - **Slider de volume** dans le menu.
@@ -857,41 +940,62 @@ Banner `CASCADE ×N` flottant, taille croissante.
 - **Extraction `ember_stdlib::juice`** (3e occurrence confirmée).
 - **Extraction police Unicode** (3e occurrence).
 - **Fallback hint FillPoem** : si aucun swap n'avance l'objectif,
-  pointer sur *n'importe quel* swap produisant un match, pour ne
-  jamais consommer un hint en silence. Théorique aujourd'hui (les 3
-  seeds réels passent).
+  pointer sur *n'importe quel* swap produisant un match.
 
 ### 14.2 Open questions
 
-1. **Icône de fenêtre** : à ajouter avant release si un PNG est
-   disponible, sinon skip.
-2. **Format de bundle** : `binaire + assets/` côte à côte, ou
-   `include_bytes!` pour tout ce qui est petit ? Le premier est
-   retenu pour la release.
-3. **Skip de musique** : actuellement, si une piste manque, on
-   essaie les suivantes en round-robin. À voir si on veut logguer
-   plus agressivement, ou éteindre complètement.
+1. **Format de bundle web** : `include_bytes!` pour les fichiers
+   petits ? Pas urgent — le bundle actuel à 8 MB est acceptable.
+2. **Skip de musique** : round-robin actuel silencieux. À voir si
+   on veut logguer plus agressivement.
+3. **Icône de fenêtre web** : inutile (pas de barre de titre dans le
+   navigateur).
 
 ---
 
-## 15. État actuel
+## 15. État actuel (v0.1.0)
 
-Voir [`RELEASE.md`](RELEASE.md) pour la checklist de release
-détaillée et l'état des tests. Le design initial (§1-§12) reste la
-référence pour la mécanique, la narration et la palette ; les écarts
-par rapport à la Session 1 sont documentés dans les sections
-correspondantes ci-dessus :
+**Release publiée.** Deux builds sur itch.io :
 
-- `components.rs` : plus de `TileState`, grille toujours pleine.
-- `scoring.rs` : 60 pts pour 3, +20 par tuile, tiers 0-4.
-- `systems.rs` : `stop_on_objective`, slow-mo, hints, temps.
-- `main.rs` : 5 écrans d'état (menu, intro, jeu, épilogue, teaser).
-- `paths.rs` : résolution runtime des assets et de `progress.ron`.
-- `audio.rs` : backend hybride + SFX.
-- `help.rs` : modal d'aide.
-- Palette : dark lacquer + or + cinabre, remplaçant le shan shui
-  pâle de la Session 1.
-- Localisation : anglais partout sauf les données chinoises.
+- **Native macOS** (downloadable) :
+  `ember-workspace.itch.io/jade-garden`
+- **HTML5 / WASM** (jouable dans le navigateur) :
+  `ember-workspace.itch.io/jade-garden-web`
+
+Tests verts, clippy clean. Voir [`RELEASE.md`](RELEASE.md) pour la
+checklist détaillée et les limitations connues.
+
+### Écarts par rapport au design initial (§1-§12)
+
+- **`components.rs`** : plus de `TileState`, grille toujours pleine
+  (`[[Tile; 8]; 8]`).
+- **`scoring.rs`** : 60 pts pour 3 jades, +20 par tuile
+  supplémentaire ; tiers de cascade 0-4 pour le juice.
+- **`systems.rs`** : `stop_on_objective` (replay mode), slow-mo,
+  hints, tracking de temps.
+- **`main.rs`** : 6 écrans d'état (`WebStart`, menu, intro, jeu,
+  épilogue, teaser).
+- **`paths.rs`** : résolution runtime des assets et du fichier de
+  progression ; variante wasm relative.
+- **`audio.rs`** : backend hybride natif (soloud → sous-processus),
+  backend WebAudio (macroquad) sur wasm.
+- **`help.rs`** : modal d'aide scrollable (Tab / F1) avec vrai
+  clipping.
+- **Palette** : dark lacquer + or + cinabre pour l'UI, **et**
+  papier de riz clair pour la cover + teaser — deux registres
+  assumés.
+- **Localisation** : anglais partout sauf les données chinoises.
+
+### Ajouts post-session 1
+
+- **Cover et banner** : SVG procéduraux, style rice paper (cover)
+  et nuit / portail de lune (banner). Régénérables via
+  `tools/itch-media/build-media.sh`.
+- **Build web** : `tools/build-web.sh`, `web/index.html`. Audio,
+  palettes, gameplay et cinématiques préservés (sauf teaser
+  Halloween, désactivé sur wasm).
+- **Persistance web** : in-memory pour l'instant.
+- **Écran `WebStart`** : clic initial requis pour débloquer l'audio.
 
 ---
 
@@ -909,9 +1013,15 @@ correspondantes ci-dessus :
 | **Fond parallax contemplatif** | 2e occurrence |
 | **Résolution runtime des assets** (`paths.rs`) | 1re occurrence |
 | **Audio hybride soloud + sous-processus** | 1re occurrence |
+| **Build web / WASM sans wasm-bindgen** | 1re occurrence |
+| **Backend audio WebAudio** | 1re occurrence |
+| **Rendu SVG procédural d'assets marketing** | 1re occurrence |
+| **Preload async sur wasm, sync sur natif** (audio + fonts) | 2 occurrences |
 
-**Prochaines extractions probables** : `ember_stdlib::juice` et la
-police Unicode. À traiter en phase refacto séparée, après la release.
+**Prochaines extractions probables** : `ember_stdlib::juice`
+(3 occurrences), la police Unicode + subset (3 occurrences), et
+peut-être le pattern « preload async sur wasm, sync sur natif »
+(2 occurrences : audio + fonts).
 
 ---
 

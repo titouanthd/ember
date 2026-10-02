@@ -6,7 +6,13 @@ Align the jades, wake the garden, recompose a Tang poem.
 Inspired by *Bejeweled* (PopCap, 2001) for its match-3 core and
 *Monument Valley* (ustwo, 2014) for its contemplative pacing.
 
+**▶ Play in your browser:** [ember-workspace.itch.io/jade-garden-web](https://ember-workspace.itch.io/jade-garden-web)
+— no download, no install. A native macOS build is also available
+at [ember-workspace.itch.io/jade-garden](https://ember-workspace.itch.io/jade-garden).
+
 ## Running
+
+### Native
 
 ```sh
 cargo run --release -p jade-garden
@@ -27,6 +33,32 @@ assets/
 
 In dev (`cargo run`), assets are resolved from the source tree
 automatically.
+
+### Web (WASM)
+
+```sh
+./tools/build-web.sh
+```
+
+Produces `dist/web/`:
+
+```
+dist/web/
+├── index.html
+├── jade-garden.wasm
+├── mq_js_bundle.js
+└── assets/
+```
+
+Serve it locally with any static server:
+
+```sh
+cd dist/web && python3 -m http.server 8080
+# → http://localhost:8080
+```
+
+On the web, the first click unlocks audio (browser autoplay policy);
+after that, everything behaves normally.
 
 ## Controls
 
@@ -60,7 +92,7 @@ without colour:
 Three objective types appear across the campaign:
 
 - **Score N** — reach N points.
-- **Clear N <jade>** — remove N jades of a given type.
+- **Clear N jade** — remove N jades of a given type.
 - **Trigger N cascades** — chain N cascade reactions. The first
   match after a swap is free; only the cascades that follow count.
 
@@ -72,7 +104,18 @@ After the final level: an epilogue. Between September and November,
 a Halloween teaser plays once, the first time you finish the
 campaign in that window.
 
+### Speedrunning
+
+Every level is deterministic — the board is generated from a fixed
+seed, so two players see the same jades in the same order. The game
+tracks your fastest time to each star tier (1★, 2★, 3★) and the
+moment of your peak score, and shows them in the level select menu.
+The HUD also has a live timer (top-right) for score runs and time
+runs.
+
 ## Audio backends
+
+### Native
 
 Music is played by trying, in order:
 
@@ -83,7 +126,16 @@ Music is played by trying, in order:
 If neither works, the game continues silently. To install a
 fallback on Linux: `apt install ffmpeg` (or `mpv`).
 
+### Web
+
+Music is played via `macroquad::audio` (backed by quad-snd →
+WebAudio). Tracks are preloaded asynchronously before the main
+loop, then played synchronously. MP3 and WAV work in every modern
+browser; OGG is not supported by Safari.
+
 ## Save file
+
+### Native
 
 Player progress lives in `progress.ron`, in the platform user-data
 directory:
@@ -94,6 +146,12 @@ directory:
 - Windows: `%APPDATA%\jade-garden\progress.ron`
 
 Override with `$JADE_GARDEN_PROGRESS` if you need a portable setup.
+
+### Web
+
+Progress is **kept in memory** for the current browser tab. Best
+scores, stars, and poem fragments reset when the tab is closed.
+A `localStorage` bridge is planned but not yet shipped.
 
 ## Development
 
@@ -109,6 +167,9 @@ cargo test --release -p jade-garden --test objectives -- --nocapture
 
 # Seed scanner (ignored by default, can take a while)
 cargo test --release -p jade-garden --test objectives -- --ignored --nocapture
+
+# Web bundle
+./tools/build-web.sh
 ```
 
 ### Regenerating the CJK font subset
@@ -122,6 +183,19 @@ To regenerate it:
 ```
 
 Requires `fonttools` (`pip install fonttools`) and `curl`.
+
+### Regenerating the itch.io media
+
+Cover (630×500) and banner (960×400) live as SVG under
+`tools/itch-media/`. Regenerate the PNGs with:
+
+```sh
+./tools/itch-media/build-media.sh
+```
+
+The script uses a Chromium-based browser in headless mode (Chrome,
+Brave, Edge, Chromium, Arc) for exact-size rendering, with
+`rsvg-convert` and `cairosvg` as fallbacks.
 
 ### Colour overrides
 

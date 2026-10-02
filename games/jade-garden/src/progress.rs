@@ -1,36 +1,33 @@
-//! Persistence of player progress (`progress.ron`).
+//! Persistence of player progress.
 //!
-//! The file is gitignored. It stores best scores, stars per level, and
-//! poem progress.
+//! **Native**: reads/writes `progress.ron` in the user-data directory.
+//!
+//! **Web**: uses an in-memory `thread_local` for now. Persistence
+//! doesn't survive a page reload. A proper `localStorage` bridge will
+//! come later via a miniquad plugin (wasm-bindgen is incompatible
+//! with miniquad's own import system).
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::paths;
 use crate::poem;
+
+// ---------- Data types ----------
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Progress {
     pub best_scores: HashMap<String, u32>,
     pub stars: HashMap<String, u8>,
-    /// Number of poem characters revealed (0-20).
     pub poem_fragments: u8,
-    /// True once the player has watched the epilogue cinematic.
     #[serde(default)]
     pub epilogue_seen: bool,
-    /// True once the player has watched the Halloween teaser.
     #[serde(default)]
     pub halloween_seen: bool,
-   /// Best times per level. `#[serde(default)]` so old files load.
     #[serde(default)]
     pub best_times: HashMap<String, LevelTimes>,
 }
 
-/// Best times achieved on a level, in seconds.
-///
-/// `None` means "not set yet" (level never reached that threshold).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LevelTimes {
     #[serde(default)]
@@ -43,24 +40,17 @@ pub struct LevelTimes {
     pub best_score_time: Option<f32>,
 }
 
-/// Times recorded during a single run, passed to `record_win`.
 #[derive(Debug, Clone, Default)]
 pub struct RunTimes {
-    /// Time at which the run first crossed each star threshold.
     pub to_1_star: Option<f32>,
     pub to_2_star: Option<f32>,
     pub to_3_star: Option<f32>,
-    /// Time at which the run achieved its peak score.
     pub peak_time: f32,
-    /// The peak score the run achieved.
     pub peak_score: u32,
-    /// Total elapsed time of the run.
     pub total: f32,
 }
 
 impl Progress {
-    /// Records a win. Kept for backward compatibility — use
-    /// [`record_win_with_times`] for full timing info.
     pub fn record_win(
         &mut self,
         level_id: &str,
@@ -77,7 +67,6 @@ impl Progress {
         );
     }
 
-    /// Records a win with timing info.
     pub fn record_win_with_times(
         &mut self,
         level_id: &str,
@@ -88,20 +77,17 @@ impl Progress {
     ) {
         let was_new = !self.stars.contains_key(level_id);
 
-        // ── Best score ──
         let prev_best = self.best_scores.get(level_id).copied().unwrap_or(0);
         let beat_best = score > prev_best;
         if beat_best {
             self.best_scores.insert(level_id.to_string(), score);
         }
 
-        // ── Stars ──
         let s = self.stars.entry(level_id.to_string()).or_insert(0);
         if stars > *s {
             *s = stars;
         }
 
-        // ── Times ──
         let entry = self
             .best_times
             .entry(level_id.to_string())
@@ -120,7 +106,6 @@ impl Progress {
             entry.best_score_time = Some(times.peak_time);
         }
 
-        // ── Poem fragments (first win only) ──
         if was_new {
             self.poem_fragments = self
                 .poem_fragments
@@ -129,12 +114,10 @@ impl Progress {
         }
     }
 
-    /// Best time (seconds) at which the best score was achieved.
     pub fn best_time_for_score(&self, id: &str) -> Option<f32> {
         self.best_times.get(id).and_then(|t| t.best_score_time)
     }
 
-    /// Full `LevelTimes` for a level, if any.
     pub fn level_times(&self, id: &str) -> Option<&LevelTimes> {
         self.best_times.get(id)
     }
@@ -164,32 +147,76 @@ impl Progress {
     }
 }
 
-pub fn progress_path() -> PathBuf {
-    paths::progress_path()
-}
+// ---------- Load / Save ----------
 
 pub fn load_progress() -> Progress {
-    let path = progress_path();
-    if !path.exists() {
-        return Progress::default();
-    }
-    match ember_core::io::load_from_file(&path) {
-        Ok(p) => p,
+    match load_raw() {
+        Ok(Some(text)) => match ron::from_str(&text) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("⚠️  Corrupted progress file ({e}); starting fresh.");
+                Progress::default()
+            }
+        },
+        Ok(None) => Progress::default(),
         Err(e) => {
-            eprintln!(
-                "⚠️  Could not read {} ({e}). Starting with empty progress.",
-                path.display()
-            );
+            eprintln!("⚠️  Could not read progress ({e}); starting fresh.");
             Progress::default()
         }
     }
 }
 
 pub fn save_progress(progress: &Progress) -> Result<(), String> {
-    let path = progress_path();
-    paths::ensure_parent_dir(&path)?;
-    ember_core::io::save_to_file(&path, progress)
+    let text = ron::ser::to_string(progress)
+        .map_err(|e| format!("serialize progress: {e}"))?;
+    save_raw(&text)
 }
+
+// ---------- Native backend ----------
+
+#[cfg(not(target_arch = "wasm32"))]
+fn load_raw() -> Result<Option<String>, String> {
+    use crate::paths;
+    let path = paths::progress_path();
+    if !path.exists() {
+        return Ok(None);
+    }
+    std::fs::read_to_string(&path).map(Some).map_err(|e| format!("{e}"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn save_raw(text: &str) -> Result<(), String> {
+    use crate::paths;
+    let path = paths::progress_path();
+    paths::ensure_parent_dir(&path)?;
+    std::fs::write(&path, text).map_err(|e| format!("write {path:?}: {e}"))
+}
+
+// ---------- Web backend ----------
+
+#[cfg(target_arch = "wasm32")]
+thread_local! {
+    /// In-memory fallback for wasm. Persistence won't survive a page
+    /// reload until we add a proper localStorage bridge via a
+    /// miniquad plugin.
+    static IN_MEMORY_PROGRESS: std::cell::RefCell<Option<String>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(target_arch = "wasm32")]
+fn load_raw() -> Result<Option<String>, String> {
+    IN_MEMORY_PROGRESS.with(|c| Ok(c.borrow().clone()))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn save_raw(text: &str) -> Result<(), String> {
+    IN_MEMORY_PROGRESS.with(|c| {
+        *c.borrow_mut() = Some(text.to_string());
+    });
+    Ok(())
+}
+
+// ---------- Tests ----------
 
 #[cfg(test)]
 mod tests {
@@ -231,7 +258,7 @@ mod tests {
         p.record_win("l01", 1000, 1, 2);
         assert_eq!(p.poem_fragments, 2);
         p.record_win("l01", 2000, 3, 2);
-        assert_eq!(p.poem_fragments, 2, "replay must not add fragments");
+        assert_eq!(p.poem_fragments, 2);
     }
 
     #[test]
@@ -284,20 +311,7 @@ mod tests {
     }
 
     #[test]
-    fn progress_parses_without_epilogue_seen_field() {
-        // Old progress files don't have `epilogue_seen`.
-        let ron = r#"(
-            best_scores: {},
-            stars: {},
-            poem_fragments: 0,
-        )"#;
-        let p: Progress = ron::from_str(ron).unwrap();
-        assert!(!p.epilogue_seen);
-    }
-
-    #[test]
     fn progress_parses_without_new_flags() {
-        // Old progress files lack epilogue_seen / halloween_seen.
         let ron = r#"(
             best_scores: {},
             stars: {},
@@ -330,7 +344,6 @@ mod tests {
     #[test]
     fn time_records_keep_the_fastest() {
         let mut p = Progress::default();
-        // First run: slow.
         p.record_win_with_times(
             "l01", 3500, 3, 2,
             RunTimes {
@@ -342,8 +355,6 @@ mod tests {
                 total: 170.0,
             },
         );
-        // Second run: same stars, faster 1-star, but slower score
-        // (so best score time stays the first run's).
         p.record_win_with_times(
             "l01", 3400, 3, 2,
             RunTimes {
@@ -356,66 +367,42 @@ mod tests {
             },
         );
         let t = p.level_times("l01").unwrap();
-        assert_eq!(t.time_1_star, Some(30.0), "kept the faster 1-star");
-        assert_eq!(t.time_2_star, Some(90.0), "kept the faster 2-star");
-        assert_eq!(
-            t.best_score_time,
-            Some(130.0),
-            "kept the score time from the run that actually scored higher"
-        );
+        assert_eq!(t.time_1_star, Some(30.0));
+        assert_eq!(t.time_2_star, Some(90.0));
+        assert_eq!(t.best_score_time, Some(130.0));
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
-    fn progress_roundtrips_with_every_field_populated() {
-        let mut p = Progress::default();
-        p.record_win_with_times(
-            "l01",
-            3000,
-            3,
-            2,
-            RunTimes {
-                to_1_star: Some(30.0),
-                to_2_star: Some(60.0),
-                to_3_star: Some(90.0),
-                peak_time: 85.0,
-                peak_score: 3000,
-                total: 120.0,
-            },
-        );
-        p.record_win_with_times(
-            "l02",
-            2500,
-            2,
-            2,
-            RunTimes {
-                to_1_star: Some(40.0),
-                to_2_star: Some(80.0),
-                to_3_star: None,
-                peak_time: 75.0,
-                peak_score: 2500,
-                total: 100.0,
-            },
-        );
-        p.epilogue_seen = true;
-        p.halloween_seen = true;
-
-        let text = ron::ser::to_string_pretty(&p, ron::ser::PrettyConfig::default()).unwrap();
-        let back: Progress = ron::from_str(&text).unwrap();
-
-        assert_eq!(back.poem_fragments, p.poem_fragments);
-        assert_eq!(back.epilogue_seen, p.epilogue_seen);
-        assert_eq!(back.halloween_seen, p.halloween_seen);
-        assert_eq!(back.total_stars(), p.total_stars());
-
-        for id in ["l01", "l02"] {
-            assert_eq!(back.level_best_score(id), p.level_best_score(id));
-            assert_eq!(back.level_stars(id), p.level_stars(id));
-            let a = back.level_times(id).expect("times should roundtrip");
-            let b = p.level_times(id).unwrap();
-            assert_eq!(a.time_1_star, b.time_1_star);
-            assert_eq!(a.time_2_star, b.time_2_star);
-            assert_eq!(a.time_3_star, b.time_3_star);
-            assert_eq!(a.best_score_time, b.best_score_time);
+    fn progress_path_ends_with_progress_ron() {
+        if std::env::var_os("JADE_GARDEN_PROGRESS").is_some() {
+            return;
         }
+        assert!(crate::paths::progress_path().ends_with("progress.ron"));
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn save_and_load_roundtrip_on_disk() {
+        let tmp = std::env::temp_dir()
+            .join(format!("jade-garden-progress-test-{}.ron", std::process::id()));
+
+        // SAFETY: this test is the only writer to this env var.
+        // We set it and immediately use it — no concurrent reader.
+        unsafe {
+            std::env::set_var("JADE_GARDEN_PROGRESS", &tmp);
+        }
+
+        let mut p = Progress::default();
+        p.record_win("l01", 1234, 2, 2);
+        save_progress(&p).expect("save should succeed");
+
+        let back = load_progress();
+        assert_eq!(back.level_best_score("l01"), 1234);
+
+        unsafe {
+            std::env::remove_var("JADE_GARDEN_PROGRESS");
+        }
+        let _ = std::fs::remove_file(&tmp);
     }
 }

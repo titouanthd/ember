@@ -15,8 +15,12 @@ use ember_core::rng::Rng;
 
 use jade_garden::components::{GRID_H, GRID_W};
 use jade_garden::grid::Grid;
-use jade_garden::level::{self, Objective};
+use jade_garden::level::{self, LevelConfig, Objective};
 use jade_garden::scoring::score_for_match;
+
+fn levels() -> Vec<LevelConfig> {
+    pollster::block_on(level::load_levels()).expect("levels.ron should parse")
+}
 
 /// (cell A, cell B, objective gain) for a candidate swap.
 type SwapCandidate = ((usize, usize), (usize, usize), u32);
@@ -143,7 +147,7 @@ fn play_greedy_for_objective(seed: u32, moves: u32, objective: Objective) -> u32
 
 #[test]
 fn objective_feasibility_report() {
-    let levels = level::load_levels().expect("levels.ron should parse");
+    let levels = levels();
 
     println!();
     println!("=== jade-garden — objective feasibility (greedy AI, target-aware) ===");
@@ -211,7 +215,7 @@ fn find_best_seeds() {
     const MAX_RATIO: f32 = 2.00;
     const SEED_MAX: u32 = 300;
 
-    let levels = level::load_levels().expect("levels.ron should parse");
+    let levels = levels();
 
     println!();
     println!("=== Best seeds per level (greedy AI, target-aware) ===");

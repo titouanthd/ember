@@ -1,134 +1,154 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 630 500" width="630" height="500">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 630 500">
   <defs>
-    <radialGradient id="stage" cx="0.5" cy="0.55" r="0.72">
-      <stop offset="0%"  stop-color="#1C1712"/>
-      <stop offset="65%" stop-color="#0E0B08"/>
-      <stop offset="100%" stop-color="#080605"/>
+    <radialGradient id="paper" cx="0.5" cy="0.35" r="0.9">
+      <stop offset="0%"   stop-color="#F8EED4"/>
+      <stop offset="55%"  stop-color="#EBDCB4"/>
+      <stop offset="100%" stop-color="#D6C297"/>
     </radialGradient>
 
-    <!-- A: 6-stop gradient, deeper contrast -->
-    <linearGradient id="jadeBody" x1="0.35" y1="0" x2="0.65" y2="1">
+    <radialGradient id="inkWash" cx="0.7" cy="0.75" r="0.6">
+      <stop offset="0%"   stop-color="#6B5A3E" stop-opacity="0.28"/>
+      <stop offset="55%"  stop-color="#6B5A3E" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#6B5A3E" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="jadeBody" x1="0.3" y1="0" x2="0.7" y2="1">
       <stop offset="0%"   stop-color="#C4F7DE"/>
-      <stop offset="14%"  stop-color="#7FD9A6"/>
-      <stop offset="35%"  stop-color="#4E9D78"/>
-      <stop offset="58%"  stop-color="#2A6748"/>
-      <stop offset="80%"  stop-color="#123522"/>
-      <stop offset="100%" stop-color="#061410"/>
+      <stop offset="15%"  stop-color="#7FD9A6"/>
+      <stop offset="42%"  stop-color="#3F9D74"/>
+      <stop offset="75%"  stop-color="#163F2A"/>
+      <stop offset="100%" stop-color="#051410"/>
     </linearGradient>
 
-    <radialGradient id="jadeHalo" cx="0.5" cy="0.5" r="0.62">
-      <stop offset="0%"  stop-color="#4FB880" stop-opacity="0.24"/>
-      <stop offset="45%" stop-color="#2A6E4A" stop-opacity="0.06"/>
-      <stop offset="100%" stop-color="#2A6E4A" stop-opacity="0"/>
-    </radialGradient>
-
-    <radialGradient id="contact" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0%"  stop-color="#000000" stop-opacity="0.60"/>
-      <stop offset="60%" stop-color="#000000" stop-opacity="0.12"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    <radialGradient id="jadeHalo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#A8EEC4" stop-opacity="0.42"/>
+      <stop offset="45%"  stop-color="#4AA078" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#4AA078" stop-opacity="0"/>
     </radialGradient>
 
     <radialGradient id="specHalo" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0%"  stop-color="#FFFFFF" stop-opacity="0.75"/>
-      <stop offset="28%" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="0%"   stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="30%"  stop-color="#FFFFFF" stop-opacity="0.35"/>
       <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
     </radialGradient>
 
-    <!-- B: bottom rim light gradient -->
-    <linearGradient id="bottomRim" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"  stop-color="#A8F0C8" stop-opacity="0"/>
-      <stop offset="70%" stop-color="#A8F0C8" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#A8F0C8" stop-opacity="0.55"/>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#F6D780"/>
+      <stop offset="55%"  stop-color="#C89A3E"/>
+      <stop offset="100%" stop-color="#7A5620"/>
+    </linearGradient>
+
+    <linearGradient id="seal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#B83830"/>
+      <stop offset="100%" stop-color="#7A1F1A"/>
     </linearGradient>
 
     <clipPath id="hexClip">
-      <polygon points="0,-105 90.9,-52.5 90.9,52.5 0,105 -90.9,52.5 -90.9,-52.5"/>
+      <polygon points="0,-140 121.2,-70 121.2,70 0,140 -121.2,70 -121.2,-70"/>
     </clipPath>
 
-    <filter id="blur8" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="8"/>
+    <filter id="softBlur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5"/>
     </filter>
-    <filter id="blur14" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="14"/>
-    </filter>
-    <filter id="blur3" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="3"/>
+    <filter id="jadeBlur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10"/>
     </filter>
   </defs>
 
-  <rect width="630" height="500" fill="url(#stage)"/>
+  <!-- Papier de riz, remplit tout le canvas -->
+  <rect width="100%" height="100%" fill="url(#paper)"/>
 
-  <!-- Header -->
-  <text x="315" y="72" text-anchor="middle"
-        font-family="'DejaVu Sans Mono', Menlo, Monaco, monospace"
-        font-size="20"
-        fill="#D9B96A" letter-spacing="11">JADE GARDEN</text>
+  <!-- Tache d'encre, coin bas-droite -->
+  <ellipse cx="440" cy="390" rx="320" ry="260" fill="url(#inkWash)"/>
 
-  <g opacity="0.7">
-    <line x1="198" y1="89" x2="305" y2="89" stroke="#B88A42" stroke-width="0.55"/>
-    <line x1="325" y1="89" x2="432" y2="89" stroke="#B88A42" stroke-width="0.55"/>
-    <polygon points="315,86 318,89 315,92 312,89" fill="#D9B96A"/>
-  </g>
+  <!-- Montagnes shan shui, très subtiles, en bas -->
+  <path d="M 0,390 Q 45,368 100,380 T 200,362 T 305,380 T 410,362
+           T 510,378 T 630,368 L 630,500 L 0,500 Z"
+        fill="#8A7554" opacity="0.28"/>
+  <path d="M 0,420 Q 40,400 95,412 T 195,396 T 295,414 T 395,396
+           T 495,412 T 630,402 L 630,500 L 0,500 Z"
+        fill="#3E3020" opacity="0.55"/>
+  <path d="M 0,448 Q 40,432 95,440 T 195,428 T 295,442 T 395,428
+           T 495,440 T 630,434 L 630,500 L 0,500 Z"
+        fill="#1A120A" opacity="0.88"/>
 
-  <text x="315" y="112" text-anchor="middle"
-        font-family="'DejaVu Sans Mono', Menlo, Monaco, monospace"
-        font-size="9"
-        fill="#8A7A62" letter-spacing="6">A CONTEMPLATIVE MATCH-3</text>
+  <!-- Bordure fine dorée intérieure -->
+  <rect x="14" y="14" width="602" height="472" rx="2" ry="2"
+        fill="none" stroke="url(#gold)" stroke-width="0.9" opacity="0.65"/>
+  <rect x="20" y="20" width="590" height="460" rx="1" ry="1"
+        fill="none" stroke="#8A6538" stroke-width="0.4" opacity="0.4"/>
 
-  <!-- Halo & contact shadow -->
-  <ellipse cx="315" cy="328" rx="205" ry="185" fill="url(#jadeHalo)"/>
-  <ellipse cx="315" cy="468" rx="105" ry="9" fill="url(#contact)"/>
+  <!-- Jade, pivoté 7° -->
+  <g transform="translate(315 290) rotate(7)">
+    <ellipse cx="0" cy="0" rx="200" ry="200" fill="url(#jadeHalo)"/>
 
-  <!-- ═══ JADE: center (315, 328), radius 105 ═══ -->
-  <g transform="translate(315 328)">
+    <polygon points="0,-146 126.4,-73 126.4,73 0,146 -126.4,73 -126.4,-73"
+             fill="#1A1208" opacity="0.30" filter="url(#jadeBlur)"
+             transform="translate(4 10)"/>
 
-    <polygon points="0,-108 93.5,-54 93.5,54 0,108 -93.5,54 -93.5,-54"
-             fill="#04120C"/>
+    <polygon points="0,-140 121.2,-70 121.2,70 0,140 -121.2,70 -121.2,-70"
+             fill="#04140B"/>
 
-    <polygon points="0,-105 90.9,-52.5 90.9,52.5 0,105 -90.9,52.5 -90.9,-52.5"
+    <polygon points="0,-136 117.8,-68 117.8,68 0,136 -117.8,68 -117.8,-68"
              fill="url(#jadeBody)"/>
 
-    <!-- Clipped internal effects -->
     <g clip-path="url(#hexClip)">
-      <ellipse cx="-32" cy="-44" rx="52" ry="36"
-               fill="#E0FBEA" opacity="0.36" filter="url(#blur14)"/>
-      <ellipse cx="38" cy="-25" rx="34" ry="25"
-               fill="#D0F8E0" opacity="0.14" filter="url(#blur14)"/>
-      <ellipse cx="42" cy="52" rx="62" ry="40"
-               fill="#020E08" opacity="0.60" filter="url(#blur14)"/>
-
-      <path d="M -85,8 Q -25,-10 18,25 T 85,18"
-            fill="none" stroke="#C0F0D4" stroke-width="2.2" opacity="0.13"
-            filter="url(#blur3)"/>
-      <path d="M -68,-34 Q -17,-25 34,-42"
-            fill="none" stroke="#D0F8E0" stroke-width="1.3" opacity="0.09"
-            filter="url(#blur3)"/>
+      <ellipse cx="-42" cy="-58" rx="68" ry="46"
+               fill="#E5FCEF" opacity="0.52" filter="url(#softBlur)"/>
+      <ellipse cx="52" cy="72" rx="85" ry="58"
+               fill="#020D07" opacity="0.62" filter="url(#softBlur)"/>
+      <path d="M -105,18 Q -35,-18 25,32 T 105,22"
+            fill="none" stroke="#C0F0D4" stroke-width="2.6" opacity="0.16"
+            filter="url(#softBlur)"/>
+      <path d="M -85,-42 Q -20,-28 55,-55"
+            fill="none" stroke="#D0F8E0" stroke-width="1.6" opacity="0.10"
+            filter="url(#softBlur)"/>
     </g>
 
-    <!-- Inner light band -->
-    <polygon points="0,-98 84.9,-49 84.9,49 0,98 -84.9,49 -84.9,-49"
-             fill="none" stroke="#B8F4D4" stroke-width="3" opacity="0.13"
-             filter="url(#blur8)"/>
+    <polygon points="0,-126 109.1,-63 109.1,63 0,126 -109.1,63 -109.1,-63"
+             fill="none" stroke="#B8F4D4" stroke-width="3.4" opacity="0.15"
+             filter="url(#jadeBlur)"/>
+    <polygon points="0,-127 110,-63.5 110,63.5 0,127 -110,63.5 -110,-63.5"
+             fill="none" stroke="#C8F8DC" stroke-width="0.7" opacity="0.24"/>
 
-    <!-- Crisp inner line -->
-    <polygon points="0,-99 85.7,-49.5 85.7,49.5 0,99 -85.7,49.5 -85.7,-49.5"
-             fill="none" stroke="#C8F8DC" stroke-width="0.5" opacity="0.22"/>
+    <polygon points="0,-136 117.8,-68 117.8,68 0,136 -117.8,68 -117.8,-68"
+             fill="none" stroke="#E8FCF2" stroke-width="1.4" opacity="0.85"/>
 
-    <!-- Bright outer rim -->
-    <polygon points="0,-105 90.9,-52.5 90.9,52.5 0,105 -90.9,52.5 -90.9,-52.5"
-             fill="none" stroke="#E8FCF2" stroke-width="0.9" opacity="0.55"/>
+    <polygon points="0,-136 117.8,-68 117.8,68 0,136 -117.8,68 -117.8,-68"
+             fill="none" stroke="#FFC97A" stroke-width="1.7" opacity="0.42"
+             transform="translate(1 2)"/>
 
-    <!-- B: bottom rim light — inset stroke, top of stroke bright at bottom -->
-    <polygon points="0,-105 90.9,-52.5 90.9,52.5 0,105 -90.9,52.5 -90.9,-52.5"
-             fill="none" stroke="url(#bottomRim)" stroke-width="2.2" opacity="0.9"/>
+    <ellipse cx="-52" cy="-60" rx="34" ry="24" fill="url(#specHalo)"/>
+    <circle cx="-52" cy="-60" r="6.5" fill="#FFFFFF" opacity="0.98"/>
+    <circle cx="-52" cy="-60" r="2.5" fill="#FFFFFF"/>
 
-    <!-- Speculars -->
-    <ellipse cx="-40" cy="-47" rx="28" ry="20"
-             fill="url(#specHalo)" opacity="0.88"/>
-    <circle cx="-40" cy="-47" r="4.8" fill="#FFFFFF" opacity="0.98"/>
-    <circle cx="-40" cy="-47" r="1.9" fill="#FFFFFF"/>
+    <circle cx="52" cy="74" r="2.8" fill="#FFFFFF" opacity="0.32"/>
+    <circle cx="52" cy="74" r="1.1" fill="#FFFFFF" opacity="0.60"/>
+  </g>
 
-    <circle cx="36" cy="46" r="1.4" fill="#FFFFFF" opacity="0.30"/>
-    <circle cx="36" cy="46" r="0.6" fill="#FFFFFF" opacity="0.65"/>
+  <!-- Titre -->
+  <text x="315" y="86" text-anchor="middle"
+        font-family="'Playfair Display','Didot','Bodoni 72',Georgia,serif"
+        font-size="48" font-weight="900"
+        fill="#100904" letter-spacing="9">JADE GARDEN</text>
+
+  <text x="315" y="110" text-anchor="middle"
+        font-family="Georgia,serif"
+        font-size="10"
+        fill="#5A4028" letter-spacing="6">A CONTEMPLATIVE MATCH-3</text>
+
+  <line x1="60"  y1="130" x2="295" y2="130" stroke="url(#gold)" stroke-width="0.7" opacity="0.85"/>
+  <line x1="335" y1="130" x2="570" y2="130" stroke="url(#gold)" stroke-width="0.7" opacity="0.85"/>
+  <polygon points="315,126 319,130 315,134 311,130" fill="url(#gold)"/>
+
+  <!-- Sceau rouge -->
+  <g transform="translate(572 448)">
+    <rect x="-26" y="-26" width="52" height="52" rx="3" ry="3" fill="url(#seal)"/>
+    <rect x="-22" y="-22" width="44" height="44" rx="1.5" ry="1.5"
+          fill="none" stroke="#5A1410" stroke-width="0.7" opacity="0.6"/>
+    <text x="0" y="11" text-anchor="middle"
+          font-family="'Songti SC','STSong','PingFang SC',serif"
+          font-size="34" font-weight="900"
+          fill="#F4E4C8" opacity="0.96">玉</text>
   </g>
 </svg>

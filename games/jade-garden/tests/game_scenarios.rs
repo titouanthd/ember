@@ -4,17 +4,25 @@
 //! macroquad, indisponible en headless). À la place, ils valident les
 //! invariants au niveau des composants purs : chargement RON, scoring,
 //! progression, cohérence poème, déterminisme.
+//!
+//! `load_levels` est `async` (car sur web il fait un `fetch`), donc
+//! tous les tests passent par le helper `levels()` qui utilise
+//! `pollster::block_on`.
 
 use std::collections::HashSet;
 
 use jade_garden::components::{Jade, GRID_H, GRID_W};
 use jade_garden::grid::Grid;
-use jade_garden::level::{self, Objective};
+use jade_garden::level::{self, LevelConfig, Objective};
 use jade_garden::poem;
 use jade_garden::progress::Progress;
 use jade_garden::scoring::{
     base_score_for_tile_count, cascade_multiplier, compute_stars,
 };
+
+fn levels() -> Vec<LevelConfig> {
+    pollster::block_on(level::load_levels()).expect("levels.ron should parse")
+}
 
 // ─────────────────────────────────────────────────────────────
 // 1. Chargement des assets
@@ -22,13 +30,12 @@ use jade_garden::scoring::{
 
 #[test]
 fn levels_ron_loads_12_entries() {
-    let levels = level::load_levels().expect("levels.ron should parse");
-    assert_eq!(levels.len(), 12);
+    assert_eq!(levels().len(), 12);
 }
 
 #[test]
 fn level_configs_have_valid_objectives() {
-    for lvl in level::load_levels().unwrap() {
+    for lvl in levels() {
         assert!(lvl.moves > 0, "{} has no moves", lvl.id);
         assert!(lvl.star_target > 0, "{} has no star target", lvl.id);
         match lvl.objective {
@@ -50,14 +57,14 @@ fn level_configs_have_valid_objectives() {
 
 #[test]
 fn all_level_ids_are_unique() {
-    let levels = level::load_levels().unwrap();
+    let levels = levels();
     let unique: HashSet<&str> = levels.iter().map(|l| l.id.as_str()).collect();
     assert_eq!(unique.len(), levels.len(), "duplicate level IDs");
 }
 
 #[test]
 fn every_chapter_has_exactly_three_levels() {
-    let levels = level::load_levels().unwrap();
+    let levels = levels();
     let mut counts = [0u32; 4];
     for l in &levels {
         counts[l.chapter as usize] += 1;
@@ -73,14 +80,14 @@ fn every_chapter_has_exactly_three_levels() {
 
 #[test]
 fn poem_reveal_sums_to_exactly_twenty() {
-    let levels = level::load_levels().unwrap();
+    let levels = levels();
     let total: u32 = levels.iter().map(|l| l.poem_reveal as u32).sum();
     assert_eq!(total, poem::TOTAL_CHARS as u32);
 }
 
 #[test]
 fn levels_with_fill_poem_have_target_within_level_reveal_budget() {
-    for lvl in level::load_levels().unwrap() {
+    for lvl in levels() {
         if let Objective::FillPoem(target) = lvl.objective {
             assert!(
                 target as u32 <= lvl.moves,
@@ -140,7 +147,7 @@ fn stars_computed_correctly_for_realistic_scores() {
 #[test]
 fn sequential_completion_unlocks_all_levels() {
     let mut p = Progress::default();
-    let levels = level::load_levels().unwrap();
+    let levels = levels();
     for (i, lvl) in levels.iter().enumerate() {
         let unlocked = i == 0 || p.level_completed(&levels[i - 1].id);
         assert!(unlocked, "level {i} ({}) should be unlocked", lvl.id);
@@ -152,7 +159,7 @@ fn sequential_completion_unlocks_all_levels() {
 #[test]
 fn playing_all_levels_reveals_full_poem() {
     let mut p = Progress::default();
-    for lvl in level::load_levels().unwrap() {
+    for lvl in levels() {
         p.record_win(&lvl.id, lvl.star_target, 1, lvl.poem_reveal);
     }
     assert_eq!(p.poem_fragments, poem::TOTAL_CHARS);
@@ -161,7 +168,8 @@ fn playing_all_levels_reveals_full_poem() {
 #[test]
 fn replay_does_not_reveal_extra_poem_fragments() {
     let mut p = Progress::default();
-    let lvl = &level::load_levels().unwrap()[0];
+    let loaded = levels();
+    let lvl = &loaded[0];
     p.record_win(&lvl.id, 1000, 1, lvl.poem_reveal);
     let after_first = p.poem_fragments;
     for _ in 0..5 {
@@ -194,7 +202,7 @@ fn grid_is_deterministic_for_same_seed() {
 
 #[test]
 fn grid_is_valid_for_every_level_seed() {
-    for lvl in level::load_levels().unwrap() {
+    for lvl in levels() {
         let g = Grid::new(lvl.seed);
         assert!(
             g.find_matches().is_empty(),
@@ -218,14 +226,15 @@ fn grid_is_valid_for_every_level_seed() {
 #[test]
 fn progress_survives_ron_roundtrip() {
     let mut p = Progress::default();
-    for lvl in &level::load_levels().unwrap()[..3] {
+    let levels = levels();
+    for lvl in &levels[..3] {
         p.record_win(&lvl.id, 1000 + lvl.star_target, 2, lvl.poem_reveal);
     }
     let text = ron::ser::to_string(&p).unwrap();
     let back: Progress = ron::from_str(&text).unwrap();
     assert_eq!(back.poem_fragments, p.poem_fragments);
     assert_eq!(back.total_stars(), p.total_stars());
-    for lvl in &level::load_levels().unwrap()[..3] {
+    for lvl in &levels[..3] {
         assert_eq!(back.level_best_score(&lvl.id), p.level_best_score(&lvl.id));
     }
 }
@@ -233,7 +242,7 @@ fn progress_survives_ron_roundtrip() {
 #[test]
 fn progress_total_stars_matches_sum_of_level_stars() {
     let mut p = Progress::default();
-    let levels = level::load_levels().unwrap();
+    let levels = levels();
     let mut expected = 0u32;
     for (i, lvl) in levels.iter().enumerate() {
         let stars = ((i % 3) + 1) as u8;
@@ -277,7 +286,7 @@ fn poem_has_exactly_four_lines_of_five() {
 
 #[test]
 fn every_level_objective_references_a_valid_jade() {
-    for lvl in level::load_levels().unwrap() {
+    for lvl in levels() {
         if let Objective::ClearJade(jade, _) = lvl.objective {
             assert!(
                 Jade::ALL.contains(&jade),
@@ -290,7 +299,7 @@ fn every_level_objective_references_a_valid_jade() {
 
 #[test]
 fn all_clear_jade_objectives_use_distinct_types() {
-    let levels = level::load_levels().unwrap();
+    let levels = levels();
     let mut seen: HashSet<Jade> = HashSet::new();
     for lvl in &levels {
         if let Objective::ClearJade(jade, _) = lvl.objective {

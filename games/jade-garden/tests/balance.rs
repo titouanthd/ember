@@ -29,8 +29,12 @@ use ember_core::rng::Rng;
 
 use jade_garden::components::{GRID_H, GRID_W};
 use jade_garden::grid::Grid;
-use jade_garden::level::{self, Objective};
+use jade_garden::level::{self, LevelConfig, Objective};
 use jade_garden::scoring::score_for_match;
+
+fn levels() -> Vec<LevelConfig> {
+    pollster::block_on(level::load_levels()).expect("levels.ron should parse")
+}
 
 /// (cell A, cell B, total cascade score) for a candidate swap.
 type SwapCandidate = ((usize, usize), (usize, usize), u32);
@@ -135,7 +139,7 @@ fn play_greedy(seed: u32, moves: u32) -> u32 {
 
 #[test]
 fn ai_balance_report() {
-    let levels = level::load_levels().expect("levels.ron should parse");
+    let levels = levels();
 
     println!();
     println!("=== jade-garden — AI balance report (greedy, full cascade) ===");

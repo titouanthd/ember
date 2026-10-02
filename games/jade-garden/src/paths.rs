@@ -1,35 +1,24 @@
 //! Runtime path resolution.
 //!
-//! Assets and data files used to be resolved via
-//! `env!("CARGO_MANIFEST_DIR")` at compile time. That points at the
-//! source tree: it works under `cargo run`, but breaks the moment the
-//! release binary is moved away from the repository.
+//! **Native**: assets and progress are resolved via a cascade of
+//! filesystem lookups (env var → exe dir → source tree). The
+//! progress file is written to disk.
 //!
-//! ## Assets (read-only)
-//!
-//! 1. `$JADE_GARDEN_ASSETS` — explicit override.
-//! 2. `<exe_dir>/assets` — the release layout (binary next to its
-//!    `assets/` folder).
-//! 3. `CARGO_MANIFEST_DIR/assets` — dev fallback.
-//!
-//! ## Progress file (read/write)
-//!
-//! 1. `$JADE_GARDEN_PROGRESS` — explicit override.
-//! 2. Platform user-data directory:
-//!    - macOS: `~/Library/Application Support/jade-garden/`
-//!    - Linux: `$XDG_DATA_HOME/jade-garden/` or
-//!      `~/.local/share/jade-garden/`
-//!    - Windows: `%APPDATA%\jade-garden\`
-//! 3. `CARGO_MANIFEST_DIR/progress.ron` — dev fallback.
-//!
-//! The parent directory of the progress file is created on demand the
-//! first time we save.
+//! **Web**: assets are fetched via relative URLs from the page.
+//! There is no filesystem, so all the native resolution logic is
+//! bypassed. Progress uses an in-memory fallback (see `progress.rs`).
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
+
+#[cfg(not(target_arch = "wasm32"))]
 const APP_DIR_NAME: &str = "jade-garden";
 
-/// Read-only assets directory (levels, chapters, fonts, music).
+// ---------- Assets ----------
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn assets_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("JADE_GARDEN_ASSETS") {
         return PathBuf::from(dir);
@@ -45,12 +34,27 @@ pub fn assets_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets")
 }
 
-/// Convenience: a file inside the assets directory.
+/// On wasm, assets are fetched via relative URLs from the page. The
+/// `dist/web/` bundle places them at `assets/` next to `index.html`.
+#[cfg(target_arch = "wasm32")]
+pub fn assets_dir() -> PathBuf {
+    PathBuf::from("assets")
+}
+
 pub fn asset(relative: &str) -> PathBuf {
     assets_dir().join(relative)
 }
 
-/// Writable progress file location.
+/// Returns the asset path as a plain string, ready to be passed to
+/// `macroquad::file::load_string`, `load_ttf_font`, etc. On native
+/// this is a filesystem path; on web it's a URL relative to the page.
+pub fn asset_str(relative: &str) -> String {
+    asset(relative).to_string_lossy().into_owned()
+}
+
+// ---------- Progress file (native only) ----------
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn progress_path() -> PathBuf {
     if let Some(p) = std::env::var_os("JADE_GARDEN_PROGRESS") {
         return PathBuf::from(p);
@@ -60,12 +64,12 @@ pub fn progress_path() -> PathBuf {
         return dir.join("progress.ron");
     }
 
-    // Last resort: the source tree (dev fallback).
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("progress.ron")
 }
 
 /// Ensures the parent directory of `path` exists. Returns an error
 /// string suitable for logging if it can't be created.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn ensure_parent_dir(path: &Path) -> Result<(), String> {
     let Some(parent) = path.parent() else {
         return Ok(());
@@ -77,13 +81,15 @@ pub fn ensure_parent_dir(path: &Path) -> Result<(), String> {
         .map_err(|e| format!("could not create {}: {e}", parent.display()))
 }
 
-/// Directory containing the running executable, if discoverable.
+// ---------- Native helpers ----------
+
+#[cfg(not(target_arch = "wasm32"))]
 fn current_exe_dir() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     exe.parent().map(PathBuf::from)
 }
 
-/// Platform user-data directory for jade-garden.
+#[cfg(not(target_arch = "wasm32"))]
 fn user_data_dir() -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
     {
@@ -119,20 +125,14 @@ fn user_data_dir() -> Option<PathBuf> {
     }
 }
 
+// ---------- Tests ----------
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // NOTE: we deliberately don't test the `$JADE_GARDEN_*` env
-    // overrides here. `std::env::set_var` is process-global and tests
-    // run on parallel threads, so mutating env would race with the
-    // assertions in this module.
-
     #[test]
     fn assets_dir_falls_back_to_manifest_when_no_exe_assets() {
-        // Under `cargo test`, the runner lives in `target/debug/deps`,
-        // so `<exe_dir>/assets` doesn't exist → we fall back to the
-        // source tree.
         let dir = assets_dir();
         assert!(dir.ends_with("assets"), "got {}", dir.display());
         assert!(dir.is_dir(), "assets dir should exist: {}", dir.display());
@@ -151,6 +151,13 @@ mod tests {
     }
 
     #[test]
+    fn asset_str_returns_a_usable_string() {
+        let s = asset_str("levels.ron");
+        assert!(s.ends_with("levels.ron"), "got {s}");
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
     fn progress_path_ends_with_progress_ron() {
         if std::env::var_os("JADE_GARDEN_PROGRESS").is_some() {
             return;
@@ -159,6 +166,7 @@ mod tests {
         assert!(p.ends_with("progress.ron"), "got {}", p.display());
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn ensure_parent_dir_creates_missing_dirs() {
         let tmp = std::env::temp_dir()
@@ -172,6 +180,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn ensure_parent_dir_ok_for_bare_filename() {
         assert!(ensure_parent_dir(Path::new("progress.ron")).is_ok());

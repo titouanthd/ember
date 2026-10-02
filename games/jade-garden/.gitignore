@@ -9,3 +9,6 @@ progress.ron
 /dist/
 # Local screenshots for the store page
 /screenshots/
+
+# Web build cache
+/tools/.cache/

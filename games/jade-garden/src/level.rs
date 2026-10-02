@@ -1,6 +1,9 @@
 //! Level and chapter loading from `assets/*.ron`.
-
-use std::path::PathBuf;
+//!
+//! Loading is async because on the web target the assets are fetched
+//! via HTTP (`macroquad::file::load_string`). On native the same API
+//! resolves to a fast synchronous read under the hood, so the only
+//! visible change is an `.await` at the call site.
 
 use serde::Deserialize;
 
@@ -53,20 +56,38 @@ pub struct ChapterConfig {
     pub intro: String,
 }
 
-pub fn assets_dir() -> PathBuf {
-    paths::assets_dir()
+// ---------- Asset reading ----------
+//
+// Two implementations to keep `level.rs` testable in isolation:
+//
+// - Native: `std::fs::read_to_string`, no macroquad context needed.
+//   Tests can call `load_levels().await` without a window.
+// - Web: `macroquad::file::load_string`, which fetches the file
+//   through the browser. Requires a macroquad context, but on web
+//   the tests are not run anyway.
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn read_asset(relative: &str) -> Result<String, String> {
+    let path = paths::asset(relative);
+    std::fs::read_to_string(&path).map_err(|e| format!("load {path:?}: {e}"))
 }
 
-pub fn load_levels() -> Result<Vec<LevelConfig>, String> {
-    let path = paths::asset("levels.ron");
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("{path:?}: {e}"))?;
-    ron::from_str(&text).map_err(|e| format!("parse {path:?}: {e}"))
+#[cfg(target_arch = "wasm32")]
+async fn read_asset(relative: &str) -> Result<String, String> {
+    let path = paths::asset_str(relative);
+    macroquad::file::load_string(&path)
+        .await
+        .map_err(|e| format!("load {path}: {e}"))
 }
 
-pub fn load_chapters() -> Result<Vec<ChapterConfig>, String> {
-    let path = paths::asset("chapitres.ron");
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("{path:?}: {e}"))?;
-    ron::from_str(&text).map_err(|e| format!("parse {path:?}: {e}"))
+pub async fn load_levels() -> Result<Vec<LevelConfig>, String> {
+    let text = read_asset("levels.ron").await?;
+    ron::from_str(&text).map_err(|e| format!("parse levels.ron: {e}"))
+}
+
+pub async fn load_chapters() -> Result<Vec<ChapterConfig>, String> {
+    let text = read_asset("chapitres.ron").await?;
+    ron::from_str(&text).map_err(|e| format!("parse chapitres.ron: {e}"))
 }
 
 /// Display label for an objective.
@@ -97,6 +118,10 @@ pub fn star_tier_label(level: &LevelConfig, tier: u8) -> String {
 mod tests {
     use super::*;
 
+    fn block<F: std::future::Future>(fut: F) -> F::Output {
+        pollster::block_on(fut)
+    }
+
     #[test]
     fn default_level_is_valid() {
         let l = LevelConfig::default();
@@ -106,19 +131,19 @@ mod tests {
 
     #[test]
     fn load_levels_returns_twelve_entries() {
-        let levels = load_levels().expect("levels.ron should parse");
+        let levels = block(load_levels()).expect("levels.ron should parse");
         assert_eq!(levels.len(), 12);
     }
 
     #[test]
     fn load_chapters_returns_four_entries() {
-        let chapters = load_chapters().expect("chapitres.ron should parse");
+        let chapters = block(load_chapters()).expect("chapitres.ron should parse");
         assert_eq!(chapters.len(), 4);
     }
 
     #[test]
     fn every_chapter_has_three_levels() {
-        let levels = load_levels().unwrap();
+        let levels = block(load_levels()).unwrap();
         let mut counts = [0u32; 4];
         for l in &levels {
             counts[l.chapter as usize] += 1;
@@ -130,14 +155,14 @@ mod tests {
 
     #[test]
     fn poem_reveal_sums_to_twenty() {
-        let levels = load_levels().unwrap();
+        let levels = block(load_levels()).unwrap();
         let total: u32 = levels.iter().map(|l| l.poem_reveal as u32).sum();
         assert_eq!(total, 20);
     }
 
     #[test]
     fn level_ids_are_unique() {
-        let levels = load_levels().unwrap();
+        let levels = block(load_levels()).unwrap();
         let mut ids: Vec<&str> = levels.iter().map(|l| l.id.as_str()).collect();
         ids.sort_unstable();
         ids.dedup();
@@ -179,7 +204,7 @@ mod tests {
     #[test]
     fn star_tier_label_clear_jade_level() {
         let lvl = LevelConfig {
-            objective: Objective::ClearJade(crate::components::Jade::Bi, 15),
+            objective: Objective::ClearJade(Jade::Bi, 15),
             star_target: 2400,
             ..Default::default()
         };
