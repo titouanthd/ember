@@ -365,6 +365,8 @@ fn meaning_of(jade: Jade) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::assertions_on_constants)]
+
     use super::*;
     use std::collections::HashSet;
 

@@ -15,6 +15,7 @@ use crate::config::GameContext;
 use crate::fonts::PoemFont;
 use crate::level::{objective_label, star_tier_label, ChapterConfig, LevelConfig};
 use crate::progress::Progress;
+use crate::util::fmt_time;
 
 // ---------- Local palette (does not depend on .env) ----------
 
@@ -699,12 +700,6 @@ fn star_string(stars: u8, unlocked: bool) -> String {
         s.push('☆');
     }
     s
-}
-
-/// Formats a duration in seconds as `M:SS`.
-fn fmt_time(secs: f32) -> String {
-    let total = secs.round() as u32;
-    format!("{}:{:02}", total / 60, total % 60)
 }
 
 /// Rect of the debug-only "Halloween teaser" button in the footer.

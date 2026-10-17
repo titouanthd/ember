@@ -21,6 +21,7 @@ use jade_garden::tile_render::{
     TILE_GAP, TILE_SIZE, TILE_STRIDE,
 };
 use jade_garden::Easing;
+use jade_garden::util::fmt_time;
 
 const EPILOGUE_FADE_IN: f32 = 1.2;
 const EPILOGUE_CHAR_DELAY: f32 = 0.22;
@@ -1838,12 +1839,6 @@ fn wrap_text(text: &str, max_chars: usize) -> Vec<String> {
         lines.push(current);
     }
     lines
-}
-
-/// Formats a duration in seconds as `M:SS`.
-fn fmt_time(secs: f32) -> String {
-    let total = secs.round() as u32;
-    format!("{}:{:02}", total / 60, total % 60)
 }
 
 /// Cheap pseudo-random [0, 1] from a seed — used for the final shake.

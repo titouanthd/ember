@@ -8,6 +8,7 @@ use macroquad::prelude::*;
 use crate::config::GameContext;
 use crate::level::Objective;
 use crate::systems::{Game, Phase};
+use crate::util::fmt_time;
 
 const PAD: f32 = 24.0;
 
@@ -196,10 +197,4 @@ fn draw_lost_overlay(ctx: &GameContext, game: &Game) {
         18.0,
         light_dim,
     );
-}
-
-/// Formats a duration in seconds as `M:SS`.
-fn fmt_time(secs: f32) -> String {
-    let total = secs.round() as u32;
-    format!("{}:{:02}", total / 60, total % 60)
 }

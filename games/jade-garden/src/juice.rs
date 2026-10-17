@@ -264,10 +264,9 @@ impl Juice {
         });
     }
 
-    /// Polygonal particle burst (jade shatter).
     pub fn spawn_jade_shatter(&mut self, pos: Vec2, color: Color, count: u32, rng_seed: u32) {
         let mut seed = rng_seed;
-        for i in 0..count {
+        for _ in 0..count {
             seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
             let angle = (seed >> 16) as f32 / 65535.0 * std::f32::consts::TAU;
             seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
@@ -279,7 +278,6 @@ impl Juice {
             seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
             let sides = if seed.is_multiple_of(2) { 3 } else { 4 };
 
-            let _ = i;
             self.particles.push(Particle {
                 pos,
                 vel: Vec2::new(angle.cos(), angle.sin()) * speed,

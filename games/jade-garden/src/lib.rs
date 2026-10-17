@@ -21,7 +21,9 @@ pub mod systems;
 pub mod tile_render;
 pub mod help;
 pub mod paths;
+pub mod util;
 
+pub use util::{fmt_time, hash_u32};
 pub use animation::{Easing, Tween};
 pub use components::{Jade, JadeShape, Tile, GRID_H, GRID_W, JADE_TYPES};
 pub use grid::Grid;

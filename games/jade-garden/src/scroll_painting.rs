@@ -156,16 +156,11 @@ const _: () = Palette::BREATH_OF_SPRING.assert_valid();
 const _: () = Palette::AWAKENING.assert_valid();
 
 // ---------- Deterministic hash ----------
+//
+// Re-exported so existing `scroll_painting::hash_u32(...)` call sites
+// keep working. The canonical implementation lives in `crate::util`.
 
-pub fn hash_u32(seed: u32, x: u32) -> u32 {
-    let mut h = seed ^ x.wrapping_mul(0x9E37_79B9);
-    h ^= h >> 16;
-    h = h.wrapping_mul(0x85EB_CA6B);
-    h ^= h >> 13;
-    h = h.wrapping_mul(0xC2B2_AE35);
-    h ^= h >> 16;
-    h
-}
+pub use crate::util::hash_u32;
 
 // ---------- Height generators (pure, testable) ----------
 
@@ -452,24 +447,6 @@ pub fn draw_pine(x: f32, y: f32, h: f32, color: Color) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // ---------- Hash ----------
-
-    #[test]
-    fn hash_is_deterministic() {
-        assert_eq!(hash_u32(1, 100), hash_u32(1, 100));
-        assert_eq!(hash_u32(0xDEAD, 5), hash_u32(0xDEAD, 5));
-    }
-
-    #[test]
-    fn hash_changes_with_seed() {
-        assert_ne!(hash_u32(1, 100), hash_u32(2, 100));
-    }
-
-    #[test]
-    fn hash_changes_with_input() {
-        assert_ne!(hash_u32(1, 100), hash_u32(1, 101));
-    }
 
     // ---------- Base heights ----------
 

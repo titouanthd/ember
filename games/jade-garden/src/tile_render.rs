@@ -27,6 +27,7 @@ use glam::Vec2;
 use macroquad::prelude::*;
 
 use crate::components::{Jade, JadeShape};
+use crate::util::hash_u32;
 
 /// Logical tile size in pixels.
 pub const TILE_SIZE: f32 = 72.0;
@@ -80,17 +81,6 @@ pub fn jade_shape_params(jade: Jade) -> (u8, f32) {
         JadeShape::Pentagon => (5, -FRAC_PI_2),
         JadeShape::Square => (4, FRAC_PI_4),
     }
-}
-
-/// Deterministic hash (murmur-inspired), borrowed from `ember-wars`.
-fn hash_u32(seed: u32, x: u32) -> u32 {
-    let mut h = seed ^ x.wrapping_mul(0x9E37_79B9);
-    h ^= h >> 16;
-    h = h.wrapping_mul(0x85EB_CA6B);
-    h ^= h >> 13;
-    h = h.wrapping_mul(0xC2B2_AE35);
-    h ^= h >> 16;
-    h
 }
 
 /// Generates `VEINS_PER_TILE` quadratic Bézier veins for one tile.
@@ -550,23 +540,6 @@ mod tests {
             assert_eq!(vein.len(), VEIN_POINTS);
             assert_eq!(VEIN_POINTS, 3);
         }
-    }
-
-    // ---------- Hash ----------
-
-    #[test]
-    fn hash_is_deterministic() {
-        assert_eq!(hash_u32(42, 100), hash_u32(42, 100));
-    }
-
-    #[test]
-    fn hash_changes_with_seed() {
-        assert_ne!(hash_u32(42, 100), hash_u32(43, 100));
-    }
-
-    #[test]
-    fn hash_changes_with_input() {
-        assert_ne!(hash_u32(42, 100), hash_u32(42, 101));
     }
 
     // ---------- Constants ----------
