@@ -97,11 +97,13 @@ impl Cooldown {
     /// Advance by `dt` and return `true` if the cooldown **finished during
     /// this tick** (transition from active → ready).
     ///
-    /// Returns `false` if the cooldown was already ready.
+    /// Returns `false` if the cooldown was already ready, or if `dt <= 0.0`
+    /// (safety against FPS spikes with weird sign — matches [`tick`](Self::tick)).
+    ///
     /// This is the safe way to trigger one-shot side effects (auto-fire,
     /// rebuild completion, turn timeout).
     pub fn tick_returning(&mut self, dt: f32) -> bool {
-        if self.remaining <= 0.0 {
+        if self.remaining <= 0.0 || dt <= 0.0 {
             return false;
         }
         self.remaining -= dt;
@@ -173,12 +175,15 @@ impl Cooldown {
             (self.remaining / self.duration).clamp(0.0, 1.0)
         }
     }
-    
+
     /// Create a cooldown **already running** with `remaining == duration`.
     /// Shortcut for `trigger` on a fresh instance.
     pub fn running(duration: f32) -> Self {
         let d = duration.max(0.0);
-        Self { remaining: d, duration: d }
+        Self {
+            remaining: d,
+            duration: d,
+        }
     }
 }
 
@@ -423,5 +428,17 @@ mod tests {
     fn running_with_zero_is_ready() {
         let cd = Cooldown::running(0.0);
         assert!(cd.is_ready());
+    }
+
+    #[test]
+    fn tick_returning_ignores_negative_dt() {
+        let mut cd = Cooldown::default();
+        cd.trigger(0.5);
+        // Negative dt must not advance the cooldown (and must not increase it).
+        assert!(!cd.tick_returning(-1.0));
+        assert!((cd.remaining() - 0.5).abs() < 1e-6);
+        // Still running normally after the bogus call.
+        assert!(!cd.tick_returning(0.2));
+        assert!(cd.tick_returning(0.4));
     }
 }

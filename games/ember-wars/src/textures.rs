@@ -10,6 +10,8 @@ use ember_core::io::load_from_file;
 use glam::Vec2;
 use macroquad::prelude::*;
 use serde::Deserialize;
+use ember_core::hash::hash_u32;
+
 
 // ---------- Palette ----------
 
@@ -99,18 +101,6 @@ pub fn all_palettes() -> &'static [Palette] {
 
 pub fn palette_by_id(id: &str) -> Option<&'static Palette> {
     all_palettes().iter().find(|p| p.id == id)
-}
-
-// ---------- Hash déterministe ----------
-
-pub fn hash_u32(seed: u32, x: u32) -> u32 {
-    let mut h = seed ^ x.wrapping_mul(0x9E37_79B9);
-    h ^= h >> 16;
-    h = h.wrapping_mul(0x85EB_CA6B);
-    h ^= h >> 13;
-    h = h.wrapping_mul(0xC2B2_AE35);
-    h ^= h >> 16;
-    h
 }
 
 // ---------- Générateurs de hauteur ----------
@@ -665,13 +655,6 @@ mod tests {
     fn shanghai_is_urban_and_guiyang_is_mountain() {
         assert_eq!(palette_by_id("shanghai").unwrap().style, SceneStyle::Urban);
         assert_eq!(palette_by_id("guiyang").unwrap().style, SceneStyle::Mountain);
-    }
-
-    #[test]
-    fn hash_is_deterministic() {
-        assert_eq!(hash_u32(42, 100), hash_u32(42, 100));
-        assert_ne!(hash_u32(42, 100), hash_u32(43, 100));
-        assert_ne!(hash_u32(42, 100), hash_u32(42, 101));
     }
 
     #[test]

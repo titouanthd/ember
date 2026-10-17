@@ -4,7 +4,7 @@ use freecell::GameState;
 use freecell::components::{Card, Color as CardColor, Suit, Zone};
 use freecell::config::{GameContext, load_config};
 use freecell::drag::DragState;
-use freecell::font;
+use freecell::fonts;
 use freecell::layout;
 use freecell::systems::Game;
 
@@ -30,7 +30,7 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     let ctx = load_config();
-    let _font = font::load_default_font().await;
+    let _font = fonts::load_default_fonts().await;
     let mut game = Game::new();
 
     loop {

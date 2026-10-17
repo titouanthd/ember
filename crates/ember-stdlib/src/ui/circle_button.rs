@@ -14,9 +14,15 @@ use crate::input::Input;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CircleButtonEvent {
+    /// Nothing this frame (disabled, or mouse not inside the circle).
     None,
+    /// Mouse is over the circle and no left-button activity this frame.
     Hovered,
+    /// Left button was pressed **this frame** while over the circle.
+    Pressed,
+    /// Left button is held down, over the circle.
     Held,
+    /// Left button was released this frame while over the circle.
     Clicked,
 }
 
@@ -50,7 +56,7 @@ impl CircleButton {
             return CircleButtonEvent::None;
         }
         if input.mouse_left_pressed {
-            return CircleButtonEvent::Hovered;
+            return CircleButtonEvent::Pressed;
         }
         if input.mouse_left_down {
             return CircleButtonEvent::Held;
@@ -191,5 +197,27 @@ mod tests {
         // Mid-size: proportional.
         let s = circle_segments(100.0);
         assert!((32..=128).contains(&s));
+    }
+
+    #[test]
+    fn test_pressed_fires_on_press_frame() {
+        let b = btn();
+        let input = Input {
+            mouse_pos: Vec2::new(100.0, 100.0),
+            mouse_left_pressed: true,
+            mouse_left_down: true,
+            ..Default::default()
+        };
+        assert_eq!(b.update(&input), CircleButtonEvent::Pressed);
+    }
+
+    #[test]
+    fn test_hovered_is_at_rest_not_pressed() {
+        let b = btn();
+        let input = Input {
+            mouse_pos: Vec2::new(100.0, 100.0),
+            ..Default::default()
+        };
+        assert_eq!(b.update(&input), CircleButtonEvent::Hovered);
     }
 }

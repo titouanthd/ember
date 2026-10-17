@@ -67,8 +67,8 @@ enum MatchEndTab {
 fn match_end_tab_rects(layout: &TableLayout) -> [(MatchEndTab, (f32, f32, f32, f32)); 2] {
     let pw = 900.0_f32.min(layout.scr_w - 100.0);
     let ph = 620.0_f32.min(layout.scr_h - 80.0);
-    let px = (layout.scr_w - pw) * 0.5;
-    let py = (layout.scr_h - ph) * 0.5;
+    let panel = ember_stdlib::layout::centered_rect(layout.scr_w, layout.scr_h, pw, ph);
+    let (px, py, pw, _) = (panel.x, panel.y, panel.w, panel.h);
     let cx = px + pw * 0.5;
 
     let tab_y = py + 76.0;
@@ -1261,10 +1261,9 @@ fn draw_hand_end_overlay(layout: &TableLayout, ctx: &GameContext, game: &Game, t
         Color::new(0.02, 0.05, 0.04, 0.80 * alpha),
     );
 
-    let pw = 800.0_f32.min(layout.scr_w - 80.0);
-    let ph = 480.0_f32.min(layout.scr_h - 80.0);
-    let px = (layout.scr_w - pw) * 0.5;
-    let py = (layout.scr_h - ph) * 0.5;
+    let panel = ember_stdlib::layout::centered_rect(layout.scr_w, layout.scr_h, 800.0_f32.min(layout.scr_w - 80.0), 480.0_f32.min(layout.scr_h - 80.0));
+    let (px, py, pw, ph) = (panel.x, panel.y, panel.w, panel.h);
+
     let cx = px + pw * 0.5;
 
     // Panel background + gold double border + corner diamonds.
@@ -1444,10 +1443,9 @@ fn draw_match_end_overlay(
         Color::new(0.02, 0.05, 0.04, 0.90 * alpha),
     );
 
-    let pw = 900.0_f32.min(layout.scr_w - 100.0);
-    let ph = 620.0_f32.min(layout.scr_h - 80.0);
-    let px = (layout.scr_w - pw) * 0.5;
-    let py = (layout.scr_h - ph) * 0.5;
+    let panel = ember_stdlib::layout::centered_rect(layout.scr_w, layout.scr_h, 900.0_f32.min(layout.scr_w - 100.0), 620.0_f32.min(layout.scr_h - 80.0));
+
+    let (px, py, pw, ph) = (panel.x, panel.y, panel.w, panel.h);
     let cx = px + pw * 0.5;
 
     panel::draw_premium_panel(

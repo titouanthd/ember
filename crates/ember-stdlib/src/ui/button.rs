@@ -6,15 +6,33 @@ use macroquad::prelude::{Color, draw_rectangle, draw_rectangle_lines, draw_text}
 use crate::input::Input;
 
 /// What happened to the button this frame.
+///
+/// State machine (per frame, with mouse over the button):
+/// - press frame → `Pressed`  (pressed takes priority over down/held)
+/// - held frames → `Held`
+/// - release frame → `Clicked`
+/// - idle frames → `Hovered`
+///
+/// **Limitations** (deferred to the `UiContext` refactor):
+/// - No press-capture: press on button A, drag to button B, release on B
+///   → B fires `Clicked`. B doesn't know the press started on A.
+/// - Press-then-drag-out → no event on release (returns `None`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ButtonEvent {
-    /// Nothing.
+    /// Nothing this frame (disabled, or mouse not over the button).
     None,
-    /// Mouse entered the button this frame.
+    /// Mouse is over the button and no left-button activity this frame.
+    /// Steady-state hover — fires every idle frame the mouse is over it.
     Hovered,
-    /// Mouse is over the button and left button is held down.
+    /// Left button was pressed **this frame** while over the button.
+    /// Use this for press feedback (click sound, visual pulse). The
+    /// corresponding release fires `Clicked` on a later frame.
+    Pressed,
+    /// Left button is held down, over the button. Steady state between
+    /// `Pressed` and `Clicked`. Useful for long-press / repeat / drag.
     Held,
-    /// Mouse released over the button this frame.
+    /// Left button was released this frame while over the button.
+    /// The canonical "click" event.
     Clicked,
 }
 
@@ -45,12 +63,11 @@ impl Button {
         if !self.enabled {
             return ButtonEvent::None;
         }
-        let over = self.contains(input.mouse_pos);
-        if !over {
+        if !self.contains(input.mouse_pos) {
             return ButtonEvent::None;
         }
         if input.mouse_left_pressed {
-            return ButtonEvent::Hovered; // pressed-but-not-yet-released
+            return ButtonEvent::Pressed;
         }
         if input.mouse_left_down {
             return ButtonEvent::Held;
@@ -168,5 +185,49 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(b.update(&input), ButtonEvent::None);
+    }
+
+    #[test]
+    fn test_pressed_fires_on_press_frame() {
+        let b = btn();
+        // macroquad sets mouse_left_down on the same frame as pressed.
+        let input = Input {
+            mouse_pos: Vec2::new(50.0, 30.0),
+            mouse_left_pressed: true,
+            mouse_left_down: true,
+            ..Default::default()
+        };
+        assert_eq!(b.update(&input), ButtonEvent::Pressed);
+    }
+
+    #[test]
+    fn test_held_is_distinct_from_pressed() {
+        let b = btn();
+        // Press frame → Pressed (pressed beats down).
+        let press = Input {
+            mouse_pos: Vec2::new(50.0, 30.0),
+            mouse_left_pressed: true,
+            mouse_left_down: true,
+            ..Default::default()
+        };
+        assert_eq!(b.update(&press), ButtonEvent::Pressed);
+
+        // Next frame: still down, no press → Held.
+        let hold = Input {
+            mouse_pos: Vec2::new(50.0, 30.0),
+            mouse_left_down: true,
+            ..Default::default()
+        };
+        assert_eq!(b.update(&hold), ButtonEvent::Held);
+    }
+
+    #[test]
+    fn test_hovered_is_at_rest_not_pressed() {
+        let b = btn();
+        let input = Input {
+            mouse_pos: Vec2::new(50.0, 30.0),
+            ..Default::default()
+        };
+        assert_eq!(b.update(&input), ButtonEvent::Hovered);
     }
 }

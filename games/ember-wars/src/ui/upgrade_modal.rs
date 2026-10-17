@@ -30,12 +30,7 @@ const KEY_SCROLL: f32 = 700.0;
 // ---------- Layout ----------
 
 fn modal_rect_for(vw: f32, vh: f32) -> Rect {
-    Rect {
-        x: MODAL_MARGIN,
-        y: MODAL_MARGIN,
-        w: vw - MODAL_MARGIN * 2.0,
-        h: vh - MODAL_MARGIN * 2.0,
-    }
+    ember_stdlib::layout::centered_rect(vw, vh, vw - MODAL_MARGIN * 2.0, vh - MODAL_MARGIN * 2.0)
 }
 
 fn modal_rect() -> Rect {

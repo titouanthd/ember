@@ -92,9 +92,8 @@ impl MenuGeom {
     pub fn new(layout: &TableLayout) -> Self {
         let pw = PANEL_W.min(layout.scr_w - 80.0);
         let ph = PANEL_H.min(layout.scr_h - 80.0);
-        let px = (layout.scr_w - pw) * 0.5;
-        let py = (layout.scr_h - ph) * 0.5;
-        Self { px, py, pw, ph }
+        let r = ember_stdlib::layout::centered_rect(layout.scr_w, layout.scr_h, pw, ph);
+        Self { px: r.x, py: r.y, pw: r.w, ph: r.h }
     }
 }
 

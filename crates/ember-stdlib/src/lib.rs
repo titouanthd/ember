@@ -19,7 +19,9 @@ pub mod collider;
 pub use collider::{Collider, Shape, collides};
 
 pub mod config;
+pub mod fonts;
 pub mod graphics;
+pub mod layout;
 
 pub mod grid;
 pub use grid::Grid;

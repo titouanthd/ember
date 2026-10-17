@@ -1,0 +1,4 @@
+dist/
+tools/.cache/
+progress.ron
+.env

@@ -83,6 +83,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "bore-inc"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "ember-core",
+ "ember-stdlib",
+ "glam",
+ "macroquad",
+ "pollster",
+ "ron",
+ "serde",
+]
+
+[[package]]
 name = "breakout"
 version = "0.1.0"
 dependencies = [

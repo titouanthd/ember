@@ -10,22 +10,12 @@
 //! under the hood.
 
 use macroquad::prelude::*;
-
 use crate::paths;
 
 /// Loads DejaVu Sans Mono and sets it as the default font.
 pub async fn load_default_font() -> Option<Font> {
     let path = paths::asset_str("DejaVuSansMono.ttf");
-    match load_ttf_font(&path).await {
-        Ok(font) => {
-            set_default_font(font.clone());
-            Some(font)
-        }
-        Err(e) => {
-            eprintln!("⚠️  Failed to load {path}: {e}. Falling back to default font.");
-            None
-        }
-    }
+    ember_stdlib::fonts::load_and_set_default(&path).await
 }
 
 /// The poem's CJK font. Loaded once at startup and passed explicitly

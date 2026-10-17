@@ -176,12 +176,14 @@ impl HelpGeom {
     pub fn new(layout: &TableLayout) -> Self {
         let pw = PANEL_W.min(layout.scr_w - 60.0);
         let ph = PANEL_H.min(layout.scr_h - 60.0);
-        let px = (layout.scr_w - pw) * 0.5;
-        let py = (layout.scr_h - ph) * 0.5;
+        let r = ember_stdlib::layout::centered_rect(layout.scr_w, layout.scr_h, pw, ph);
+        let px = r.x;
+        let py = r.y;
         let content_x = px + 44.0;
         let content_y = py + CONTENT_TOP;
         let content_w = pw - 88.0;
         let content_h = ph - CONTENT_TOP - BTN_H - 40.0;
+        
         Self {
             px,
             py,
