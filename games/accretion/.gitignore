@@ -1,0 +1,10 @@
+# Save files
+save.ron
+*.ron.bak
+
+# Web build output
+dist/
+tools/.cache/
+
+# Dev config
+.env

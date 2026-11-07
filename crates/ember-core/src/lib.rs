@@ -7,7 +7,7 @@ pub mod rng;
 pub mod time;
 
 pub use app::GameState;
-pub use hash::hash_u32;
-pub use math::{Aabb, Circle};
+pub use hash::{hash_u32, hash_u32_2, hash_u32_3};
+pub use math::{Aabb, Circle, reflect};
 pub use rng::Rng;
-pub use time::TickTimer;
+pub use time::{Cooldown, TickTimer};

@@ -1,0 +1,123 @@
+(
+    paradigm: Planets,
+    resources: {
+        Metals: 0.0,
+        Gas: 0.0,
+        Light: 0.0,
+        Planetesimals: 211.0,
+        Dust: 11577.194655302805,
+        DarkMatter: 0.0,
+        Water: 0.0,
+        Pebbles: 5041.364088097372,
+    },
+    buildings: [
+        (
+            id: DustCollector,
+            count: 15,
+            cooldown: (
+                remaining: 0.017679691,
+                duration: 1.0,
+            ),
+        ),
+        (
+            id: AccretionRing,
+            count: 10,
+            cooldown: (
+                remaining: 0.0,
+                duration: 0.0,
+            ),
+        ),
+        (
+            id: PebbleFoundry,
+            count: 18,
+            cooldown: (
+                remaining: 0.16894531,
+                duration: 1.0,
+            ),
+        ),
+        (
+            id: ResonanceEngine,
+            count: 3,
+            cooldown: (
+                remaining: 0.4666605,
+                duration: 2.0,
+            ),
+        ),
+        (
+            id: MetalFoundry,
+            count: 0,
+            cooldown: (
+                remaining: 2.0,
+                duration: 2.0,
+            ),
+        ),
+        (
+            id: WaterCondenser,
+            count: 0,
+            cooldown: (
+                remaining: 2.5,
+                duration: 2.5,
+            ),
+        ),
+        (
+            id: OrbitalAnchor,
+            count: 2,
+            cooldown: (
+                remaining: 0.0,
+                duration: 0.0,
+            ),
+        ),
+        (
+            id: GasScoop,
+            count: 0,
+            cooldown: (
+                remaining: 2.0,
+                duration: 2.0,
+            ),
+        ),
+        (
+            id: MagnetosphereCoil,
+            count: 0,
+            cooldown: (
+                remaining: 0.0,
+                duration: 0.0,
+            ),
+        ),
+        (
+            id: FusionCatalyst,
+            count: 0,
+            cooldown: (
+                remaining: 3.0,
+                duration: 3.0,
+            ),
+        ),
+        (
+            id: JetInjector,
+            count: 0,
+            cooldown: (
+                remaining: 0.0,
+                duration: 0.0,
+            ),
+        ),
+        (
+            id: VoidWeaver,
+            count: 0,
+            cooldown: (
+                remaining: 5.0,
+                duration: 5.0,
+            ),
+        ),
+    ],
+    g_multiplier: 1.0,
+    g_total: 0,
+    endings_seen: [],
+    elapsed: 641.5592761039734,
+    log: [
+        "I am.",
+        "I do not know what I am.",
+        "→ Pebbles",
+        "→ Planetesimals",
+        "→ Planets",
+    ],
+    dust_collected_total: 101.0,
+)

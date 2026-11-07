@@ -95,14 +95,22 @@ impl Aabb {
             && self.max.y > other.min.y
     }
 
-    /// Profondeur de pénétration si les deux AABB se chevauchent.
-    /// Retourne `None` s'il n'y a pas de chevauchement.
+    /// Profondeur de pénétration si les deux AABB se chevauchent
+    /// **strictement**.
     ///
-    /// La profondeur est retournée sous forme `(Vec2, f32)` où `Vec2` est
-    /// l'axe de séparation minimale et `f32` la profondeur sur cet axe.
+    /// ⚠️ Différence avec [`overlaps`](Self::overlaps) : `overlaps` est
+    /// inclusif (bords qui se touchent = vrai), `penetration` est strict
+    /// (bords qui se touchent = `None`). C'est volontaire : une pénétration
+    /// de profondeur 0 n'a pas de sens pour la résolution.
+    ///
+    /// Retourne `(axis, depth)` où :
+    /// - `axis` est un vecteur unitaire orienté **de `other` vers `self`**
+    ///   (pour pousser `self` hors de `other`, faire `self.pos += axis * depth`)
+    /// - `depth` est la profondeur sur cet axe (toujours > 0)
     pub fn penetration(&self, other: &Aabb) -> Option<(Vec2, f32)> {
-        let dx = (self.center().x - other.center().x).abs();
-        let dy = (self.center().y - other.center().y).abs();
+        let delta = self.center() - other.center();
+        let dx = delta.x.abs();
+        let dy = delta.y.abs();
         let half_sum = self.half_size() + other.half_size();
 
         let overlap_x = half_sum.x - dx;
@@ -113,9 +121,11 @@ impl Aabb {
         }
 
         if overlap_x < overlap_y {
-            Some((Vec2::new(1.0, 0.0), overlap_x))
+            let sign = if delta.x >= 0.0 { 1.0 } else { -1.0 };
+            Some((Vec2::new(sign, 0.0), overlap_x))
         } else {
-            Some((Vec2::new(0.0, 1.0), overlap_y))
+            let sign = if delta.y >= 0.0 { 1.0 } else { -1.0 };
+            Some((Vec2::new(0.0, sign), overlap_y))
         }
     }
 
@@ -215,8 +225,28 @@ mod tests {
         let a = Aabb::from_top_left_size(Vec2::ZERO, Vec2::new(10.0, 10.0));
         let b = Aabb::from_top_left_size(Vec2::new(8.0, 0.0), Vec2::new(10.0, 10.0));
         let (axis, depth) = a.penetration(&b).expect("should overlap");
-        assert_eq!(axis, Vec2::new(1.0, 0.0));
+        // a est à gauche de b → pousser a vers la gauche
+        assert_eq!(axis, Vec2::new(-1.0, 0.0));
         assert!((depth - 2.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_penetration_is_signed_and_symmetric() {
+        let a = Aabb::from_top_left_size(Vec2::ZERO, Vec2::new(10.0, 10.0));
+        let b = Aabb::from_top_left_size(Vec2::new(8.0, 0.0), Vec2::new(10.0, 10.0));
+        let (a_axis, a_depth) = a.penetration(&b).unwrap();
+        let (b_axis, b_depth) = b.penetration(&a).unwrap();
+        assert_eq!(a_axis, -b_axis);
+        assert!((a_depth - b_depth).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_penetration_none_on_touching_borders() {
+        // Cohérent avec la doc : bords touchés → pas de pénétration.
+        let a = Aabb::from_top_left_size(Vec2::ZERO, Vec2::new(10.0, 10.0));
+        let b = Aabb::from_top_left_size(Vec2::new(10.0, 0.0), Vec2::new(10.0, 10.0));
+        assert!(a.overlaps(&b));           // inclusif
+        assert!(a.penetration(&b).is_none()); // strict
     }
 
     #[test]

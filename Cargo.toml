@@ -16,7 +16,7 @@ members = [
     "games/air-hockey",
     "games/zhuo-ji",
     "games/ember-wars",
-    "games/jade-garden", "games/bore-inc",
+    "games/jade-garden", "games/bore-inc", "games/accretion", "games/taiji",
 ]
 
 [workspace.package]

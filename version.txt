@@ -582,7 +582,7 @@ The engine now has: collisions, grid, mouse + keyboard input, UI, audio (native 
 103. ember-wars `attack_cd`: effective duration must be re-applied on each `trigger`.
 104. Test restoration post-refactor (Phase 26): refactors touching production code must also migrate `mod tests` blocks. **Adapt** assertions, don't simplify.
 105. `HashMap<String, Cooldown>`: `.unwrap_or_default()` is the correct pattern.
-106. `Cooldown` in tests: prefer `Cooldown::running(d)` to simulate active, `Cooldown::default()` for ready.
+106. `Cooldown` in tests: prefer `Cooldown::new(d)` to simulate active, `Cooldown::default()` for ready.
 107. `next_frame().await` duplicated → GPU flickering. One call per loop iteration.
 108. `get_screen_data()` on macOS/Metal → not implemented by miniquad, produces black PNG + errors.
 109. `Instant::now()` on `wasm32-unknown-unknown` → panic. Accumulate `f32` from `dt`.

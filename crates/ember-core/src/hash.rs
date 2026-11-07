@@ -23,6 +23,21 @@ pub fn hash_u32(seed: u32, x: u32) -> u32 {
     h
 }
 
+/// Hash déterministe 2D. Même `(seed, x, y)` → même sortie.
+///
+/// Chaînage simple : `h(h(seed, x), y)`. Ce n'est pas un vrai hash 2D
+/// (pas de diffusion croisée entre x et y), mais c'est stable, rapide,
+/// et suffisant pour du procédural visuel.
+pub fn hash_u32_2(seed: u32, x: u32, y: u32) -> u32 {
+    hash_u32(hash_u32(seed, x), y)
+}
+
+/// Hash déterministe 3D. Même `(seed, x, y, z)` → même sortie.
+pub fn hash_u32_3(seed: u32, x: u32, y: u32, z: u32) -> u32 {
+    hash_u32(hash_u32_2(seed, x, y), z)
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -67,5 +82,18 @@ mod tests {
         }
         // Expected ≈ 512 flipped bits. Wide margin 300..=724.
         assert!((300..=724).contains(&diff_bits), "avalanche: {diff_bits}");
+    }
+
+    #[test]
+    fn hash_2d_deterministic_and_distinct() {
+        assert_eq!(hash_u32_2(1, 2, 3), hash_u32_2(1, 2, 3));
+        assert_ne!(hash_u32_2(1, 2, 3), hash_u32_2(1, 3, 2));
+        assert_ne!(hash_u32_2(1, 2, 3), hash_u32_2(2, 2, 3));
+    }
+
+    #[test]
+    fn hash_3d_deterministic_and_distinct() {
+        assert_eq!(hash_u32_3(1, 2, 3, 4), hash_u32_3(1, 2, 3, 4));
+        assert_ne!(hash_u32_3(1, 2, 3, 4), hash_u32_3(1, 2, 4, 3));
     }
 }

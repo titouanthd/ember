@@ -1,3 +1,4 @@
+use ember_core::math::Aabb;
 use glam::Vec2;
 
 /// Un transformé 2D : position, rotation (en radians), échelle.
@@ -48,6 +49,16 @@ impl Transform {
     /// auquel cas cette méthode n'est pas utilisée).
     pub fn center(&self) -> Vec2 {
         self.position + self.scale / 2.0
+    }
+
+    /// AABB en coordonnées monde, en supposant la convention top-left
+    /// (`min = position`, `max = position + scale`).
+    ///
+    /// Le moteur utilise deux conventions selon les jeux :
+    /// - top-left : Pong, Breakout, ember-wars (cas par défaut)
+    /// - center    : Bullet Hell (position = centre, ne pas utiliser `aabb()`)
+    pub fn aabb(&self) -> Aabb {
+        Aabb::from_top_left_size(self.position, self.scale)
     }
 }
 
@@ -102,5 +113,13 @@ mod tests {
     fn test_center_identity() {
         let t = Transform::identity();
         assert_eq!(t.center(), Vec2::new(0.5, 0.5));
+    }
+
+    #[test]
+    fn test_aabb_top_left_convention() {
+        let t = Transform::new(Vec2::new(10.0, 20.0), 0.0, Vec2::new(20.0, 40.0));
+        let aabb = t.aabb();
+        assert_eq!(aabb.min, Vec2::new(10.0, 20.0));
+        assert_eq!(aabb.max, Vec2::new(30.0, 60.0));
     }
 }

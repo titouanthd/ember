@@ -12,9 +12,17 @@
 //!
 //! # Usage
 //!
+//! Two constructors, with a deliberate distinction:
+//!
+//! - [`Cooldown::new`] returns a **running** cooldown (starts at `duration`,
+//!   `is_active() == true`). This is the common case: "cooldown after shot".
+//! - [`Cooldown::with_duration`] returns a **ready** cooldown that remembers
+//!   its duration for later [`reset`](Cooldown::reset).
+//!
 //! ```
 //! use ember_core::time::Cooldown;
 //!
+//! // Ready cooldown, can be triggered/reset later.
 //! let mut cd = Cooldown::default();
 //! assert!(cd.is_ready());
 //!
@@ -34,8 +42,7 @@
 //! ```
 //! use ember_core::time::Cooldown;
 //!
-//! let mut cd = Cooldown::new(0.2);
-//! cd.trigger(0.2);
+//! let mut cd = Cooldown::new(0.2);  // already running
 //! assert!(!cd.tick_returning(0.1)); // still running
 //! assert!(cd.tick_returning(0.2));  // just finished
 //! assert!(!cd.tick_returning(0.1)); // already ready
@@ -55,9 +62,26 @@ pub struct Cooldown {
 }
 
 impl Cooldown {
+    /// Create a **running** cooldown with `remaining == duration`.
+    ///
+    /// Common case: "start a 0.5s cooldown after a shot" → `Cooldown::new(0.5)`.
+    ///
+    /// For a **ready** cooldown that just remembers its duration, use
+    /// [`with_duration`](Self::with_duration).
+    pub fn new(duration: f32) -> Self {
+        let d = duration.max(0.0);
+        Self {
+            remaining: d,
+            duration: d,
+        }
+    }
+
     /// Create a **ready** cooldown with the given duration.
     /// `remaining` starts at 0.
-    pub fn new(duration: f32) -> Self {
+    ///
+    /// Use this when you want a cooldown that starts ready but knows its
+    /// future duration, so [`reset`](Self::reset) works without an argument.
+    pub fn with_duration(duration: f32) -> Self {
         Self {
             remaining: 0.0,
             duration: duration.max(0.0),
@@ -67,13 +91,15 @@ impl Cooldown {
     /// Create a cooldown already running with `remaining` seconds left.
     /// `duration` is the reference value for `fraction()`.
     ///
-    /// `remaining` is clamped to `[0, max(remaining, duration)]` so
-    /// deserialized values can't violate the invariant.
+    /// Invariant garanti : `remaining <= duration`. Si `remaining > duration`
+    /// est passé, `duration` est **rallongée** pour l'absorber (cas typique :
+    /// "on re-trigger avec une durée plus longue"). `remaining < 0` est
+    /// clampé à 0.
     pub fn from_remaining(remaining: f32, duration: f32) -> Self {
-        let duration = duration.max(0.0);
-        let upper = duration.max(remaining).max(0.0);
+        let remaining = remaining.max(0.0);
+        let duration = duration.max(remaining);
         Self {
-            remaining: remaining.clamp(0.0, upper),
+            remaining,
             duration,
         }
     }
@@ -175,16 +201,6 @@ impl Cooldown {
             (self.remaining / self.duration).clamp(0.0, 1.0)
         }
     }
-
-    /// Create a cooldown **already running** with `remaining == duration`.
-    /// Shortcut for `trigger` on a fresh instance.
-    pub fn running(duration: f32) -> Self {
-        let d = duration.max(0.0);
-        Self {
-            remaining: d,
-            duration: d,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -201,21 +217,58 @@ mod tests {
     }
 
     #[test]
-    fn new_is_ready_with_duration() {
+    fn new_starts_active() {
         let cd = Cooldown::new(0.5);
-        assert!(cd.is_ready());
+        assert!(cd.is_active());
+        assert!(!cd.is_ready());
+        assert_eq!(cd.remaining(), 0.5);
         assert_eq!(cd.duration(), 0.5);
     }
 
     #[test]
-    fn new_clamps_negative_duration() {
-        let cd = Cooldown::new(-1.0);
+    fn new_with_zero_duration_is_ready() {
+        let cd = Cooldown::new(0.0);
+        assert!(cd.is_ready());
         assert_eq!(cd.duration(), 0.0);
+        assert_eq!(cd.remaining(), 0.0);
+    }
+
+    #[test]
+    fn new_with_negative_duration_is_ready() {
+        let cd = Cooldown::new(-1.0);
+        assert!(cd.is_ready());
+        assert_eq!(cd.duration(), 0.0);
+        assert_eq!(cd.remaining(), 0.0);
+    }
+
+    #[test]
+    fn with_duration_is_ready() {
+        let cd = Cooldown::with_duration(0.5);
+        assert!(cd.is_ready());
+        assert!(!cd.is_active());
+        assert_eq!(cd.remaining(), 0.0);
+        assert_eq!(cd.duration(), 0.5);
+    }
+
+    #[test]
+    fn with_duration_clamps_negative_duration() {
+        let cd = Cooldown::with_duration(-1.0);
+        assert_eq!(cd.duration(), 0.0);
+        assert!(cd.is_ready());
+    }
+
+    #[test]
+    fn with_duration_then_reset_starts_cooldown() {
+        let mut cd = Cooldown::with_duration(0.5);
+        assert!(cd.is_ready());
+        cd.reset();
+        assert!(cd.is_active());
+        assert_eq!(cd.remaining(), 0.5);
     }
 
     #[test]
     fn trigger_starts_cooldown() {
-        let mut cd = Cooldown::new(0.0);
+        let mut cd = Cooldown::default();
         cd.trigger(0.5);
         assert!(cd.is_active());
         assert_eq!(cd.remaining(), 0.5);
@@ -224,16 +277,14 @@ mod tests {
 
     #[test]
     fn tick_reduces_remaining() {
-        let mut cd = Cooldown::default();
-        cd.trigger(0.5);
+        let mut cd = Cooldown::new(0.5);
         cd.tick(0.2);
         assert!((cd.remaining() - 0.3).abs() < 1e-6);
     }
 
     #[test]
     fn tick_clamps_at_zero() {
-        let mut cd = Cooldown::default();
-        cd.trigger(0.5);
+        let mut cd = Cooldown::new(0.5);
         cd.tick(10.0);
         assert_eq!(cd.remaining(), 0.0);
         assert!(cd.is_ready());
@@ -241,8 +292,7 @@ mod tests {
 
     #[test]
     fn tick_ignores_negative_dt() {
-        let mut cd = Cooldown::default();
-        cd.trigger(0.5);
+        let mut cd = Cooldown::new(0.5);
         cd.tick(-1.0);
         assert!((cd.remaining() - 0.5).abs() < 1e-6);
     }
@@ -257,16 +307,14 @@ mod tests {
 
     #[test]
     fn tick_returning_false_while_running() {
-        let mut cd = Cooldown::default();
-        cd.trigger(0.5);
+        let mut cd = Cooldown::new(0.5);
         assert!(!cd.tick_returning(0.2));
         assert!(!cd.tick_returning(0.2));
     }
 
     #[test]
     fn tick_returning_true_on_expiry() {
-        let mut cd = Cooldown::default();
-        cd.trigger(0.5);
+        let mut cd = Cooldown::new(0.5);
         assert!(!cd.tick_returning(0.3));
         assert!(cd.tick_returning(0.3));
         assert!(cd.is_ready());
@@ -281,8 +329,7 @@ mod tests {
 
     #[test]
     fn tick_returning_fires_exactly_once() {
-        let mut cd = Cooldown::default();
-        cd.trigger(0.1);
+        let mut cd = Cooldown::new(0.1);
         let mut count = 0;
         for _ in 0..10 {
             if cd.tick_returning(0.05) {
@@ -294,8 +341,7 @@ mod tests {
 
     #[test]
     fn reset_restarts_with_stored_duration() {
-        let mut cd = Cooldown::default();
-        cd.trigger(0.5);
+        let mut cd = Cooldown::new(0.5);
         cd.tick(0.3);
         cd.reset();
         assert!((cd.remaining() - 0.5).abs() < 1e-6);
@@ -310,32 +356,28 @@ mod tests {
 
     #[test]
     fn clear_forces_ready() {
-        let mut cd = Cooldown::default();
-        cd.trigger(10.0);
+        let mut cd = Cooldown::new(10.0);
         cd.clear();
         assert!(cd.is_ready());
         assert_eq!(cd.duration(), 10.0); // duration preserved
     }
 
     #[test]
-    fn fraction_zero_right_after_trigger() {
-        let mut cd = Cooldown::default();
-        cd.trigger(1.0);
+    fn fraction_zero_right_after_new() {
+        let cd = Cooldown::new(1.0);
         assert!((cd.fraction() - 0.0).abs() < 1e-6);
     }
 
     #[test]
     fn fraction_one_when_ready() {
-        let mut cd = Cooldown::default();
-        cd.trigger(1.0);
+        let mut cd = Cooldown::new(1.0);
         cd.tick(1.0);
         assert!((cd.fraction() - 1.0).abs() < 1e-6);
     }
 
     #[test]
     fn fraction_half_at_midpoint() {
-        let mut cd = Cooldown::default();
-        cd.trigger(1.0);
+        let mut cd = Cooldown::new(1.0);
         cd.tick(0.5);
         assert!((cd.fraction() - 0.5).abs() < 1e-6);
     }
@@ -347,9 +389,8 @@ mod tests {
     }
 
     #[test]
-    fn remaining_fraction_one_right_after_trigger() {
-        let mut cd = Cooldown::default();
-        cd.trigger(1.0);
+    fn remaining_fraction_one_right_after_new() {
+        let cd = Cooldown::new(1.0);
         assert!((cd.remaining_fraction() - 1.0).abs() < 1e-6);
     }
 
@@ -361,8 +402,7 @@ mod tests {
 
     #[test]
     fn remaining_fraction_half_at_midpoint() {
-        let mut cd = Cooldown::default();
-        cd.trigger(1.0);
+        let mut cd = Cooldown::new(1.0);
         cd.tick(0.5);
         assert!((cd.remaining_fraction() - 0.5).abs() < 1e-6);
     }
@@ -383,11 +423,25 @@ mod tests {
     }
 
     #[test]
-    fn from_remaining_clamps_above_duration() {
-        // remaining > duration : autorisé (cas "cooldown vient d'être
-        // trigger avec une durée plus longue"), clampé au max des deux.
+    fn from_remaining_extends_duration_when_remaining_exceeds() {
+        // remaining > duration : duration est rallongée pour garder
+        // l'invariant remaining <= duration.
         let cd = Cooldown::from_remaining(1.0, 0.5);
         assert!((cd.remaining() - 1.0).abs() < 1e-6);
+        assert!((cd.duration() - 1.0).abs() < 1e-6);
+        // Conséquence : fraction() = 0 (juste trigger), remaining_fraction() = 1.
+        assert!((cd.fraction() - 0.0).abs() < 1e-6);
+        assert!((cd.remaining_fraction() - 1.0).abs() < 1e-6);
+        // Cohérence : impossible d'avoir remaining > duration après.
+        assert!(cd.remaining() <= cd.duration() + 1e-6);
+    }
+
+    #[test]
+    fn from_remaining_zero_duration_extends_to_remaining() {
+        // Cas "durée inconnue mais reste n secondes" : duration = remaining.
+        let cd = Cooldown::from_remaining(0.5, 0.0);
+        assert!((cd.remaining() - 0.5).abs() < 1e-6);
+        assert!((cd.duration() - 0.5).abs() < 1e-6);
     }
 
     #[test]
@@ -408,8 +462,7 @@ mod tests {
 
     #[test]
     fn serde_roundtrip() {
-        let mut cd = Cooldown::default();
-        cd.trigger(0.7);
+        let mut cd = Cooldown::new(0.7);
         cd.tick(0.2);
         let s = ron::to_string(&cd).unwrap();
         let back: Cooldown = ron::from_str(&s).unwrap();
@@ -417,23 +470,8 @@ mod tests {
     }
 
     #[test]
-    fn running_starts_active() {
-        let cd = Cooldown::running(0.5);
-        assert!(cd.is_active());
-        assert_eq!(cd.remaining(), 0.5);
-        assert_eq!(cd.duration(), 0.5);
-    }
-
-    #[test]
-    fn running_with_zero_is_ready() {
-        let cd = Cooldown::running(0.0);
-        assert!(cd.is_ready());
-    }
-
-    #[test]
     fn tick_returning_ignores_negative_dt() {
-        let mut cd = Cooldown::default();
-        cd.trigger(0.5);
+        let mut cd = Cooldown::new(0.5);
         // Negative dt must not advance the cooldown (and must not increase it).
         assert!(!cd.tick_returning(-1.0));
         assert!((cd.remaining() - 0.5).abs() < 1e-6);

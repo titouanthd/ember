@@ -813,7 +813,7 @@ mod tests {
             },
             &ctx,
         );
-        e.fire_cooldown = ember_stdlib::time::Cooldown::running(100.0);
+        e.fire_cooldown = ember_stdlib::time::Cooldown::new(100.0);
         w.enemies.clear();
         w.enemies.push(e);
 
@@ -844,7 +844,7 @@ mod tests {
             },
             &ctx,
         );
-        e.fire_cooldown = ember_stdlib::time::Cooldown::running(100.0);
+        e.fire_cooldown = ember_stdlib::time::Cooldown::new(100.0);
         w.enemies.clear();
         w.enemies.push(e);
 

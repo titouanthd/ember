@@ -1,3 +1,4 @@
+//! src/fonts.rs
 //! Font loading.
 //!
 //! Tries to load `assets/DejaVuSansMono.ttf` and set it as the default

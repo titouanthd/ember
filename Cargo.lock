@@ -3,6 +3,20 @@
 version = 4
 
 [[package]]
+name = "accretion"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "ember-core",
+ "ember-stdlib",
+ "glam",
+ "macroquad",
+ "pollster",
+ "ron",
+ "serde",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -753,6 +767,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "taiji"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "ember-core",
+ "ember-stdlib",
+ "glam",
+ "macroquad",
+ "ron",
+ "serde",
 ]
 
 [[package]]

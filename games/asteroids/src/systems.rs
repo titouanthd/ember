@@ -80,7 +80,7 @@ impl GameWorld {
         self.score = 0;
         self.lives = ctx.lives_start;
         self.wave = 1;
-        self.invincibility = Cooldown::running(ctx.invincibility_secs);
+        self.invincibility = Cooldown::new(ctx.invincibility_secs);
         self.shoot_cooldown = Cooldown::default();
         self.level_cleared_timer = 0.0;
         spawn_asteroid_wave(&mut self.asteroids, ctx.asteroids_for_wave(1), ctx);
@@ -95,7 +95,7 @@ impl GameWorld {
         );
         self.bullets.clear();
         self.asteroids.clear();
-        self.invincibility = Cooldown::running(ctx.invincibility_secs);
+        self.invincibility = Cooldown::new(ctx.invincibility_secs);
         self.shoot_cooldown = Cooldown::default();
         spawn_asteroid_wave(&mut self.asteroids, ctx.asteroids_for_wave(self.wave), ctx);
         self.state = GameState::Playing;
@@ -113,7 +113,7 @@ impl GameWorld {
             ctx.ship_radius,
             ctx.ship_color,
         );
-        self.invincibility = Cooldown::running(ctx.invincibility_secs);
+        self.invincibility = Cooldown::new(ctx.invincibility_secs);
         self.shoot_cooldown = Cooldown::default();
         false
     }

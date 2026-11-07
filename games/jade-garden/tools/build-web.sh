@@ -24,7 +24,6 @@ WORKSPACE_DIR="$(cd "$CRATE_DIR/../.." && pwd)"
 
 OUT="$CRATE_DIR/dist/web"
 WASM_SRC="$WORKSPACE_DIR/target/wasm32-unknown-unknown/release/jade-garden.wasm"
-BUNDLE_JS_URL="https://raw.githubusercontent.com/not-fl3/macroquad/v0.4.16/js/mq_js_bundle.js"
 
 # 1. Ensure the wasm32 target is installed.
 if ! rustup target list --installed | grep -q wasm32-unknown-unknown; then
@@ -47,46 +46,53 @@ if [ ! -f "$WASM_SRC" ]; then
 fi
 cp "$WASM_SRC" "$OUT/jade-garden.wasm"
 
-# 5. Fetch mq_js_bundle.js (macroquad's JS glue).
-if [ ! -f "$SCRIPT_DIR/.cache/mq_js_bundle.js" ]; then
-    echo "→ Downloading mq_js_bundle.js…"
+# 5. Resolve mq_js_bundle.js for the EXACT locked macroquad version.
+#
+# The bundle must match the compiled macroquad binary byte-for-byte.
+# We resolve the version from Cargo.lock (never hardcoded), and try:
+#   1. the cargo registry (canonical source of truth),
+#   2. a version-keyed cache (cannot go stale across a macroquad bump),
+#   3. a CDN download of that exact version.
+BUNDLE="$OUT/mq_js_bundle.js"
+
+MQ_VERSION="$(awk '/^name = "macroquad"$/{getline; gsub(/[^0-9.]/,"",$3); print $3; exit}' \
+    "$WORKSPACE_DIR/Cargo.lock")"
+
+if [ -z "$MQ_VERSION" ]; then
+    echo "ERROR: could not determine macroquad version from Cargo.lock"
+    exit 1
+fi
+
+CACHE="$SCRIPT_DIR/.cache/mq_js_bundle-${MQ_VERSION}.js"
+REGISTRY_BUNDLE="$(find "${HOME}/.cargo/registry/src" \
+    -path "*macroquad-${MQ_VERSION}/js/mq_js_bundle.js" -type f 2>/dev/null | head -n 1 || true)"
+
+if [ -n "$REGISTRY_BUNDLE" ] && [ -f "$REGISTRY_BUNDLE" ]; then
+    echo "→ mq_js_bundle.js ← cargo registry (macroquad $MQ_VERSION)"
+    echo "   $REGISTRY_BUNDLE"
+    cp "$REGISTRY_BUNDLE" "$BUNDLE"
+elif [ -f "$CACHE" ]; then
+    echo "→ mq_js_bundle.js ← cache (macroquad $MQ_VERSION)"
+    echo "   $CACHE"
+    cp "$CACHE" "$BUNDLE"
+else
+    echo "→ mq_js_bundle.js ← download (macroquad $MQ_VERSION)"
     mkdir -p "$SCRIPT_DIR/.cache"
-
-    # Try several sources in order — the macroquad repo changes its
-    # tag format between versions (v0.4.16 vs 0.4.16), and jsdelivr
-    # is a CDN mirror that is more resilient than raw.githubusercontent.
-    BUNDLE_URLS=(
-        "https://cdn.jsdelivr.net/gh/not-fl3/macroquad@0.4.16/js/mq_js_bundle.js"
-        "https://raw.githubusercontent.com/not-fl3/macroquad/0.4.16/js/mq_js_bundle.js"
-        "https://cdn.jsdelivr.net/gh/not-fl3/macroquad@master/js/mq_js_bundle.js"
-        "https://raw.githubusercontent.com/not-fl3/macroquad/master/js/mq_js_bundle.js"
-    )
-
-    downloaded=false
-    for url in "${BUNDLE_URLS[@]}"; do
-        echo "   trying: $url"
-        if curl -L --fail --silent --show-error \
-            -o "$SCRIPT_DIR/.cache/mq_js_bundle.js" "$url"; then
-            downloaded=true
-            echo "   → OK"
-            break
-        fi
-        rm -f "$SCRIPT_DIR/.cache/mq_js_bundle.js"
-    done
-
-    if [ "$downloaded" = false ]; then
-        echo "ERROR: could not download mq_js_bundle.js from any URL."
+    if curl -L --fail --silent --show-error \
+        -o "$CACHE" \
+        "https://cdn.jsdelivr.net/gh/not-fl3/macroquad@${MQ_VERSION}/js/mq_js_bundle.js"; then
+        cp "$CACHE" "$BUNDLE"
+    else
+        echo "ERROR: could not fetch mq_js_bundle.js for macroquad $MQ_VERSION."
         echo ""
         echo "Download it manually:"
         echo "  1. Go to https://github.com/not-fl3/macroquad"
-        echo "  2. Navigate to 'js/mq_js_bundle.js' on the matching branch/tag"
-        echo "  3. Save it to: $SCRIPT_DIR/.cache/mq_js_bundle.js"
+        echo "  2. Navigate to 'js/mq_js_bundle.js' at tag $MQ_VERSION"
+        echo "  3. Save it to: $CACHE"
         echo "  4. Re-run this script"
         exit 1
     fi
 fi
-
-cp "$SCRIPT_DIR/.cache/mq_js_bundle.js" "$OUT/mq_js_bundle.js"
 
 # 6. Copy the HTML shell.
 cp "$CRATE_DIR/web/index.html" "$OUT/index.html"

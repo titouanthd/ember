@@ -1,0 +1,23 @@
+[package]
+name = "taiji"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ember-core.workspace = true
+ember-stdlib.workspace = true
+macroquad.workspace = true
+glam.workspace = true
+serde.workspace = true
+ron.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+dotenvy.workspace = true
+
+[lib]
+name = "taiji"
+path = "src/lib.rs"
+
+[[bin]]
+name = "taiji"
+path = "src/main.rs"

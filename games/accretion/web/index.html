@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accretion</title>
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+        #glcanvas { display: block; width: 100vw; height: 100vh; outline: none; }
+        #error { display: none; padding: 2rem; text-align: center; color: white; font-family: sans-serif; }
+    </style>
+</head>
+<body>
+    <canvas id="glcanvas" tabindex="1"></canvas>
+    <div id="error">
+        <h2>Sorry — this browser cannot run the game.</h2>
+        <p>It requires WebGL2. Try a recent version of Chrome, Firefox, or Safari.</p>
+    </div>
+
+    <script src="mq_js_bundle.js"></script>
+    <script src="localStorage_plugin.js"></script>
+    <script>
+        if (typeof load !== 'function') {
+            document.getElementById('glcanvas').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+        } else {
+            load("accretion.wasm");
+        }
+    </script>
+</body>
+</html>

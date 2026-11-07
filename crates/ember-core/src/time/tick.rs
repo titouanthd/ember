@@ -21,6 +21,13 @@ pub struct TickTimer {
 }
 
 impl TickTimer {
+    /// Nombre maximum de ticks consommés en un seul appel à [`advance`](Self::advance).
+    ///
+    /// Empêche la "spirale de la mort" quand un `dt` anormalement grand arrive
+    /// (breakpoint, alt-tab, pause GC) : on abandonne le surplus plutôt que de
+    /// tenter de rattraper indéfiniment et d'aggraver la frame suivante.
+    pub const MAX_TICKS_PER_ADVANCE: u32 = 8;
+    
     /// Crée un timer avec une durée de tick donnée (en secondes).
     ///
     /// La durée est clampée à un minimum de `1e-6` pour éviter les
@@ -42,24 +49,19 @@ impl TickTimer {
         self.tick_duration
     }
 
-    /// Avance le timer de `dt` secondes.
-    ///
-    /// Retourne le nombre de ticks qui doivent être exécutés. Le premier
-    /// tick a lieu quand l'accumulateur atteint `tick_duration`.
-    ///
-    /// Exemple : si `tick_duration = 0.1` et `dt = 0.25`, retourne `2`
-    /// (l'accumulateur passe de 0.0 à 0.25, 2 ticks sont consommés, il
-    /// reste 0.05 dans l'accumulateur).
     pub fn advance(&mut self, dt: f32) -> u32 {
         if dt < 0.0 {
             return 0;
         }
         self.accumulator += dt;
         let mut ticks = 0;
-        while self.accumulator >= self.tick_duration {
+        while self.accumulator >= self.tick_duration && ticks < Self::MAX_TICKS_PER_ADVANCE {
             self.accumulator -= self.tick_duration;
             ticks += 1;
         }
+        // Si on a atteint le plafond, on jette le surplus. Sinon c'est déjà
+        // < tick_duration et ce min() est un no-op.
+        self.accumulator = self.accumulator.min(self.tick_duration);
         ticks
     }
 
@@ -164,5 +166,22 @@ mod tests {
     fn test_duration_clamped_to_minimum() {
         let t = TickTimer::new(0.0);
         assert!(t.duration() >= 1e-6);
+    }
+
+    #[test]
+    fn test_advance_caps_ticks() {
+        let mut t = TickTimer::new(0.1);
+        let ticks = t.advance(1000.0);
+        assert_eq!(ticks, TickTimer::MAX_TICKS_PER_ADVANCE);
+        // Le surplus est jeté : on n'accumule pas 1000s de retard.
+        assert!(t.accumulator() <= t.duration() + 1e-6);
+    }
+
+    #[test]
+    fn test_advance_cap_does_not_break_normal_path() {
+        let mut t = TickTimer::new(0.1);
+        // Sous le plafond : comportement inchangé.
+        assert_eq!(t.advance(0.25), 2);
+        assert!((t.accumulator() - 0.05).abs() < 1e-5);
     }
 }

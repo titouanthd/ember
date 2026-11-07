@@ -163,7 +163,7 @@ fn test_invincibility_blocks_life_loss() {
     world.ship = ship_at(Vec2::new(100.0, 100.0));
     world.asteroids = vec![asteroid_at(Vec2::new(105.0, 100.0), 1)];
     world.lives = 3;
-    world.invincibility = ember_stdlib::time::Cooldown::running(1.5);
+    world.invincibility = ember_stdlib::time::Cooldown::new(1.5);
 
     let hit = world.step_ship_asteroid_collision(&cx, 0.016);
 

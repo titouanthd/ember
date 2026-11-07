@@ -330,7 +330,7 @@ impl Game {
                     .spawn_hit_spark(Vec2::new(x, self.ground_y - 20.0), stats.color());
                 self.units.push(unit);
                 self.player_cooldowns
-                    .insert(kind.to_string(), Cooldown::running(stats.cooldown));
+                    .insert(kind.to_string(), Cooldown::new(stats.cooldown));
                 true
             }
             None => false,
@@ -402,7 +402,7 @@ impl Game {
         ) {
             self.units.push(unit);
             self.enemy_cooldowns
-                .insert(kind, Cooldown::running(stats.cooldown));
+                .insert(kind, Cooldown::new(stats.cooldown));
         }
     }
 

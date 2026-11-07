@@ -136,16 +136,12 @@ fn aabb_vs_aabb_contact(
         return None;
     }
 
+    // `Aabb::penetration` retourne un axe **déjà signé** de `b` vers `a`,
+    // conformément à sa doc post-A4. Il n'y a donc rien à signer à la main :
+    // l'ancien `* dir` inversait la normale dans la moitié des cas.
     let (axis, depth) = a.penetration(&b)?;
-    // La normale doit pointer de B vers A.
-    let dir = if axis.x != 0.0 {
-        (center_a.x - center_b.x).signum()
-    } else {
-        (center_a.y - center_b.y).signum()
-    };
-    let normal = axis * dir;
     Some(Contact {
-        normal,
+        normal: axis,
         penetration: depth,
     })
 }

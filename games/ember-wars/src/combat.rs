@@ -818,8 +818,8 @@ mod tests {
     #[test]
     fn resolve_attacks_decrements_cooldowns() {
         let mut u = mk_unit(0, "grunt", Team::Player, 0.0);
-        u.attack_cd = Cooldown::running(0.5);
-        u.heal_cd = Cooldown::running(0.3);
+        u.attack_cd = Cooldown::new(0.5);
+        u.heal_cd = Cooldown::new(0.3);
         let mut units = vec![u];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
@@ -984,7 +984,7 @@ mod tests {
     #[test]
     fn resolve_attacks_respects_attack_cooldown() {
         let mut p = mk_unit(0, "grunt", Team::Player, 0.0);
-        p.attack_cd = Cooldown::running(0.5);
+        p.attack_cd = Cooldown::new(0.5);
         let e = mk_unit(1, "grunt", Team::Enemy, 10.0);
         let mut units = vec![p, e];
         let mut pt = mk_tower(Team::Player, -100.0);
@@ -1129,7 +1129,7 @@ mod tests {
     #[test]
     fn healer_respects_cooldown() {
         let mut h = mk_unit(0, "healer", Team::Player, 0.0);
-        h.heal_cd = Cooldown::running(2.0);
+        h.heal_cd = Cooldown::new(2.0);
         let mut wounded = mk_unit(1, "grunt", Team::Player, 50.0);
         wounded.hp = 10.0;
         let mut units = vec![h, wounded];

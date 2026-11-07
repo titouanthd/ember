@@ -76,7 +76,7 @@ impl Bullet {
             sprite,
             collider,
             velocity,
-            lifetime: Cooldown::running(lifetime),
+            lifetime: Cooldown::new(lifetime),
         }
     }
 

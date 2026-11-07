@@ -87,11 +87,15 @@ impl Rng {
     }
 
     /// Uniform integer in `[0, n)`. Returns `0` if `n == 0`.
+    ///
+    /// Utilise la méthode de Lemire : pas de biais modulo mesurable
+    /// (résidu ~`n / 2^32`, négligeable), pas de boucle de rejection.
     pub fn next_range(&mut self, n: usize) -> usize {
         if n == 0 {
             return 0;
         }
-        (self.next_u32() as usize) % n
+        let x = self.next_u32();
+        ((x as u64 * n as u64) >> 32) as usize
     }
 
     /// Uniform `f32` in `[min, max)`.
@@ -100,8 +104,11 @@ impl Rng {
     }
 
     /// Uniform `bool` (50/50).
+    ///
+    /// Utilise le bit de poids fort : dans un xorshift32, les bits bas ont
+    /// moins d'entropie que les bits hauts.
     pub fn next_bool(&mut self) -> bool {
-        self.next_u32() & 1 == 1
+        self.next_u32() & (1 << 31) != 0
     }
 }
 
@@ -233,5 +240,18 @@ mod tests {
         let v2 = rng.next_range(10);
         assert_eq!(v1, v2);
         assert_eq!(state, rng.state());
+    }
+
+    #[test]
+    fn test_next_range_is_roughly_uniform() {
+        let mut r = Rng::new(0xCAFE);
+        let mut counts = [0u32; 6];
+        for _ in 0..60_000 {
+            counts[r.next_range(6)] += 1;
+        }
+        // 60k / 6 = 10k attendu. Tolérance large ±500 (±5%).
+        for (i, &c) in counts.iter().enumerate() {
+            assert!((9_500..=10_500).contains(&c), "bucket {i}: {c}");
+        }
     }
 }

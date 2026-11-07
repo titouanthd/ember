@@ -126,7 +126,7 @@ impl Bullet {
             pos,
             vel,
             radius: ctx.bullet_player_radius,
-            ttl: Cooldown::running(ctx.bullet_ttl),
+            ttl: Cooldown::new(ctx.bullet_ttl),
             from_player: true,
             color: ctx.color_bullet_player,
         }
@@ -137,7 +137,7 @@ impl Bullet {
             pos,
             vel,
             radius: ctx.bullet_enemy_radius,
-            ttl: Cooldown::running(ctx.bullet_ttl),
+            ttl: Cooldown::new(ctx.bullet_ttl),
             from_player: false,
             color: ctx.color_bullet_enemy,
         }
@@ -242,7 +242,7 @@ impl Enemy {
             emitter: data.emitter.clone(),
             // Grace period before the first shot, so the player can react
             // to the wave spawning.
-            fire_cooldown: Cooldown::running(cooldown + 0.6),
+            fire_cooldown: Cooldown::new(cooldown + 0.6),
             age: 0.0,
             phase: 0.0,
             entry: data.entry,

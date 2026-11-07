@@ -6,6 +6,8 @@
 
 pub mod aabb;
 pub mod circle;
+pub mod vec;
 
 pub use aabb::Aabb;
 pub use circle::Circle;
+pub use vec::reflect;
