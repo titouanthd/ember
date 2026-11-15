@@ -128,11 +128,7 @@ pub fn update_if_lower<T: PartialOrd + Copy>(current: &mut T, candidate: T) -> b
 ///
 /// Utilisé par Minesweeper et Memory (clé = nom de difficulté) et
 /// FreeCell (clé = seed). Évite la duplication du `match get_mut / insert`.
-pub fn update_best_in_map<K: ToString>(
-    map: &mut HashMap<String, f32>,
-    key: K,
-    value: f32,
-) -> bool {
+pub fn update_best_in_map<K: ToString>(map: &mut HashMap<String, f32>, key: K, value: f32) -> bool {
     let k = key.to_string();
     match map.get_mut(&k) {
         Some(current) => update_if_lower(current, value),
@@ -150,8 +146,8 @@ pub fn update_best_in_map<K: ToString>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
     use std::collections::HashMap;
+    use std::env;
 
     fn temp_path(name: &str) -> PathBuf {
         env::temp_dir().join(format!("ember_persistence_test_{name}.ron"))

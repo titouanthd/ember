@@ -203,7 +203,7 @@ fn circle_vs_circle_contact(
     center_b: Vec2,
     radius_b: f32,
 ) -> Option<Contact> {
-    let diff = center_a - center_b;      // B → A  (matches Contact.normal)
+    let diff = center_a - center_b; // B → A  (matches Contact.normal)
     let dist_sq = diff.length_squared();
     let radius_sum = radius_a + radius_b;
 
@@ -218,7 +218,10 @@ fn circle_vs_circle_contact(
         diff / dist
     };
     let penetration = radius_sum - dist;
-    Some(Contact { normal, penetration })
+    Some(Contact {
+        normal,
+        penetration,
+    })
 }
 
 // ============================================================================
@@ -423,10 +426,17 @@ mod tests {
         // A at origin, B to the right. Normal must point B → A (−X).
         let a = circle_collider(5.0);
         let b = circle_collider(5.0);
-        let c = collide_contact(Vec2::ZERO, &a, Vec2::new(4.0, 0.0), &b)
-            .expect("overlapping circles");
-        assert!(c.normal.x < 0.0, "normal must point toward A, got {:?}", c.normal);
-        assert!((c.normal.length() - 1.0).abs() < 1e-5, "normal must be unit-length");
+        let c =
+            collide_contact(Vec2::ZERO, &a, Vec2::new(4.0, 0.0), &b).expect("overlapping circles");
+        assert!(
+            c.normal.x < 0.0,
+            "normal must point toward A, got {:?}",
+            c.normal
+        );
+        assert!(
+            (c.normal.length() - 1.0).abs() < 1e-5,
+            "normal must be unit-length"
+        );
         // Sanity: penetration = (r_a + r_b) − dist = 10 − 4 = 6.
         assert!((c.penetration - 6.0).abs() < 1e-5);
     }

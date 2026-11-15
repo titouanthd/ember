@@ -18,10 +18,7 @@ use macroquad::prelude::Rect;
 
 /// `true` si `p` est à l'intérieur de `rect` (bords inclusifs).
 pub fn contains(rect: Rect, p: Vec2) -> bool {
-    p.x >= rect.x
-        && p.x <= rect.x + rect.w
-        && p.y >= rect.y
-        && p.y <= rect.y + rect.h
+    p.x >= rect.x && p.x <= rect.x + rect.w && p.y >= rect.y && p.y <= rect.y + rect.h
 }
 
 /// Idem, avec `(x, y, w, h)` séparés.
@@ -36,10 +33,7 @@ pub fn contains_tuple(r: (f32, f32, f32, f32), p: Vec2) -> bool {
 
 /// Variante stricte : les bords sont **exclus**.
 pub fn contains_strict(rect: Rect, p: Vec2) -> bool {
-    p.x > rect.x
-        && p.x < rect.x + rect.w
-        && p.y > rect.y
-        && p.y < rect.y + rect.h
+    p.x > rect.x && p.x < rect.x + rect.w && p.y > rect.y && p.y < rect.y + rect.h
 }
 
 // ---------------------------------------------------------------------------

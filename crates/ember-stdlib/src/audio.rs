@@ -9,7 +9,7 @@
 
 use std::path::Path;
 
-use macroquad::audio::{PlaySoundParams, Sound, load_sound, play_sound};
+use macroquad::audio::{PlaySoundParams, Sound, load_sound, play_sound, stop_sound};
 
 /// A loaded sound. Cheap to play repeatedly.
 pub struct AudioClip {
@@ -48,5 +48,10 @@ impl AudioClip {
                 volume: volume.clamp(0.0, 1.0),
             },
         );
+    }
+
+    /// Stop every playback of this clip.
+    pub fn stop(&self) {
+        stop_sound(&self.sound);
     }
 }
