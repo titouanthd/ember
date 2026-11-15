@@ -130,7 +130,7 @@ fn window_conf() -> Conf {
 async fn main() {
     fonts::load_default_font().await;
 
-    let mut game = save::load().unwrap_or_else(Game::new);
+    let mut game = save::load().unwrap_or_default();
     let mut disk = Disk::new();
     let mut screen = AppScreen::Title;
     let mut ui = UiState::default();
@@ -661,14 +661,12 @@ fn draw_right_panel(game: &Game, accent: Color, right_tab: RightTab, buildings_s
             // Scissor test for the scrollable area
             let dpi = screen_dpi_scale();
             let gl = unsafe { get_internal_gl() };
-            unsafe {
-                gl.quad_gl.scissor(Some((
-                    (content_x * dpi) as i32,
-                    (content_y * dpi) as i32,
-                    (CARD_W * dpi) as i32,
-                    (viewport_h * dpi) as i32,
-                )));
-            }
+            gl.quad_gl.scissor(Some((
+                (content_x * dpi) as i32,
+                (content_y * dpi) as i32,
+                (CARD_W * dpi) as i32,
+                (viewport_h * dpi) as i32,
+            )));
 
             let mut row = 0;
             for def in BUILDINGS {
@@ -692,7 +690,7 @@ fn draw_right_panel(game: &Game, accent: Color, right_tab: RightTab, buildings_s
                 draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, cfg::PANEL_BORDER);
 
                 draw_text(
-                    &format!("{}  \u{00d7}{}", def.name, game.building_count(def.id)),
+                    format!("{}  \u{00d7}{}", def.name, game.building_count(def.id)),
                     rect.x + 12.0,
                     rect.y + 24.0,
                     16.0,
@@ -719,7 +717,7 @@ fn draw_right_panel(game: &Game, accent: Color, right_tab: RightTab, buildings_s
             }
 
             // Restore scissor
-            unsafe { gl.quad_gl.scissor(None) };
+            gl.quad_gl.scissor(None);
 
             // Scrollbar
             let max_scroll = max_buildings_scroll(game);

@@ -1,5 +1,13 @@
 # SESSION2.md — Handoff to the next agent
 
+> **Status note (Session 17.9):** this document is historical. The project
+> continued past the starter kit and now ships a playable prototype with
+> mining, drops, bag, truck, HQ, procedural levels, pixel sprites, and a web
+> build (223 tests). It was then **abandoned as a jam project**. Robot
+> employees, the map/intro screens, and the level-complete objective remain
+> unfinished. See `README.md` and the status table at the top of `DESIGN.md`
+> for the current truth.
+
 **Date**: October 2026
 **Status**: Starter kit complete. Archie sprite iterated to "good enough".
 **Next**: gameplay systems (truck, robots, HQ, map, procedural gen).

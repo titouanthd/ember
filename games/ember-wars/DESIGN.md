@@ -6,8 +6,27 @@
 > le joueur gère une ressource et pilote une **catapulte** à tir
 > balistique. Objectif : détruire la tour ennemie ou survivre.
 
-Dernière mise à jour : Phase 26 (extraction `Cooldown` + restauration
-de tests). Statut : **V1 jouable, 15 niveaux, tree étendu, UI polishée.**
+Dernière mise à jour : Session 17.9 (statut de test réconcilié avec la
+sémantique actuelle de `Cooldown`).
+Statut : **V1 jouable, 15 niveaux, tree étendu, UI polishée — mais 31 tests
+échouent.**
+
+> ⚠️ **État des tests (à lire avant de travailler dessus).**
+> `Cooldown::new(d)` démarre désormais **actif** (`remaining = d`) ;
+> `Cooldown::with_duration(d)` démarre **prêt** (`remaining = 0`) en
+> mémorisant `d`. Les constructeurs et les tests d'ember-wars supposent
+> encore l'ancienne sémantique (« `new` = prêt »), d'où :
+>
+> - **316 tests unitaires** : 288 passent, **28 échouent** ;
+> - **20 tests d'intégration** : 17 passent, **3 échouent** ;
+> - **total : 336 tests, 305 passent, 31 échouent.**
+>
+> Modules touchés : `catapult` (13), `combat` (12), `systems` (2), `units` (1),
+> plus `tests/game_scenarios.rs` (3). Le correctif est mécanique : remplacer
+> `Cooldown::new` par `Cooldown::with_duration` partout où un cooldown doit
+> être prêt (constructeurs, `spawn_unit`, setup de test), et garder `new`
+> uniquement pour un cooldown qui vient de se déclencher.
+> Le chiffre « 337 tests verts » plus bas est historique — ne pas le répéter.
 
 ---
 
@@ -103,7 +122,8 @@ défaut, redimensionnable.
 | **Feedback** | Floating damage/heal texts, juice, screen shake | +sons |
 | **Cooldowns** | `ember_core::time::Cooldown` (Phase 26) | — |
 
-**Tests actuels** : **317 unit + 20 integration = 337 tests** dans `ember-wars`.
+**Tests actuels** : **316 unit + 20 integration = 336 tests** dans `ember-wars`
+(305 passent, 31 échouent — voir l'avertissement en tête).
 
 ---
 
@@ -400,7 +420,9 @@ pub struct Tower { ... }
 
 - Charge `units.ron` via `OnceLock`.
 - `spawn_unit(gen, kind, team, pos, hp_mult, damage_mult) -> Option<Unit>`.
-- Initialise les `Cooldown` en mode ready avec leur durée enregistrée.
+- **Devrait** initialiser les `Cooldown` en mode ready avec leur durée
+  enregistrée (`Cooldown::with_duration`). Le code actuel utilise encore
+  `Cooldown::new` (running), ce qui est la cause des 31 échecs de tests.
 - `can_spawn(kind, team, units)` respecte `max_alive`.
 - `alive_count(kind, team, units)`.
 
@@ -814,34 +836,35 @@ games/ember-wars/
 
 ## 10. Stratégie de tests
 
-Objectif atteint : **317 unit + 20 integration = 337 tests** dans
-`ember-wars`.
+**État actuel : 316 unit + 20 integration = 336 tests.**
+305 passent, **31 échouent** (sémantique `Cooldown`, voir en tête). L'objectif
+historique « 337 verts » n'est plus vrai.
 
-### 10.1 Couverture par module
+### 10.1 Couverture par module (comptage réel)
 
-| Module | Tests |
-|---|---|
-| `components.rs` | 5 |
-| `units.rs` | 18 |
-| `stickman.rs` | 22 |
-| `weapons.rs` | 9 |
-| `catapult.rs` | 39 |
-| `combat.rs` | 38 |
-| `mana.rs` | 4 |
-| `ai.rs` | 12 |
-| `upgrades.rs` | 35 |
-| `progress.rs` | 15 |
-| `camera.rs` | 17 |
-| `textures.rs` | 13 |
-| `juice.rs` | 15 |
-| `systems.rs` | 34 |
-| `config.rs` | 7 |
-| `menu.rs` | 10 |
-| `ui/spawn_bar.rs` | 3 |
-| `ui/upgrade_modal.rs` | 13 |
-| **Total unit** | **317** |
-| `tests/game_scenarios.rs` | **20** |
-| **Total** | **337** |
+| Module | Tests | Dont échecs |
+|---|---|---|
+| `components.rs` | 5 | 0 |
+| `units.rs` | 19 | 1 |
+| `stickman.rs` | 30 | 0 |
+| `weapons.rs` | 9 | 0 |
+| `catapult.rs` | 41 | 13 |
+| `combat.rs` | 38 | 12 |
+| `mana.rs` | 4 | 0 |
+| `ai.rs` | 10 | 0 |
+| `upgrades.rs` | 36 | 0 |
+| `progress.rs` | 15 | 0 |
+| `camera.rs` | 16 | 0 |
+| `textures.rs` | 11 | 0 |
+| `juice.rs` | 15 | 0 |
+| `systems.rs` | 34 | 2 |
+| `config.rs` | 7 | 0 |
+| `menu.rs` | 10 | 0 |
+| `ui/spawn_bar.rs` | 3 | 0 |
+| `ui/upgrade_modal.rs` | 13 | 0 |
+| **Total unit** | **316** | **28** |
+| `tests/game_scenarios.rs` | **20** | **3** |
+| **Total** | **336** | **31** |
 
 ### 10.2 Tests d'intégration (`tests/game_scenarios.rs`)
 
@@ -1033,4 +1056,6 @@ Objectif atteint : **317 unit + 20 integration = 337 tests** dans
 - **Restauré 52 tests perdus** pendant la migration : blocs `mod tests`
   de `catapult.rs` (+24), `combat.rs` (+29), `systems.rs` (+18) réécrits
   en conservant l'API `Cooldown`.
-- Tests : 314 → 264 (perte) → **317 unit + 20 integration = 337 tests**.
+- Tests : 314 → 264 (perte) → **317 unit + 20 integration = 337 tests**
+  à l'époque. Depuis la révision de sémantique de `Cooldown` (Session 17.9),
+  le total réel est **316 unit + 20 integration = 336**, dont **31 échouent**.

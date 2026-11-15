@@ -82,7 +82,7 @@ impl Paradigm {
 
     /// The next paradigm in the chain, or `None` at the end.
     pub fn next(self) -> Option<Paradigm> {
-        Paradigm::ALL.iter().copied().skip_while(|&p| p <= self).next()
+        Paradigm::ALL.iter().copied().find(|&p| p > self)
     }
 }
 

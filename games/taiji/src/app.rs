@@ -18,6 +18,12 @@ pub struct App {
     pub score_ai: i32,
 }
 
+impl Default for App {         // ← new impl block
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl App {
     pub fn new() -> Self {
         Self {

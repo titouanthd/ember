@@ -1,5 +1,11 @@
 # Zhuo Ji — Design Document
 
+**Status (Session 17.9): implemented.** Native only. **197 tests pass**
+(187 unit + 10 integration). The full loop — deal, draw, discard, claims,
+scoring, match — is playable. See §9–§13 for the shipped rendering, file
+structure, and test counts; the rules sections above them remain the
+reference.
+
 ## 1. Overview
 
 A 4-player Guiyang-style Mahjong game with one human and three AI opponents. The game uses 108 tiles (three suits, no honors) and features two signature mechanics that distinguish it from standard Mahjong: **豆 (Dou)** — Gang bonuses that act as a "passport" for winning on a discard — and **鸡 (Ji)** — a bonus tile revealed after the hand ends that multiplies the score. The result is a fast, aggressive variant where players compete not just to win, but to collect the most Dou and Ji along the way.
@@ -257,18 +263,26 @@ The AI ignores what other players are collecting. It does not avoid dangerous di
 
 **V2 addition:** A simple danger heuristic — avoid discarding tiles that appear in an opponent's river when that opponent's shanten is low.
 
-## 9. Rendering (V1: ASCII)
+## 9. Rendering (implemented: custom CJK tiles)
 
-DejaVu Sans Mono does not cover CJK characters (万, 条, 筒). V1 uses text labels:
+The original V1 plan was ASCII (`1W`, `5T`, `8D`). The shipped game renders
+**real Mahjong faces** with a custom `TileFont`:
 
-| Tile | Label | Tile | Label |
-|---|---|---|---|
-| 1 Wan | `1W` | 1 Tiao | `1T` |
-| 5 Wan | `5W` | 5 Tiao | `5T` |
-| 9 Wan | `9W` | 9 Tiao | `9T` |
-| 1 Tong | `1D` | 8 Tong | `8D` |
+- **Top-left:** Arabic numeral 1–9 (default font, red).
+- **Top-right:** suit character 條 / 筒 (CJK font, suit color).
+- **Center:** traditional drawing.
+  - **Wan:** Chinese numeral (black) + 萬 (red), stacked.
+  - **Tiao:** 1 Tiao is a chicken (幺鸡, permanent Ji); 2–9 are bamboo bars
+    with joints.
+  - **Tong:** blue/red coin dots, with custom layouts for 1 and 8.
+- **Standing tiles:** 3D parallelepiped with directional shadows from a fixed
+  top-left light source.
+- **Glow:** colored outline (`TileGlow`) for "useful" / "Ji" status without
+  altering the face.
 
-**V2 polish:** Load Noto Sans Symbols 2 (~2 MB) for proper CJK rendering.
+`src/font.rs` embeds `assets/NotoSansSC-ZhuoJi.ttf` via `include_bytes!`;
+`src/tiles.rs` owns the drawings. DejaVu Sans Mono remains the default UI
+font. There is no 2 MB Noto Sans Symbols dependency.
 
 ### 9.1 Layout
 
@@ -288,20 +302,23 @@ DejaVu Sans Mono does not cover CJK characters (万, 条, 筒). V1 uses text lab
 └──────────────────────────────────────────────────────────────┘
 ```
 
-- **Bottom:** Human hand (click a tile to discard).
+- **Bottom:** human hand (click a tile to discard).
 - **Left/Right/Top:** AI players (tile backs, exposed melds, rivers).
-- **Center:** Wall count, turn indicator, phase label.
-- **Claim buttons:** Appear when the human can Peng / Gang / Hu a discard.
+- **Center:** wall count, turn indicator, phase label.
+- **Claim buttons:** appear when the human can Peng / Gang / Hu a discard.
+- **Menus/help:** `menu.rs`, `help.rs`, and `ui/` (panel + modal helpers).
 
-## 10. Project Structure
+## 10. Project Structure (as implemented)
 
 ```
-games/mahjong/
+games/zhuo-ji/
 ├── Cargo.toml
 ├── .env                    # colors, layout, AI timings
 ├── DESIGN.md               # this file
+├── README.md
 ├── assets/
-│   └── DejaVuSansMono.ttf
+│   ├── NotoSansSC-Regular.ttf
+│   └── NotoSansSC-ZhuoJi.ttf   # embedded subset for tile faces
 ├── src/
 │   ├── main.rs             # game loop, input, rendering
 │   ├── lib.rs              # module declarations, re-exports
@@ -309,11 +326,18 @@ games/mahjong/
 │   ├── components.rs       # Tile, Suit, Meld, Player, Game
 │   ├── wall.rs             # tile creation, shuffle, deal
 │   ├── hand.rs             # is_winning_hand, shanten, tenpai
+│   ├── hand_summary.rs     # win explanation / hand breakdown
 │   ├── ai.rs               # AiState, decide_discard, decide_claim
-│   ├── systems.rs          # Game, Phase, turn flow, scoring
-│   └── font.rs             # font loading
+│   ├── scoring.rs          # Dou, Ji, pattern fan, payments
+│   ├── systems.rs          # Game, Phase, turn flow
+│   ├── layout.rs           # responsive table geometry
+│   ├── tiles.rs            # Mahjong faces, standing tiles, glow
+│   ├── font.rs             # default font + TileFont (CJK)
+│   ├── menu.rs             # title / settings / match setup
+│   ├── help.rs             # in-game rules help
+│   └── ui/                 # panel.rs + modal helpers
 └── tests/
-    └── game_scenarios.rs   # integration tests
+    └── game_scenarios.rs   # 10 integration tests
 ```
 
 ## 11. Known Traps
@@ -356,17 +380,23 @@ games/mahjong/
 - Verify phase transitions and final scores.
 - A full N-hand match with seeded RNG ends at a deterministic final score.
 
-**Target:** 60–80 tests, comparable to FreeCell.
+**Actual:** 197 tests — 187 unit + 10 integration (`tests/game_scenarios.rs`).
+The original target was 60–80; the hand evaluator, scoring, and phase machine
+needed far more edge-case coverage.
 
-## 13. Session Plan (5 Sessions)
+## 13. Session Plan (completed)
 
-| Session | Scope | Deliverable |
-|---|---|---|
-| **1** | Tile model, wall, deal, human draw/discard, basic rendering | Playable hot-seat with no AI, no calls |
-| **2** | Win detection + shanten + tenpai as pure tested functions | All hand-evaluation logic green |
-| **3** | AI discard logic (no calls) | AI opponents that discard intelligently |
-| **4** | Calls (Peng/Gang/Hu), claim priority, full turn flow, AI call decisions | Complete game loop |
-| **5** | Scoring (Dou, Ji, pattern fan), match flow, integration tests, polish | Full game, all tests green |
+| Session | Scope | Deliverable | Status |
+|---|---|---|---|
+| **1** | Tile model, wall, deal, human draw/discard, basic rendering | Playable hot-seat with no AI, no calls | ✅ |
+| **2** | Win detection + shanten + tenpai as pure tested functions | All hand-evaluation logic green | ✅ |
+| **3** | AI discard logic (no calls) | AI opponents that discard intelligently | ✅ |
+| **4** | Calls (Peng/Gang/Hu), claim priority, full turn flow, AI call decisions | Complete game loop | ✅ |
+| **5** | Scoring (Dou, Ji, pattern fan), match flow, integration tests, polish | Full game, all tests green | ✅ |
+
+Additional work beyond the plan: custom CJK tile faces (`tiles.rs` +
+`TileFont`), responsive layout (`layout.rs`), menus/help, hand summaries,
+and a multi-hand match flow.
 
 ## 14. What This Adds to Ember
 
@@ -389,4 +419,4 @@ games/mahjong/
 
 ---
 
-*This design prioritizes a playable, testable core over rule completeness. Features marked V2 (defense AI, CJK rendering, yaku, furiten) can be added incrementally once the base game is solid.*
+*This design prioritized a playable, testable core over rule completeness. CJK tile rendering and the full scoring/match flow have since shipped; defense AI, yaku, and furiten remain possible V2 additions.*

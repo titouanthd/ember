@@ -14,8 +14,30 @@
 > and where the goal is not to mine everything — it's to get the
 > Bore Inc. truck to the other side.
 
-Last updated: Session 2 (final design doc, jam).
-Status: **in design**. Target: **browser (WASM)**.
+Last updated: Session 17.9 (status reconciled; design kept as intent).
+Status: **abandoned prototype**. Native + browser (WASM). 223 tests pass.
+Target: **browser (WASM)**.
+
+> **Implementation status.** The jam stopped before the full loop shipped.
+> What exists in `games/bore-inc/` today:
+>
+> | Area | Implemented |
+> |---|---|
+> | Mining by movement | Yes — push/hold against a tile, HP per tile |
+> | Resource drops + bag | Yes — drops, bag capacity, deposit into the truck |
+> | Drivable truck | Yes — storage, driving, tunnel constraints |
+> | HQ | Yes — selling, cargo, upgrade blocks |
+> | Procedural levels | Yes — deterministic seeds, `levelgen.rs` |
+> | Persistence | Yes — seed + delta entries (`Progress`) |
+> | Pixel-perfect rendering | Yes — procedural atlas, 320×180 virtual canvas |
+> | Web build | Yes — `tools/build-web.sh`, `dist/web/` |
+> | Robot employees | **Partial** — capsule tiles + unlock flags; no robot AI/mining |
+> | Map screen | **Placeholder** — `MAP` / `TODO` |
+> | Intro screen | **Placeholder** — `INTRO` / `TODO` |
+> | Level-complete / truck-to-finish | **Not implemented** |
+>
+> Tests: **202 unit + 21 integration = 223**. The design below remains the
+> authoritative intent for anyone who resumes the project.
 
 ---
 

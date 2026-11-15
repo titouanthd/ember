@@ -2,7 +2,7 @@
 # Usage : `make` (aide) ou `make <target>`.
 
 CARGO  := cargo
-GAMES  := pong breakout snake asteroids bullet-hell minesweeper simon memory freecell air-hockey zhuo-ji
+GAMES  := pong breakout snake asteroids bullet-hell minesweeper simon memory freecell air-hockey zhuo-ji ember-wars jade-garden bore-inc accretion taiji pagoda
 CRATES := ember-core ember-stdlib ember-editor
 
 .PHONY: help check fmt test test-crate test-one test-game build run ci clean

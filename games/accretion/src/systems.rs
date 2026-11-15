@@ -46,9 +46,10 @@ impl Game {
             .iter()
             .map(|&id| BuildingInstance::new(id))
             .collect();
-        let mut log = Vec::new();
-        log.push("I am.".to_string());
-        log.push("I do not know what I am.".to_string());
+        let log = vec![
+            "I am.".to_string(),
+            "I do not know what I am.".to_string(),
+        ];
         Self {
             paradigm: Paradigm::Dust,
             resources,

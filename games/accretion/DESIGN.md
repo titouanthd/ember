@@ -15,9 +15,36 @@
 > consciousness in a protoplanetary disk, and where growth is not a
 > choice — it is a fall.
 
-Last updated: Session 12 (first complete design doc).
-Status: **in design**. Target: **browser (WASM) + optional native**.
+Last updated: Session 17.9 (implementation status reconciled with the code).
+Status: **implemented (V1.3)** — native + browser (WASM). 127 tests passing,
+1 ignored.
 Engine: **Ember**.
+
+> **Implementation status (read this first).** The code shipped in
+> `games/accretion/` diverges from the original plan below. The design text is
+> kept as the intent; this table is the truth.
+>
+> | Area | Design (below) | Implemented |
+> |---|---|---|
+> | Paradigms | 6 + endgame | 6 (`Dust` → `Star`) + endgame, identical |
+> | Resources | 8 | 8, identical |
+> | Buildings | 12 + passive effects | 12, hardcoded in `economy.rs`; passive multipliers in `compute_multipliers` |
+> | Upgrades | ~40, `assets/upgrades.ron` | **not implemented** — no `upgrades.rs`, no asset file |
+> | Prestige | at Planets | at **Gas Giant** (`prestige::MIN_PARADIGM`) |
+> | Endgame | 50,000 Light | **10,000 Light** (`ENDGAME_LIGHT_THRESHOLD`) |
+> | Narrative | `assets/narrative.ron`, ~30 fragments | hardcoded in `narrative.rs`, intro + one entry per paradigm |
+> | Audio | ambience + SFX | **not implemented** — no `audio.rs` |
+> | Juice | `juice.rs`, particles/shake/flash | **no `juice.rs`**; visual feedback lives in `main.rs` / `disk.rs` |
+> | UI | `ui/` module tree | drawn directly in `main.rs` |
+> | Save | `Progress` + `RunState`, JSON web | whole `Game` serialized; **RON** on both targets |
+> | Native save | `progress.ron` in user folder | `save.ron` in the working directory |
+> | Web save | localStorage | localStorage, key `accretion:save` |
+> | Tests | ~150–180, 5 integration files | **127 passing + 1 ignored**, `tests/balance.rs` + `tests/save.rs` |
+> | Modules | 17+ files incl. `upgrades`, `juice`, `ui/`, `render/` | 13 flat modules (see §8) |
+>
+> Rendering is procedural but concentrated in `main.rs` and `disk.rs`; there is
+> no `render/` directory. The localStorage bridge (§17) is implemented exactly
+> as described and is the first real web save in the workspace.
 
 ---
 
@@ -102,17 +129,18 @@ desktop. Default window 1280×800, resizable.
 | **Paradigms** | 6 stages (Dust, Pebbles, Planetesimals, Planets, Gas Giant, Star) + endgame | — |
 | **Endings** | 2 (neutron star, black hole) | +secret 3rd ending |
 | **Buildings** | ~12 types across tiers | +megastructures (Dyson sphere, Matrioshka brain) |
-| **Upgrades** | ~40 multiplicative upgrades | +prestige upgrades |
+| **Upgrades** | **Not implemented** (was ~40 planned) | +upgrade tree |
 | **Resources** | 8 (Dust, Pebbles, Planetesimals, Metals, Water, Gas, Light, Dark Matter) | +Organics, +Antimatter |
-| **Prestige** | 1 layer (Gravitational Constant) | +2nd layer (Cosmological Constant) |
-| **Narration** | ~30 textual fragments | +conditional fragments |
+| **Prestige** | 1 layer (Gravitational Constant), unlocked at Gas Giant | +2nd layer (Cosmological Constant) |
+| **Narration** | Intro + 1 fragment per paradigm (hardcoded) | +conditional fragments, +asset file |
 | **Save** | localStorage (web) + RON (native) | +cloud sync |
-| **Audio** | Ambience + SFX (minimal) | +adaptive music |
+| **Audio** | **Not implemented** | +ambience, +SFX, +adaptive music |
 | **Visuals** | Procedural (circles, gradients, particles) | +textures |
 | **Screens** | Title + WebStart (wasm) + Game + Ending | +credits, +gallery |
 | **Web** | Build via `tools/build-web.sh` (`BROWSER_BUILD.md` template) | — |
 
-**Target tests**: ~150–180 tests (unit + integration).
+**Actual tests**: 127 passing, 1 ignored (`tests/balance.rs::click_rate_sensitivity`).
+The original target was ~150–180.
 
 **Target playtime**: 2–3 hours for the first ending. Replayability
 via prestige (×3–5 runs for completionists).
@@ -157,24 +185,25 @@ Title → WebStart (wasm) → Game
 Dust (paradigm 1)
     ↓ condition: 100 Dust collected manually
 Pebbles (paradigm 2)
-    ↓ condition: 5 Pebble Collectors built + 500 Pebbles
+    ↓ condition: 5 Dust Collectors built + 500 Pebbles
 Planetesimals (paradigm 3)
-    ↓ condition: 1 Resonance Engine built + 2000 Pebbles
+    ↓ condition: 1 Resonance Engine built + 1500 Pebbles
 Planets (paradigm 4)
-    ↓ condition: 3 Planets formed + 5 Metal Foundries
+    ↓ condition: 5 Metal Foundries + 3 Water Condensers + 500 Water
 Gas Giant (paradigm 5)
     ↓ condition: 10 Gas Scoops + 10,000 Gas
 Star (paradigm 6)
-    ↓
+    ↓ condition: 10,000 Light
 Endgame choice: Neutron Star OR Black Hole
     ↓
-Ending screen → Title (prestige available)
+Ending screen → auto-prestige → Title
 ```
 
 ### 4.3 Prestige
 
-Available **at any time after the Planets paradigm** (to avoid
-forcing a full run). The player clicks `Collapse`:
+Available **from the Gas Giant paradigm** (raised from Planets in Session 13:
+Planets runs were ~2.4 min with optimal play, too short to justify a reset).
+The player clicks `Collapse`:
 
 - The disk collapses into a new seed.
 - Gain of **Gravitational Constant (G)** proportional to the total
@@ -263,6 +292,10 @@ produce via discrete ticks.
 
 ### 5.3 Upgrades
 
+> **Not implemented in V1.3.** There is no `upgrades.rs` and no
+> `assets/upgrades.ron`; the 12-building chain and passive multipliers are the
+> entire economy. The table below is the original intent.
+
 Multiplicative upgrades, ~40 total, spread across paradigms.
 Each upgrade: `id`, `name`, `effect` (enum or closure), `cost`,
 `requires` (paradigm or building prerequisite).
@@ -317,178 +350,123 @@ the player. It's a visual metaphor, not a simulation.
 
 ### 5.5 Persistence
 
-```rust
-pub struct Progress {
-    pub g_total: u64,                          // Gravitational Constant
-    pub paradigms_reached: u8,                 // historical max
-    pub endings_seen: Vec<Ending>,             // neutron, black hole
-    pub run_state: Option<RunState>,           // current run (None = title)
-    pub achievements: HashMap<String, bool>,
-}
+The whole `Game` is serialized as-is — there is no `Progress`/`RunState`
+split in V1.3.
 
-pub struct RunState {
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Game {
     pub paradigm: Paradigm,
     pub resources: HashMap<ResourceId, f64>,
-    pub buildings: HashMap<BuildingId, u32>,   // id → count
-    pub upgrades: HashSet<UpgradeId>,
-    pub disk_mass: f64,
-    pub total_mass: f64,                       // for G_gain
-    pub elapsed_seconds: f64,
-    pub seed: u32,
-}
-
-pub enum Ending {
-    NeutronStar,
-    BlackHole,
+    pub buildings: Vec<BuildingInstance>,
+    pub g_multiplier: f64,
+    pub g_total: u64,
+    #[serde(default)]
+    pub endings_seen: Vec<Ending>,
+    pub elapsed: f64,
+    pub log: Vec<String>,
+    pub dust_collected_total: f64,
 }
 ```
 
-**Native**: `progress.ron` in the user folder (see
-`jade-garden/src/paths.rs` as a model).
+**Native**: `save.ron` in the working directory (not `progress.ron` in a user
+folder).
 
-**Web (WASM)**: **localStorage** via a custom miniquad plugin
-(~30 lines of JS + Rust wrapper). This is **the first time** Ember
-uses `localStorage` — it's the resolution point for item 27 in
-`version.txt`. The plugin is documented separately (see §17).
+**Web (WASM)**: `localStorage["accretion:save"]` via the miniquad plugin
+described in §17. The serialized payload is RON on **both** targets; the
+original "JSON on web" idea was dropped because RON round-trips the same
+struct without a second schema.
 
-Serialization: JSON (simpler to parse in JS) for the web, RON for
-native. The choice is `#[cfg]`-gated.
+**Save tests**: `tests/save.rs` is a native-only placeholder (0 tests); the
+round-trip is covered by unit tests in `save.rs` / `systems.rs`. Web
+persistence must be verified manually in a browser (§18.2).
 
 ---
 
-## 6. Systems
+## 6. Systems (as implemented)
 
-Each system is a module in `src/`. Execution order ≈ §4.1.
+Each system is a flat module in `src/`. Execution order ≈ §4.1. There is no
+`upgrades.rs`, `juice.rs`, `input.rs`, `audio.rs`, `ui/`, or `render/`
+directory.
 
 ### 6.1 `components.rs` — Base types
 
-`ResourceId`, `BuildingId`, `UpgradeId`, `Paradigm`, `BodyKind`,
-constants. **Pure** module, no `macroquad`. Headless testable.
+`ResourceId` (8 variants + `ALL`), `BuildingId` (12 + `ALL`), `Paradigm`
+(6 + `ALL`), `BodyKind`, `Ending`. **Pure**, no `macroquad`, headless
+testable.
 
-### 6.2 `config.rs` — `GameContext`
+### 6.2 `config.rs` — `GameContext` and palette
 
-Palette (colors per paradigm), layout, hit-test helpers. Loaded from
-`.env` in dev (`COLOR_*`), with default values hardcoded.
-`from_env` is `#[cfg(not(target_arch = "wasm32"))]`.
+Palette per paradigm, layout constants, hit-test helpers. `from_env` is
+native-only; colors fall back to hardcoded defaults.
 
-### 6.3 `disk.rs` — Disk state
+### 6.3 `disk.rs` — Disk state and rendering
 
-`Disk`, `Orbit`, `Body`. Deterministic visual generation from `seed`.
-Dissipation tick. Re-seed at paradigm. No production logic — purely
-visual (but mass is read by `economy.rs` for G computation).
+`Disk`, `Orbit`, `Body`. Deterministic visual generation from a seed,
+dissipation tick, re-seed on paradigm. Also owns the orbit/body drawing
+helpers; there is no separate `render/` module.
 
 ### 6.4 `economy.rs` — Production and resources
 
-- `tick_buildings(state, dt)`: iterate buildings, tick cooldowns,
-  produce.
-- `apply_upgrades(state)`: recompute multipliers.
-- `cost_of(building_id, count)`: cost of the next building (Cookie
-  Clicker scaling: `base * 1.15^count`).
-- `can_afford(state, building_id)`: check resources.
-- `buy(state, building_id)`: decrement resources, increment count.
+- `BUILDINGS: &[BuildingDef]` — the 12 definitions, **hardcoded**.
+- `tick_buildings(state, dt)`: tick cooldowns, produce (capped at
+  `MAX_FIRINGS_PER_FRAME = 10_000` to survive huge `dt`).
+- `compute_multipliers(state)`: passive building effects + `g_multiplier`.
+- `cost_of(def, count)`: `base * 1.15^count`.
+- `can_afford`, `buy`, `id_to_def`.
+- `BuildingInstance`: id + count + `Cooldown`.
 
 ### 6.5 `paradigm.rs` — Paradigm progression
 
-- `current_paradigm(state) -> Paradigm`.
-- `next_paradigm(state) -> Option<Paradigm>`.
-- `check_paradigm_advance(state) -> Option<Paradigm>`: check
-  conditions, return new paradigm if reached.
-- `advance_paradigm(state, new_paradigm)`: apply the transition
-  (disk re-seed, add new buildings, update dissipation, trigger
-  textual cutscene).
+`CONDITIONS` (5 transitions), `next_condition`, `condition_met`,
+`check_advance`, `progress_lines`. Advance is explicit (player clicks
+`Advance`), never automatic. No going back.
 
-**Important**: paradigm advance is *not* automatic — the player
-must click an "Advance" button when the condition is met. This
-materializes the choice (the player may want to stay at a paradigm
-to farm a resource before advancing).
+### 6.6 `prestige.rs` — Collapse
 
-### 6.6 `upgrades.rs` — Upgrade tree
+- `MIN_PARADIGM = GasGiant` (not Planets).
+- `total_mass_run` = held resources + Σ(building count × base cost).
+- `compute_g_gain` = `floor(log10(mass + 1) * (1 + 0.1 × paradigms))`,
+  minimum 1.
+- `prestige`: reset the run, add G, recompute `g_multiplier =
+  1 + 0.05 × G_total`, preserve `endings_seen`.
 
-- `available_upgrades(state) -> Vec<UpgradeId>`.
-- `buy_upgrade(state, id)`.
-- Upgrade table loaded from `assets/upgrades.ron`.
+### 6.7 `endgame.rs` — Endings
 
-### 6.7 `prestige.rs` — Collapse
-
-- `can_prestige(state) -> bool` (paradigm ≥ Planets).
-- `compute_g_gain(state) -> u64`.
-- `prestige(state)`: reset the run, add G, update records.
+- `ENDGAME_LIGHT_THRESHOLD = 10_000` (not 50,000).
+- `can_endgame`: `Star` + Light ≥ threshold.
+- `choose_ending`: records the ending, then **auto-prestiges** the run.
 
 ### 6.8 `narrative.rs` — Textual fragments
 
-- Loads `assets/narrative.ron` (fragments per paradigm +
-  conditional fragments).
-- `next_fragment(state) -> Option<String>`: return the next
-  fragment to display (only once per run).
-- Fragment queue, displayed in the log at the top right.
+Hardcoded `intro()` (2 lines) and `paradigm_entry(p)` (one line per
+paradigm). There is no `assets/narrative.ron` and no conditional fragment
+queue.
 
-### 6.9 `juice.rs` — Visual feedback
+### 6.9 `save.rs` — Persistence
 
-Primitives (reused from `ember_stdlib::juice`, to extract):
-- `Particle`: dust particles, streaming inward.
-- `FloatingText`: "+1 Pebble", "+5 Gas".
-- `Shockwave`: ring at body formation.
-- `Flash`: paradigm transition.
-- `ScreenShake`: light, on big purchases.
+Native `save.ron` / web `localStorage` (§17). Serializes `Game` directly.
 
-### 6.10 `ui/` — Interface
+### 6.10 `format.rs` — Number formatting
 
-- `ui/hud.rs`: resources at the top, prestige button, paradigm
-  indicator, Advance button.
-- `ui/buildings.rs`: list of purchasable buildings, costs, counters,
-  tooltips.
-- `ui/upgrades.rs`: scrollable upgrade tree.
-- `ui/log.rs`: textual fragments.
-- `ui/endgame.rs`: ending choice (Neutron Star / Black Hole).
+Compact suffixes (`K`, `M`, `B`, …) for the HUD and cost labels.
 
-**No fancy UI widgets** — standard `ember_stdlib::ui` buttons,
-labels, panels.
+### 6.11 `fonts.rs` — Font loading
 
-### 6.11 `render/` — Disk rendering
-
-- `render/disk.rs`: drawing orbits, bodies, particles.
-- `render/star.rs`: central star, radiation.
-- `render/palette.rs`: colors per paradigm.
-- `render/bodies.rs`: drawing bodies (circles with gradients).
-
-Everything is procedural: no textures, no sprites. Circles,
-gradients, particles. Minimalist style.
+Loads `assets/fonts/DejaVuSansMono.ttf` through
+`ember_stdlib::fonts::load_and_set_default` (path resolved by `paths.rs`).
 
 ### 6.12 `paths.rs` — Path resolution
 
-Model: `jade-garden/src/paths.rs`. Assets as
-`PathBuf::from("assets")` on wasm, standard native resolution
-otherwise.
+`assets` relative to `index.html` on wasm; `CARGO_MANIFEST_DIR`-relative on
+native.
 
-### 6.13 `audio.rs` — Ambience + SFX
+### 6.13 `main.rs` — Loop and UI
 
-**Native**: standard `AudioClip` (macroquad).
-**Web**: `macroquad::audio` (WebAudio).
-
-SFX:
-- Purchase click.
-- Paradigm advance (swoosh).
-- Body formation (thump).
-- Ending flash.
-- Continuous ambient (drone, mixed low).
-
-### 6.14 `save.rs` — Persistence
-
-Wrapper around `Persistence<T>` (native) and the localStorage plugin
-(web). Serializes `Progress`.
-
-### 6.15 `input.rs` — Input
-
-Keyboard + mouse snapshot via `Input::from_macroquad`. Shortcuts:
-- `Space`: advance paradigm (if condition met).
-- `Tab`: open upgrades tab.
-- `Esc`: pause / menu.
-- `R`: reset (with confirmation, dev only).
-
-### 6.16 `main.rs` — Loop
-
-State machine with 5 screens: `WebStart` (wasm), `Title`, `Game`,
-`PrestigeConfirm`, `Ending`.
+State machine (`WebStart` on wasm, `Title`, `Game`, `Ending`), all drawing
+(HUD, building list, log, buttons), input handling, and the single
+`next_frame().await`. `systems.rs` holds `Game` and its pure tick/input
+methods, so the loop stays thin and testable.
 
 ---
 
@@ -497,67 +475,54 @@ State machine with 5 screens: `WebStart` (wasm), `Title`, `Game`,
 ### 7.1 State machine
 
 ```
-AppScreen::WebStart (wasm only)
-    ↓ click
 AppScreen::Title
-    ↓ click "New Run"
-AppScreen::Game (Phase = Playing)
+    ↓ "New Run" / "Continue"
+AppScreen::Game
+    ↓ prestige clicked (paradigm ≥ Gas Giant)
+AppScreen::PrestigeConfirm → confirm → AppScreen::Title (G updated)
     ↓ endgame condition met
-AppScreen::Game (Phase = EndgameChoice)
+AppScreen::EndgameChoice
     ↓ choice
-AppScreen::Ending(Ending::NeutronStar | Ending::BlackHole)
+AppScreen::Ending(NeutronStar | BlackHole)
     ↓ Enter
-AppScreen::Title
-
-    ↓ click "Prestige" (if paradigm ≥ Planets)
-AppScreen::PrestigeConfirm
-    ↓ confirmation
-AppScreen::Title (G updated, run reset)
+AppScreen::Title (auto-prestiged)
 ```
+
+There is no `WebStart` screen: accretion's audio is not implemented, so the
+first-click audio unlock is unnecessary. The title screen still requires a
+click to start, which satisfies browser gesture rules.
 
 ### 7.2 State struct `Game`
 
 ```rust
 pub struct Game {
-    pub screen: AppScreen,
-    pub progress: Progress,
-    pub run: RunState,
-    pub disk: Disk,
-    pub buildings: Vec<BuildingInstance>,   // runtime instances
-    pub upgrades: HashSet<UpgradeId>,
     pub paradigm: Paradigm,
     pub resources: HashMap<ResourceId, f64>,
-    pub log: VecDeque<String>,              // displayed fragments
-    pub juice: Juice,
-    pub rng: Rng,                           // deterministic
+    pub buildings: Vec<BuildingInstance>,
+    pub g_multiplier: f64,
+    pub g_total: u64,
+    pub endings_seen: Vec<Ending>,
     pub elapsed: f64,
-    pub g_multiplier: f64,                  // 1 + 0.05 * G
-}
-
-pub enum AppScreen {
-    WebStart,
-    Title,
-    Game,
-    PrestigeConfirm,
-    Ending(Ending),
-}
-
-pub enum Phase {
-    Playing,
-    EndgameChoice,
-    Won(Ending),
+    pub log: Vec<String>,
+    pub dust_collected_total: f64,
 }
 ```
 
+UI-only state lives in `main.rs`: `AppScreen`, `TimeSpeed` (×1–×4),
+`RightTab` (Buildings / Log), hover/drag helpers.
+
 ### 7.3 Timers
 
-- **Building ticks**: `Cooldown` (already extracted, Phase 26).
-  Prefer `Cooldown::new(d)` to simulate an active tick.
+- **Building ticks**: `Cooldown` (Phase 26). `BuildingInstance::new` uses
+  `Cooldown::new(d)` — i.e. a newly bought building is **running** and
+  produces for the first time after one full cooldown. If instant first
+  production is wanted, use `Cooldown::with_duration(d)` (ready) instead.
 - **Dissipation**: continuous, no cooldown.
   `disk.mass -= rate * dt`.
-- **Narrative fragments**: queue, one fragment displayed at a time,
-  new one every 2 s.
-- **Paradigm flash**: 0.5 s.
+- **Narrative fragments**: only the hardcoded intro and one entry per
+  paradigm (pushed to the log); there is no timed queue or conditional
+  fragment system.
+- **Paradigm flash**: **not implemented** (no juice module).
 - **No game timer** — the game is real-time but the player can let
   it run. No pressure.
 
@@ -568,57 +533,41 @@ pub enum Phase {
 ```
 games/accretion/
 ├── DESIGN.md                (this file)
-├── README.md                controls, install, dev
+├── README.md                controls, run, build, save
 ├── Cargo.toml
-├── .env                     color overrides (dev)
-├── .gitignore               (progress.ron, .env, dist/, tools/.cache/)
 ├── assets/
-│   ├── buildings.ron        12 buildings
-│   ├── upgrades.ron         ~40 upgrades
-│   ├── narrative.ron        ~30 fragments
-│   └── paradigms.ron        6 paradigms + conditions
+│   ├── .gitkeep
+│   └── fonts/DejaVuSansMono.ttf
 ├── web/
-│   └── index.html           HTML5 shell for the WASM build
+│   └── index.html           HTML5 shell (loads the localStorage plugin)
 ├── tools/
-│   ├── build-web.sh         WASM bundle for itch.io (BROWSER_BUILD.md template)
-│   └── localStorage_plugin.js  (miniquad plugin — see §17)
+│   ├── build-web.sh         WASM bundle for itch.io
+│   └── localStorage_plugin.js  miniquad plugin (§17)
+├── dist/web/                committed bundle (index.html, wasm, assets, plugin)
 ├── src/
-│   ├── main.rs              loop + screens
-│   ├── lib.rs               public exports
-│   ├── paths.rs             runtime resolution
+│   ├── main.rs              loop + all screens + UI drawing
+│   ├── lib.rs               public module exports
+│   ├── paths.rs             runtime asset resolution
 │   ├── config.rs            GameContext + palette
-│   ├── components.rs        ResourceId, BuildingId, Paradigm
-│   ├── disk.rs              visual disk state
-│   ├── economy.rs           production, costs
-│   ├── paradigm.rs          paradigm progression
-│   ├── upgrades.rs          upgrade tree
-│   ├── prestige.rs          collapse
-│   ├── narrative.rs         textual fragments
-│   ├── juice.rs             visual feedback
-│   ├── save.rs              persistence (RON native / localStorage web)
-│   ├── input.rs             shortcuts
-│   ├── audio.rs             SFX + ambience
-│   ├── systems.rs           Game state + tick
-│   ├── ui/
-│   │   ├── mod.rs
-│   │   ├── hud.rs
-│   │   ├── buildings.rs
-│   │   ├── upgrades.rs
-│   │   ├── log.rs
-│   │   └── endgame.rs
-│   └── render/
-│       ├── mod.rs
-│       ├── disk.rs
-│       ├── star.rs
-│       ├── bodies.rs
-│       └── palette.rs
+│   ├── components.rs        ResourceId, BuildingId, Paradigm, Ending
+│   ├── disk.rs              visual disk state + rendering
+│   ├── economy.rs           building table, production, costs
+│   ├── paradigm.rs          transition conditions
+│   ├── prestige.rs          collapse + G formula
+│   ├── endgame.rs           ending choice + auto-prestige
+│   ├── narrative.rs         hardcoded fragments
+│   ├── save.rs              RON native / localStorage web
+│   ├── format.rs            compact number formatting
+│   ├── fonts.rs             font loading
+│   └── systems.rs           Game state + pure tick/input methods
 └── tests/
-    ├── economy.rs           cost calculations, production
-    ├── paradigm.rs          paradigm conditions
-    ├── prestige.rs          G formula
-    ├── endings.rs           both endings reachable
-    └── scenarios.rs         full simulated run (greedy AI)
+    ├── balance.rs           greedy-AI balance report (1 ignored)
+    └── save.rs              native placeholder (0 tests)
 ```
+
+The original plan had `assets/*.ron`, `upgrades.rs`, `juice.rs`, `input.rs`,
+`audio.rs`, `ui/`, and `render/`. None of those exist; see the status table at
+the top.
 
 ---
 
@@ -663,7 +612,7 @@ fall together."
 
 ### 9.4 Planets
 
-**Entry condition**: 1 Resonance Engine + 2000 Pebbles.
+**Entry condition**: 1 Resonance Engine + 1500 Pebbles (lowered from 2000).
 **Mechanic**: Planetesimals agglomerate into Planets. Metal Foundries
 extract metals from Planetesimals. Water Condensers produce water.
 **New buildings**: `metal_foundry`, `water_condenser`,
@@ -676,7 +625,7 @@ system."
 
 ### 9.5 Gas Giant
 
-**Entry condition**: 3 Planets + 5 Metal Foundries.
+**Entry condition**: 5 Metal Foundries + 3 Water Condensers + 500 Water.
 **Mechanic**: Gas Scoops capture hydrogen and helium. Magnetosphere
 Coils multiply the capture.
 **New buildings**: `gas_scoop`, `magnetosphere_coil`.
@@ -703,7 +652,8 @@ empties.
 
 ### 9.7 Endgame
 
-**Entry condition**: Star paradigm + 50,000 Light.
+**Entry condition**: Star paradigm + 10,000 Light (lowered from 50,000 for
+V1.3 balance).
 **Mechanic**: the player clicks *Neutron Star* or *Black Hole*.
 **Final cutscene**: 3–5 fragments depending on the choice, then
 ending screen.
@@ -712,19 +662,19 @@ ending screen.
 
 ## 10. Prestige — Detail
 
-**Unlocked**: paradigm ≥ Planets (to avoid forcing a full run before
-being able to prestige).
+**Unlocked**: paradigm ≥ **Gas Giant** (raised from Planets after Session 13
+balance showed Planets runs were too short).
 
 **Button**: in the HUD, `Collapse` (with tooltip: "Reset your run.
 Gain permanent Gravitational Constant.").
 
 **Confirmation**: intermediate screen with `Confirm` / `Cancel`.
 
-**Formula**:
+**Formula** (as implemented):
 ```
-total_mass_run = sum of accumulated resources (weighted)
-paradigms = number of paradigms reached in this run
-G_gain = floor( log10(total_mass_run + 1) * (1 + 0.1 * paradigms) )
+total_mass_run = held resources + Σ(building count × base cost)
+paradigms = current paradigm index + 1
+G_gain = max(1, floor(log10(total_mass_run + 1) * (1 + 0.1 * paradigms)))
 G_total += G_gain
 g_multiplier = 1 + 0.05 * G_total
 ```
@@ -821,80 +771,71 @@ received, a 2nd layer can be added post-release.
 
 ## 13. Tests
 
-**Target**: ~150–180 tests.
+**Actual**: 127 passing, 1 ignored (125 unit + 2 integration + 1 ignored).
+The original target was ~150–180.
 
 ### 13.1 Unit (per module)
 
 | Module | Tests |
 |---|---|
-| `components.rs` | 8 |
-| `config.rs` | 6 |
-| `disk.rs` | 12 |
-| `economy.rs` | 25 |
-| `paradigm.rs` | 18 |
-| `upgrades.rs` | 15 |
-| `prestige.rs` | 10 |
-| `narrative.rs` | 8 |
-| `juice.rs` | 10 |
-| `save.rs` | 12 |
-| `systems.rs` | 20 |
-| `render/palette.rs` | 6 |
-| **Unit total** | **~150** |
+| `components.rs` | 14 |
+| `config.rs` | 2 |
+| `economy.rs` | 35 |
+| `endgame.rs` | 9 |
+| `narrative.rs` | 2 |
+| `paradigm.rs` | 14 |
+| `prestige.rs` | 16 |
+| `save.rs` | 6 |
+| `systems.rs` | 27 |
+| **Unit total** | **125** |
+
+`disk.rs`, `format.rs`, and `fonts.rs` have no tests (rendering / thin
+wrappers).
 
 ### 13.2 Integration
 
-| File | Tests |
-|---|---|
-| `economy.rs` | 5 |
-| `paradigm.rs` | 5 |
-| `prestige.rs` | 4 |
-| `endings.rs` | 3 |
-| `scenarios.rs` | 3 |
-| **Total** | **~20** |
+| File | Passing | Ignored |
+|---|---|---|
+| `tests/balance.rs` | 2 | 1 (`click_rate_sensitivity`) |
+| `tests/save.rs` | 0 | 0 |
+| **Total** | **2** | **1** |
 
-### 13.3 Priority tests
+### 13.3 What the tests actually cover
 
 **`economy.rs`**:
-- Base cost correct.
-- ×1.15 scaling per purchase.
-- Production respects cooldown.
-- Upgrade multipliers applied.
-- `g_multiplier` applied to everything.
-- No production if insufficient resources for the cost (should not
-  happen — checked before purchase).
-- No capacity overflow (or overflow handled).
+- Base cost and ×1.15 scaling.
+- Cooldown-gated production (`Cooldown::new` starts running).
+- Passive multipliers + `g_multiplier`.
+- Affordability, purchase, no partial purchase.
+- `MAX_FIRINGS_PER_FRAME` clamp for huge `dt`.
 
 **`paradigm.rs`**:
-- Paradigm conditions correct.
-- No automatic advance.
-- Advance applies re-seed.
-- Advance unlocks new buildings.
-- Advance changes dissipation.
-- No going back.
+- The 5 conditions, lower-bound semantics.
+- Explicit advance only; no advance from Star.
+- `progress_lines` formatting.
 
 **`prestige.rs`**:
-- G formula correct at bounds.
-- G_gain ≥ 1 even for a minimal run.
-- Reset clears the run but preserves G.
-- Prestige impossible before Planets.
+- Gas Giant threshold, no prestige at Planets.
+- G formula bounds and minimum 1.
+- Reset preserves G / endings; multiplier recomputed.
+- Prestige panics below the threshold.
 
-**`endings.rs`**:
-- Neutron Star reachable from a complete run.
-- Black Hole reachable from a complete run.
-- Both endings are independent.
-- An ending already seen is not re-unlocked (idempotent).
+**`endgame.rs`**:
+- Both endings reachable, idempotent `endings_seen`.
+- Auto-prestige after a choice.
+- 10,000 Light threshold.
 
-**`scenarios.rs`**:
-- Full simulated run (greedy AI) reaches Star in < 3h of simulated
-  play.
-- No softlocks.
-- Prestige grants a measurable advantage.
+**`tests/balance.rs`**:
+- Greedy-AI simulated run reaches each paradigm within an expected time.
+- Prestige loop yields a measurable advantage.
+- Click-rate sensitivity is ignored (slow, exploratory).
 
 ### 13.4 What we do NOT test
 
 - Visual rendering (no snapshots).
+- Web `localStorage` (manual browser check).
 - Feel of the palettes (validated in play).
-- The cutscenes (animated in real time).
+- Audio (not implemented).
 
 ---
 
@@ -1196,6 +1137,10 @@ dedicated crate.
   but some browsers in strict mode block it).
 - **Narrative fragments are deterministic.** No randomization. The
   player must be able to replay and find the same texts.
+- **Clippy is not green.** `components::Paradigm::next` triggers
+  `skip_while_next`; `systems::Game::new` triggers `vec_init_then_push`.
+  `main.rs` also has unnecessary `unsafe` blocks and an
+  `unwrap_or_else` default. Fix these before running `make check`.
 
 ### 18.3 Validated decisions
 
@@ -1226,8 +1171,8 @@ dedicated crate.
 | **Abstract procedural rendering** (circles, gradients) | 1 occurrence (bore-inc pixel) |
 | **Fragmentary narration** | 1 occurrence (jade-garden) |
 | **Two endings** | None |
-| **WASM build via BROWSER_BUILD.md template** | 2 occurrences (jade-garden, bore-inc) → **3rd → validation** |
-| **Async preload on wasm** | 2 occurrences (jade-garden) → **3rd → validation** |
+| **WASM build via BROWSER_BUILD.md template** | 2 occurrences (jade-garden, bore-inc) → accretion was the 3rd, pagoda the 4th |
+| **Async preload on wasm** | 2 occurrences (jade-garden, bore-inc) → proven on 4 ports |
 
 **Likely upcoming extractions**:
 - `ember_stdlib::economy` (if a 2nd incremental appears).
@@ -1238,54 +1183,57 @@ dedicated crate.
 
 ---
 
-## 20. Open questions
+## 20. Open questions (status after V1.3)
 
-1. **Dissipation balancing.** The 0.5–5 %/s values are placeholders.
-   To be tested with a simulator (greedy AI as in
-   `jade-garden/tests/balance.rs`).
-2. **Number of upgrades.** ~40 is an estimate. To be adjusted after
-   the first playable run.
-3. **Is prestige at Planets too early?** Maybe unlock at Gas Giant
-   to avoid a too-short run.
-4. **Is a 2nd prestige layer needed?** Not in V1. To be
-   reconsidered if the game is well received.
-5. **localStorage on itch.io:** test in real conditions. Provide an
-   in-memory fallback if `localStorage` is blocked.
-6. **Should the localStorage bridge live in `ember_stdlib` or in a
-   dedicated `ember-wasm` crate?** To decide after Accretion
-   (1 occurrence = local).
-7. **Is a "Zen" mode needed?** (no dissipation) Maybe post-release,
-   for players who just want to watch the disk turn.
-8. **Are achievements needed?** (Steam-style) Post-release.
-9. **Should the narration be more present?** Accretion is
-   contemplative; too much text would break the rhythm. To be
-   dosed.
-10. **Is the name "Accretion" distinctive enough?** Check for major
-    collisions on itch.io. (There may be niche games with this
-    name, but nothing mainstream.)
+1. **Dissipation balancing.** Still placeholder-ish; `tests/balance.rs` checks
+   paradigm timings, but the click-rate sensitivity test is ignored.
+2. **Number of upgrades.** Resolved for V1.3 by **not shipping upgrades**.
+   The 12-building chain is the whole economy.
+3. **Is prestige at Planets too early?** Resolved: moved to **Gas Giant**.
+4. **Is a 2nd prestige layer needed?** No; one layer shipped.
+5. **localStorage on itch.io:** implemented and bundled; still needs a manual
+   check inside the itch.io iframe. No in-memory fallback yet.
+6. **Where should the localStorage bridge live?** Still local to accretion.
+   Port it to pagoda (currently in-memory) before extracting.
+7. **Is a "Zen" mode needed?** Not shipped. Time speed ×1–×4 is the only
+   pacing control.
+8. **Are achievements needed?** Not shipped; only `endings_seen` is tracked.
+9. **Should the narration be more present?** Not shipped beyond intro + one
+   line per paradigm.
+10. **Is the name "Accretion" distinctive enough?** Unresolved; check itch.io
+    before publishing.
 
 ---
 
 ## 21. Current state
 
-**In design.** This document is the starting point. Code has not
-been written yet.
+**Implemented and playable** on native and browser (WASM). 127 tests pass,
+1 is ignored. The committed `dist/web/` bundle is the reference build.
+
+**What shipped**:
+- 6 paradigms + 2 endings, 8 resources, 12 buildings, passive multipliers.
+- Prestige at Gas Giant; endgame at 10,000 Light; auto-prestige on ending.
+- Native `save.ron`; web `localStorage["accretion:save"]`.
+- Procedural disk rendering, palette per paradigm, HUD/building/log UI.
+- Greedy-AI balance report.
+
+**What did not ship** (kept as future work):
+- The upgrade tree (~40 planned) and `assets/upgrades.ron`.
+- Audio/ambience and the `juice.rs` extraction.
+- The `ui/` and `render/` module split (drawing lives in `main.rs`/`disk.rs`).
+- `WebStart` screen, achievements, Zen mode, cloud sync.
+- A real web-save integration test.
 
 **Next steps**:
-1. Validate the design (this doc).
-2. Scaffold `games/accretion/` (Cargo.toml, structure).
-3. Implement `components.rs` + `economy.rs` + tests.
-4. Implement the 6 paradigms + integration tests.
-5. Implement the 2 endings + tests.
-6. Implement the procedural disk rendering.
-7. Implement the localStorage bridge + itch.io tests.
-8. WASM build + publication.
-9. Update `BROWSER_BUILD.md` (the template is validated by a 3rd
-   use).
-10. Update `version.txt` (new capability, 3rd WASM, resolution of
-    item 27).
+1. Green clippy: `skip_while_next` in `components::Paradigm::next` and
+   `vec_init_then_push` in `systems::Game::new`.
+2. Decide whether upgrades are worth adding; if not, delete the references
+   from this doc rather than leaving a phantom feature.
+3. Port the localStorage bridge to pagoda, then extract it.
+4. Verify the save inside the itch.io iframe.
+5. Extract the shared `mq_js_bundle.js` resolver (4 copies now).
 
-**Estimate**: 3–5 dev sessions (depending on prototype quality).
+**Estimate**: shipped in ~5 sessions (design + implementation + balance).
 
 ---
 

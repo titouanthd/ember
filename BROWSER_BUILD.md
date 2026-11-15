@@ -1,8 +1,9 @@
 # Ember — Browser (WASM) Build Guide
 
 Definitive guide for compiling and publishing any Ember game to the browser
-(`wasm32-unknown-unknown`), based on the two working implementations:
-`games/jade-garden` and `games/bore-inc`.
+(`wasm32-unknown-unknown`), based on the four working implementations:
+`games/jade-garden`, `games/bore-inc`, `games/accretion`, and
+`games/pagoda`.
 
 **Target Audience:** the next agent / developer shipping a browser game from
 this workspace.
@@ -25,7 +26,7 @@ but installing it once avoids a spurious first-run build failure.
 
 Any dependency that cannot compile for `wasm32-unknown-unknown` **must** be
 placed under a native-only section of the game's `Cargo.toml`. This is the
-pattern both shipped games use:
+pattern all four browser-targeted games use:
 
 ```toml
 [package]
@@ -128,16 +129,58 @@ async fn main() {
 
 ### D. Progression / save files
 
-`localStorage` is inaccessible without a `wasm-bindgen` bridge or a miniquad
-plugin. Fall back to an in-memory `thread_local` (see
-`games/jade-garden/src/progress.rs`).
+There are two supported strategies. Choose deliberately:
 
-```rust
-#[cfg(target_arch = "wasm32")]
-thread_local! {
-    static IN_MEMORY_PROGRESS: RefCell<Option<String>> = const { RefCell::new(None) };
-}
-```
+1. **In-memory only** (jade-garden, pagoda): progress survives scene changes
+   but not a page reload. Use a `thread_local` buffer on `wasm32`.
+
+   ```rust
+   #[cfg(target_arch = "wasm32")]
+   thread_local! {
+       static IN_MEMORY_PROGRESS: RefCell<Option<String>> = const { RefCell::new(None) };
+   }
+   ```
+
+2. **Real `localStorage`** (accretion): a miniquad plugin exposes three C
+   functions, and the Rust side calls them through `unsafe extern "C"`. This
+   is the only option that survives reloads without `wasm-bindgen`.
+
+   * JS side: `games/accretion/tools/localStorage_plugin.js`, loaded **after**
+     `mq_js_bundle.js` (it extends `LibraryManager.library`).
+   * Rust side: `games/accretion/src/save.rs`, with `#[cfg(target_arch =
+     "wasm32")]` FFI declarations and a native `save.ron` fallback.
+   * Key names must be prefixed per game (`accretion:save`) because several
+     Ember games share the same itch.io origin.
+   * Read buffers are bounded (`MAX_WEB_SAVE_BYTES = 100 KB`) and
+     null-terminated; truncate to the returned length before parsing RON.
+
+   ```rust
+   #[cfg(target_arch = "wasm32")]
+   unsafe extern "C" {
+       fn ember_storage_get(key: *const u8, out_buf: *mut u8, out_buf_len: usize) -> i32;
+       fn ember_storage_set(key: *const u8, value: *const u8) -> i32;
+       fn ember_storage_remove(key: *const u8) -> i32;
+   }
+   ```
+
+The plugin is not yet extracted into a shared helper — copy
+`tools/localStorage_plugin.js` and `save.rs` from accretion when porting the
+pattern to another game (see §8).
+
+### E. Procedural audio (pagoda)
+
+`macroquad::audio::load_sound` performs an HTTP fetch on web and must be
+preloaded before the loop (§2.C). Pagoda generates its clips offline with
+`tools/generate-sounds.py` and ships them as WAV files:
+
+* 44.1 kHz, mono, 16-bit PCM — `quad-snd` resamples anything else and short
+  slices audibly detune.
+* Every clip is optional at runtime: a missing or malformed WAV disables that
+  event instead of panicking.
+* The test suite parses the `fmt ` chunk and asserts the format, so a bad
+  regeneration fails CI rather than shipping silently.
+* Browser autoplay policy still applies: the first user gesture must unlock
+  the audio context (§7).
 
 ---
 
@@ -289,14 +332,22 @@ ls -la "$OUT"
 
 Only the following differ between games. **Nothing else should.**
 
-| Aspect | `bore-inc` | `jade-garden` |
-|---|---|---|
-| Wasm binary name | `bore-inc.wasm` | `jade-garden.wasm` |
-| Crate name in `cargo build -p` | `bore-inc` | `jade-garden` |
-| Extra asset stripping | — | `NotoSansSC-Regular.{otf,ttf}`, `icon-256.png` |
+| Aspect | `jade-garden` | `bore-inc` | `accretion` | `pagoda` |
+|---|---|---|---|---|
+| Wasm binary name | `jade-garden.wasm` | `bore-inc.wasm` | `accretion.wasm` | `pagoda.wasm` |
+| Crate name in `cargo build -p` | `jade-garden` | `bore-inc` | `accretion` | `pagoda` |
+| Extra copied file | — | — | `localStorage_plugin.js` | — |
+| Extra asset stripping | `NotoSansSC-Regular.{otf,ttf}`, `icon-256.png` | — | — | — |
+| Audio assets | `music.mp3` + SFX | — | — | procedural `sfx/*.wav` |
+| Save strategy | in-memory | none | `localStorage` | in-memory |
 
-When porting a 3rd game, copy one of these scripts and change only those
-three columns. Do **not** re-derive `mq_js_bundle.js` resolution by hand.
+When porting a new game, copy the closest script and change only those
+columns. Do **not** re-derive `mq_js_bundle.js` resolution by hand.
+
+Four copies of the resolver now exist. Extracting it into
+`tools/fetch-mq-bundle.sh` is overdue (Rule of Three: 4x), but was deferred
+until the ports stopped changing. Until it is extracted, any fix to §3.1 must
+be applied to all four scripts.
 
 ---
 
@@ -340,6 +391,36 @@ Macroquad requires a specific setup to initialize WebGL and map input events.
 The `.wasm` filename in `load(...)` **must** match the name produced by
 `build-web.sh`.
 
+### 4.1 Mobile / touch shell (pagoda)
+
+Pagoda adds a mobile-oriented shell on top of the template:
+
+* `viewport-fit=cover, maximum-scale=1.0, user-scalable=no` — prevents iOS
+  Safari from zooming when the canvas is tapped.
+* `touch-action: none`, `-webkit-touch-callout: none`, `user-select: none` —
+  no scrolling, long-press menu, or text selection over the canvas.
+* A `touchstart` listener focuses the canvas so the first tap also unlocks
+  audio.
+* The game is click/tap-only. Browsers synthesize mouse events from touches,
+  so the Rust input layer does not need a separate touch API. Coordinates are
+  converted from window space to the virtual canvas with
+  `render::window_to_virtual`, which returns `None` in the letterbox bars.
+
+### 4.2 localStorage plugin shell (accretion)
+
+Load the plugin **after** `mq_js_bundle.js` and **before** `load(...)`:
+
+```html
+<script src="mq_js_bundle.js"></script>
+<script src="localStorage_plugin.js"></script>
+<script>
+    load("accretion.wasm");
+</script>
+```
+
+If the plugin is loaded first, `mergeInto` / `LibraryManager` is undefined and
+the wasm module fails to link (`ember_storage_get` missing).
+
 ---
 
 ## 5. Local testing
@@ -378,7 +459,8 @@ reload (Cmd+Shift+R / Ctrl+Shift+R) after every rebuild.
 ## 7. Common browser pitfalls
 
 *   **`LinkError` on load / missing imports:** `wasm-bindgen` snuck into the
-    dependency tree. Remove it.
+    dependency tree. Remove it. If the missing import is `ember_storage_get`,
+    the localStorage plugin is absent or loaded before `mq_js_bundle.js`.
 *   **Panic on load:** you called `Instant::now()` or `SystemTime::now()`.
     Accumulate `f32` from `dt` (see §2.B).
 *   **Assets 404:** `paths.rs` returned a native OS path on `wasm32`. Return
@@ -386,6 +468,13 @@ reload (Cmd+Shift+R / Ctrl+Shift+R) after every rebuild.
 *   **Audio won't play:** browser autoplay policy. You need a "Click to
     start" screen (`AppScreen::WebStart` in `jade-garden`) that opens the
     audio context on the first user gesture.
+*   **Audio detuned / chipmunked:** a WAV is not 44.1 kHz mono 16-bit, or the
+    `fmt ` chunk declares a different rate than the samples. Regenerate with
+    `tools/generate-sounds.py` and run the header tests (see §2.E).
+*   **Clicks outside the canvas trigger gameplay:** the game ignores the
+    letterbox. Convert through `render::window_to_virtual` and drop `None`.
+*   **iOS zoom / scroll on tap:** missing `touch-action: none` or the
+    mobile viewport meta tag (see §4.1).
 *   **Version mismatch / stale JS glue:** should not happen — §3.1 keys the
     cache on the exact `Cargo.lock` version and scopes the registry lookup.
     If you see it, someone reverted the script to a hardcoded version or
@@ -397,17 +486,25 @@ reload (Cmd+Shift+R / Ctrl+Shift+R) after every rebuild.
 
 ---
 
-## 8. Status of the two reference ports
+## 8. Status of the four reference ports
 
 *   `games/jade-garden` — **shipped** to itch.io. Full feature parity except
     for web save (in-memory only, §2.D), web SFX (silent), and the Halloween
     teaser (needs `SystemTime`).
-*   `games/bore-inc` — **abandoned jam project**, kept as a second WASM
-    reference. It still compiles for wasm and is a member of
-    `cargo test --workspace` (223 tests), so a macroquad / glam bump will
-    break it first. Do not delete it while it remains a useful example; do
-    expect to fix it on bumps.
+*   `games/bore-inc` — **abandoned jam project**, kept as a WASM reference.
+    It still compiles for wasm and is a member of `cargo test --workspace`
+    (223 tests), so a macroquad / glam bump will break it first. Do not delete
+    it while it remains a useful example; do expect to fix it on bumps.
+*   `games/accretion` — **playable WASM port** with the first real
+    `localStorage` save (§2.D). Committed `dist/web` bundle. This is the
+    reference for persistence and for the plugin loading order (§4.2).
+*   `games/pagoda` — **playable mobile-first WASM port** with procedural SFX
+    (§2.E), a touch shell (§4.1), a Noto Sans SC subset, and a committed
+    `dist/web` bundle. This is the reference for mobile and audio. Its web
+    save is still in-memory.
 
-A **3rd** WASM game is the trigger for extracting the shared
-`mq_js_bundle.js` resolver into `tools/fetch-mq-bundle.sh`. Until then, the
-two copies in this guide must stay in sync manually.
+The shared `mq_js_bundle.js` resolver has now been copied four times. Under
+the Rule of Three it should already have been extracted; do it in the next
+session that touches a build script, before porting a fifth game. Likewise,
+the localStorage bridge is proven but still local to accretion — port it to
+pagoda (replacing the in-memory save) and then extract it.

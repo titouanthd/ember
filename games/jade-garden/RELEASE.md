@@ -5,7 +5,11 @@ Two builds published on itch.io:
 - **Native macOS** (downloadable): `jade-garden-osx.zip`
 - **HTML5 / WASM** (plays in browser): `jade-garden-web.zip`
 
-All tests green. Clippy clean.
+**Test status (Session 17.9):** 326 pass, **1 fails**
+(`tests/balance.rs::ai_balance_report`: `l05` is IMPOSSIBLE, target 3100 vs
+AI 2970), 1 ignored. Clippy is clean for this crate, but the workspace
+`make check` is not green because `accretion` and `taiji` still warn. The
+old “all tests green” claim is no longer true.
 
 ## What shipped
 
@@ -76,6 +80,14 @@ All tests green. Clippy clean.
 - [x] Uploaded zip plays on itch.io (`Click to launch in fullscreen`).
 
 ## Known limitations
+
+### Tests
+
+- **`balance.rs` fails on `l05`.** `ai_balance_report` reports
+  `IMPOSSIBLE levels detected: [("l05", 3100, 2970)]` — the star target is
+  above what the greedy AI can reach. This blocks a fully green
+  `cargo test -p jade-garden`. Re-tune the level or record it as a known
+  outlier.
 
 ### Native
 

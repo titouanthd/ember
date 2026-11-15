@@ -201,8 +201,18 @@ games/pagoda/
     ├── systems.rs     (Physics, slicing, perfect window, GameEvent)
     ├── persistence.rs (Best score handle: `best_score.ron`)
     ├── config.rs      (GameContext, Chinese pigment palette)
+    ├── render.rs      (letterbox math, virtual→window mapping)
     └── juice.rs       (Local particle system for the slices)
 ```
+
+`render.rs` owns the 800×600 virtual canvas: `letterbox_rect` and
+`window_to_virtual` (the latter returns `None` inside the bars). It is kept
+separate from `main.rs` so the coordinate math is unit-tested without a
+macroquad context.
+
+A committed `dist/web/` bundle (wasm + `mq_js_bundle.js` + assets) is part of
+the repository; rebuild it with `tools/build-web.sh` after any gameplay or
+asset change.
 
 ---
 

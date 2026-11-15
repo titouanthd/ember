@@ -155,6 +155,11 @@ A `localStorage` bridge is planned but not yet shipped.
 
 ## Development
 
+> **Test status (Session 17.9):** 326 tests pass, **1 fails**
+> (`tests/balance.rs::ai_balance_report`, level `l05`: target 3100 vs AI
+> 2970), and 1 is ignored. `cargo test -p jade-garden` therefore exits
+> non-zero. Use `--no-fail-fast` to run the integration suites anyway.
+
 ```sh
 # Unit + integration tests
 cargo test -p jade-garden

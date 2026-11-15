@@ -104,11 +104,13 @@ impl Catapult {
             pos,
             hp,
             max_hp: hp,
-            cooldown: Cooldown::new(CATAPULT_FIRE_COOLDOWN),
+            // FIX: was Cooldown::new(...) — starts on cooldown, catapult never fires.
+            cooldown: Cooldown::with_duration(CATAPULT_FIRE_COOLDOWN),
             shot_kind: ShotKind::Basic,
             fire_rate_mult: 1.0,
             multi_shot: 1,
-            rebuild: Cooldown::new(rebuild_time),
+            // FIX: was Cooldown::new(...) — made is_alive() false right after spawn.
+            rebuild: Cooldown::with_duration(rebuild_time),
             max_range,
             aim_target: pos + Vec2::new(CATAPULT_MIN_RANGE * facing, 0.0),
             facing,
@@ -121,7 +123,8 @@ impl Catapult {
         self.max_range = max_range.max(CATAPULT_MIN_RANGE);
         self.max_hp = max_hp.max(1.0);
         self.hp = self.max_hp;
-        self.rebuild = Cooldown::new(rebuild_time.max(0.5));
+        // FIX: was Cooldown::new(...) — configure would leave rebuild active.
+        self.rebuild = Cooldown::with_duration(rebuild_time.max(0.5));
     }
 
     pub fn is_alive(&self) -> bool {

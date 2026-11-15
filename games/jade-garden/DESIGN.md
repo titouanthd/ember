@@ -7,10 +7,11 @@
 > où chaque niveau restaure un fragment d'un jardin de jade abandonné,
 > et révèle un caractère d'un poème des Tang.
 
-Dernière mise à jour : Session 8 (release + web port).
+Dernière mise à jour : Session 17.9 (statut de test réconcilié).
 Statut : **released v0.1.0**. Deux builds publiés sur itch.io :
 native macOS (downloadable) et HTML5 / WASM (jouable dans le
-navigateur). Voir [`RELEASE.md`](RELEASE.md) pour l'état détaillé.
+navigateur). **326 tests passent, 1 échoue** (`balance.rs`, niveau `l05`),
+1 est ignoré. Voir [`RELEASE.md`](RELEASE.md) pour l'état détaillé.
 
 ---
 
@@ -104,8 +105,9 @@ procédural, jumpscare).
 | **Replay** | Continue au-delà du 1er seuil si le niveau est déjà complété | — |
 | **Web (WASM)** | Build `tools/build-web.sh`, joue sur itch.io | + localStorage, + SFX web, + teaser |
 
-**Tests livrés** : ~295 unit (lib) + 10 (main) + 1 balance + 22
-intégration + 1 objectives (+1 ignoré) = **~330 tests verts**.
+**Tests livrés** : 293 unit (lib) + 10 (main) + 22 intégration + 1
+objectives = **326 verts**, **1 échec** (`tests/balance.rs`, niveau `l05`),
++1 ignoré (`tests/objectives.rs`). Total exécuté : **327**.
 
 ---
 
@@ -671,35 +673,37 @@ post-release.
 
 ## 10. Stratégie de tests
 
-**Livrés** : ~295 unit (lib) + 10 (main) + 1 balance + 22 intégration
-+ 1 objectives (+1 ignoré) = **~330 verts**.
+**État réel** : 293 unit (lib) + 10 (main) + 22 intégration + 1 objectives
+= **326 verts**, **1 échec** (`balance.rs`), +1 ignoré. Total exécuté :
+**327**.
 
-### 10.1 Couverture par module
+### 10.1 Couverture par module (comptage réel)
 
 | Module | Tests |
 |---|---|
-| `animation.rs` | 24 |
-| `audio.rs` | 6 |
-| `components.rs` | 12 |
-| `config.rs` | 10 |
+| `animation.rs` | 25 |
+| `audio.rs` | 3 |
+| `components.rs` | 13 |
+| `config.rs` | 9 |
 | `fonts.rs` | 1 |
 | `grid.rs` | 32 |
-| `help.rs` | 11 |
-| `juice.rs` | 26 |
+| `help.rs` | 10 |
+| `juice.rs` | 24 |
 | `level.rs` | 11 |
 | `menu.rs` | 22 |
-| `paths.rs` | 5 |
+| `paths.rs` | 6 |
 | `poem.rs` | 9 |
-| `progress.rs` | 16 |
-| `scoring.rs` | 32 |
-| `scroll_painting.rs` | 30 |
+| `progress.rs` | 15 |
+| `scoring.rs` | 34 |
+| `scroll_painting.rs` | 28 |
 | `systems.rs` | 33 |
-| `tile_render.rs` | 17 |
-| **Total unit (lib)** | **~295** |
+| `tile_render.rs` | 12 |
+| `util.rs` | 6 |
+| **Total unit (lib)** | **293** |
 | `main.rs` (reveal + dates) | 10 |
 | `tests/game_scenarios.rs` | 22 |
-| `tests/balance.rs` | 1 |
-| `tests/objectives.rs` | 1 (+1 ignored) |
+| `tests/balance.rs` | 1 (**échec**) |
+| `tests/objectives.rs` | 1 (+1 ignoré) |
 
 ### 10.2 Tests prioritaires
 
@@ -717,8 +721,11 @@ expiration du hint après 3 s, limite de 3 hints, slow-mo réduit
 `current_time_scale` sans le mettre à zéro.
 
 **`balance.rs`** : invariant — aucun niveau ne peut être `IMPOSSIBLE`
-(AI greedy ne peut pas atteindre `star_target`). Panique le test si
-une régression casse l'équilibrage.
+(l'AI greedy ne peut pas atteindre `star_target`). **Il échoue actuellement** :
+`l05` (« Fallen Petals », Clear 18 Hong) a une cible de 3100 contre 2970 pour
+l'AI, soit un ratio de 0.96. Le test lève :
+`IMPOSSIBLE levels detected: [("l05", 3100, 2970)]`. Rééquilibrer la cible ou
+l'AI, ou documenter `l05` comme outlier connu.
 
 **`objectives.rs`** : rapport par niveau + scanner de seeds (ignoré
 par défaut, `--ignored`).
@@ -1013,15 +1020,15 @@ checklist détaillée et les limitations connues.
 | **Fond parallax contemplatif** | 2e occurrence |
 | **Résolution runtime des assets** (`paths.rs`) | 1re occurrence |
 | **Audio hybride soloud + sous-processus** | 1re occurrence |
-| **Build web / WASM sans wasm-bindgen** | 1re occurrence |
+| **Build web / WASM sans wasm-bindgen** | 4 occurrences (jade-garden, bore-inc, accretion, pagoda) |
 | **Backend audio WebAudio** | 1re occurrence |
 | **Rendu SVG procédural d'assets marketing** | 1re occurrence |
-| **Preload async sur wasm, sync sur natif** (audio + fonts) | 2 occurrences |
+| **Preload async sur wasm, sync sur natif** (audio + fonts) | 4 ports |
 
 **Prochaines extractions probables** : `ember_stdlib::juice`
-(3 occurrences), la police Unicode + subset (3 occurrences), et
-peut-être le pattern « preload async sur wasm, sync sur natif »
-(2 occurrences : audio + fonts).
+(3 occurrences), la police Unicode + subset (3 occurrences), le helper de
+build WASM (4 occurrences — en retard), et peut-être le pattern « preload
+async sur wasm, sync sur natif » (4 ports).
 
 ---
 

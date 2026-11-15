@@ -102,24 +102,20 @@ pub fn draw(ctx: &GameContext, poem_font: &PoemFont, scroll_y: &mut f32) {
     let content_band_h = MODAL_H - HEADER_BAND_H - FOOTER_BAND_H;
 
     {
-        unsafe {
-            let gl = get_internal_gl();
-            gl.quad_gl.scissor(Some((
-                x as i32,
-                content_top as i32,
-                MODAL_W as i32,
-                content_band_h as i32,
-            )));
-        }
+        let gl = unsafe { get_internal_gl() };
+        gl.quad_gl.scissor(Some((
+            x as i32,
+            content_top as i32,
+            MODAL_W as i32,
+            content_band_h as i32,
+        )));
     }
 
     draw_content(x + PAD, content_top - scroll, ctx.colors.gold, poem_font);
 
     {
-        unsafe {
-            let gl = get_internal_gl();
-            gl.quad_gl.scissor(None);
-        }
+        let gl = unsafe { get_internal_gl() };
+        gl.quad_gl.scissor(None);
     }
 
     // ─── 4. Header masks ───

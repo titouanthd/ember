@@ -50,6 +50,7 @@ async fn main() {
         }
 
         // Logique de jeu
+        #[allow(clippy::collapsible_if)]
         if app.state == AppState::Playing {
             if let Some(event) = systems::update(&mut match_state, &ctx, dt, &input) {
                 match event {

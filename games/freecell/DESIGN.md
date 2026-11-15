@@ -8,7 +8,7 @@ FreeCell est **entièrement jouable**. Tous les objectifs V1 sont atteints :
 - Drag-and-drop avec feedback visuel (contour vert/rouge sur la cible)
 - Undo/redo, hint, restart, menu, new game
 - Best time persisté par seed
-- 89 tests verts (81 unitaires + 8 intégration), Clippy clean
+- 86 tests verts (78 unitaires + 8 intégration), Clippy clean
 
 **Raccourcis clavier actuels** (cross-layout QWERTY/AZERTY) :
 
@@ -491,7 +491,7 @@ Dans `tests/game_scenarios.rs` :
 - `test_hint_is_only_an_indicator` : hint ne mute pas l'état.
 - `test_hint_returns_none_when_no_move_exists` : plateau résolu → None.
 
-**Total : 89 tests** (81 unit + 8 integration), Clippy clean.
+**Total : 86 tests** (78 unit + 8 integration), Clippy clean.
 
 ## Pièges anticipés → rencontrés en vrai
 
