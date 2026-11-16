@@ -2,6 +2,7 @@
 pub mod app;
 pub mod color;
 pub mod hash;
+pub mod image;
 pub mod io;
 pub mod math;
 pub mod rng;
@@ -10,6 +11,7 @@ pub mod time;
 pub use app::GameState;
 pub use color::Color;
 pub use hash::{hash_u32, hash_u32_2, hash_u32_3};
+pub use image::Image;
 pub use math::{Aabb, Circle, reflect};
 pub use rng::Rng;
 pub use time::{Cooldown, TickTimer};
