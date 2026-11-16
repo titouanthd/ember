@@ -51,20 +51,8 @@ pub struct RunTimes {
 }
 
 impl Progress {
-    pub fn record_win(
-        &mut self,
-        level_id: &str,
-        score: u32,
-        stars: u8,
-        poem_reveal: u8,
-    ) {
-        self.record_win_with_times(
-            level_id,
-            score,
-            stars,
-            poem_reveal,
-            RunTimes::default(),
-        );
+    pub fn record_win(&mut self, level_id: &str, score: u32, stars: u8, poem_reveal: u8) {
+        self.record_win_with_times(level_id, score, stars, poem_reveal, RunTimes::default());
     }
 
     pub fn record_win_with_times(
@@ -88,10 +76,7 @@ impl Progress {
             *s = stars;
         }
 
-        let entry = self
-            .best_times
-            .entry(level_id.to_string())
-            .or_default();
+        let entry = self.best_times.entry(level_id.to_string()).or_default();
 
         fn update_min(field: &mut Option<f32>, new: Option<f32>) {
             if let Some(t) = new {
@@ -167,8 +152,7 @@ pub fn load_progress() -> Progress {
 }
 
 pub fn save_progress(progress: &Progress) -> Result<(), String> {
-    let text = ron::ser::to_string(progress)
-        .map_err(|e| format!("serialize progress: {e}"))?;
+    let text = ron::ser::to_string(progress).map_err(|e| format!("serialize progress: {e}"))?;
     save_raw(&text)
 }
 
@@ -181,7 +165,9 @@ fn load_raw() -> Result<Option<String>, String> {
     if !path.exists() {
         return Ok(None);
     }
-    std::fs::read_to_string(&path).map(Some).map_err(|e| format!("{e}"))
+    std::fs::read_to_string(&path)
+        .map(Some)
+        .map_err(|e| format!("{e}"))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -345,7 +331,10 @@ mod tests {
     fn time_records_keep_the_fastest() {
         let mut p = Progress::default();
         p.record_win_with_times(
-            "l01", 3500, 3, 2,
+            "l01",
+            3500,
+            3,
+            2,
             RunTimes {
                 to_1_star: Some(80.0),
                 to_2_star: Some(110.0),
@@ -356,7 +345,10 @@ mod tests {
             },
         );
         p.record_win_with_times(
-            "l01", 3400, 3, 2,
+            "l01",
+            3400,
+            3,
+            2,
             RunTimes {
                 to_1_star: Some(30.0),
                 to_2_star: Some(90.0),
@@ -384,8 +376,10 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn save_and_load_roundtrip_on_disk() {
-        let tmp = std::env::temp_dir()
-            .join(format!("jade-garden-progress-test-{}.ron", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!(
+            "jade-garden-progress-test-{}.ron",
+            std::process::id()
+        ));
 
         // SAFETY: this test is the only writer to this env var.
         // We set it and immediately use it — no concurrent reader.

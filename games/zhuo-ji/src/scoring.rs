@@ -230,7 +230,10 @@ pub struct JiInfo {
 impl JiInfo {
     pub const fn none() -> Self {
         Self {
-            primary: Tile { suit: Suit::Wan, rank: 0 },
+            primary: Tile {
+                suit: Suit::Wan,
+                rank: 0,
+            },
             jiao_golden: false,
             ba_tong_golden: false,
         }
@@ -328,10 +331,7 @@ pub fn apply_hand_scores(
     }
 
     // ─── Ji (chicken) balance ────────────────────────────────────────
-    let ji_counts: Vec<i32> = players
-        .iter()
-        .map(|p| count_ji_for_player(p, ji))
-        .collect();
+    let ji_counts: Vec<i32> = players.iter().map(|p| count_ji_for_player(p, ji)).collect();
     let total_ji: i32 = ji_counts.iter().sum();
     for (i, &count) in ji_counts.iter().enumerate() {
         breakdown.ji[i] = 4 * count - total_ji;
@@ -370,10 +370,7 @@ pub fn apply_hand_scores(
     breakdown
 }
 
-pub fn apply_huangzhuang_scores(
-    players: &mut [Player; NUM_PLAYERS],
-    tenpai: &[bool; NUM_PLAYERS],
-) {
+pub fn apply_huangzhuang_scores(players: &mut [Player; NUM_PLAYERS], tenpai: &[bool; NUM_PLAYERS]) {
     let tenpai_count = tenpai.iter().filter(|&&b| b).count();
     if tenpai_count == 0 || tenpai_count == NUM_PLAYERS {
         return;
@@ -404,19 +401,37 @@ mod tests {
     use super::*;
     use crate::components::{GangSource, Suit, Tile};
 
-    fn w(r: u8) -> Tile { Tile::new(Suit::Wan, r) }
-    fn ti(r: u8) -> Tile { Tile::new(Suit::Tiao, r) }
-    fn d(r: u8) -> Tile { Tile::new(Suit::Tong, r) }
-    fn sorted(mut v: Vec<Tile>) -> Vec<Tile> { v.sort(); v }
+    fn w(r: u8) -> Tile {
+        Tile::new(Suit::Wan, r)
+    }
+    fn ti(r: u8) -> Tile {
+        Tile::new(Suit::Tiao, r)
+    }
+    fn d(r: u8) -> Tile {
+        Tile::new(Suit::Tong, r)
+    }
+    fn sorted(mut v: Vec<Tile>) -> Vec<Tile> {
+        v.sort();
+        v
+    }
 
     #[test]
     fn test_ping_hu_mixed_suits_sequences() {
         let hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            ti(1), ti(2), ti(3),
-            d(7), d(8), d(9),
-            d(5), d(5),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            ti(1),
+            ti(2),
+            ti(3),
+            d(7),
+            d(8),
+            d(9),
+            d(5),
+            d(5),
         ]);
         assert_eq!(detect_pattern(&hand, &[]), Pattern::PingHu);
     }
@@ -424,11 +439,20 @@ mod tests {
     #[test]
     fn test_da_dui_zi_all_triplets() {
         let hand = sorted(vec![
-            w(1), w(1), w(1),
-            w(3), w(3), w(3),
-            ti(5), ti(5), ti(5),
-            d(9), d(9), d(9),
-            ti(7), ti(7),
+            w(1),
+            w(1),
+            w(1),
+            w(3),
+            w(3),
+            w(3),
+            ti(5),
+            ti(5),
+            ti(5),
+            d(9),
+            d(9),
+            d(9),
+            ti(7),
+            ti(7),
         ]);
         assert_eq!(detect_pattern(&hand, &[]), Pattern::DaDuiZi);
     }
@@ -436,11 +460,20 @@ mod tests {
     #[test]
     fn test_qing_yi_se_one_suit_with_sequences() {
         let hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            w(1), w(1), w(1),
-            w(2), w(2),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            w(1),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
         ]);
         assert_eq!(detect_pattern(&hand, &[]), Pattern::QingYiSe);
     }
@@ -448,11 +481,20 @@ mod tests {
     #[test]
     fn test_qing_da_dui_all_triplets_one_suit() {
         let hand = sorted(vec![
-            w(1), w(1), w(1),
-            w(2), w(2), w(2),
-            w(3), w(3), w(3),
-            w(4), w(4), w(4),
-            w(5), w(5),
+            w(1),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            w(3),
+            w(4),
+            w(4),
+            w(4),
+            w(5),
+            w(5),
         ]);
         assert_eq!(detect_pattern(&hand, &[]), Pattern::QingDaDui);
     }
@@ -460,9 +502,20 @@ mod tests {
     #[test]
     fn test_qi_dui_seven_pairs_mixed() {
         let hand = sorted(vec![
-            w(1), w(1), w(2), w(2), w(3), w(3),
-            ti(4), ti(4), ti(5), ti(5),
-            d(7), d(7), d(9), d(9),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            ti(4),
+            ti(4),
+            ti(5),
+            ti(5),
+            d(7),
+            d(7),
+            d(9),
+            d(9),
         ]);
         assert_eq!(detect_pattern(&hand, &[]), Pattern::QiDui);
     }
@@ -470,8 +523,20 @@ mod tests {
     #[test]
     fn test_qing_qi_dui_one_suit_seven_pairs() {
         let hand = sorted(vec![
-            w(1), w(1), w(2), w(2), w(3), w(3),
-            w(4), w(4), w(5), w(5), w(7), w(7), w(9), w(9),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            w(4),
+            w(4),
+            w(5),
+            w(5),
+            w(7),
+            w(7),
+            w(9),
+            w(9),
         ]);
         assert_eq!(detect_pattern(&hand, &[]), Pattern::QingQiDui);
     }
@@ -479,9 +544,20 @@ mod tests {
     #[test]
     fn test_long_qi_dui_five_pairs_and_quad() {
         let hand = sorted(vec![
-            w(1), w(1), w(1), w(1),
-            w(2), w(2), w(3), w(3), w(4), w(4),
-            ti(5), ti(5), d(7), d(7),
+            w(1),
+            w(1),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            w(4),
+            w(4),
+            ti(5),
+            ti(5),
+            d(7),
+            d(7),
         ]);
         assert_eq!(detect_pattern(&hand, &[]), Pattern::LongQiDui);
     }
@@ -489,9 +565,20 @@ mod tests {
     #[test]
     fn test_qing_long_bei_one_suit_long_qi_dui() {
         let hand = sorted(vec![
-            w(1), w(1), w(1), w(1),
-            w(2), w(2), w(3), w(3), w(4), w(4),
-            w(5), w(5), w(7), w(7),
+            w(1),
+            w(1),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            w(4),
+            w(4),
+            w(5),
+            w(5),
+            w(7),
+            w(7),
         ]);
         assert_eq!(detect_pattern(&hand, &[]), Pattern::QingLongBei);
     }
@@ -499,36 +586,56 @@ mod tests {
     #[test]
     fn test_qi_dui_priority_over_ping_hu() {
         let hand = sorted(vec![
-            w(1), w(1), w(2), w(2), w(3), w(3), w(4),
-            w(4), w(5), w(5), w(6), w(6), w(7), w(7),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            w(4),
+            w(4),
+            w(5),
+            w(5),
+            w(6),
+            w(6),
+            w(7),
+            w(7),
         ]);
         assert_eq!(detect_pattern(&hand, &[]), Pattern::QingQiDui);
     }
 
     #[test]
     fn test_pattern_with_pengs() {
-        let concealed = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            d(5), d(5),
-        ]);
+        let concealed = sorted(vec![w(1), w(2), w(3), w(4), w(5), w(6), d(5), d(5)]);
         let melds = vec![
-            Meld::Peng { tile: ti(1), from: 1 },
-            Meld::Peng { tile: ti(5), from: 2 },
+            Meld::Peng {
+                tile: ti(1),
+                from: 1,
+            },
+            Meld::Peng {
+                tile: ti(5),
+                from: 2,
+            },
         ];
         assert_eq!(detect_pattern(&concealed, &melds), Pattern::PingHu);
     }
 
     #[test]
     fn test_dou_empty() {
-        let melds = vec![Meld::Peng { tile: w(1), from: 0 }];
+        let melds = vec![Meld::Peng {
+            tile: w(1),
+            from: 0,
+        }];
         let d = count_dou(&melds);
         assert!(d.is_empty());
     }
 
     #[test]
     fn test_dou_an_gang() {
-        let melds = vec![Meld::Gang { tile: w(1), from: GangSource::An }];
+        let melds = vec![Meld::Gang {
+            tile: w(1),
+            from: GangSource::An,
+        }];
         let d = count_dou(&melds);
         assert_eq!(d.an, 1);
         assert_eq!(d.fan_from_each(), 2);
@@ -536,7 +643,10 @@ mod tests {
 
     #[test]
     fn test_dou_bu_gang() {
-        let melds = vec![Meld::Gang { tile: w(1), from: GangSource::Bu }];
+        let melds = vec![Meld::Gang {
+            tile: w(1),
+            from: GangSource::Bu,
+        }];
         let d = count_dou(&melds);
         assert_eq!(d.bu, 1);
         assert_eq!(d.fan_from_each(), 3);
@@ -544,7 +654,10 @@ mod tests {
 
     #[test]
     fn test_dou_ming_gang() {
-        let melds = vec![Meld::Gang { tile: w(1), from: GangSource::Ming { from: 2 } }];
+        let melds = vec![Meld::Gang {
+            tile: w(1),
+            from: GangSource::Ming { from: 2 },
+        }];
         let d = count_dou(&melds);
         assert_eq!(d.ming, 1);
         assert_eq!(d.fan_from_discarder(), 1);
@@ -612,11 +725,20 @@ mod tests {
             Player::new(true),
         ];
         players[0].concealed = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            ti(1), ti(1), ti(1),
-            d(5), d(5),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(1),
+            ti(1),
+            ti(1),
+            d(5),
+            d(5),
         ]);
 
         let ji = JiInfo::none();
@@ -638,11 +760,20 @@ mod tests {
             Player::new(true),
         ];
         players[0].concealed = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            ti(3), ti(4), ti(5),
-            d(5), d(5),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(3),
+            ti(4),
+            ti(5),
+            d(5),
+            d(5),
         ]);
 
         let ji = JiInfo::none();
@@ -796,11 +927,20 @@ mod tests {
             Player::new(true),
         ];
         players[0].concealed = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            ti(3), ti(4), ti(5),
-            d(5), d(5),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(3),
+            ti(4),
+            ti(5),
+            d(5),
+            d(5),
         ]);
 
         let ji = JiInfo::none();
@@ -828,11 +968,20 @@ mod tests {
             Player::new(true),
         ];
         players[0].concealed = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            ti(3), ti(4), ti(5),
-            d(5), d(5),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(3),
+            ti(4),
+            ti(5),
+            d(5),
+            d(5),
         ]);
 
         let bd = apply_hand_scores(
@@ -862,10 +1011,17 @@ mod tests {
         ];
         // Winning hand: 3 sequences + 1 gang meld + 1 pair
         players[0].concealed = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            d(5), d(5),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            d(5),
+            d(5),
         ]);
         players[0].melds = vec![Meld::Gang {
             tile: ti(1),

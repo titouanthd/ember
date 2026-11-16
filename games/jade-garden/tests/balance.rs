@@ -61,12 +61,7 @@ fn resolve_cascades(grid: &mut Grid, rng: &mut Rng) -> u32 {
 
 /// Simulates swapping `a` and `b` on a copy of `grid` and returns the
 /// total cascade score, or `None` if the swap produces no match.
-fn eval_swap(
-    grid: &Grid,
-    a: (usize, usize),
-    b: (usize, usize),
-    rng_seed: u32,
-) -> Option<u32> {
+fn eval_swap(grid: &Grid, a: (usize, usize), b: (usize, usize), rng_seed: u32) -> Option<u32> {
     let mut test = *grid;
     test.swap(a, b);
     if !test.has_match_at(a.0, a.1) && !test.has_match_at(b.0, b.1) {
@@ -155,15 +150,15 @@ fn ai_balance_report() {
         let ratio = ai as f32 / lvl.star_target as f32;
 
         let verdict = if ratio < 1.00 {
-            "IMPOSSIBLE"   // target above AI ceiling
+            "IMPOSSIBLE" // target above AI ceiling
         } else if ratio < 1.50 {
-            "HARD"         // needs >67% of perfect play
+            "HARD" // needs >67% of perfect play
         } else if ratio < 2.50 {
-            "OK"           // 40-67% of perfect play
+            "OK" // 40-67% of perfect play
         } else if ratio < 4.00 {
-            "EASY"         // 25-40% of perfect play
+            "EASY" // 25-40% of perfect play
         } else {
-            "TRIVIAL"      // under 25% of perfect play
+            "TRIVIAL" // under 25% of perfect play
         };
 
         // Non-Score objectives get a "~" because the AI maximises pure

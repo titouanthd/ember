@@ -186,7 +186,9 @@ fn load_raw() -> Result<Option<String>, String> {
     if !path.exists() {
         return Ok(None);
     }
-    std::fs::read_to_string(&path).map(Some).map_err(|e| e.to_string())
+    std::fs::read_to_string(&path)
+        .map(Some)
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -349,10 +351,7 @@ mod tests {
     fn level_delta_roundtrips_through_ron() {
         let mut p = Progress::default();
         p.set_level_seed("level-one", 42);
-        let delta = vec![
-            (5u16, 13u16, None),
-            (6u16, 13u16, Some(TileKind::Stone)),
-        ];
+        let delta = vec![(5u16, 13u16, None), (6u16, 13u16, Some(TileKind::Stone))];
         p.set_level_delta("level-one", delta.clone());
 
         let text = ron::ser::to_string(&p).unwrap();

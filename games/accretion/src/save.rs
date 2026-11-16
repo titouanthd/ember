@@ -69,9 +69,7 @@ pub fn save(game: &Game) -> bool {
     let Ok(value) = std::ffi::CString::new(text) else {
         return false;
     };
-    unsafe {
-        ember_storage_set(key.as_ptr() as *const u8, value.as_ptr() as *const u8) == 0
-    }
+    unsafe { ember_storage_set(key.as_ptr() as *const u8, value.as_ptr() as *const u8) == 0 }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -79,7 +77,11 @@ pub fn load() -> Option<Game> {
     let key = std::ffi::CString::new(SAVE_KEY).ok()?;
     let mut buf = vec![0u8; MAX_WEB_SAVE_BYTES];
     let n = unsafe {
-        ember_storage_get(key.as_ptr() as *const u8, buf.as_mut_ptr(), MAX_WEB_SAVE_BYTES)
+        ember_storage_get(
+            key.as_ptr() as *const u8,
+            buf.as_mut_ptr(),
+            MAX_WEB_SAVE_BYTES,
+        )
     };
     if n <= 0 {
         return None;
@@ -151,8 +153,7 @@ mod tests {
         let loaded = load().expect("save should load back");
         assert_eq!(loaded.paradigm, Paradigm::Pebbles);
         assert!(
-            (loaded.resources[&ResourceId::Dust] - game.resources[&ResourceId::Dust]).abs()
-                < 1e-6
+            (loaded.resources[&ResourceId::Dust] - game.resources[&ResourceId::Dust]).abs() < 1e-6
         );
         assert_eq!(loaded.building_count(BuildingId::DustCollector), 3);
     }

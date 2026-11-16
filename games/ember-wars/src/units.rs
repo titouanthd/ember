@@ -9,7 +9,7 @@ use glam::Vec2;
 use macroquad::prelude::Color;
 use serde::Deserialize;
 
-use crate::components::{rgba, Shape, Team, Unit, UnitIdGen};
+use crate::components::{Shape, Team, Unit, UnitIdGen, rgba};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProjectileStats {
@@ -105,7 +105,8 @@ pub fn spawn_unit(
     // Cooldowns initialisés "ready" avec leur durée enregistrée.
     // attack_cd : la durée effective est appliquée à chaque trigger
     // (elle dépend de max(stats.attack_cooldown, ATTACK_DURATION)).
-    let attack_cd = Cooldown::with_duration(stats.attack_cooldown.max(crate::stickman::ATTACK_DURATION));
+    let attack_cd =
+        Cooldown::with_duration(stats.attack_cooldown.max(crate::stickman::ATTACK_DURATION));
     let heal_cd = Cooldown::with_duration(stats.heal_cooldown.unwrap_or(0.0));
     let hit_flash = Cooldown::with_duration(crate::juice::HIT_FLASH_DURATION);
 
@@ -298,10 +299,8 @@ mod tests {
             spawn_unit(&mut id_gen, "grunt", Team::Player, Vec2::ZERO, 1.0, 1.0).unwrap();
         let grunt_p2 =
             spawn_unit(&mut id_gen, "grunt", Team::Player, Vec2::ZERO, 1.0, 1.0).unwrap();
-        let grunt_e =
-            spawn_unit(&mut id_gen, "grunt", Team::Enemy, Vec2::ZERO, 1.0, 1.0).unwrap();
-        let brute_p =
-            spawn_unit(&mut id_gen, "brute", Team::Player, Vec2::ZERO, 1.0, 1.0).unwrap();
+        let grunt_e = spawn_unit(&mut id_gen, "grunt", Team::Enemy, Vec2::ZERO, 1.0, 1.0).unwrap();
+        let brute_p = spawn_unit(&mut id_gen, "brute", Team::Player, Vec2::ZERO, 1.0, 1.0).unwrap();
         let units = vec![grunt_p1, grunt_p2, grunt_e, brute_p];
 
         assert_eq!(alive_count("grunt", Team::Player, &units), 2);

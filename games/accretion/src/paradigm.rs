@@ -8,10 +8,10 @@
 //! (the closest building representing planets forming) — asserted in
 //! tests so it can't silently drift.
 
-use std::collections::HashMap;
-use crate::format::format_number;
 use crate::components::{BuildingId, Paradigm, ResourceId};
 use crate::economy::BuildingInstance;
+use crate::format::format_number;
+use std::collections::HashMap;
 
 /// One paradigm transition rule.
 pub struct Condition {
@@ -41,7 +41,7 @@ pub const CONDITIONS: &[Condition] = &[
     Condition {
         target: Paradigm::Planets,
         required_buildings: &[(BuildingId::ResonanceEngine, 1)],
-        required_resources: &[(ResourceId::Pebbles, 1500.0)],  // was 2000
+        required_resources: &[(ResourceId::Pebbles, 1500.0)], // was 2000
     },
     // Planets → GasGiant : ajouter 500 Water
     Condition {
@@ -50,7 +50,7 @@ pub const CONDITIONS: &[Condition] = &[
             (BuildingId::MetalFoundry, 5),
             (BuildingId::WaterCondenser, 3),
         ],
-        required_resources: &[(ResourceId::Water, 500.0)],  // NEW
+        required_resources: &[(ResourceId::Water, 500.0)], // NEW
     },
     Condition {
         target: Paradigm::Star,
@@ -122,7 +122,12 @@ pub fn progress_lines(
     }
     for (r, needed) in cond.required_resources {
         let have = resources.get(r).copied().unwrap_or(0.0);
-        out.push(format!("{}: {} / {}", r.name(), format_number(have), format_number(*needed)));
+        out.push(format!(
+            "{}: {} / {}",
+            r.name(),
+            format_number(have),
+            format_number(*needed)
+        ));
     }
     out
 }
@@ -133,7 +138,10 @@ mod tests {
     use crate::economy::{BUILDINGS, BuildingInstance};
 
     fn empty_buildings() -> Vec<BuildingInstance> {
-        BUILDINGS.iter().map(|d| BuildingInstance::new(d.id)).collect()
+        BUILDINGS
+            .iter()
+            .map(|d| BuildingInstance::new(d.id))
+            .collect()
     }
 
     fn with_buildings(pairs: &[(BuildingId, u32)]) -> Vec<BuildingInstance> {
@@ -216,7 +224,11 @@ mod tests {
         let only_b = with_buildings(&[(BuildingId::DustCollector, 5)]);
 
         assert!(!condition_met(cond, &empty_buildings(), &only_res));
-        assert!(!condition_met(cond, &only_b, &res(&[(ResourceId::Pebbles, 0.0)])));
+        assert!(!condition_met(
+            cond,
+            &only_b,
+            &res(&[(ResourceId::Pebbles, 0.0)])
+        ));
         assert!(condition_met(cond, &only_b, &only_res));
     }
 
@@ -224,7 +236,11 @@ mod tests {
     fn building_requirement_is_lower_bound() {
         let cond = next_condition(Paradigm::Pebbles).unwrap();
         let b = with_buildings(&[(BuildingId::DustCollector, 10)]);
-        assert!(condition_met(cond, &b, &res(&[(ResourceId::Pebbles, 500.0)])));
+        assert!(condition_met(
+            cond,
+            &b,
+            &res(&[(ResourceId::Pebbles, 500.0)])
+        ));
     }
 
     #[test]
@@ -239,12 +255,14 @@ mod tests {
 
     #[test]
     fn check_advance_returns_none_when_not_met() {
-        assert!(check_advance(
-            Paradigm::Dust,
-            &empty_buildings(),
-            &res(&[(ResourceId::Dust, 0.0)]),
-        )
-        .is_none());
+        assert!(
+            check_advance(
+                Paradigm::Dust,
+                &empty_buildings(),
+                &res(&[(ResourceId::Dust, 0.0)]),
+            )
+            .is_none()
+        );
     }
 
     #[test]
@@ -261,12 +279,7 @@ mod tests {
 
     #[test]
     fn check_advance_at_star_returns_none() {
-        assert!(check_advance(
-            Paradigm::Star,
-            &empty_buildings(),
-            &res(&[]),
-        )
-        .is_none());
+        assert!(check_advance(Paradigm::Star, &empty_buildings(), &res(&[]),).is_none());
     }
 
     #[test]

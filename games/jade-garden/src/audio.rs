@@ -43,9 +43,9 @@ pub struct TrackSpec {
 #[cfg(not(target_arch = "wasm32"))]
 mod backend {
     use super::*;
+    use soloud::*;
     use std::process::{Child, Command, Stdio};
     use std::time::Instant;
-    use soloud::*;
 
     enum Backend {
         Soloud {
@@ -70,7 +70,10 @@ mod backend {
                 Ok(soloud) => {
                     eprintln!("🎵 Music backend: soloud (native)");
                     Self {
-                        inner: Backend::Soloud { soloud, loaded: None },
+                        inner: Backend::Soloud {
+                            soloud,
+                            loaded: None,
+                        },
                         started_at: Instant::now(),
                         playing: false,
                     }
@@ -81,7 +84,10 @@ mod backend {
                         Some(player) => {
                             eprintln!("🎵 Music backend: {player} (subprocess)");
                             Self {
-                                inner: Backend::Subprocess { player, child: None },
+                                inner: Backend::Subprocess {
+                                    player,
+                                    child: None,
+                                },
                                 started_at: Instant::now(),
                                 playing: false,
                             }
@@ -89,7 +95,10 @@ mod backend {
                         None => {
                             eprintln!("⚠️  No audio backend available. Music disabled.");
                             Self {
-                                inner: Backend::Subprocess { player: "", child: None },
+                                inner: Backend::Subprocess {
+                                    player: "",
+                                    child: None,
+                                },
                                 started_at: Instant::now(),
                                 playing: false,
                             }
@@ -233,9 +242,7 @@ mod backend {
 #[cfg(target_arch = "wasm32")]
 mod backend {
     use super::*;
-    use macroquad::audio::{
-        load_sound, play_sound, stop_sound, PlaySoundParams, Sound,
-    };
+    use macroquad::audio::{PlaySoundParams, Sound, load_sound, play_sound, stop_sound};
 
     pub struct MusicBackend {
         /// One slot per track. `None` if that track failed to load.
@@ -272,10 +279,7 @@ mod backend {
                         self.sounds.push(Some(snd));
                     }
                     Err(e) => {
-                        eprintln!(
-                            "⚠️  web audio: failed to load {}: {e:?}",
-                            spec.path
-                        );
+                        eprintln!("⚠️  web audio: failed to load {}: {e:?}", spec.path);
                         self.sounds.push(None);
                     }
                 }
@@ -385,11 +389,7 @@ impl MusicPlayer {
     }
 
     fn advance(&mut self) {
-        let loop_start = self
-            .tracks
-            .iter()
-            .position(|t| !t.is_intro)
-            .unwrap_or(0);
+        let loop_start = self.tracks.iter().position(|t| !t.is_intro).unwrap_or(0);
         let next = if self.current + 1 < self.tracks.len() {
             self.current + 1
         } else {

@@ -5,8 +5,8 @@ pub fn format_number(n: f64) -> String {
         return format!("{:.0}", n);
     }
     let suffixes = [
-        "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", 
-        "Dc", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg"
+        "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td", "Qad",
+        "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg",
     ];
     let mut val = n;
     let mut i = 0;

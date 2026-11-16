@@ -9,8 +9,8 @@
 //! are fetched via HTTP. On native the same API resolves synchronously
 //! under the hood.
 
-use macroquad::prelude::*;
 use crate::paths;
+use macroquad::prelude::*;
 
 /// Loads DejaVu Sans Mono and sets it as the default font.
 pub async fn load_default_font() -> Option<Font> {

@@ -9,7 +9,7 @@
 //! the `afplay`/`ffplay` subprocess fallback (e.g. MP3 on macOS),
 //! copy `jade-garden/src/audio.rs` — it has the hybrid backend.
 
-use macroquad::audio::{load_sound, play_sound, stop_sound, PlaySoundParams, Sound};
+use macroquad::audio::{PlaySoundParams, Sound, load_sound, play_sound, stop_sound};
 
 use crate::paths;
 

@@ -34,7 +34,10 @@ enum AppScreen {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum TimeSpeed {
-    X1, X2, X3, X4,
+    X1,
+    X2,
+    X3,
+    X4,
 }
 
 impl TimeSpeed {
@@ -68,7 +71,12 @@ enum RightTab {
 }
 
 impl RightTab {
-    const ALL: [RightTab; 4] = [Self::Resources, Self::Buildings, Self::Log, Self::Progression];
+    const ALL: [RightTab; 4] = [
+        Self::Resources,
+        Self::Buildings,
+        Self::Log,
+        Self::Progression,
+    ];
 
     fn label(self) -> &'static str {
         match self {
@@ -180,18 +188,34 @@ fn handle_input(
     if is_key_pressed(KeyCode::Enter) && matches!(*screen, AppScreen::Ending(_)) {
         *screen = AppScreen::Title;
     }
-    
+
     if *screen == AppScreen::Game {
-        if is_key_pressed(KeyCode::Key1) { ui.speed = TimeSpeed::X1; }
-        if is_key_pressed(KeyCode::Key2) { ui.speed = TimeSpeed::X2; }
-        if is_key_pressed(KeyCode::Key3) { ui.speed = TimeSpeed::X3; }
-        if is_key_pressed(KeyCode::Key4) { ui.speed = TimeSpeed::X4; }
-        
+        if is_key_pressed(KeyCode::Key1) {
+            ui.speed = TimeSpeed::X1;
+        }
+        if is_key_pressed(KeyCode::Key2) {
+            ui.speed = TimeSpeed::X2;
+        }
+        if is_key_pressed(KeyCode::Key3) {
+            ui.speed = TimeSpeed::X3;
+        }
+        if is_key_pressed(KeyCode::Key4) {
+            ui.speed = TimeSpeed::X4;
+        }
+
         // Tab shortcuts
-        if is_key_pressed(KeyCode::R) { ui.right_tab = RightTab::Resources; }
-        if is_key_pressed(KeyCode::B) { ui.right_tab = RightTab::Buildings; }
-        if is_key_pressed(KeyCode::L) { ui.right_tab = RightTab::Log; }
-        if is_key_pressed(KeyCode::T) { ui.right_tab = RightTab::Progression; }
+        if is_key_pressed(KeyCode::R) {
+            ui.right_tab = RightTab::Resources;
+        }
+        if is_key_pressed(KeyCode::B) {
+            ui.right_tab = RightTab::Buildings;
+        }
+        if is_key_pressed(KeyCode::L) {
+            ui.right_tab = RightTab::Log;
+        }
+        if is_key_pressed(KeyCode::T) {
+            ui.right_tab = RightTab::Progression;
+        }
     }
 
     // Mouse wheel scroll for the Buildings tab
@@ -247,12 +271,7 @@ fn handle_title(game: &mut Game, screen: &mut AppScreen, pos: Vec2) -> bool {
     false
 }
 
-fn handle_game(
-    game: &mut Game,
-    screen: &mut AppScreen,
-    ui: &mut UiState,
-    pos: Vec2,
-) -> bool {
+fn handle_game(game: &mut Game, screen: &mut AppScreen, ui: &mut UiState, pos: Vec2) -> bool {
     // 1. Right panel
     if pos.x >= screen_width() - cfg::RIGHT_PANEL_W {
         // Tabs
@@ -271,7 +290,7 @@ fn handle_game(
         if ui.right_tab == RightTab::Buildings {
             let content_y = CONTENT_TOP;
             let local_y = pos.y - content_y + ui.buildings_scroll;
-            
+
             let mut row = 0;
             for def in BUILDINGS {
                 if def.paradigm > game.paradigm {
@@ -279,11 +298,13 @@ fn handle_game(
                 }
                 let card_y = row as f32 * CARD_ROW_H;
                 let rect = Rect::new(0.0, card_y, CARD_W, CARD_H);
-                
+
                 // pos.x is relative to the panel, so we check local X
                 let local_x = pos.x - (screen_width() - cfg::RIGHT_PANEL_W + PANEL_PAD);
-                if local_x >= rect.x && local_x <= rect.x + rect.w
-                    && local_y >= rect.y && local_y <= rect.y + rect.h
+                if local_x >= rect.x
+                    && local_x <= rect.x + rect.w
+                    && local_y >= rect.y
+                    && local_y <= rect.y + rect.h
                 {
                     if game.can_buy(def.id) {
                         game.buy_building(def.id);
@@ -374,7 +395,10 @@ fn run_has_progress(game: &Game) -> bool {
 }
 
 fn max_buildings_scroll(game: &Game) -> f32 {
-    let visible = BUILDINGS.iter().filter(|d| d.paradigm <= game.paradigm).count();
+    let visible = BUILDINGS
+        .iter()
+        .filter(|d| d.paradigm <= game.paradigm)
+        .count();
     let total_h = visible as f32 * CARD_ROW_H;
     let viewport_h = screen_height() - CONTENT_TOP - CONTENT_BOTTOM;
     (total_h - viewport_h).max(0.0)
@@ -406,32 +430,77 @@ fn right_tab_rect(i: usize) -> Rect {
 
 fn collapse_footer_rect() -> Rect {
     let panel_x = screen_width() - cfg::RIGHT_PANEL_W;
-    Rect::new(panel_x + 20.0, screen_height() - 64.0, cfg::RIGHT_PANEL_W - 40.0, 44.0)
+    Rect::new(
+        panel_x + 20.0,
+        screen_height() - 64.0,
+        cfg::RIGHT_PANEL_W - 40.0,
+        44.0,
+    )
 }
 
 fn prestige_confirm_rect() -> Rect {
-    Rect::new(screen_width() / 2.0 - 100.0, screen_height() / 2.0 + 60.0, 80.0, 40.0)
+    Rect::new(
+        screen_width() / 2.0 - 100.0,
+        screen_height() / 2.0 + 60.0,
+        80.0,
+        40.0,
+    )
 }
 fn prestige_cancel_rect() -> Rect {
-    Rect::new(screen_width() / 2.0 + 20.0, screen_height() / 2.0 + 60.0, 80.0, 40.0)
+    Rect::new(
+        screen_width() / 2.0 + 20.0,
+        screen_height() / 2.0 + 60.0,
+        80.0,
+        40.0,
+    )
 }
 fn endgame_neutron_rect() -> Rect {
-    Rect::new(screen_width() / 2.0 - 240.0, screen_height() / 2.0 + 60.0, 200.0, 60.0)
+    Rect::new(
+        screen_width() / 2.0 - 240.0,
+        screen_height() / 2.0 + 60.0,
+        200.0,
+        60.0,
+    )
 }
 fn endgame_blackhole_rect() -> Rect {
-    Rect::new(screen_width() / 2.0 + 40.0, screen_height() / 2.0 + 60.0, 200.0, 60.0)
+    Rect::new(
+        screen_width() / 2.0 + 40.0,
+        screen_height() / 2.0 + 60.0,
+        200.0,
+        60.0,
+    )
 }
 fn title_begin_rect() -> Rect {
-    Rect::new(screen_width() / 2.0 - 120.0, screen_height() / 2.0 + 100.0, 240.0, 56.0)
+    Rect::new(
+        screen_width() / 2.0 - 120.0,
+        screen_height() / 2.0 + 100.0,
+        240.0,
+        56.0,
+    )
 }
 fn title_continue_rect() -> Rect {
-    Rect::new(screen_width() / 2.0 - 120.0, screen_height() / 2.0 + 60.0, 240.0, 56.0)
+    Rect::new(
+        screen_width() / 2.0 - 120.0,
+        screen_height() / 2.0 + 60.0,
+        240.0,
+        56.0,
+    )
 }
 fn title_prestige_rect() -> Rect {
-    Rect::new(screen_width() / 2.0 - 120.0, screen_height() / 2.0 + 130.0, 240.0, 48.0)
+    Rect::new(
+        screen_width() / 2.0 - 120.0,
+        screen_height() / 2.0 + 130.0,
+        240.0,
+        48.0,
+    )
 }
 fn title_abandon_rect() -> Rect {
-    Rect::new(screen_width() / 2.0 - 120.0, screen_height() / 2.0 + 190.0, 240.0, 40.0)
+    Rect::new(
+        screen_width() / 2.0 - 120.0,
+        screen_height() / 2.0 + 190.0,
+        240.0,
+        40.0,
+    )
 }
 
 // ─── Draw ───────────────────────────────────────────────────────
@@ -488,7 +557,11 @@ fn draw_title(game: &Game, accent: Color) {
             rect.y,
             rect.w,
             rect.h,
-            if hover { cfg::BUTTON_HOVER } else { cfg::BUTTON },
+            if hover {
+                cfg::BUTTON_HOVER
+            } else {
+                cfg::BUTTON
+            },
         );
         draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, color);
         let d = measure_text(label, None, 20, 1.0);
@@ -531,7 +604,13 @@ fn draw_ending(ending: Ending, accent: Color) {
 
     let hint = "Press Enter";
     let d = measure_text(hint, None, 18, 1.0);
-    draw_text(hint, cx - d.width / 2.0, screen_height() - 60.0, 18.0, cfg::DIM);
+    draw_text(
+        hint,
+        cx - d.width / 2.0,
+        screen_height() - 60.0,
+        18.0,
+        cfg::DIM,
+    );
 }
 
 fn draw_disk(disk: &Disk, game: &Game, accent: Color) {
@@ -613,8 +692,20 @@ fn draw_top_bar(game: &Game, accent: Color, speed: TimeSpeed) {
 
 fn draw_right_panel(game: &Game, accent: Color, right_tab: RightTab, buildings_scroll: f32) {
     let panel_x = screen_width() - cfg::RIGHT_PANEL_W;
-    draw_rectangle(panel_x, 60.0, cfg::RIGHT_PANEL_W, screen_height() - 60.0, cfg::PANEL);
-    draw_rectangle(panel_x, 60.0, 1.0, screen_height() - 60.0, cfg::PANEL_BORDER);
+    draw_rectangle(
+        panel_x,
+        60.0,
+        cfg::RIGHT_PANEL_W,
+        screen_height() - 60.0,
+        cfg::PANEL,
+    );
+    draw_rectangle(
+        panel_x,
+        60.0,
+        1.0,
+        screen_height() - 60.0,
+        cfg::PANEL_BORDER,
+    );
 
     // Tab strip
     let mouse = vec2(mouse_position().0, mouse_position().1);
@@ -697,7 +788,8 @@ fn draw_right_panel(game: &Game, accent: Color, right_tab: RightTab, buildings_s
                     if affordable { cfg::TEXT } else { cfg::DIM },
                 );
 
-                let cost_str: String = game.cost_of_next(def.id)
+                let cost_str: String = game
+                    .cost_of_next(def.id)
                     .iter()
                     .map(|(r, v)| format!("{} {}", format_number(v.ceil()), r.name()))
                     .collect::<Vec<_>>()
@@ -754,7 +846,11 @@ fn draw_right_panel(game: &Game, accent: Color, right_tab: RightTab, buildings_s
             1.0,
             if enabled { accent } else { cfg::PANEL_BORDER },
         );
-        let label = if enabled { "Collapse" } else { "Reach Gas Giant" };
+        let label = if enabled {
+            "Collapse"
+        } else {
+            "Reach Gas Giant"
+        };
         let d = measure_text(label, None, 16, 1.0);
         draw_text(
             label,
@@ -949,7 +1045,12 @@ fn draw_prestige_confirm(game: &Game, accent: Color) {
     centered("Reset your run.", 90.0, 16, cfg::TEXT);
     centered(&format!("G gain:  +{gain}"), 130.0, 18, cfg::TEXT);
     centered(&format!("New G:   {new_total}"), 160.0, 18, cfg::TEXT);
-    centered(&format!("New mult:  \u{00d7}{new_mult:.2}"), 190.0, 18, cfg::TEXT);
+    centered(
+        &format!("New mult:  \u{00d7}{new_mult:.2}"),
+        190.0,
+        18,
+        cfg::TEXT,
+    );
 
     let mouse = vec2(mouse_position().0, mouse_position().1);
 
@@ -960,7 +1061,11 @@ fn draw_prestige_confirm(game: &Game, accent: Color) {
         cr.y,
         cr.w,
         cr.h,
-        if hover_c { cfg::BUTTON_HOVER } else { cfg::BUTTON },
+        if hover_c {
+            cfg::BUTTON_HOVER
+        } else {
+            cfg::BUTTON
+        },
     );
     draw_rectangle_lines(cr.x, cr.y, cr.w, cr.h, 1.0, accent);
     let d = measure_text("Confirm", None, 16, 1.0);
@@ -979,7 +1084,11 @@ fn draw_prestige_confirm(game: &Game, accent: Color) {
         xr.y,
         xr.w,
         xr.h,
-        if hover_x { cfg::BUTTON_HOVER } else { cfg::BUTTON },
+        if hover_x {
+            cfg::BUTTON_HOVER
+        } else {
+            cfg::BUTTON
+        },
     );
     draw_rectangle_lines(xr.x, xr.y, xr.w, xr.h, 1.0, cfg::PANEL_BORDER);
     let d = measure_text("Cancel", None, 16, 1.0);
@@ -1026,7 +1135,11 @@ fn draw_endgame_choice(accent: Color) {
         nr.y,
         nr.w,
         nr.h,
-        if hover_n { cfg::BUTTON_HOVER } else { cfg::BUTTON },
+        if hover_n {
+            cfg::BUTTON_HOVER
+        } else {
+            cfg::BUTTON
+        },
     );
     draw_rectangle_lines(
         nr.x,
@@ -1053,7 +1166,11 @@ fn draw_endgame_choice(accent: Color) {
         br.y,
         br.w,
         br.h,
-        if hover_b { cfg::BUTTON_HOVER } else { cfg::BUTTON },
+        if hover_b {
+            cfg::BUTTON_HOVER
+        } else {
+            cfg::BUTTON
+        },
     );
     draw_rectangle_lines(br.x, br.y, br.w, br.h, 2.0, Color::new(0.6, 0.4, 0.8, 1.0));
     let d = measure_text("Black Hole", None, 22, 1.0);

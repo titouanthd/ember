@@ -8,7 +8,7 @@
 //! `screen_width()` calls in the tick path), screens will move in
 //! here. For now, structural smoke tests only.
 
-use bore_inc::components::{ResourceKind, Tile, TileKind, TILE_SIZE};
+use bore_inc::components::{ResourceKind, TILE_SIZE, Tile, TileKind};
 use bore_inc::config::{Colors, GameContext};
 use bore_inc::paths;
 use bore_inc::progress::Progress;
@@ -195,7 +195,10 @@ fn archie_moves_freely_through_air() {
     let mut game = Game::with_world(world);
     place_archie_at_row1(&mut game, 0.0);
 
-    let input = GameInput { horizontal: 1.0, ..Default::default() };
+    let input = GameInput {
+        horizontal: 1.0,
+        ..Default::default()
+    };
     let dt = 1.0 / 60.0;
     for _ in 0..30 {
         game.tick(dt, input);
@@ -225,13 +228,20 @@ fn archie_does_not_move_without_input() {
 fn archie_is_blocked_by_bedrock() {
     // A vertical wall of bedrock at col 4. Everything else is air.
     let world = build_world(8, 4, |col, _row| {
-        if col == 4 { Some(TileKind::Bedrock) } else { None }
+        if col == 4 {
+            Some(TileKind::Bedrock)
+        } else {
+            None
+        }
     });
     let mut game = Game::with_world(world);
     place_archie_at_row1(&mut game, 0.0);
 
     // No mining (A not held): Archie just bumps the wall.
-    let input = GameInput { horizontal: 1.0, ..Default::default() };
+    let input = GameInput {
+        horizontal: 1.0,
+        ..Default::default()
+    };
     let dt = 1.0 / 60.0;
 
     for _ in 0..300 {
@@ -363,14 +373,27 @@ fn depositing_into_truck_empties_archies_bag() {
     assert_eq!(game.archie.bag_used(), 5);
 
     // Push left into the truck.
-    let input = GameInput { horizontal: -1.0, ..Default::default() };
+    let input = GameInput {
+        horizontal: -1.0,
+        ..Default::default()
+    };
     for _ in 0..120 {
         game.tick(1.0 / 60.0, input);
-        if game.archie.bag_used() == 0 { break; }
+        if game.archie.bag_used() == 0 {
+            break;
+        }
     }
 
-    assert_eq!(game.archie.bag_used(), 0, "bag should be empty after depositing");
-    assert_eq!(game.truck.storage_used(), 5, "truck should hold the 5 stone");
+    assert_eq!(
+        game.archie.bag_used(),
+        0,
+        "bag should be empty after depositing"
+    );
+    assert_eq!(
+        game.truck.storage_used(),
+        5,
+        "truck should hold the 5 stone"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────

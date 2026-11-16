@@ -381,8 +381,7 @@ mod tests {
         p.pos = Vec2::new(c.arena.mid_x(), c.arena.wall + p.radius - 1.0);
         p.vel = Vec2::new(100.0, -200.0);
         let mut paddles = test_paddles(&c);
-        let events =
-            step_world_substepped(&mut paddles, &mut p, [Vec2::ZERO; 2], &c, 1.0 / 240.0);
+        let events = step_world_substepped(&mut paddles, &mut p, [Vec2::ZERO; 2], &c, 1.0 / 240.0);
         assert!(events.iter().any(|e| matches!(e, CollisionEvent::Wall)));
         assert!(p.pos.y >= c.arena.wall + p.radius - 1e-3);
         assert!(p.vel.y > 0.0, "vy = {}", p.vel.y);
@@ -406,8 +405,7 @@ mod tests {
         p.pos = Vec2::new(c.arena.wall + p.radius, c.arena.mid_y());
         p.vel = Vec2::new(-500.0, 0.0);
         let mut paddles = test_paddles(&c);
-        let events =
-            step_world_substepped(&mut paddles, &mut p, [Vec2::ZERO; 2], &c, 1.0 / 60.0);
+        let events = step_world_substepped(&mut paddles, &mut p, [Vec2::ZERO; 2], &c, 1.0 / 60.0);
         assert!(
             events
                 .iter()
@@ -424,11 +422,8 @@ mod tests {
         p.pos = Vec2::new(c.arena.wall + p.radius - 1.0, c.arena.goal_top() - 20.0);
         p.vel = Vec2::new(-200.0, 0.0);
         let mut paddles = test_paddles(&c);
-        let events =
-            step_world_substepped(&mut paddles, &mut p, [Vec2::ZERO; 2], &c, 1.0 / 240.0);
-        assert!(!events
-            .iter()
-            .any(|e| matches!(e, CollisionEvent::Goal(_))));
+        let events = step_world_substepped(&mut paddles, &mut p, [Vec2::ZERO; 2], &c, 1.0 / 240.0);
+        assert!(!events.iter().any(|e| matches!(e, CollisionEvent::Goal(_))));
         assert!(p.pos.x >= c.arena.wall + p.radius - 1e-3);
         assert!(p.vel.x > 0.0);
     }
@@ -442,11 +437,7 @@ mod tests {
         p.vel = Vec2::new(-500.0, 0.0);
         let ev = resolve_paddle(&mut p, &pad, &c);
         assert!(ev.is_some());
-        assert!(
-            (p.vel.length() - 500.0).abs() < 1e-3,
-            "v = {:?}",
-            p.vel
-        );
+        assert!((p.vel.length() - 500.0).abs() < 1e-3, "v = {:?}", p.vel);
         assert!(p.vel.x > 0.0, "v = {:?}", p.vel);
     }
 
@@ -512,13 +503,7 @@ mod tests {
         p.vel = Vec2::new(0.0, -c.tuning.puck_speed_max);
 
         for _ in 0..120 {
-            step_world_substepped(
-                &mut paddles,
-                &mut p,
-                [Vec2::ZERO; 2],
-                &c,
-                1.0 / 60.0,
-            );
+            step_world_substepped(&mut paddles, &mut p, [Vec2::ZERO; 2], &c, 1.0 / 60.0);
             // Invariant after every frame: puck centre stays clear of both
             // horizontal walls by exactly its own radius.
             assert!(
@@ -549,13 +534,7 @@ mod tests {
 
         let mut max_x = p.pos.x;
         for _ in 0..30 {
-            step_world_substepped(
-                &mut paddles,
-                &mut p,
-                [Vec2::ZERO; 2],
-                &c,
-                1.0 / 60.0,
-            );
+            step_world_substepped(&mut paddles, &mut p, [Vec2::ZERO; 2], &c, 1.0 / 60.0);
             max_x = max_x.max(p.pos.x);
         }
         // Contact would place the puck centre at 500 - (28 + 14) = 458.
@@ -578,13 +557,7 @@ mod tests {
         p.pos = Vec2::new(1250.0, 22.0);
         p.vel = Vec2::new(400.0, -400.0);
 
-        let events = step_world_substepped(
-            &mut paddles,
-            &mut p,
-            [Vec2::ZERO; 2],
-            &c,
-            1.0 / 30.0,
-        );
+        let events = step_world_substepped(&mut paddles, &mut p, [Vec2::ZERO; 2], &c, 1.0 / 30.0);
 
         let wall_count = events
             .iter()

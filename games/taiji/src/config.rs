@@ -21,7 +21,7 @@ impl Default for GameContext {
             screen_h: 600.0,
             paddle_w: 20.0,
             paddle_h: 120.0,
-            ball_radius: 12.0,  
+            ball_radius: 12.0,
             color_player: BLACK,
             color_ai: DARKGRAY,
             color_ball: BLACK,

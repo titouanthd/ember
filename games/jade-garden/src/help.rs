@@ -142,8 +142,22 @@ pub fn draw(ctx: &GameContext, poem_font: &PoemFont, scroll_y: &mut f32) {
     // ─── 6. Separators between bands and content ───
     let sep_top = y + HEADER_BAND_H;
     let sep_bot = y + MODAL_H - FOOTER_BAND_H;
-    draw_line(x + 20.0, sep_top, x + MODAL_W - 20.0, sep_top, 1.0, MODAL_SEPARATOR);
-    draw_line(x + 20.0, sep_bot, x + MODAL_W - 20.0, sep_bot, 1.0, MODAL_SEPARATOR);
+    draw_line(
+        x + 20.0,
+        sep_top,
+        x + MODAL_W - 20.0,
+        sep_top,
+        1.0,
+        MODAL_SEPARATOR,
+    );
+    draw_line(
+        x + 20.0,
+        sep_bot,
+        x + MODAL_W - 20.0,
+        sep_bot,
+        1.0,
+        MODAL_SEPARATOR,
+    );
 
     // ─── 7. Frame ───
     draw_frame(x, y, MODAL_W, MODAL_H, ctx.colors.panel_border);

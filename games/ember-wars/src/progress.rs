@@ -6,7 +6,7 @@ use std::path::Path;
 use ember_stdlib::persistence::Persistence;
 use serde::{Deserialize, Serialize};
 
-use crate::config::{all_chapters, LevelConfig};
+use crate::config::{LevelConfig, all_chapters};
 use crate::upgrades::UpgradeTree;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

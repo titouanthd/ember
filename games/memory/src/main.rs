@@ -1,11 +1,11 @@
 //! Memory — terminal-themed pair matching game.
 
+use ember_stdlib::graphics::text::draw_right;
+use ember_stdlib::ui::hit;
 use memory::GameState;
 use memory::components::{Card, CardState};
 use memory::config::{GameContext, load_config};
 use memory::systems::Game;
-use ember_stdlib::ui::hit;
-use ember_stdlib::graphics::text::{draw_right};
 
 use ember_stdlib::input::Input;
 use ember_stdlib::ui::button::ButtonEvent;
@@ -229,7 +229,13 @@ fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
             16.0,
             ctx.color_text_dim,
         );
-        draw_right(&line3, rect.0 + rect.2 - 20.0, rect.1 + 46.0, 16, ctx.color_accent);
+        draw_right(
+            &line3,
+            rect.0 + rect.2 - 20.0,
+            rect.1 + 46.0,
+            16,
+            ctx.color_accent,
+        );
     }
 
     game.start_btn.draw(

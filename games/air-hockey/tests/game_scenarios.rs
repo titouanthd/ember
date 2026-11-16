@@ -51,13 +51,8 @@ fn input_space() -> Input {
 
 /// Drive the game until `pred(game.phase)` holds, or `max_frames` is hit.
 /// Panics with the current phase if the target is never reached.
-fn advance_until<F>(
-    g: &mut Game,
-    c: &GameContext,
-    max_frames: usize,
-    pred: F,
-    label: &str,
-) where
+fn advance_until<F>(g: &mut Game, c: &GameContext, max_frames: usize, pred: F, label: &str)
+where
     F: Fn(Phase) -> bool,
 {
     for _ in 0..max_frames {
@@ -163,7 +158,13 @@ fn test_full_round_j1_scores_max_goals() {
     advance_to_round_end(&mut g, &c);
     assert_eq!(g.rounds.p1, 1);
     assert!(
-        matches!(g.phase, Phase::RoundOver { winner: Side::Left, .. }),
+        matches!(
+            g.phase,
+            Phase::RoundOver {
+                winner: Side::Left,
+                ..
+            }
+        ),
         "phase = {:?}",
         g.phase
     );
@@ -281,10 +282,7 @@ fn test_puck_reflects_off_paddle_at_rest() {
     let mut g = game_in_playing(&c);
     let pad = g.paddles[0];
     // Puck to the LEFT of the paddle, moving right toward it.
-    g.puck.pos = Vec2::new(
-        pad.pos.x - pad.radius - g.puck.radius + 0.5,
-        pad.pos.y,
-    );
+    g.puck.pos = Vec2::new(pad.pos.x - pad.radius - g.puck.radius + 0.5, pad.pos.y);
     g.puck.vel = Vec2::new(500.0, 0.0);
 
     let speed_before = g.puck.vel.length();
@@ -314,10 +312,7 @@ fn test_puck_gets_paddle_velocity() {
 
     // Place the puck in front of the moving paddle.
     let pad = g.paddles[0];
-    g.puck.pos = Vec2::new(
-        pad.pos.x + pad.radius + g.puck.radius - 0.5,
-        pad.pos.y,
-    );
+    g.puck.pos = Vec2::new(pad.pos.x + pad.radius + g.puck.radius - 0.5, pad.pos.y);
     g.puck.vel = Vec2::ZERO;
 
     // One step with the paddle still moving.

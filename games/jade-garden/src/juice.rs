@@ -300,14 +300,7 @@ pub fn draw_particles(juice: &Juice, shake: Vec2) {
         let alpha = (p.life / p.max_life).clamp(0.0, 1.0);
         let c = Color::new(p.color.r, p.color.g, p.color.b, p.color.a * alpha);
         let screen = p.pos + shake;
-        draw_poly(
-            screen.x,
-            screen.y,
-            p.sides,
-            p.size * alpha,
-            p.rotation,
-            c,
-        );
+        draw_poly(screen.x, screen.y, p.sides, p.size * alpha, p.rotation, c);
     }
 }
 
@@ -333,13 +326,7 @@ pub fn draw_shockwaves(juice: &Juice, shake: Vec2) {
         let r = SHOCKWAVE_START_RADIUS + (s.end_radius - SHOCKWAVE_START_RADIUS) * t;
         let alpha = (1.0 - t).powf(1.5) * s.color.a;
         let c = Color::new(s.color.r, s.color.g, s.color.b, alpha);
-        draw_circle_lines(
-            s.pos.x + shake.x,
-            s.pos.y + shake.y,
-            r,
-            s.thickness,
-            c,
-        );
+        draw_circle_lines(s.pos.x + shake.x, s.pos.y + shake.y, r, s.thickness, c);
     }
 }
 
@@ -363,7 +350,9 @@ pub fn draw_radial_rays(juice: &Juice, shake: Vec2) {
 }
 
 pub fn draw_vignette(juice: &Juice) {
-    let Some(v) = &juice.vignette else { return; };
+    let Some(v) = &juice.vignette else {
+        return;
+    };
     let t = (v.life / v.max_life).clamp(0.0, 1.0);
     let intensity = v.intensity * t;
     let vw = screen_width();

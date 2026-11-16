@@ -33,12 +33,7 @@ const GAP_ABOVE: f32 = 12.0;
 /// coordinates with the same `sx` / `sy` closures used for the sprite.
 ///
 /// Draws nothing if the bag is empty.
-pub fn draw_bag_readout(
-    bag: &Bag,
-    center_x: f32,
-    top_y: f32,
-    ctx: &GameContext,
-) {
+pub fn draw_bag_readout(bag: &Bag, center_x: f32, top_y: f32, ctx: &GameContext) {
     let entries = bag.contents_in_order();
     if entries.is_empty() {
         return;

@@ -115,10 +115,7 @@ pub fn draw_weapon(weapon: Weapon, anchor: WeaponAnchor, camp_color: Color) {
     let final_angle = base_angle + swing;
 
     // Direction dans le plan (0 = vers le bas, positif = vers l'avant).
-    let dir = Vec2::new(
-        anchor.facing * final_angle.sin(),
-        final_angle.cos(),
-    );
+    let dir = Vec2::new(anchor.facing * final_angle.sin(), final_angle.cos());
 
     let tip = anchor.hand + dir * weapon.length();
     let color = weapon.color(camp_color);
@@ -138,15 +135,34 @@ pub fn draw_weapon(weapon: Weapon, anchor: WeaponAnchor, camp_color: Color) {
             }
             if matches!(weapon, Weapon::Staff) {
                 draw_circle(tip.x, tip.y, 3.0, color);
-                draw_circle(tip.x, tip.y, 5.0, Color::new(color.r, color.g, color.b, 0.3));
+                draw_circle(
+                    tip.x,
+                    tip.y,
+                    5.0,
+                    Color::new(color.r, color.g, color.b, 0.3),
+                );
             }
         }
         Weapon::Bow => {
             let perp = Vec2::new(-dir.y, dir.x) * weapon.length() * 0.4;
             let tip_a = anchor.hand + dir * weapon.length() * 0.3 + perp;
             let tip_b = anchor.hand + dir * weapon.length() * 0.3 - perp;
-            draw_line(anchor.hand.x, anchor.hand.y, tip_a.x, tip_a.y, weapon.thickness(), color);
-            draw_line(anchor.hand.x, anchor.hand.y, tip_b.x, tip_b.y, weapon.thickness(), color);
+            draw_line(
+                anchor.hand.x,
+                anchor.hand.y,
+                tip_a.x,
+                tip_a.y,
+                weapon.thickness(),
+                color,
+            );
+            draw_line(
+                anchor.hand.x,
+                anchor.hand.y,
+                tip_b.x,
+                tip_b.y,
+                weapon.thickness(),
+                color,
+            );
             if anchor.attack_t > 0.3 {
                 draw_line(tip_a.x, tip_a.y, tip_b.x, tip_b.y, 1.0, color);
             }
@@ -263,9 +279,11 @@ mod tests {
             arm_angle: base_angle,
             attack_t: 1.0,
         };
-        let angle_a = anchor_a.arm_angle + Weapon::Sword.wrist_offset()
+        let angle_a = anchor_a.arm_angle
+            + Weapon::Sword.wrist_offset()
             + anchor_a.attack_t * Weapon::Sword.swing_amplitude();
-        let angle_b = anchor_b.arm_angle + Weapon::Sword.wrist_offset()
+        let angle_b = anchor_b.arm_angle
+            + Weapon::Sword.wrist_offset()
             + anchor_b.attack_t * Weapon::Sword.swing_amplitude();
         assert!(angle_b > angle_a);
     }

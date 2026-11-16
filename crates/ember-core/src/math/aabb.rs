@@ -245,7 +245,7 @@ mod tests {
         // Cohérent avec la doc : bords touchés → pas de pénétration.
         let a = Aabb::from_top_left_size(Vec2::ZERO, Vec2::new(10.0, 10.0));
         let b = Aabb::from_top_left_size(Vec2::new(10.0, 0.0), Vec2::new(10.0, 10.0));
-        assert!(a.overlaps(&b));           // inclusif
+        assert!(a.overlaps(&b)); // inclusif
         assert!(a.penetration(&b).is_none()); // strict
     }
 

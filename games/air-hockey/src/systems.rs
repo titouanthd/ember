@@ -11,11 +11,11 @@ use ember_stdlib::input::Input;
 use glam::Vec2;
 use macroquad::prelude::KeyCode;
 
+use crate::ai::AiState;
 use crate::components::{Paddle, Puck, Side, Trail};
 use crate::config::GameContext;
 use crate::effects::{Hitstop, Particles, Shake};
-use crate::physics::{step_world_substepped, CollisionEvent};
-use crate::ai::AiState;
+use crate::physics::{CollisionEvent, step_world_substepped};
 
 /// High-level phase of a game.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -140,7 +140,7 @@ pub struct Game {
     pub phase: Phase,
     pub paused: bool,
     pub mode: GameMode,
-    pub ai: AiState, 
+    pub ai: AiState,
     pub paddles: [Paddle; 2],
     pub puck: Puck,
     pub trail: Trail,
@@ -184,12 +184,7 @@ impl Game {
     }
 
     /// Advance the game by `dt` seconds and return the events of the frame.
-    pub fn update(
-        &mut self,
-        input: &Input,
-        ctx: &GameContext,
-        dt: f32,
-    ) -> Vec<GameEvent> {
+    pub fn update(&mut self, input: &Input, ctx: &GameContext, dt: f32) -> Vec<GameEvent> {
         // 1. Effects that always run, even when paused or during hitstop.
         self.shake.update(dt);
         self.hitstop.update(dt);
@@ -251,7 +246,8 @@ impl Game {
                         let puck = &self.puck;
                         let arena = &ctx.arena;
                         let tuning = &ctx.tuning;
-                        inputs[1] = crate::ai::direction(pad, puck, arena, tuning, &mut self.ai, dt_eff);
+                        inputs[1] =
+                            crate::ai::direction(pad, puck, arena, tuning, &mut self.ai, dt_eff);
                     }
 
                     let physics_events = step_world_substepped(
@@ -296,7 +292,10 @@ impl Game {
                             self.phase = Phase::MatchOver { winner };
                             events.push(GameEvent::MatchWon(winner));
                         } else {
-                            self.phase = Phase::RoundOver { t: ROUND_OVER_TIME, winner };
+                            self.phase = Phase::RoundOver {
+                                t: ROUND_OVER_TIME,
+                                winner,
+                            };
                         }
                     } else {
                         self.enter_countdown(ctx);
@@ -334,7 +333,9 @@ impl Game {
         self.paused = false;
         self.ai.reset();
         self.reset_positions(ctx);
-        self.phase = Phase::Countdown { t: ctx.tuning.countdown };
+        self.phase = Phase::Countdown {
+            t: ctx.tuning.countdown,
+        };
     }
 
     /// Reset paddle and puck positions to their starting spots.
@@ -565,12 +566,7 @@ mod tests {
         g.puck.vel = Vec2::new(500.0, 0.0);
         g.update(&empty_input(), &ctx, 1.0 / 60.0);
         let events = g.update(&empty_input(), &ctx, ctx.tuning.goal_pause + 0.1);
-        assert!(matches!(
-            g.phase,
-            Phase::MatchOver {
-                winner: Side::Left
-            }
-        ));
+        assert!(matches!(g.phase, Phase::MatchOver { winner: Side::Left }));
         assert!(events.contains(&GameEvent::MatchWon(Side::Left)));
         assert_eq!(g.rounds.p1, 2);
     }

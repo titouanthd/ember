@@ -77,7 +77,9 @@ pub fn apply_to_archie(id: &str, level: u8, archie: &mut Archie) {
             archie.move_speed = BASE_MOVE_SPEED * 1.10_f32.powi(l);
         }
         "bag" => {
-            archie.bag.set_capacity(BASE_BAG_CAPACITY + 10 * level as u32);
+            archie
+                .bag
+                .set_capacity(BASE_BAG_CAPACITY + 10 * level as u32);
         }
         _ => {}
     }

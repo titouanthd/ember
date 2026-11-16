@@ -7,7 +7,7 @@ use ember_stdlib::ui::hit;
 use crate::config::GameContext;
 use crate::fonts;
 use crate::menu::MenuState;
-use crate::upgrades::{load_defs, UpgradeEffect, UpgradeNode, UpgradeTree};
+use crate::upgrades::{UpgradeEffect, UpgradeNode, UpgradeTree, load_defs};
 
 // ---------- Layout constants ----------
 
@@ -333,13 +333,7 @@ pub fn draw_modal(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState) {
     draw_description(ctx, tree, state, desc_rect);
 }
 
-fn draw_node(
-    ctx: &GameContext,
-    tree: &UpgradeTree,
-    node: &UpgradeNode,
-    r: Rect,
-    focused: bool,
-) {
+fn draw_node(ctx: &GameContext, tree: &UpgradeTree, node: &UpgradeNode, r: Rect, focused: bool) {
     let purchased = tree.is_purchased(&node.id);
     let accessible = tree.is_accessible(&node.id);
     let affordable = tree.gold >= node.cost;
@@ -499,12 +493,7 @@ fn draw_header(ctx: &GameContext, tree: &UpgradeTree, modal: Rect) {
     );
 }
 
-fn draw_description(
-    ctx: &GameContext,
-    tree: &UpgradeTree,
-    state: &MenuState,
-    desc: Rect,
-) {
+fn draw_description(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState, desc: Rect) {
     draw_rectangle(
         desc.x,
         desc.y,
@@ -551,7 +540,10 @@ fn draw_description(
     } else if affordable {
         ("AVAILABLE".to_string(), ctx.colors.gold)
     } else {
-        ("TOO EXPENSIVE".to_string(), Color::new(0.85, 0.55, 0.50, 1.0))
+        (
+            "TOO EXPENSIVE".to_string(),
+            Color::new(0.85, 0.55, 0.50, 1.0),
+        )
     };
     let dim_s = fonts::measure_bold(&state_txt, 13.0);
     fonts::draw_text_bold(
@@ -574,13 +566,7 @@ fn draw_description(
     y += 20.0;
 
     let effect_txt = effect_label(&node.effect);
-    fonts::draw_text_regular(
-        &effect_txt,
-        x,
-        y,
-        14.0,
-        Color::new(0.75, 0.78, 0.82, 1.0),
-    );
+    fonts::draw_text_regular(&effect_txt, x, y, 14.0, Color::new(0.75, 0.78, 0.82, 1.0));
     y += 20.0;
 
     if !purchased {
@@ -733,7 +719,12 @@ mod tests {
         let m = modal_rect_for(1600.0, 900.0);
         let t = tree_area(m);
         let d = desc_area(m);
-        assert!(d.y >= t.y + t.h - 1.0, "desc y={} tree bottom={}", d.y, t.y + t.h);
+        assert!(
+            d.y >= t.y + t.h - 1.0,
+            "desc y={} tree bottom={}",
+            d.y,
+            t.y + t.h
+        );
     }
 
     #[test]
@@ -819,9 +810,24 @@ mod tests {
 
     #[test]
     fn rect_intersects_detects_overlap() {
-        let a = Rect { x: 0.0, y: 0.0, w: 10.0, h: 10.0 };
-        let b = Rect { x: 5.0, y: 5.0, w: 10.0, h: 10.0 };
-        let c = Rect { x: 100.0, y: 100.0, w: 5.0, h: 5.0 };
+        let a = Rect {
+            x: 0.0,
+            y: 0.0,
+            w: 10.0,
+            h: 10.0,
+        };
+        let b = Rect {
+            x: 5.0,
+            y: 5.0,
+            w: 10.0,
+            h: 10.0,
+        };
+        let c = Rect {
+            x: 100.0,
+            y: 100.0,
+            w: 5.0,
+            h: 5.0,
+        };
         assert!(rect_intersects(a, b));
         assert!(!rect_intersects(a, c));
     }

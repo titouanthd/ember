@@ -31,10 +31,29 @@ impl MatchState {
     pub fn new(ctx: &GameContext) -> Self {
         let paddle_y = ctx.screen_h / 2.0 - ctx.paddle_h / 2.0;
 
-        let player = Paddle::new(40.0, paddle_y, ctx.paddle_w, ctx.paddle_h, 600.0, ctx.color_player);
-        let ai = Paddle::new(ctx.screen_w - 40.0 - ctx.paddle_w, paddle_y, ctx.paddle_w, ctx.paddle_h, 500.0, ctx.color_ai);
+        let player = Paddle::new(
+            40.0,
+            paddle_y,
+            ctx.paddle_w,
+            ctx.paddle_h,
+            600.0,
+            ctx.color_player,
+        );
+        let ai = Paddle::new(
+            ctx.screen_w - 40.0 - ctx.paddle_w,
+            paddle_y,
+            ctx.paddle_w,
+            ctx.paddle_h,
+            500.0,
+            ctx.color_ai,
+        );
 
-        let ball = QiBall::new(ctx.screen_w / 2.0, ctx.screen_h / 2.0, ctx.ball_radius, ctx.color_ball);
+        let ball = QiBall::new(
+            ctx.screen_w / 2.0,
+            ctx.screen_h / 2.0,
+            ctx.ball_radius,
+            ctx.color_ball,
+        );
 
         let mut state = Self {
             player,
@@ -91,7 +110,7 @@ pub fn update(
     } else {
         1.0 // Normal
     };
-    
+
     // Interpolation fluide entre les états
     match_state.time_scale += (target_time_scale - match_state.time_scale) * 15.0 * real_dt;
     let dt = real_dt * match_state.time_scale;
@@ -107,7 +126,13 @@ pub fn update(
 
     // --- 3. IA ---
     match_state.ai.reset_velocity();
-    match_state.ai_ctrl.update(&mut match_state.ai, &match_state.ball, dt, ctx.screen_h, ctx.ball_radius);
+    match_state.ai_ctrl.update(
+        &mut match_state.ai,
+        &match_state.ball,
+        dt,
+        ctx.screen_h,
+        ctx.ball_radius,
+    );
 
     // --- 4. Mouvement de la balle ---
     match_state.ball.update(dt);
@@ -116,7 +141,9 @@ pub fn update(
     if match_state.ball.transform.position.y < 0.0 {
         match_state.ball.transform.position.y = 0.0;
         match_state.ball.velocity.y = match_state.ball.velocity.y.abs();
-    } else if match_state.ball.transform.position.y + match_state.ball.transform.scale.y > ctx.screen_h {
+    } else if match_state.ball.transform.position.y + match_state.ball.transform.scale.y
+        > ctx.screen_h
+    {
         match_state.ball.transform.position.y = ctx.screen_h - match_state.ball.transform.scale.y;
         match_state.ball.velocity.y = -match_state.ball.velocity.y.abs();
     }
@@ -137,18 +164,32 @@ pub fn update(
 
 fn handle_paddle_hit(match_state: &mut MatchState, side: Side) {
     let (paddle_aabb, paddle_center_y, paddle_half_h, paddle_vy) = match side {
-        Side::Player => (match_state.player.aabb(), match_state.player.center().y, match_state.player.transform.scale.y / 2.0, match_state.player.velocity_y),
-        Side::Ai => (match_state.ai.aabb(), match_state.ai.center().y, match_state.ai.transform.scale.y / 2.0, match_state.ai.velocity_y),
+        Side::Player => (
+            match_state.player.aabb(),
+            match_state.player.center().y,
+            match_state.player.transform.scale.y / 2.0,
+            match_state.player.velocity_y,
+        ),
+        Side::Ai => (
+            match_state.ai.aabb(),
+            match_state.ai.center().y,
+            match_state.ai.transform.scale.y / 2.0,
+            match_state.ai.velocity_y,
+        ),
     };
     let ball_aabb = match_state.ball.aabb();
 
-    if !ball_aabb.overlaps(&paddle_aabb) { return; }
+    if !ball_aabb.overlaps(&paddle_aabb) {
+        return;
+    }
 
     let toward = match side {
         Side::Player => match_state.ball.velocity.x < 0.0,
         Side::Ai => match_state.ball.velocity.x > 0.0,
     };
-    if !toward { return; }
+    if !toward {
+        return;
+    }
 
     if let Some((axis, depth)) = ball_aabb.penetration(&paddle_aabb) {
         match_state.ball.transform.position += axis * depth;
@@ -162,7 +203,10 @@ fn handle_paddle_hit(match_state: &mut MatchState, side: Side) {
     let current_speed = match_state.ball.velocity.length();
     let new_speed = (current_speed * 1.05).min(MAX_SPEED);
 
-    let dir_x = match side { Side::Player => 1.0, Side::Ai => -1.0 };
+    let dir_x = match side {
+        Side::Player => 1.0,
+        Side::Ai => -1.0,
+    };
     let final_angle = (bounce_angle + english).clamp(-1.2, 1.2);
 
     match_state.ball.velocity = Vec2::new(

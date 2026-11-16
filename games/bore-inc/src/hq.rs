@@ -10,13 +10,13 @@ use glam::Vec2;
 use macroquad::prelude::*;
 
 use crate::atlas::Atlas;
-use crate::components::{ResourceKind, Tile, TileKind, TILE_SIZE};
+use crate::components::{ResourceKind, TILE_SIZE, Tile, TileKind};
 use crate::config::GameContext;
 use crate::input::GameInput;
-use crate::player::{Archie, ARCHIE_HEIGHT};
+use crate::player::{ARCHIE_HEIGHT, Archie};
 use crate::progress::Progress;
 use crate::sprites::archie::ArchieSprites;
-use crate::systems::{clamp_camera, integer_scale, VIRTUAL_H, VIRTUAL_W};
+use crate::systems::{VIRTUAL_H, VIRTUAL_W, clamp_camera, integer_scale};
 use crate::upgrade::{self, UPGRADES};
 use crate::world::World;
 
@@ -204,8 +204,7 @@ impl HqState {
             let bw = BLOCK_W_TILES * TILE_SIZE;
             let bh = BLOCK_H_TILES * TILE_SIZE;
 
-            let overlap =
-                ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
+            let overlap = ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
             if !overlap {
                 continue;
             }
@@ -286,26 +285,30 @@ impl HqState {
 
         // HQ sky: a flat band above the surface. Cozy, not the
         // outdoor zone backdrop — the HQ is indoors-ish.
-        let horizon_screen_y =
-            screen_oy + (HQ_SURFACE_ROW as f32 * TILE_SIZE - cam_y) * scale;
+        let horizon_screen_y = screen_oy + (HQ_SURFACE_ROW as f32 * TILE_SIZE - cam_y) * scale;
         draw_rectangle(0.0, 0.0, vw, horizon_screen_y, ctx.colors.sky_top);
 
         // Tiles.
         let col_min = ((cam_x / TILE_SIZE).floor() as i32 - 2).max(0);
-        let col_max = (((cam_x + VIRTUAL_W) / TILE_SIZE).ceil() as i32 + 2)
-            .min(self.world.width() as i32);
+        let col_max =
+            (((cam_x + VIRTUAL_W) / TILE_SIZE).ceil() as i32 + 2).min(self.world.width() as i32);
         let row_min = ((cam_y / TILE_SIZE).floor() as i32 - 2).max(0);
-        let row_max = (((cam_y + VIRTUAL_H) / TILE_SIZE).ceil() as i32 + 2)
-            .min(self.world.height() as i32);
+        let row_max =
+            (((cam_y + VIRTUAL_H) / TILE_SIZE).ceil() as i32 + 2).min(self.world.height() as i32);
 
         for row in row_min..row_max {
             for col in col_min..col_max {
-                let Ok(cu) = usize::try_from(col) else { continue };
-                let Ok(ru) = usize::try_from(row) else { continue };
-                let Some(tile) = self.world.tile(cu, ru) else { continue };
+                let Ok(cu) = usize::try_from(col) else {
+                    continue;
+                };
+                let Ok(ru) = usize::try_from(row) else {
+                    continue;
+                };
+                let Some(tile) = self.world.tile(cu, ru) else {
+                    continue;
+                };
                 let (r, g, b) = tile.kind.color();
-                let base =
-                    Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0);
+                let base = Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0);
                 draw_rectangle(
                     sx(col as f32 * TILE_SIZE),
                     sy(row as f32 * TILE_SIZE),
@@ -340,7 +343,12 @@ impl HqState {
                 pad_y - pad_h,
                 pad_w,
                 pad_h,
-                Color::new(ctx.colors.gold.r, ctx.colors.gold.g, ctx.colors.gold.b, pulse),
+                Color::new(
+                    ctx.colors.gold.r,
+                    ctx.colors.gold.g,
+                    ctx.colors.gold.b,
+                    pulse,
+                ),
             );
 
             draw_text(
@@ -381,8 +389,7 @@ impl HqState {
         // Parked truck.
         {
             let truck_x = sx(TRUCK_COL as f32 * TILE_SIZE);
-            let truck_y =
-                sy(HQ_SURFACE_ROW as f32 * TILE_SIZE - TRUCK_H_TILES * TILE_SIZE);
+            let truck_y = sy(HQ_SURFACE_ROW as f32 * TILE_SIZE - TRUCK_H_TILES * TILE_SIZE);
             let tw = TRUCK_W_TILES * TILE_SIZE * scale;
             let th = TRUCK_H_TILES * TILE_SIZE * scale;
 
@@ -516,13 +523,7 @@ fn draw_upgrade_block(
         let plate_h = bh * 0.4;
         let plate_y = by + bh - plate_h;
 
-        draw_rectangle(
-            bx,
-            plate_y,
-            bw,
-            plate_h,
-            Color::new(0.25, 0.20, 0.15, 1.0),
-        );
+        draw_rectangle(bx, plate_y, bw, plate_h, Color::new(0.25, 0.20, 0.15, 1.0));
         draw_rectangle_lines(
             bx,
             plate_y,

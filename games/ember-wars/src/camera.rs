@@ -69,11 +69,7 @@ pub fn compute_target_x(units: &[Unit], towers: &[Tower]) -> f32 {
         return towers_center_x(towers);
     }
 
-    alive
-        .iter()
-        .map(|u| u.pos.x * u.hp.max(0.0))
-        .sum::<f32>()
-        / total_hp
+    alive.iter().map(|u| u.pos.x * u.hp.max(0.0)).sum::<f32>() / total_hp
 }
 
 #[allow(dead_code)]
@@ -205,7 +201,10 @@ mod tests {
         let mut u2 = mk_unit(1, "grunt", Team::Enemy, 100.0, 1.0);
         u2.hp = 300.0;
         let units = vec![u1, u2];
-        let towers = vec![mk_tower(Team::Player, -100.0), mk_tower(Team::Enemy, 1000.0)];
+        let towers = vec![
+            mk_tower(Team::Player, -100.0),
+            mk_tower(Team::Enemy, 1000.0),
+        ];
         assert!((compute_target_x(&units, &towers) - 75.0).abs() < 1e-6);
     }
 

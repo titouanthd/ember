@@ -6,9 +6,7 @@
 use std::collections::HashMap;
 
 use crate::components::{BuildingId, Ending, Paradigm, ResourceId};
-use crate::economy::{
-    self, BuildingInstance, buy, compute_multipliers, id_to_def, tick_buildings,
-};
+use crate::economy::{self, BuildingInstance, buy, compute_multipliers, id_to_def, tick_buildings};
 use crate::paradigm;
 use serde::{Deserialize, Serialize};
 
@@ -46,10 +44,7 @@ impl Game {
             .iter()
             .map(|&id| BuildingInstance::new(id))
             .collect();
-        let log = vec![
-            "I am.".to_string(),
-            "I do not know what I am.".to_string(),
-        ];
+        let log = vec!["I am.".to_string(), "I do not know what I am.".to_string()];
         Self {
             paradigm: Paradigm::Dust,
             resources,
@@ -76,7 +71,8 @@ impl Game {
         self.endings_seen = endings_seen;
     }
 
-    pub(crate) fn push_log(&mut self, line: impl Into<String>) {   // was `fn`
+    pub(crate) fn push_log(&mut self, line: impl Into<String>) {
+        // was `fn`
         if self.log.len() >= LOG_CAPACITY {
             self.log.remove(0);
         }
@@ -90,12 +86,7 @@ impl Game {
         }
         self.elapsed += dt as f64;
         let mults = compute_multipliers(&self.buildings, self.g_multiplier);
-        let _produced = tick_buildings(
-            &mut self.buildings,
-            &mut self.resources,
-            &mults,
-            dt,
-        );
+        let _produced = tick_buildings(&mut self.buildings, &mut self.resources, &mults, dt);
         // Floating text for produced resources arrives in Session 3
         // (with the juice module). For now, `_produced` is discarded.
     }

@@ -15,7 +15,7 @@
 use macroquad::prelude::*;
 
 use bore_inc::atlas::AtlasBuilder;
-use bore_inc::audio::{MusicPlayer, DEFAULT_TRACKS};
+use bore_inc::audio::{DEFAULT_TRACKS, MusicPlayer};
 use bore_inc::background::BackgroundData;
 use bore_inc::config::GameContext;
 use bore_inc::fonts;
@@ -23,9 +23,9 @@ use bore_inc::progress;
 use bore_inc::sprites::archie as archie_sprites;
 use bore_inc::sprites::truck::TruckSprites;
 
-use bore_inc::systems::{AppAction, AppState};
 #[cfg(target_arch = "wasm32")]
 use bore_inc::systems::AppScreen;
+use bore_inc::systems::{AppAction, AppState};
 
 /// Path of the sprite sheet, relative to `assets/`.
 const SPRITE_SHEET: &str = "archie.png";

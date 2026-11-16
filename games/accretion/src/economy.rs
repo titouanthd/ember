@@ -147,7 +147,7 @@ pub const BUILDINGS: &[BuildingDef] = &[
         id: BuildingId::JetInjector,
         name: "Jet Injector",
         paradigm: Paradigm::Star,
-        base_cost: &[(ResourceId::Light, 500.0)],   // was 10,000
+        base_cost: &[(ResourceId::Light, 500.0)], // was 10,000
         production: None,
         cooldown: 0.0,
         passive_effect: Some(PassiveEffect::MultiplyResource(ResourceId::Light, 1.50)),
@@ -175,18 +175,11 @@ pub fn id_to_def(id: BuildingId) -> &'static BuildingDef {
 /// Uses Cookie Clicker scaling: `base * 1.15^count` per resource.
 pub fn cost_of(def: &BuildingDef, count: u32) -> Vec<(ResourceId, f64)> {
     let scale = 1.15_f64.powi(count as i32);
-    def.base_cost
-        .iter()
-        .map(|(r, v)| (*r, v * scale))
-        .collect()
+    def.base_cost.iter().map(|(r, v)| (*r, v * scale)).collect()
 }
 
 /// Whether the player can afford the next instance of a building.
-pub fn can_afford(
-    resources: &HashMap<ResourceId, f64>,
-    def: &BuildingDef,
-    count: u32,
-) -> bool {
+pub fn can_afford(resources: &HashMap<ResourceId, f64>, def: &BuildingDef, count: u32) -> bool {
     cost_of(def, count)
         .iter()
         .all(|(r, c)| resources.get(r).copied().unwrap_or(0.0) >= *c)
@@ -221,10 +214,7 @@ impl BuildingInstance {
 /// Attempt to buy the next instance. Returns `true` on success.
 ///
 /// On failure, the state is unchanged (no partial purchases).
-pub fn buy(
-    resources: &mut HashMap<ResourceId, f64>,
-    instance: &mut BuildingInstance,
-) -> bool {
+pub fn buy(resources: &mut HashMap<ResourceId, f64>, instance: &mut BuildingInstance) -> bool {
     let def = id_to_def(instance.id);
     if !can_afford(resources, def, instance.count) {
         return false;
@@ -245,14 +235,14 @@ pub fn compute_multipliers(
     instances: &[BuildingInstance],
     g_multiplier: f64,
 ) -> HashMap<ResourceId, f64> {
-    let mut mults: HashMap<ResourceId, f64> = ResourceId::ALL
-        .iter()
-        .map(|r| (*r, g_multiplier))
-        .collect();
+    let mut mults: HashMap<ResourceId, f64> =
+        ResourceId::ALL.iter().map(|r| (*r, g_multiplier)).collect();
 
     for inst in instances {
         let def = id_to_def(inst.id);
-        let Some(effect) = &def.passive_effect else { continue };
+        let Some(effect) = &def.passive_effect else {
+            continue;
+        };
         let (value, target) = match effect {
             PassiveEffect::MultiplyResource(r, v) => (*v, Some(*r)),
             PassiveEffect::MultiplyAll(v) => (*v, None),
@@ -285,7 +275,9 @@ pub fn tick_buildings(
     let mut produced = Vec::new();
     for inst in instances {
         let def = id_to_def(inst.id);
-        let Some((resource, amount)) = &def.production else { continue };
+        let Some((resource, amount)) = &def.production else {
+            continue;
+        };
         if inst.count == 0 {
             continue;
         }
@@ -345,7 +337,10 @@ mod tests {
     #[test]
     fn buildings_table_sorted_by_discriminant() {
         for (i, def) in BUILDINGS.iter().enumerate() {
-            assert_eq!(def.id as usize, i, "building at index {i} has mismatched id");
+            assert_eq!(
+                def.id as usize, i,
+                "building at index {i} has mismatched id"
+            );
         }
     }
 
@@ -362,7 +357,11 @@ mod tests {
         for def in BUILDINGS {
             if def.production.is_some() {
                 assert!(def.cooldown > 0.0, "{} has no cooldown", def.name);
-                assert!(def.passive_effect.is_none(), "{} mixes active+passive", def.name);
+                assert!(
+                    def.passive_effect.is_none(),
+                    "{} mixes active+passive",
+                    def.name
+                );
             }
         }
     }
@@ -463,7 +462,11 @@ mod tests {
     fn cannot_afford_compound_missing_second() {
         let res = resources_with(&[(ResourceId::Metals, 100_000.0)]);
         // MagnetosphereCoil needs Metals AND Water.
-        assert!(!can_afford(&res, id_to_def(BuildingId::MagnetosphereCoil), 0));
+        assert!(!can_afford(
+            &res,
+            id_to_def(BuildingId::MagnetosphereCoil),
+            0
+        ));
     }
 
     // ─── buy ─────────────────────────────────────────────────────────────
@@ -506,10 +509,8 @@ mod tests {
 
     #[test]
     fn buy_compound_decrements_both() {
-        let mut res = resources_with(&[
-            (ResourceId::Metals, 10_000.0),
-            (ResourceId::Water, 1_000.0),
-        ]);
+        let mut res =
+            resources_with(&[(ResourceId::Metals, 10_000.0), (ResourceId::Water, 1_000.0)]);
         let mut inst = BuildingInstance::new(BuildingId::MagnetosphereCoil);
         assert!(buy(&mut res, &mut inst));
         assert!((res[&ResourceId::Metals] - 8_000.0).abs() < 1e-9);
@@ -595,12 +596,7 @@ mod tests {
         let mut inst = BuildingInstance::new(BuildingId::DustCollector);
         inst.count = 1;
         let m = compute_multipliers(&[], 1.0);
-        tick_buildings(
-            std::slice::from_mut(&mut inst),
-            &mut res,
-            &m,
-            1.0,
-        );
+        tick_buildings(std::slice::from_mut(&mut inst), &mut res, &m, 1.0);
         assert_eq!(res[&ResourceId::Dust], 1.0);
     }
 
@@ -610,12 +606,7 @@ mod tests {
         let mut inst = BuildingInstance::new(BuildingId::DustCollector);
         inst.count = 5;
         let m = compute_multipliers(&[], 1.0);
-        tick_buildings(
-            std::slice::from_mut(&mut inst),
-            &mut res,
-            &m,
-            1.0,
-        );
+        tick_buildings(std::slice::from_mut(&mut inst), &mut res, &m, 1.0);
         assert_eq!(res[&ResourceId::Dust], 5.0);
     }
 
@@ -627,12 +618,7 @@ mod tests {
         let mut ring = BuildingInstance::new(BuildingId::AccretionRing);
         ring.count = 2; // ×1.10^2 = 1.21
         let m = compute_multipliers(&[ring], 1.0);
-        tick_buildings(
-            std::slice::from_mut(&mut inst),
-            &mut res,
-            &m,
-            1.0,
-        );
+        tick_buildings(std::slice::from_mut(&mut inst), &mut res, &m, 1.0);
         assert!((res[&ResourceId::Dust] - 1.21).abs() < 1e-6);
     }
 
@@ -642,12 +628,7 @@ mod tests {
         let mut inst = BuildingInstance::new(BuildingId::DustCollector);
         inst.count = 1;
         let m = compute_multipliers(&[], 3.0);
-        tick_buildings(
-            std::slice::from_mut(&mut inst),
-            &mut res,
-            &m,
-            1.0,
-        );
+        tick_buildings(std::slice::from_mut(&mut inst), &mut res, &m, 1.0);
         assert_eq!(res[&ResourceId::Dust], 3.0);
     }
 
@@ -658,12 +639,7 @@ mod tests {
         inst.count = 1;
         let m = compute_multipliers(&[], 1.0);
         // 3.0s with a 1.0s cooldown: should produce 3 times.
-        tick_buildings(
-            std::slice::from_mut(&mut inst),
-            &mut res,
-            &m,
-            3.0,
-        );
+        tick_buildings(std::slice::from_mut(&mut inst), &mut res, &m, 3.0);
         assert_eq!(res[&ResourceId::Dust], 3.0);
     }
 
@@ -673,12 +649,7 @@ mod tests {
         let mut inst = BuildingInstance::new(BuildingId::DustCollector);
         inst.count = 2;
         let m = compute_multipliers(&[], 1.0);
-        let produced = tick_buildings(
-            std::slice::from_mut(&mut inst),
-            &mut res,
-            &m,
-            1.0,
-        );
+        let produced = tick_buildings(std::slice::from_mut(&mut inst), &mut res, &m, 1.0);
         assert_eq!(produced, vec![(ResourceId::Dust, 2.0)]);
     }
 
@@ -688,12 +659,7 @@ mod tests {
         let mut inst = BuildingInstance::new(BuildingId::AccretionRing);
         inst.count = 5;
         let m = compute_multipliers(&[], 1.0);
-        let produced = tick_buildings(
-            std::slice::from_mut(&mut inst),
-            &mut res,
-            &m,
-            5.0,
-        );
+        let produced = tick_buildings(std::slice::from_mut(&mut inst), &mut res, &m, 5.0);
         assert!(produced.is_empty());
     }
 }

@@ -38,8 +38,7 @@ async fn main() {
     let render_target = render_target(virtual_w as u32, virtual_h as u32);
     render_target.texture.set_filter(FilterMode::Linear);
 
-    let mut game_camera =
-        Camera2D::from_display_rect(Rect::new(0.0, 0.0, virtual_w, virtual_h));
+    let mut game_camera = Camera2D::from_display_rect(Rect::new(0.0, 0.0, virtual_w, virtual_h));
     game_camera.render_target = Some(render_target.clone());
 
     let paddle_y = ctx.screen_h / 2.0 - ctx.paddle_h / 2.0;
@@ -128,12 +127,8 @@ async fn main() {
         set_default_camera();
         clear_background(BLACK); // fills letterbox bars
 
-        let (dst_x, dst_y, dst_w, dst_h) = render::letterbox_rect(
-            screen_width(),
-            screen_height(),
-            virtual_w,
-            virtual_h,
-        );
+        let (dst_x, dst_y, dst_w, dst_h) =
+            render::letterbox_rect(screen_width(), screen_height(), virtual_w, virtual_h);
         draw_texture_ex(
             &render_target.texture,
             dst_x,
@@ -174,7 +169,13 @@ fn render_game(player: &Paddle, ai: &Paddle, match_state: &MatchState, ctx: &Gam
         GameState::Start => {
             draw_centered("PONG", ctx.screen_w / 2.0, 180.0, 100, YELLOW);
             draw_centered("Press SPACE to start", ctx.screen_w / 2.0, 300.0, 40, WHITE);
-            draw_centered("W/S or Arrow keys to move", ctx.screen_w / 2.0, 360.0, 30, GRAY);
+            draw_centered(
+                "W/S or Arrow keys to move",
+                ctx.screen_w / 2.0,
+                360.0,
+                30,
+                GRAY,
+            );
             draw_centered(
                 &format!("First to {} wins !", ctx.win_score),
                 ctx.screen_w / 2.0,

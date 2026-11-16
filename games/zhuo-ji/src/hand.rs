@@ -234,9 +234,15 @@ mod tests {
         Tile::new(suit, rank)
     }
 
-    fn w(r: u8) -> Tile { t(Suit::Wan, r) }
-    fn ti(r: u8) -> Tile { t(Suit::Tiao, r) }
-    fn d(r: u8) -> Tile { t(Suit::Tong, r) }
+    fn w(r: u8) -> Tile {
+        t(Suit::Wan, r)
+    }
+    fn ti(r: u8) -> Tile {
+        t(Suit::Tiao, r)
+    }
+    fn d(r: u8) -> Tile {
+        t(Suit::Tong, r)
+    }
 
     fn sorted(mut v: Vec<Tile>) -> Vec<Tile> {
         v.sort();
@@ -246,11 +252,20 @@ mod tests {
     #[test]
     fn test_winning_hand_three_sequences_triplet_pair() {
         let hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            ti(1), ti(1), ti(1),
-            d(2), d(2),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(1),
+            ti(1),
+            ti(1),
+            d(2),
+            d(2),
         ]);
         assert!(is_winning_hand(&hand, &[]));
     }
@@ -258,11 +273,20 @@ mod tests {
     #[test]
     fn test_winning_hand_all_triplets() {
         let hand = sorted(vec![
-            w(1), w(1), w(1),
-            w(3), w(3), w(3),
-            ti(5), ti(5), ti(5),
-            d(9), d(9), d(9),
-            ti(7), ti(7),
+            w(1),
+            w(1),
+            w(1),
+            w(3),
+            w(3),
+            w(3),
+            ti(5),
+            ti(5),
+            ti(5),
+            d(9),
+            d(9),
+            d(9),
+            ti(7),
+            ti(7),
         ]);
         assert!(is_winning_hand(&hand, &[]));
     }
@@ -271,9 +295,18 @@ mod tests {
     fn test_winning_hand_with_peng_and_gang() {
         let concealed = sorted(vec![w(1), w(2), w(3), d(2), d(2)]);
         let melds = vec![
-            Meld::Peng { tile: ti(5), from: 1 },
-            Meld::Peng { tile: ti(9), from: 2 },
-            Meld::Gang { tile: d(1), from: GangSource::An },
+            Meld::Peng {
+                tile: ti(5),
+                from: 1,
+            },
+            Meld::Peng {
+                tile: ti(9),
+                from: 2,
+            },
+            Meld::Gang {
+                tile: d(1),
+                from: GangSource::An,
+            },
         ];
         assert!(is_winning_hand(&concealed, &melds));
     }
@@ -281,8 +314,19 @@ mod tests {
     #[test]
     fn test_winning_hand_rejects_wrong_length() {
         let hand = sorted(vec![
-            w(1), w(2), w(3), w(4), w(5), w(6), w(7), w(8), w(9),
-            ti(1), ti(1), ti(1), d(2),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(1),
+            ti(1),
+            ti(1),
+            d(2),
         ]);
         assert!(!is_winning_hand(&hand, &[]));
     }
@@ -290,11 +334,20 @@ mod tests {
     #[test]
     fn test_winning_hand_rejects_no_pair() {
         let hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            ti(1), ti(2), ti(3),
-            d(2), d(3),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(1),
+            ti(2),
+            ti(3),
+            d(2),
+            d(3),
         ]);
         assert!(!is_winning_hand(&hand, &[]));
     }
@@ -302,8 +355,20 @@ mod tests {
     #[test]
     fn test_winning_hand_rejects_garbage() {
         let hand = sorted(vec![
-            w(1), w(4), w(7), ti(1), ti(4), ti(7),
-            d(1), d(4), d(7), w(9), ti(9), d(9), w(2), d(5),
+            w(1),
+            w(4),
+            w(7),
+            ti(1),
+            ti(4),
+            ti(7),
+            d(1),
+            d(4),
+            d(7),
+            w(9),
+            ti(9),
+            d(9),
+            w(2),
+            d(5),
         ]);
         assert!(!is_winning_hand(&hand, &[]));
     }
@@ -312,10 +377,22 @@ mod tests {
     fn test_winning_hand_accepts_all_melds_called() {
         let concealed = sorted(vec![d(3), d(3)]);
         let melds = vec![
-            Meld::Peng { tile: w(1), from: 1 },
-            Meld::Peng { tile: ti(5), from: 2 },
-            Meld::Peng { tile: d(9), from: 3 },
-            Meld::Gang { tile: ti(7), from: GangSource::Ming { from: 1 } },
+            Meld::Peng {
+                tile: w(1),
+                from: 1,
+            },
+            Meld::Peng {
+                tile: ti(5),
+                from: 2,
+            },
+            Meld::Peng {
+                tile: d(9),
+                from: 3,
+            },
+            Meld::Gang {
+                tile: ti(7),
+                from: GangSource::Ming { from: 1 },
+            },
         ];
         assert!(is_winning_hand(&concealed, &melds));
     }
@@ -323,11 +400,20 @@ mod tests {
     #[test]
     fn test_shanten_complete_hand_is_minus_one() {
         let hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            ti(1), ti(1), ti(1),
-            d(2), d(2),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(1),
+            ti(1),
+            ti(1),
+            d(2),
+            d(2),
         ]);
         assert_eq!(shanten(&hand, &[]), -1);
     }
@@ -335,10 +421,18 @@ mod tests {
     #[test]
     fn test_shanten_tenpai_waiting_on_pair() {
         let hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            ti(1), ti(1), ti(1),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(1),
+            ti(1),
+            ti(1),
             d(2),
         ]);
         assert_eq!(shanten(&hand, &[]), 0);
@@ -348,11 +442,19 @@ mod tests {
     #[test]
     fn test_shanten_tenpai_waiting_on_sequence_tile() {
         let hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8),
-            ti(1), ti(1), ti(1),
-            d(1), d(1),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            ti(1),
+            ti(1),
+            ti(1),
+            d(1),
+            d(1),
         ]);
         assert_eq!(shanten(&hand, &[]), 0);
     }
@@ -360,11 +462,19 @@ mod tests {
     #[test]
     fn test_shanten_one_shanten() {
         let hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8),
-            ti(1), ti(1), ti(1),
-            d(1), d(4),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            ti(1),
+            ti(1),
+            ti(1),
+            d(1),
+            d(4),
         ]);
         assert_eq!(shanten(&hand, &[]), 1);
     }
@@ -372,10 +482,19 @@ mod tests {
     #[test]
     fn test_shanten_two_shanten() {
         let hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            ti(1), ti(2), ti(3),
-            w(7), w(9), d(1), d(4),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            ti(1),
+            ti(2),
+            ti(3),
+            w(7),
+            w(9),
+            d(1),
+            d(4),
         ]);
         assert_eq!(shanten(&hand, &[]), 2);
     }
@@ -385,9 +504,19 @@ mod tests {
         // Every tile has odd rank, so no two are adjacent within a suit.
         // All distinct, so no pairs and no triplets. 8-shanten.
         let hand = sorted(vec![
-            w(1), w(3), w(5), w(7), w(9),
-            ti(1), ti(3), ti(5), ti(7), ti(9),
-            d(1), d(3), d(5),
+            w(1),
+            w(3),
+            w(5),
+            w(7),
+            w(9),
+            ti(1),
+            ti(3),
+            ti(5),
+            ti(7),
+            ti(9),
+            d(1),
+            d(3),
+            d(5),
         ]);
         assert_eq!(shanten(&hand, &[]), 8);
     }
@@ -396,8 +525,14 @@ mod tests {
     fn test_shanten_with_melds() {
         let concealed = sorted(vec![w(1), w(2), w(3), w(4), w(5), w(6), d(2)]);
         let melds = vec![
-            Meld::Peng { tile: ti(1), from: 1 },
-            Meld::Peng { tile: ti(5), from: 2 },
+            Meld::Peng {
+                tile: ti(1),
+                from: 1,
+            },
+            Meld::Peng {
+                tile: ti(5),
+                from: 2,
+            },
         ];
         assert_eq!(shanten(&concealed, &melds), 0);
     }
@@ -405,10 +540,18 @@ mod tests {
     #[test]
     fn test_tenpai_then_draw_completes_hand() {
         let mut hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            ti(1), ti(1), ti(1),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(1),
+            ti(1),
+            ti(1),
             d(2),
         ]);
         assert!(is_tenpai(&hand, &[]));
@@ -420,20 +563,40 @@ mod tests {
     #[test]
     fn test_shanten_never_less_than_minus_one() {
         let hand = sorted(vec![
-            w(1), w(1), w(1), w(1),
-            ti(1), ti(1), ti(1),
-            d(1), d(1), d(1),
-            w(2), w(3), w(4),
+            w(1),
+            w(1),
+            w(1),
+            w(1),
+            ti(1),
+            ti(1),
+            ti(1),
+            d(1),
+            d(1),
+            d(1),
+            w(2),
+            w(3),
+            w(4),
         ]);
         assert!(shanten(&hand, &[]) >= -1);
     }
 
-        #[test]
+    #[test]
     fn test_seven_pairs_is_winning() {
         let hand = sorted(vec![
-            w(1), w(1), w(2), w(2), w(3), w(3),
-            ti(4), ti(4), ti(5), ti(5),
-            d(7), d(7), d(9), d(9),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            ti(4),
+            ti(4),
+            ti(5),
+            ti(5),
+            d(7),
+            d(7),
+            d(9),
+            d(9),
         ]);
         assert!(is_winning_hand(&hand, &[]));
     }
@@ -442,9 +605,20 @@ mod tests {
     fn test_seven_pairs_with_quad() {
         // 5 pairs + 1 concealed quad = 14 tiles.
         let hand = sorted(vec![
-            w(1), w(1), w(1), w(1),
-            w(2), w(2), w(3), w(3), w(4), w(4),
-            ti(5), ti(5), d(7), d(7),
+            w(1),
+            w(1),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            w(4),
+            w(4),
+            ti(5),
+            ti(5),
+            d(7),
+            d(7),
         ]);
         assert!(is_winning_hand(&hand, &[]));
     }
@@ -452,11 +626,25 @@ mod tests {
     #[test]
     fn test_seven_pairs_rejected_with_melds() {
         let hand = sorted(vec![
-            w(1), w(1), w(2), w(2), w(3), w(3),
-            ti(4), ti(4), ti(5), ti(5),
-            d(7), d(7), d(9), d(9),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            ti(4),
+            ti(4),
+            ti(5),
+            ti(5),
+            d(7),
+            d(7),
+            d(9),
+            d(9),
         ]);
-        let melds = vec![Meld::Peng { tile: w(9), from: 1 }];
+        let melds = vec![Meld::Peng {
+            tile: w(9),
+            from: 1,
+        }];
         assert!(!is_winning_hand(&hand, &melds));
     }
 
@@ -464,9 +652,20 @@ mod tests {
     fn test_seven_pairs_rejected_with_triplet() {
         // Triplet breaks seven-pairs (one tile has count 3).
         let hand = sorted(vec![
-            w(1), w(1), w(1), w(2), w(2), w(3), w(3),
-            ti(4), ti(4), ti(5), ti(5),
-            d(7), d(7), d(9),
+            w(1),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            ti(4),
+            ti(4),
+            ti(5),
+            ti(5),
+            d(7),
+            d(7),
+            d(9),
         ]);
         assert!(!is_winning_hand(&hand, &[]));
     }
@@ -475,8 +674,20 @@ mod tests {
     fn test_seven_pairs_also_standard() {
         // 11223344556677 can be either 7 pairs OR 4 sequences + pair.
         let hand = sorted(vec![
-            w(1), w(1), w(2), w(2), w(3), w(3), w(4),
-            w(4), w(5), w(5), w(6), w(6), w(7), w(7),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            w(4),
+            w(4),
+            w(5),
+            w(5),
+            w(6),
+            w(6),
+            w(7),
+            w(7),
         ]);
         assert!(is_winning_hand(&hand, &[]));
     }
@@ -485,8 +696,20 @@ mod tests {
     fn test_seven_pairs_only_not_standard() {
         // Gaps that prevent standard decomposition, but valid 7 pairs.
         let hand = sorted(vec![
-            w(1), w(1), w(2), w(2), w(3), w(3), w(4),
-            w(4), w(5), w(5), w(7), w(7), w(9), w(9),
+            w(1),
+            w(1),
+            w(2),
+            w(2),
+            w(3),
+            w(3),
+            w(4),
+            w(4),
+            w(5),
+            w(5),
+            w(7),
+            w(7),
+            w(9),
+            w(9),
         ]);
         assert!(is_winning_hand(&hand, &[]));
     }

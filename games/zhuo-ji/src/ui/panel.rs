@@ -11,12 +11,7 @@ use crate::config::Colors;
 ///
 /// `alpha` s'applique à tout (utile pour les fade-in des modals).
 /// `diamond_size` contrôle la taille des losanges d'angle.
-pub fn draw_premium_panel(
-    rect: Rect,
-    alpha: f32,
-    diamond_size: f32,
-    colors: &Colors,
-) {
+pub fn draw_premium_panel(rect: Rect, alpha: f32, diamond_size: f32, colors: &Colors) {
     let (px, py, pw, ph) = (rect.x, rect.y, rect.w, rect.h);
 
     // Fond jade.
@@ -25,8 +20,12 @@ pub fn draw_premium_panel(
     // Double bordure dorée.
     draw_rectangle_lines(px, py, pw, ph, 3.0, with_alpha(colors.gold_dark, alpha));
     draw_rectangle_lines(
-        px + 4.0, py + 4.0, pw - 8.0, ph - 8.0,
-        1.5, with_alpha(colors.gold_light, alpha),
+        px + 4.0,
+        py + 4.0,
+        pw - 8.0,
+        ph - 8.0,
+        1.5,
+        with_alpha(colors.gold_light, alpha),
     );
 
     // Diamants aux 4 coins.

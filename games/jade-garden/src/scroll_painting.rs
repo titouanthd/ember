@@ -104,42 +104,42 @@ impl Palette {
 
     /// Chapter I — cool damp dawn, moss-covered stone, discovery.
     pub const ARRIVAL: Self = Self {
-        paper_top:    Color::new(0.075, 0.085, 0.100, 1.0),
+        paper_top: Color::new(0.075, 0.085, 0.100, 1.0),
         paper_bottom: Color::new(0.040, 0.048, 0.058, 1.0),
-        far:          Color::new(0.40, 0.46, 0.44, 0.22),
-        mid:          Color::new(0.26, 0.32, 0.30, 0.42),
-        near:         Color::new(0.14, 0.19, 0.18, 0.58),
-        mist:         Color::new(0.72, 0.82, 0.78, 0.16),
+        far: Color::new(0.40, 0.46, 0.44, 0.22),
+        mid: Color::new(0.26, 0.32, 0.30, 0.42),
+        near: Color::new(0.14, 0.19, 0.18, 0.58),
+        mist: Color::new(0.72, 0.82, 0.78, 0.16),
     };
 
     /// Chapter II — mineral silence, cold memory, starker contrast.
     pub const SILENCE_OF_STONES: Self = Self {
-        paper_top:    Color::new(0.080, 0.078, 0.090, 1.0),
+        paper_top: Color::new(0.080, 0.078, 0.090, 1.0),
         paper_bottom: Color::new(0.036, 0.034, 0.044, 1.0),
-        far:          Color::new(0.36, 0.35, 0.42, 0.20),
-        mid:          Color::new(0.22, 0.21, 0.27, 0.46),
-        near:         Color::new(0.10, 0.10, 0.13, 0.64),
-        mist:         Color::new(0.68, 0.70, 0.78, 0.12),
+        far: Color::new(0.36, 0.35, 0.42, 0.20),
+        mid: Color::new(0.22, 0.21, 0.27, 0.46),
+        near: Color::new(0.10, 0.10, 0.13, 0.64),
+        mist: Color::new(0.68, 0.70, 0.78, 0.12),
     };
 
     /// Chapter III — warm spring, first bird, gold light.
     pub const BREATH_OF_SPRING: Self = Self {
-        paper_top:    Color::new(0.105, 0.080, 0.058, 1.0),
+        paper_top: Color::new(0.105, 0.080, 0.058, 1.0),
         paper_bottom: Color::new(0.058, 0.042, 0.030, 1.0),
-        far:          Color::new(0.52, 0.44, 0.30, 0.22),
-        mid:          Color::new(0.36, 0.29, 0.19, 0.42),
-        near:         Color::new(0.22, 0.16, 0.10, 0.58),
-        mist:         Color::new(0.92, 0.82, 0.62, 0.20),
+        far: Color::new(0.52, 0.44, 0.30, 0.22),
+        mid: Color::new(0.36, 0.29, 0.19, 0.42),
+        near: Color::new(0.22, 0.16, 0.10, 0.58),
+        mist: Color::new(0.92, 0.82, 0.62, 0.20),
     };
 
     /// Chapter IV — jade awakening, mysticism, emerald glow.
     pub const AWAKENING: Self = Self {
-        paper_top:    Color::new(0.058, 0.088, 0.076, 1.0),
+        paper_top: Color::new(0.058, 0.088, 0.076, 1.0),
         paper_bottom: Color::new(0.028, 0.048, 0.040, 1.0),
-        far:          Color::new(0.36, 0.54, 0.46, 0.26),
-        mid:          Color::new(0.22, 0.38, 0.30, 0.46),
-        near:         Color::new(0.10, 0.22, 0.16, 0.60),
-        mist:         Color::new(0.72, 0.92, 0.80, 0.22),
+        far: Color::new(0.36, 0.54, 0.46, 0.26),
+        mid: Color::new(0.22, 0.38, 0.30, 0.46),
+        near: Color::new(0.10, 0.22, 0.16, 0.60),
+        mist: Color::new(0.72, 0.92, 0.80, 0.22),
     };
 
     /// Compile-time invariants.
@@ -207,12 +207,14 @@ pub fn build_peaks(seed: u32, chunk: i32, base_h: f32, n: u32) -> Vec<Peak> {
     let cu = chunk as u32;
 
     // Pick which index is the main peak (deterministic).
-    let main_idx =
-        (hash_u32(seed, cu.wrapping_mul(5).wrapping_add(99)) % n) as usize;
+    let main_idx = (hash_u32(seed, cu.wrapping_mul(5).wrapping_add(99)) % n) as usize;
 
     let mut peaks = Vec::with_capacity(n as usize);
     for k in 0..n {
-        let salt_x = cu.wrapping_mul(17).wrapping_add(k.wrapping_mul(3)).wrapping_add(1);
+        let salt_x = cu
+            .wrapping_mul(17)
+            .wrapping_add(k.wrapping_mul(3))
+            .wrapping_add(1);
         let salt_h = salt_x.wrapping_add(1);
 
         let h_x = hash_u32(seed, salt_x);
@@ -296,12 +298,7 @@ struct MountainLayer {
 }
 
 /// Draws one layer of stylised shan shui mountains.
-fn draw_mountain_layer(
-    cam_x: f32,
-    ground_y: f32,
-    seed: u32,
-    layer: MountainLayer,
-) {
+fn draw_mountain_layer(cam_x: f32, ground_y: f32, seed: u32, layer: MountainLayer) {
     let vw = screen_width();
     let layer_x = cam_x * layer.parallax;
     let first = (layer_x / layer.chunk_w).floor() as i32 - 1;
@@ -339,9 +336,7 @@ fn draw_mountain_layer(
                 }
                 let h_pine = hash_u32(
                     seed,
-                    (i as u32)
-                        .wrapping_mul(31)
-                        .wrapping_add((k as u32) * 7),
+                    (i as u32).wrapping_mul(31).wrapping_add((k as u32) * 7),
                 );
                 if !h_pine.is_multiple_of(3) {
                     continue;
@@ -503,26 +498,17 @@ mod tests {
 
     #[test]
     fn build_peaks_is_deterministic() {
-        assert_eq!(
-            build_peaks(1, 5, 100.0, 3),
-            build_peaks(1, 5, 100.0, 3),
-        );
+        assert_eq!(build_peaks(1, 5, 100.0, 3), build_peaks(1, 5, 100.0, 3),);
     }
 
     #[test]
     fn build_peaks_varies_by_chunk() {
-        assert_ne!(
-            build_peaks(1, 5, 100.0, 3),
-            build_peaks(1, 6, 100.0, 3),
-        );
+        assert_ne!(build_peaks(1, 5, 100.0, 3), build_peaks(1, 6, 100.0, 3),);
     }
 
     #[test]
     fn build_peaks_varies_by_seed() {
-        assert_ne!(
-            build_peaks(1, 5, 100.0, 3),
-            build_peaks(2, 5, 100.0, 3),
-        );
+        assert_ne!(build_peaks(1, 5, 100.0, 3), build_peaks(2, 5, 100.0, 3),);
     }
 
     #[test]
@@ -544,10 +530,7 @@ mod tests {
             for n in 2..=5 {
                 let p = build_peaks(42, chunk, 100.0, n);
                 for &(x, _) in &p {
-                    assert!(
-                        (0.0..=1.0).contains(&x),
-                        "chunk {chunk}, n {n}: x = {x}"
-                    );
+                    assert!((0.0..=1.0).contains(&x), "chunk {chunk}, n {n}: x = {x}");
                 }
             }
         }
@@ -606,10 +589,7 @@ mod tests {
         let single = vec![(0.5, 100.0)];
         let double = vec![(0.5, 100.0), (0.5, 100.0)];
         assert!(
-            (ridge_height_at(&single, 0.5, 0.3)
-                - ridge_height_at(&double, 0.5, 0.3))
-            .abs()
-                < 1e-3
+            (ridge_height_at(&single, 0.5, 0.3) - ridge_height_at(&double, 0.5, 0.3)).abs() < 1e-3
         );
     }
 

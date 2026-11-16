@@ -1,0 +1,10 @@
+[package]
+name = "ember-scene"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ember-core.workspace = true
+ember-servers.workspace = true
+ember-assets.workspace = true
+ember-macros.workspace = true

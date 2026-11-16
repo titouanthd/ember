@@ -6,12 +6,11 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
+use ember_core::hash::hash_u32;
 use ember_core::io::load_from_file;
 use glam::Vec2;
 use macroquad::prelude::*;
 use serde::Deserialize;
-use ember_core::hash::hash_u32;
-
 
 // ---------- Palette ----------
 
@@ -252,7 +251,7 @@ fn draw_mid_urban(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
         }
 
         // Enseigne néon verticale sur certaines tours.
-            let neon_seed = hash_u32(seed.wrapping_add(0x0E0F), i as u32);
+        let neon_seed = hash_u32(seed.wrapping_add(0x0E0F), i as u32);
         if neon_seed.is_multiple_of(3) {
             let neon_x = x + w - 8.0;
             let neon_top = top + 20.0;
@@ -263,7 +262,13 @@ fn draw_mid_urban(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
                 neon_2
             };
             // Rectangle lumineux + halo.
-            draw_rectangle(neon_x - 1.0, neon_top - 1.0, 6.0, neon_h + 2.0, Color::new(neon_c.r, neon_c.g, neon_c.b, 0.25));
+            draw_rectangle(
+                neon_x - 1.0,
+                neon_top - 1.0,
+                6.0,
+                neon_h + 2.0,
+                Color::new(neon_c.r, neon_c.g, neon_c.b, 0.25),
+            );
             draw_rectangle(neon_x, neon_top, 4.0, neon_h, neon_c);
         }
     }
@@ -471,14 +476,7 @@ pub fn draw_tower(
     let n_bands = 6;
     for i in 1..n_bands {
         let y = top + i as f32 * (h / n_bands as f32);
-        draw_line(
-            sx - w * 0.5 + 3.0,
-            y,
-            sx + w * 0.5 - 3.0,
-            y,
-            1.0,
-            detail,
-        );
+        draw_line(sx - w * 0.5 + 3.0, y, sx + w * 0.5 - 3.0, y, 1.0, detail);
     }
 
     // Lignes verticales courtes (briques / pierres).
@@ -508,13 +506,7 @@ pub fn draw_tower(
         draw_rectangle(mx, top - merlon_h, merlon_w, merlon_h, base);
         draw_rectangle_lines(mx, top - merlon_h, merlon_w, merlon_h, 1.5, accent);
         // Petit créneau interne
-        draw_rectangle(
-            mx + 2.0,
-            top - merlon_h + 2.0,
-            merlon_w - 4.0,
-            3.0,
-            detail,
-        );
+        draw_rectangle(mx + 2.0, top - merlon_h + 2.0, merlon_w - 4.0, 3.0, detail);
     }
 
     // Fenêtres (arche romane, 3 étages).
@@ -572,7 +564,12 @@ pub fn draw_tower(
         door_h - door_w * 0.5,
         door_color,
     );
-    draw_circle(door_x + door_w * 0.5, door_y + door_w * 0.5, door_w * 0.5, door_color);
+    draw_circle(
+        door_x + door_w * 0.5,
+        door_y + door_w * 0.5,
+        door_w * 0.5,
+        door_color,
+    );
     // Encadrement.
     draw_rectangle_lines(
         door_x,
@@ -654,7 +651,10 @@ mod tests {
     #[test]
     fn shanghai_is_urban_and_guiyang_is_mountain() {
         assert_eq!(palette_by_id("shanghai").unwrap().style, SceneStyle::Urban);
-        assert_eq!(palette_by_id("guiyang").unwrap().style, SceneStyle::Mountain);
+        assert_eq!(
+            palette_by_id("guiyang").unwrap().style,
+            SceneStyle::Mountain
+        );
     }
 
     #[test]

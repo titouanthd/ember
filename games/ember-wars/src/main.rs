@@ -36,8 +36,7 @@ async fn main() {
     ctx.viewport_w = screen_width();
     ctx.viewport_h = screen_height();
 
-    let (mut progress_data, progress_store) =
-        progress::load(Path::new(env!("CARGO_MANIFEST_DIR")));
+    let (mut progress_data, progress_store) = progress::load(Path::new(env!("CARGO_MANIFEST_DIR")));
 
     let mut screen = AppScreen::Menu;
     let mut menu_state = MenuState::new();
@@ -73,8 +72,7 @@ async fn main() {
                     upgrade_modal::draw_modal(&ctx, &progress_data.tree, &menu_state);
                 } else {
                     menu::draw_menu(&ctx, &menu_state, &progress_data);
-                    if let Some(level_id) =
-                        menu::handle_menu_input(&mut menu_state, &progress_data)
+                    if let Some(level_id) = menu::handle_menu_input(&mut menu_state, &progress_data)
                     {
                         match Game::new(&ctx, &level_id, seed_from_time(), &progress_data) {
                             Ok(g) => {
@@ -104,10 +102,8 @@ async fn main() {
                         }
 
                         let mouse_screen = Vec2::new(mouse_position().0, mouse_position().1);
-                        let mouse_world = Vec2::new(
-                            g.camera.screen_to_world(mouse_screen.x),
-                            mouse_screen.y,
-                        );
+                        let mouse_world =
+                            Vec2::new(g.camera.screen_to_world(mouse_screen.x), mouse_screen.y);
 
                         let mut consumed = false;
                         if is_mouse_button_pressed(MouseButton::Left)
@@ -117,8 +113,7 @@ async fn main() {
                             consumed = true;
                         }
 
-                        let fire_click =
-                            is_mouse_button_pressed(MouseButton::Left) && !consumed;
+                        let fire_click = is_mouse_button_pressed(MouseButton::Left) && !consumed;
                         g.tick(dt, mouse_world, fire_click, cam_dir);
                     }
 
@@ -173,8 +168,7 @@ async fn main() {
         if is_key_pressed(KeyCode::R)
             && screen == AppScreen::Game
             && let Some(level_id) = last_level_id.as_ref()
-            && let Ok(new_game) =
-                Game::new(&ctx, level_id, seed_from_time(), &progress_data)
+            && let Ok(new_game) = Game::new(&ctx, level_id, seed_from_time(), &progress_data)
         {
             game = Some(new_game);
             level_resolved = false;

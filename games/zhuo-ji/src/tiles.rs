@@ -112,8 +112,10 @@ pub fn draw_tile_flat(
 ) {
     let s = shadow_offset();
     draw_rectangle(
-        x + s.x, y + s.y,
-        size.w, size.h,
+        x + s.x,
+        y + s.y,
+        size.w,
+        size.h,
         Color::new(0.0, 0.0, 0.0, 0.25),
     );
     draw_rectangle(x, y, size.w, size.h, colors.tile_face);
@@ -177,16 +179,8 @@ pub fn draw_tile_standing_with_glow(
 /// native blur, so we fake it with layered strokes.
 fn draw_glow_outline(x: f32, y: f32, size: TileSize, color: Color) {
     let soft = Color::new(color.r, color.g, color.b, color.a * 0.45);
-    draw_rectangle_lines(
-        x - 3.5, y - 3.5,
-        size.w + 7.0, size.h + 7.0,
-        5.0, soft,
-    );
-    draw_rectangle_lines(
-        x - 1.0, y - 1.0,
-        size.w + 2.0, size.h + 2.0,
-        1.8, color,
-    );
+    draw_rectangle_lines(x - 3.5, y - 3.5, size.w + 7.0, size.h + 7.0, 5.0, soft);
+    draw_rectangle_lines(x - 1.0, y - 1.0, size.w + 2.0, size.h + 2.0, 1.8, color);
 }
 
 pub fn draw_tile_standing_highlighted(
@@ -211,9 +205,12 @@ pub fn draw_tile_back_standing(x: f32, y: f32, size: TileSize) {
     draw_rectangle_lines(x, y, size.w, size.h, 1.5, edge);
     let inset = 4.0;
     draw_rectangle_lines(
-        x + inset, y + inset,
-        size.w - inset * 2.0, size.h - inset * 2.0,
-        1.0, edge,
+        x + inset,
+        y + inset,
+        size.w - inset * 2.0,
+        size.h - inset * 2.0,
+        1.0,
+        edge,
     );
 }
 
@@ -338,7 +335,11 @@ fn draw_tiao(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
         let bar_h = (pattern_h * 0.16).max(3.0);
         for (yi, &yf) in rows.iter().enumerate() {
             for (xi, &xf) in cols.iter().enumerate() {
-                let color = if (yi + xi) % 2 == 0 { TIAO_GREEN } else { TIAO_RED };
+                let color = if (yi + xi) % 2 == 0 {
+                    TIAO_GREEN
+                } else {
+                    TIAO_RED
+                };
                 let cx = px + xf * pattern_w;
                 let cy = py + yf * pattern_h;
                 draw_bamboo_bar(cx, cy, bar_w, bar_h, color);
@@ -388,9 +389,12 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
 
     // ─── 1. Ground shadow (behind everything) ────────────────────
     draw_ellipse(
-        px + pw * 0.50, ground_y,
-        pw * 0.36, s * 0.045,
-        0.0, CHK_GROUND,
+        px + pw * 0.50,
+        ground_y,
+        pw * 0.36,
+        s * 0.045,
+        0.0,
+        CHK_GROUND,
     );
 
     // ─── 2. Legs + feet ──────────────────────────────────────────
@@ -401,35 +405,55 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
     let leg1_x = body_cx - body_r * 0.30;
     let leg2_x = body_cx + body_r * 0.28;
 
-    draw_line(leg1_x, leg_top_y, leg1_x, leg_bot_y, leg_w + outline_t, CHK_OUTLINE);
-    draw_line(leg2_x, leg_top_y, leg2_x, leg_bot_y, leg_w + outline_t, CHK_OUTLINE);
+    draw_line(
+        leg1_x,
+        leg_top_y,
+        leg1_x,
+        leg_bot_y,
+        leg_w + outline_t,
+        CHK_OUTLINE,
+    );
+    draw_line(
+        leg2_x,
+        leg_top_y,
+        leg2_x,
+        leg_bot_y,
+        leg_w + outline_t,
+        CHK_OUTLINE,
+    );
     draw_line(leg1_x, leg_top_y, leg1_x, leg_bot_y, leg_w, CHK_ORANGE);
     draw_line(leg2_x, leg_top_y, leg2_x, leg_bot_y, leg_w, CHK_ORANGE);
 
     let toe_len = s * 0.075;
     for &leg_x in &[leg1_x, leg2_x] {
         draw_line(
-            leg_x, leg_bot_y,
-            leg_x + toe_len * 0.8, leg_bot_y + toe_len * 0.15,
-            leg_w, CHK_ORANGE_DARK,
+            leg_x,
+            leg_bot_y,
+            leg_x + toe_len * 0.8,
+            leg_bot_y + toe_len * 0.15,
+            leg_w,
+            CHK_ORANGE_DARK,
         );
         draw_line(
-            leg_x, leg_bot_y,
-            leg_x - toe_len * 0.8, leg_bot_y + toe_len * 0.15,
-            leg_w, CHK_ORANGE_DARK,
+            leg_x,
+            leg_bot_y,
+            leg_x - toe_len * 0.8,
+            leg_bot_y + toe_len * 0.15,
+            leg_w,
+            CHK_ORANGE_DARK,
         );
         draw_line(
-            leg_x, leg_bot_y,
-            leg_x, leg_bot_y + toe_len * 0.30,
-            leg_w, CHK_ORANGE_DARK,
+            leg_x,
+            leg_bot_y,
+            leg_x,
+            leg_bot_y + toe_len * 0.30,
+            leg_w,
+            CHK_ORANGE_DARK,
         );
     }
 
     // ─── 3. Tail feathers — fan of 3 pointed plumes up-left ──────
-    let tail_base = Vec2::new(
-        body_cx - body_r * 0.55,
-        body_cy - body_r * 0.35,
-    );
+    let tail_base = Vec2::new(body_cx - body_r * 0.55, body_cy - body_r * 0.35);
     let plume_len = s * 0.44;
     let plume_half_width = s * 0.045;
     let plume_angles_deg = [72.0_f32, 50.0, 28.0];
@@ -456,9 +480,21 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
 
     // ─── 6. Comb — 3 red lobes on top of the head ────────────────
     let comb_lobes: [(f32, f32, f32); 3] = [
-        (head_cx - head_r * 0.45, head_cy - head_r * 0.80, head_r * 0.32),
-        (head_cx + head_r * 0.02, head_cy - head_r * 1.00, head_r * 0.38),
-        (head_cx + head_r * 0.48, head_cy - head_r * 0.85, head_r * 0.30),
+        (
+            head_cx - head_r * 0.45,
+            head_cy - head_r * 0.80,
+            head_r * 0.32,
+        ),
+        (
+            head_cx + head_r * 0.02,
+            head_cy - head_r * 1.00,
+            head_r * 0.38,
+        ),
+        (
+            head_cx + head_r * 0.48,
+            head_cy - head_r * 0.85,
+            head_r * 0.30,
+        ),
     ];
     for &(lx, ly, lr) in &comb_lobes {
         draw_circle(lx, ly, lr + outline_t * 0.45, CHK_RED_DARK);
@@ -490,7 +526,12 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
     let wattle_cx = head_cx + head_r * 0.68;
     let wattle_cy = head_cy + head_r * 0.68;
     let wattle_r = head_r * 0.42;
-    draw_circle(wattle_cx, wattle_cy, wattle_r + outline_t * 0.45, CHK_RED_DARK);
+    draw_circle(
+        wattle_cx,
+        wattle_cy,
+        wattle_r + outline_t * 0.45,
+        CHK_RED_DARK,
+    );
     draw_circle(wattle_cx, wattle_cy, wattle_r, CHK_RED);
 
     // ─── 9. Eye — big cartoon eye (only on large enough tiles) ───
@@ -661,14 +702,25 @@ fn grid_positions(n: usize) -> Vec<(usize, usize)> {
         6 => vec![(0, 0), (1, 0), (2, 0), (0, 2), (1, 2), (2, 2)],
         7 => vec![(1, 0), (0, 1), (1, 1), (2, 1), (0, 2), (1, 2), (2, 2)],
         8 => vec![
-            (0, 0), (1, 0), (2, 0),
-            (0, 1),         (2, 1),
-            (0, 2), (1, 2), (2, 2),
+            (0, 0),
+            (1, 0),
+            (2, 0),
+            (0, 1),
+            (2, 1),
+            (0, 2),
+            (1, 2),
+            (2, 2),
         ],
         9 => vec![
-            (0, 0), (1, 0), (2, 0),
-            (0, 1), (1, 1), (2, 1),
-            (0, 2), (1, 2), (2, 2),
+            (0, 0),
+            (1, 0),
+            (2, 0),
+            (0, 1),
+            (1, 1),
+            (2, 1),
+            (0, 2),
+            (1, 2),
+            (2, 2),
         ],
         _ => vec![],
     }
@@ -676,14 +728,7 @@ fn grid_positions(n: usize) -> Vec<(usize, usize)> {
 
 // ─── Wall ─────────────────────────────────────────────────────────────────
 
-pub fn draw_wall(
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
-    count: usize,
-    colors: &Colors,
-) {
+pub fn draw_wall(x: f32, y: f32, w: f32, h: f32, count: usize, colors: &Colors) {
     const TILES: usize = 4;
     let gap = 3.0;
     let tile_h = h;
@@ -797,11 +842,7 @@ mod tests {
 
     #[test]
     fn test_chicken_geometry_fits_pattern_box() {
-        for (tw, th) in [
-            (56.0_f32, 84.0_f32),
-            (30.0, 46.0),
-            (22.0, 32.0),
-        ] {
+        for (tw, th) in [(56.0_f32, 84.0_f32), (30.0, 46.0), (22.0, 32.0)] {
             let pw = tw * 0.76;
             let ph = th * 0.62;
             let s = pw.min(ph);
@@ -828,35 +869,24 @@ mod tests {
             assert!(
                 beak_tip <= pw + 1.0,
                 "beak overflows at {tw}x{th}: {} > {}",
-                beak_tip, pw,
+                beak_tip,
+                pw,
             );
             assert!(
                 wattle_right <= pw + 1.0,
                 "wattle overflows at {tw}x{th}: {} > {}",
-                wattle_right, pw,
+                wattle_right,
+                pw,
             );
-            assert!(
-                head_right <= pw + 1.0,
-                "head overflows at {tw}x{th}",
-            );
-            assert!(
-                body_right <= pw + 1.0,
-                "body overflows at {tw}x{th}",
-            );
-            assert!(
-                ground_y <= ph + 1.0,
-                "ground overflows at {tw}x{th}",
-            );
+            assert!(head_right <= pw + 1.0, "head overflows at {tw}x{th}",);
+            assert!(body_right <= pw + 1.0, "body overflows at {tw}x{th}",);
+            assert!(ground_y <= ph + 1.0, "ground overflows at {tw}x{th}",);
         }
     }
 
     #[test]
     fn test_chicken_tail_fits_pattern_box() {
-        for (tw, th) in [
-            (56.0_f32, 84.0_f32),
-            (30.0, 46.0),
-            (22.0, 32.0),
-        ] {
+        for (tw, th) in [(56.0_f32, 84.0_f32), (30.0, 46.0), (22.0, 32.0)] {
             let pw = tw * 0.76;
             let ph = th * 0.62;
             let s = pw.min(ph);
@@ -865,10 +895,7 @@ mod tests {
             let body_cy = ph * 0.62;
             let body_r = s * 0.28;
 
-            let tail_base = Vec2::new(
-                body_cx - body_r * 0.55,
-                body_cy - body_r * 0.35,
-            );
+            let tail_base = Vec2::new(body_cx - body_r * 0.55, body_cy - body_r * 0.35);
             let plume_len = s * 0.44;
             for &deg in &[72.0_f32, 50.0, 28.0] {
                 let rad = deg.to_radians();
@@ -899,7 +926,8 @@ mod tests {
             assert!(
                 off < th * 0.30,
                 "offset {} must be < {} at {tw}x{th}",
-                off, th * 0.30,
+                off,
+                th * 0.30,
             );
         }
     }

@@ -2,13 +2,13 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ember_stdlib::input::Input;
-use ember_stdlib::graphics::text::draw_right;
 use ember_stdlib::graphics::text::draw_centered;
-use macroquad::prelude::*;
+use ember_stdlib::graphics::text::draw_right;
+use ember_stdlib::input::Input;
 use ember_stdlib::ui::hit;
+use macroquad::prelude::*;
 use zhuo_ji::ui::panel;
-    
+
 use zhuo_ji::components::{ClaimKind, Meld, Suit, Tile};
 use zhuo_ji::hand;
 use zhuo_ji::help::{self, HelpAction, HelpState};
@@ -209,8 +209,7 @@ async fn main() {
                 }
             } else {
                 let is_mo = matches!(game.phase, Phase::MatchOver { .. });
-                let is_hand_end =
-                    matches!(game.phase, Phase::Hu { .. } | Phase::HuangZhuang);
+                let is_hand_end = matches!(game.phase, Phase::Hu { .. } | Phase::HuangZhuang);
                 if is_mo {
                     if let Some(tab) = hit_match_end_tab(&layout, input.mouse_pos) {
                         match_end_tab = tab;
@@ -218,15 +217,23 @@ async fn main() {
                 } else if !is_hand_end {
                     if let Some(action) = hit_claim_button(&game, &layout, input.mouse_pos) {
                         match action {
-                            ClaimAction::Claim(kind) => { game.human_claim(kind); }
-                            ClaimAction::Pass => { game.human_pass(&ctx); }
+                            ClaimAction::Claim(kind) => {
+                                game.human_claim(kind);
+                            }
+                            ClaimAction::Pass => {
+                                game.human_pass(&ctx);
+                            }
                         }
                     } else if let Some(action) =
                         hit_own_turn_button(&game, &layout, input.mouse_pos)
                     {
                         match action {
-                            OwnAction::Zimo => { game.human_zimo(); }
-                            OwnAction::AnGang(t) => { game.human_an_gang(t); }
+                            OwnAction::Zimo => {
+                                game.human_zimo();
+                            }
+                            OwnAction::AnGang(t) => {
+                                game.human_an_gang(t);
+                            }
                         }
                     } else if let Some(idx) = hit_hand_tile(&game, &layout, input.mouse_pos) {
                         game.human_discard(idx, &ctx);
@@ -236,7 +243,8 @@ async fn main() {
         }
 
         // Menu hover updates selection (when menu is active, help closed).
-        if screen == AppScreen::Menu && !help_state.visible
+        if screen == AppScreen::Menu
+            && !help_state.visible
             && let Some(idx) = menu::hit_button_idx(&layout, input.mouse_pos)
         {
             menu_state.selected = idx;
@@ -293,11 +301,15 @@ async fn main() {
                 }
 
                 let is_mo = matches!(game.phase, Phase::MatchOver { .. });
-                let is_hand_end =
-                    matches!(game.phase, Phase::Hu { .. } | Phase::HuangZhuang);
+                let is_hand_end = matches!(game.phase, Phase::Hu { .. } | Phase::HuangZhuang);
                 if is_mo {
                     draw_match_end_overlay(
-                        &layout, &ctx, &game, match_end_tab, match_over_time, input.mouse_pos,
+                        &layout,
+                        &ctx,
+                        &game,
+                        match_end_tab,
+                        match_over_time,
+                        input.mouse_pos,
                     );
                 } else if is_hand_end {
                     draw_hand_end_overlay(&layout, &ctx, &game, hand_end_time);
@@ -380,11 +392,14 @@ fn own_turn_actions(game: &Game) -> Vec<(OwnAction, &'static str)> {
     out
 }
 
-fn own_turn_button_rects(game: &Game, layout: &TableLayout)
-    -> Vec<(OwnAction, (f32, f32, f32, f32))>
-{
+fn own_turn_button_rects(
+    game: &Game,
+    layout: &TableLayout,
+) -> Vec<(OwnAction, (f32, f32, f32, f32))> {
     let actions = own_turn_actions(game);
-    if actions.is_empty() { return Vec::new(); }
+    if actions.is_empty() {
+        return Vec::new();
+    }
     let n = actions.len();
     let total = n as f32 * BTN_W + (n - 1) as f32 * BTN_GAP;
     let mut x = layout.buttons_center_x() - total * 0.5;
@@ -411,9 +426,10 @@ enum ClaimAction {
     Pass,
 }
 
-fn claim_button_rects(game: &Game, layout: &TableLayout)
-    -> Vec<(ClaimAction, (f32, f32, f32, f32))>
-{
+fn claim_button_rects(
+    game: &Game,
+    layout: &TableLayout,
+) -> Vec<(ClaimAction, (f32, f32, f32, f32))> {
     let Phase::AwaitingClaims { discard, from, .. } = game.phase else {
         return Vec::new();
     };
@@ -540,9 +556,12 @@ fn draw_mountain_silhouette(
 
     for i in 0..segments {
         draw_line(
-            points[i].x, points[i].y,
-            points[i + 1].x, points[i + 1].y,
-            1.1, rim,
+            points[i].x,
+            points[i].y,
+            points[i + 1].x,
+            points[i + 1].y,
+            1.1,
+            rim,
         );
     }
 }
@@ -607,8 +626,12 @@ fn draw_premium_border(layout: &TableLayout, ctx: &GameContext) {
 fn draw_wall(game: &Game, layout: &TableLayout, ctx: &GameContext) {
     let wp = layout.wall_pos();
     tiles::draw_wall(
-        wp.x, wp.y, layout.wall.x, layout.wall.y,
-        game.wall.len(), &ctx.colors,
+        wp.x,
+        wp.y,
+        layout.wall.x,
+        layout.wall.y,
+        game.wall.len(),
+        &ctx.colors,
     );
 }
 
@@ -617,12 +640,8 @@ fn clock_value(game: &Game, ctx: &GameContext) -> Option<(f32, f32)> {
         Phase::AwaitingDiscard { player: 0 } => {
             Some((game.turn_timer.remaining(), ctx.layout.turn_window))
         }
-        Phase::AwaitingClaims { timer, .. } => {
-            Some((timer.remaining(), ctx.layout.claim_window))
-        }
-        Phase::AiThinking { timer, .. } => {
-            Some((timer.remaining(), ctx.layout.ai_think_duration))
-        }
+        Phase::AwaitingClaims { timer, .. } => Some((timer.remaining(), ctx.layout.claim_window)),
+        Phase::AiThinking { timer, .. } => Some((timer.remaining(), ctx.layout.ai_think_duration)),
         _ => None,
     }
 }
@@ -645,7 +664,8 @@ fn draw_clock(game: &Game, layout: &TableLayout, ctx: &GameContext) {
     draw_rectangle_lines(
         cp.x - side * 0.5,
         cp.y - side * 0.5,
-        side, side,
+        side,
+        side,
         1.2,
         ctx.colors.gold_light,
     );
@@ -660,7 +680,13 @@ fn draw_clock(game: &Game, layout: &TableLayout, ctx: &GameContext) {
         draw_arc_ring(cp.x, cp.y, r - 3.0, frac, color, 4.0);
         let secs = remaining.max(0.0).ceil() as i32;
         let s = format!("{secs}");
-        text_centered(&s, cp.x + 2.0, cp.y + 11.0, 30.0, Color::new(0.0, 0.0, 0.0, 0.80));
+        text_centered(
+            &s,
+            cp.x + 2.0,
+            cp.y + 11.0,
+            30.0,
+            Color::new(0.0, 0.0, 0.0, 0.80),
+        );
         text_centered(&s, cp.x, cp.y + 10.0, 30.0, color);
     } else {
         text_centered("-", cp.x, cp.y + 8.0, 22.0, ctx.colors.text_dim);
@@ -688,11 +714,18 @@ fn draw_pointer(cx: f32, cy: f32, angle: f32, r_inner: f32, r_outer: f32, color:
     let ly = cy + r_inner * (angle + half).sin();
     let rx = cx + r_inner * (angle - half).cos();
     let ry = cy + r_inner * (angle - half).sin();
-    draw_triangle(Vec2::new(tip_x, tip_y), Vec2::new(lx, ly), Vec2::new(rx, ry), color);
+    draw_triangle(
+        Vec2::new(tip_x, tip_y),
+        Vec2::new(lx, ly),
+        Vec2::new(rx, ry),
+        color,
+    );
 }
 
 fn draw_arc_ring(cx: f32, cy: f32, r: f32, frac: f32, color: Color, thickness: f32) {
-    if frac <= 0.0 { return; }
+    if frac <= 0.0 {
+        return;
+    }
     let start = -std::f32::consts::FRAC_PI_2;
     let span = frac * std::f32::consts::TAU;
     let segments = ((span / (std::f32::consts::TAU / 64.0)).ceil() as i32).max(2);
@@ -712,7 +745,10 @@ fn draw_under_clock(game: &Game, layout: &TableLayout, ctx: &GameContext) {
     if matches!(game.phase, Phase::MatchOver { .. }) {
         text_centered(
             "Space: play more    R: new match    Escape: menu",
-            cx, base_y, 16.0, ctx.colors.highlight,
+            cx,
+            base_y,
+            16.0,
+            ctx.colors.highlight,
         );
     }
 }
@@ -723,10 +759,7 @@ fn draw_river(game: &Game, layout: &TableLayout, ctx: &GameContext, seat: Seat) 
     let p = &game.players[seat.idx()];
     for (i, &t) in p.discards.iter().enumerate() {
         let pos = layout.river_tile_pos(seat, i);
-        tiles::draw_tile_flat(
-            t, pos.x, pos.y, layout.sizes.river,
-            &ctx.colors, &ctx.font,
-        );
+        tiles::draw_tile_flat(t, pos.x, pos.y, layout.sizes.river, &ctx.colors, &ctx.font);
     }
 }
 
@@ -743,8 +776,12 @@ fn draw_ai_hand(game: &Game, layout: &TableLayout, ctx: &GameContext, seat: Seat
         let pos = layout.ai_back_pos(seat, i, concealed);
         if reveal {
             tiles::draw_tile_standing(
-                p.concealed[i], pos.x, pos.y, layout.sizes.ai_back,
-                &ctx.colors, &ctx.font,
+                p.concealed[i],
+                pos.x,
+                pos.y,
+                layout.sizes.ai_back,
+                &ctx.colors,
+                &ctx.font,
             );
         } else {
             tiles::draw_tile_back_standing(pos.x, pos.y, layout.sizes.ai_back);
@@ -754,8 +791,12 @@ fn draw_ai_hand(game: &Game, layout: &TableLayout, ctx: &GameContext, seat: Seat
         let pos = layout.ai_drawn_pos(seat, concealed);
         if reveal {
             tiles::draw_tile_standing(
-                drawn, pos.x, pos.y, layout.sizes.ai_back,
-                &ctx.colors, &ctx.font,
+                drawn,
+                pos.x,
+                pos.y,
+                layout.sizes.ai_back,
+                &ctx.colors,
+                &ctx.font,
             );
         } else {
             tiles::draw_tile_back_standing(pos.x, pos.y, layout.sizes.ai_back);
@@ -766,12 +807,15 @@ fn draw_ai_hand(game: &Game, layout: &TableLayout, ctx: &GameContext, seat: Seat
 
 fn draw_ai_melds(game: &Game, layout: &TableLayout, ctx: &GameContext, seat: Seat) {
     let p = &game.players[seat.idx()];
-    if p.melds.is_empty() { return; }
+    if p.melds.is_empty() {
+        return;
+    }
     let concealed = p.concealed.len();
     let t = layout.sizes.ai_meld;
 
     // 1) Compute the layout of all melds for this seat.
-    let is_gang: Vec<bool> = p.melds
+    let is_gang: Vec<bool> = p
+        .melds
         .iter()
         .map(|m| matches!(m, Meld::Gang { .. }))
         .collect();
@@ -799,8 +843,12 @@ fn draw_ai_melds(game: &Game, layout: &TableLayout, ctx: &GameContext, seat: Sea
 
     // 4) Pass C: for Gangs, draw the stacked 4th tile on top.
     for (mi, m) in p.melds.iter().enumerate() {
-        if !matches!(m, Meld::Gang { .. }) { continue; }
-        let Some(pos) = layout_positions.stacks[mi] else { continue; };
+        if !matches!(m, Meld::Gang { .. }) {
+            continue;
+        }
+        let Some(pos) = layout_positions.stacks[mi] else {
+            continue;
+        };
         let tile = match m {
             Meld::Gang { tile, .. } => *tile,
             _ => unreachable!(),
@@ -846,7 +894,9 @@ fn draw_drawn_marker(
 
 fn draw_human_melds(game: &Game, layout: &TableLayout, ctx: &GameContext) {
     let melds = &game.players[0].melds;
-    if melds.is_empty() { return; }
+    if melds.is_empty() {
+        return;
+    }
     let t = layout.sizes.ai_meld;
     let hand_n = game.players[0].concealed.len();
 
@@ -875,8 +925,12 @@ fn draw_human_melds(game: &Game, layout: &TableLayout, ctx: &GameContext) {
     }
     // Stacked gang tiles.
     for (mi, m) in melds.iter().enumerate() {
-        if !matches!(m, Meld::Gang { .. }) { continue; }
-        let Some(pos) = layout_positions.stacks[mi] else { continue; };
+        if !matches!(m, Meld::Gang { .. }) {
+            continue;
+        }
+        let Some(pos) = layout_positions.stacks[mi] else {
+            continue;
+        };
         let tile = match m {
             Meld::Gang { tile, .. } => *tile,
             _ => unreachable!(),
@@ -892,11 +946,19 @@ fn draw_human_melds(game: &Game, layout: &TableLayout, ctx: &GameContext) {
 fn tile_is_useful(hand: &[Tile], i: usize) -> bool {
     let t = hand[i];
     for (j, &other) in hand.iter().enumerate() {
-        if j == i { continue; }
-        if other == t { return true; }
-        if other.suit != t.suit { continue; }
+        if j == i {
+            continue;
+        }
+        if other == t {
+            return true;
+        }
+        if other.suit != t.suit {
+            continue;
+        }
         let d = (other.rank as i32 - t.rank as i32).abs();
-        if d == 1 || d == 2 { return true; }
+        if d == 1 || d == 2 {
+            return true;
+        }
     }
     false
 }
@@ -904,21 +966,23 @@ fn tile_is_useful(hand: &[Tile], i: usize) -> bool {
 /// `true` if `tile` has a friend in `hand` (pair or ±2 ranks).
 fn tile_has_friend_in(hand: &[Tile], tile: Tile) -> bool {
     for &other in hand {
-        if other == tile { return true; }
-        if other.suit != tile.suit { continue; }
+        if other == tile {
+            return true;
+        }
+        if other.suit != tile.suit {
+            continue;
+        }
         let d = (other.rank as i32 - tile.rank as i32).abs();
-        if d == 1 || d == 2 { return true; }
+        if d == 1 || d == 2 {
+            return true;
+        }
     }
     false
 }
 
 /// Computes the status glow for a tile in the concealed hand.
 /// Priority: Ji > Useful.
-fn glow_for_concealed(
-    hand: &[Tile],
-    i: usize,
-    ji: Option<&scoring::JiInfo>,
-) -> tiles::TileGlow {
+fn glow_for_concealed(hand: &[Tile], i: usize, ji: Option<&scoring::JiInfo>) -> tiles::TileGlow {
     let t = hand[i];
     if let Some(j) = ji
         && scoring::ji_fan_for_tile(t, j) > 0
@@ -933,11 +997,7 @@ fn glow_for_concealed(
 
 /// Computes the status glow for the drawn tile, using the concealed
 /// hand as context. Priority: Ji > Useful.
-fn glow_for_drawn(
-    hand: &[Tile],
-    drawn: Tile,
-    ji: Option<&scoring::JiInfo>,
-) -> tiles::TileGlow {
+fn glow_for_drawn(hand: &[Tile], drawn: Tile, ji: Option<&scoring::JiInfo>) -> tiles::TileGlow {
     if let Some(j) = ji
         && scoring::ji_fan_for_tile(drawn, j) > 0
     {
@@ -961,21 +1021,32 @@ fn draw_human_hand(game: &Game, layout: &TableLayout, ctx: &GameContext, mouse: 
         let hovered = discardable && hit::contains_xywh(pos.x, pos.y, tw, th, mouse);
         if hovered {
             tiles::draw_tile_standing_highlighted(
-                tile, pos.x, pos.y, layout.sizes.hand,
-                &ctx.colors, &ctx.font,
+                tile,
+                pos.x,
+                pos.y,
+                layout.sizes.hand,
+                &ctx.colors,
+                &ctx.font,
             );
         } else {
             let glow = glow_for_concealed(&game.players[0].concealed, i, ji);
             tiles::draw_tile_standing_with_glow(
-                tile, pos.x, pos.y, layout.sizes.hand, glow,
-                &ctx.colors, &ctx.font,
+                tile,
+                pos.x,
+                pos.y,
+                layout.sizes.hand,
+                glow,
+                &ctx.colors,
+                &ctx.font,
             );
         }
     }
 }
 
 fn draw_human_drawn(game: &Game, layout: &TableLayout, ctx: &GameContext, mouse: Vec2) {
-    let Some(drawn) = game.players[0].drawn else { return; };
+    let Some(drawn) = game.players[0].drawn else {
+        return;
+    };
     let discardable = matches!(game.phase, Phase::AwaitingDiscard { player: 0 });
     let n = game.players[0].concealed.len();
     let pos = layout.drawn_pos(n);
@@ -985,18 +1056,23 @@ fn draw_human_drawn(game: &Game, layout: &TableLayout, ctx: &GameContext, mouse:
     let hovered = discardable && hit::contains_xywh(pos.x, pos.y, tw, th, mouse);
     if hovered {
         tiles::draw_tile_standing_highlighted(
-            drawn, pos.x, pos.y, layout.sizes.hand,
-            &ctx.colors, &ctx.font,
+            drawn,
+            pos.x,
+            pos.y,
+            layout.sizes.hand,
+            &ctx.colors,
+            &ctx.font,
         );
     } else {
-        let glow = glow_for_drawn(
-            &game.players[0].concealed,
-            drawn,
-            game.last_ji.as_ref(),
-        );
+        let glow = glow_for_drawn(&game.players[0].concealed, drawn, game.last_ji.as_ref());
         tiles::draw_tile_standing_with_glow(
-            drawn, pos.x, pos.y, layout.sizes.hand, glow,
-            &ctx.colors, &ctx.font,
+            drawn,
+            pos.x,
+            pos.y,
+            layout.sizes.hand,
+            glow,
+            &ctx.colors,
+            &ctx.font,
         );
     }
 
@@ -1019,7 +1095,11 @@ fn draw_avatar(game: &Game, layout: &TableLayout, ctx: &GameContext, seat: Seat)
 
     let fill = avatar_color(seat.idx());
     draw_rectangle(pos.x, pos.y, size, size, fill);
-    let border_color = if is_current { ctx.colors.highlight } else { Color::new(0.08, 0.08, 0.08, 1.0) };
+    let border_color = if is_current {
+        ctx.colors.highlight
+    } else {
+        Color::new(0.08, 0.08, 0.08, 1.0)
+    };
     let border_w = if is_current { 4.0 } else { 2.0 };
     draw_rectangle_lines(pos.x, pos.y, size, size, border_w, border_color);
 
@@ -1069,7 +1149,11 @@ fn avatar_color(idx: usize) -> Color {
 
 fn avatar_initial(idx: usize) -> &'static str {
     match idx {
-        0 => "Y", 1 => "1", 2 => "2", 3 => "3", _ => "?",
+        0 => "Y",
+        1 => "1",
+        2 => "2",
+        3 => "3",
+        _ => "?",
     }
 }
 
@@ -1088,13 +1172,19 @@ fn phase_label(game: &Game) -> String {
         }
         Phase::ClaimAnim { .. } => "Claim...".into(),
         Phase::Hu { winner, .. } => {
-            if winner == 0 { "You win! (Space)".into() }
-            else { format!("{} wins (Space)", player_name(winner)) }
+            if winner == 0 {
+                "You win! (Space)".into()
+            } else {
+                format!("{} wins (Space)", player_name(winner))
+            }
         }
         Phase::HuangZhuang => "Wall empty (Space)".into(),
         Phase::MatchOver { winner } => {
-            if winner == 0 { "MATCH - You win!".into() }
-            else { format!("MATCH - {} wins", player_name(winner)) }
+            if winner == 0 {
+                "MATCH - You win!".into()
+            } else {
+                format!("MATCH - {} wins", player_name(winner))
+            }
         }
     }
 }
@@ -1106,7 +1196,10 @@ fn draw_info_stack(game: &Game, layout: &TableLayout, ctx: &GameContext) {
         let mut cy = info.y;
         draw_text(
             format!("Turn: {}", player_name(game.turn)),
-            info.x, cy, 18.0, ctx.colors.text,
+            info.x,
+            cy,
+            18.0,
+            ctx.colors.text,
         );
         cy += 24.0;
         draw_text(phase_label(game), info.x, cy, 16.0, ctx.colors.text_dim);
@@ -1203,7 +1296,13 @@ fn draw_claim_buttons(game: &Game, layout: &TableLayout, ctx: &GameContext, mous
         let bar_h = 6.0;
         let bar_x = layout.cx() - bar_w * 0.5;
         let bar_y = layout.buttons_y() - 16.0;
-        draw_rectangle(bar_x, bar_y, bar_w, bar_h, Color::new(0.10, 0.10, 0.10, 0.85));
+        draw_rectangle(
+            bar_x,
+            bar_y,
+            bar_w,
+            bar_h,
+            Color::new(0.10, 0.10, 0.10, 0.85),
+        );
         let fill_color = if frac > 0.5 {
             Color::new(0.35, 0.80, 0.45, 1.0)
         } else if frac > 0.2 {
@@ -1219,7 +1318,11 @@ fn draw_claim_buttons(game: &Game, layout: &TableLayout, ctx: &GameContext, mous
         let hovered = hit::contains_xywh(x, y, w, h, mouse);
         let is_pass = matches!(action, ClaimAction::Pass);
         let bg = if hovered {
-            if is_pass { ctx.colors.danger } else { ctx.colors.highlight }
+            if is_pass {
+                ctx.colors.danger
+            } else {
+                ctx.colors.highlight
+            }
         } else if is_pass {
             Color::new(0.38, 0.22, 0.22, 1.0)
         } else {
@@ -1233,21 +1336,37 @@ fn draw_claim_buttons(game: &Game, layout: &TableLayout, ctx: &GameContext, mous
             ClaimAction::Claim(ClaimKind::Hu) => "HU!",
             ClaimAction::Pass => "PASS",
         };
-        text_centered(label, x + w * 0.5, y + h * 0.5 + 10.0, 28.0, ctx.colors.tile_text);
+        text_centered(
+            label,
+            x + w * 0.5,
+            y + h * 0.5 + 10.0,
+            28.0,
+            ctx.colors.tile_text,
+        );
     }
 }
 
 fn draw_own_turn_buttons(game: &Game, layout: &TableLayout, ctx: &GameContext, mouse: Vec2) {
     for (action, (x, y, w, h)) in own_turn_button_rects(game, layout) {
         let hovered = hit::contains_xywh(x, y, w, h, mouse);
-        let bg = if hovered { ctx.colors.highlight } else { ctx.colors.tile_face };
+        let bg = if hovered {
+            ctx.colors.highlight
+        } else {
+            ctx.colors.tile_face
+        };
         draw_rectangle(x, y, w, h, bg);
         draw_rectangle_lines(x, y, w, h, 3.0, ctx.colors.tile_text);
         let label = match action {
             OwnAction::Zimo => "ZIMO!",
             OwnAction::AnGang(_) => "An Gang",
         };
-        text_centered(label, x + w * 0.5, y + h * 0.5 + 8.0, 24.0, ctx.colors.tile_text);
+        text_centered(
+            label,
+            x + w * 0.5,
+            y + h * 0.5 + 8.0,
+            24.0,
+            ctx.colors.tile_text,
+        );
     }
 }
 
@@ -1257,22 +1376,25 @@ fn draw_hand_end_overlay(layout: &TableLayout, ctx: &GameContext, game: &Game, t
     let alpha = (t / 0.25).clamp(0.0, 1.0);
 
     draw_rectangle(
-        0.0, 0.0, layout.scr_w, layout.scr_h,
+        0.0,
+        0.0,
+        layout.scr_w,
+        layout.scr_h,
         Color::new(0.02, 0.05, 0.04, 0.80 * alpha),
     );
 
-    let panel = ember_stdlib::layout::centered_rect(layout.scr_w, layout.scr_h, 800.0_f32.min(layout.scr_w - 80.0), 480.0_f32.min(layout.scr_h - 80.0));
+    let panel = ember_stdlib::layout::centered_rect(
+        layout.scr_w,
+        layout.scr_h,
+        800.0_f32.min(layout.scr_w - 80.0),
+        480.0_f32.min(layout.scr_h - 80.0),
+    );
     let (px, py, pw, ph) = (panel.x, panel.y, panel.w, panel.h);
 
     let cx = px + pw * 0.5;
 
     // Panel background + gold double border + corner diamonds.
-    panel::draw_premium_panel(
-        Rect::new(px, py, pw, ph),
-        alpha,
-        8.0,
-        &ctx.colors,
-    );
+    panel::draw_premium_panel(Rect::new(px, py, pw, ph), alpha, 8.0, &ctx.colors);
 
     let title = match game.phase {
         Phase::Hu { winner, method } => {
@@ -1293,9 +1415,12 @@ fn draw_hand_end_overlay(layout: &TableLayout, ctx: &GameContext, game: &Game, t
     text_centered(&title, cx, py + 50.0, 26.0, ctx.colors.highlight);
 
     draw_line(
-        px + 40.0, py + 70.0,
-        px + pw - 40.0, py + 70.0,
-        1.0, ctx.colors.gold_dark,
+        px + 40.0,
+        py + 70.0,
+        px + pw - 40.0,
+        py + 70.0,
+        1.0,
+        ctx.colors.gold_dark,
     );
 
     let row_x = px + 40.0;
@@ -1350,7 +1475,13 @@ fn draw_hand_end_overlay(layout: &TableLayout, ctx: &GameContext, game: &Game, t
         } else {
             ctx.colors.text
         };
-        draw_text(player_name(seat_idx), row_x + 50.0, y + 30.0, 20.0, name_color);
+        draw_text(
+            player_name(seat_idx),
+            row_x + 50.0,
+            y + 30.0,
+            20.0,
+            name_color,
+        );
 
         if is_winner {
             let pattern = scoring::detect_pattern(&p.concealed, &p.melds);
@@ -1411,11 +1542,17 @@ fn draw_hand_end_overlay(layout: &TableLayout, ctx: &GameContext, game: &Game, t
     let note_y = py + 380.0;
     draw_text(
         "> Ji (chickens) are counted separately for every player.",
-        row_x, note_y, 14.0, ctx.colors.text_dim,
+        row_x,
+        note_y,
+        14.0,
+        ctx.colors.text_dim,
     );
     draw_text(
         "  A player with many Ji can earn more than the winner.",
-        row_x, note_y + 20.0, 14.0, ctx.colors.text_dim,
+        row_x,
+        note_y + 20.0,
+        14.0,
+        ctx.colors.text_dim,
     );
 
     text_centered(
@@ -1439,21 +1576,24 @@ fn draw_match_end_overlay(
 ) {
     let alpha = (t / 0.3).clamp(0.0, 1.0);
     draw_rectangle(
-        0.0, 0.0, layout.scr_w, layout.scr_h,
+        0.0,
+        0.0,
+        layout.scr_w,
+        layout.scr_h,
         Color::new(0.02, 0.05, 0.04, 0.90 * alpha),
     );
 
-    let panel = ember_stdlib::layout::centered_rect(layout.scr_w, layout.scr_h, 900.0_f32.min(layout.scr_w - 100.0), 620.0_f32.min(layout.scr_h - 80.0));
+    let panel = ember_stdlib::layout::centered_rect(
+        layout.scr_w,
+        layout.scr_h,
+        900.0_f32.min(layout.scr_w - 100.0),
+        620.0_f32.min(layout.scr_h - 80.0),
+    );
 
     let (px, py, pw, ph) = (panel.x, panel.y, panel.w, panel.h);
     let cx = px + pw * 0.5;
 
-    panel::draw_premium_panel(
-        Rect::new(px, py, pw, ph),
-        alpha,
-        10.0,
-        &ctx.colors,
-    );
+    panel::draw_premium_panel(Rect::new(px, py, pw, ph), alpha, 10.0, &ctx.colors);
 
     let title = if let Phase::MatchOver { winner } = game.phase {
         if winner == 0 {
@@ -1488,7 +1628,11 @@ fn draw_match_end_overlay(
             MatchEndTab::Scores => "Scores",
             MatchEndTab::History => "Hand history",
         };
-        let txt = if active { ctx.colors.tile_text } else { ctx.colors.text };
+        let txt = if active {
+            ctx.colors.tile_text
+        } else {
+            ctx.colors.text
+        };
         text_centered(label, tx + tw * 0.5, ty + th * 0.5 + 7.0, 18.0, txt);
     }
 
@@ -1540,16 +1684,26 @@ fn draw_match_scores(
         } else {
             ctx.colors.text_dim
         };
-        draw_text(&rank_str, row_x + 20.0, y + 36.0, 22.0,
-            Color::new(rank_color.r, rank_color.g, rank_color.b, alpha));
+        draw_text(
+            &rank_str,
+            row_x + 20.0,
+            y + 36.0,
+            22.0,
+            Color::new(rank_color.r, rank_color.g, rank_color.b, alpha),
+        );
 
         let name_color = if player == 0 {
             ctx.colors.highlight
         } else {
             ctx.colors.text
         };
-        draw_text(player_name(player), row_x + 90.0, y + 36.0, 22.0,
-            Color::new(name_color.r, name_color.g, name_color.b, alpha));
+        draw_text(
+            player_name(player),
+            row_x + 90.0,
+            y + 36.0,
+            22.0,
+            Color::new(name_color.r, name_color.g, name_color.b, alpha),
+        );
 
         let score_color = if score > 0 {
             Color::new(0.40, 0.90, 0.50, alpha)
@@ -1559,17 +1713,17 @@ fn draw_match_scores(
             Color::new(0.80, 0.80, 0.80, alpha)
         };
         let score_str = format!("{score:+}");
-        text_right(&score_str, row_x + row_w - 20.0, y + 36.0, 26.0, score_color);
+        text_right(
+            &score_str,
+            row_x + row_w - 20.0,
+            y + 36.0,
+            26.0,
+            score_color,
+        );
     }
 }
 
-fn draw_match_history(
-    ctx: &GameContext,
-    game: &Game,
-    panel_x: f32,
-    top_y: f32,
-    panel_w: f32,
-) {
+fn draw_match_history(ctx: &GameContext, game: &Game, panel_x: f32, top_y: f32, panel_w: f32) {
     let cx = panel_x + panel_w * 0.5;
     let col_name_w = 100.0;
     let col_w = (panel_w - col_name_w - 80.0) / 4.0;
@@ -1583,9 +1737,12 @@ fn draw_match_history(
         text_centered(name, hx, header_y, 15.0, ctx.colors.text_dim);
     }
     draw_line(
-        header_x, header_y + 6.0,
-        header_x + col_name_w + col_w * 4.0, header_y + 6.0,
-        1.0, ctx.colors.gold_dark,
+        header_x,
+        header_y + 6.0,
+        header_x + col_name_w + col_w * 4.0,
+        header_y + 6.0,
+        1.0,
+        ctx.colors.gold_dark,
     );
 
     let row_h = 22.0;
@@ -1619,11 +1776,20 @@ fn draw_match_history(
 
     let total_y = start_y + display as f32 * row_h + 22.0;
     draw_line(
-        header_x, total_y - 10.0,
-        header_x + col_name_w + col_w * 4.0, total_y - 10.0,
-        1.0, ctx.colors.gold_dark,
+        header_x,
+        total_y - 10.0,
+        header_x + col_name_w + col_w * 4.0,
+        total_y - 10.0,
+        1.0,
+        ctx.colors.gold_dark,
     );
-    draw_text("Total", header_x + 20.0, total_y + 12.0, 17.0, ctx.colors.highlight);
+    draw_text(
+        "Total",
+        header_x + 20.0,
+        total_y + 12.0,
+        17.0,
+        ctx.colors.highlight,
+    );
     for i in 0..4 {
         let hx = header_x + col_name_w + i as f32 * col_w + col_w * 0.5;
         let score = game.players[i].score;
@@ -1641,6 +1807,10 @@ fn draw_match_history(
 
 fn player_name(idx: usize) -> &'static str {
     match idx {
-        0 => "You", 1 => "AI-1", 2 => "AI-2", 3 => "AI-3", _ => "?",
+        0 => "You",
+        1 => "AI-1",
+        2 => "AI-2",
+        3 => "AI-3",
+        _ => "?",
     }
 }

@@ -11,8 +11,8 @@ use crate::config::GameContext;
 use crate::grid::Grid;
 use crate::juice::Juice;
 use crate::level::{LevelConfig, Objective};
-use crate::tile_render::jade_color_base;
 use crate::scoring::{cascade_tier, score_for_match};
+use crate::tile_render::jade_color_base;
 
 pub const SWAP_DURATION: f32 = 0.15;
 pub const SHRINK_DURATION: f32 = 0.25;
@@ -142,13 +142,7 @@ impl Game {
         }
     }
 
-    pub fn tick(
-        &mut self,
-        ctx: &GameContext,
-        dt: f32,
-        mouse_pos: Vec2,
-        mouse_left_pressed: bool,
-    ) {
+    pub fn tick(&mut self, ctx: &GameContext, dt: f32, mouse_pos: Vec2, mouse_left_pressed: bool) {
         self.time += dt;
         self.elapsed += dt;
         self.juice.tick(dt);
@@ -295,11 +289,7 @@ impl Game {
     /// Estimates the objective gain of swapping `a` and `b`, playing
     /// out all cascades with a throwaway RNG. Returns `None` if the
     /// swap produces no match.
-    fn eval_swap_gain(
-        &self,
-        a: (usize, usize),
-        b: (usize, usize),
-    ) -> Option<u32> {
+    fn eval_swap_gain(&self, a: (usize, usize), b: (usize, usize)) -> Option<u32> {
         let mut test = self.grid;
         test.swap(a, b);
         if !test.has_match_at(a.0, a.1) && !test.has_match_at(b.0, b.1) {
@@ -320,9 +310,7 @@ impl Game {
                 Objective::ClearJade(jade, _) => {
                     let n = matches
                         .iter()
-                        .filter(|&&(r, c)| {
-                            test.get(r, c).map(|t| t.jade == jade).unwrap_or(false)
-                        })
+                        .filter(|&&(r, c)| test.get(r, c).map(|t| t.jade == jade).unwrap_or(false))
                         .count() as u32;
                     total += n;
                 }
@@ -424,12 +412,7 @@ impl Game {
             Objective::ClearJade(jade, _) => {
                 let n = to_remove
                     .iter()
-                    .filter(|&&(r, c)| {
-                        self.grid
-                            .get(r, c)
-                            .map(|t| t.jade == jade)
-                            .unwrap_or(false)
-                    })
+                    .filter(|&&(r, c)| self.grid.get(r, c).map(|t| t.jade == jade).unwrap_or(false))
                     .count() as u32;
                 self.objective_progress += n;
             }
@@ -462,12 +445,8 @@ impl Game {
             2 => Color::new(1.00, 0.70, 0.30, 1.0),
             _ => Color::new(1.00, 0.55, 0.20, 1.0),
         };
-        self.juice.spawn_floating_text(
-            center,
-            format!("+{}", gained),
-            text_color,
-            text_size,
-        );
+        self.juice
+            .spawn_floating_text(center, format!("+{}", gained), text_color, text_size);
 
         // --- Shockwave from every match ---
         let shock_radius = 40.0 + tier as f32 * 32.0;
@@ -498,10 +477,8 @@ impl Game {
                 ray_color,
                 self.rng.next_u32(),
             );
-            self.juice.vignette_pulse(
-                0.35 + tier as f32 * 0.12,
-                0.35 + tier as f32 * 0.05,
-            );
+            self.juice
+                .vignette_pulse(0.35 + tier as f32 * 0.12, 0.35 + tier as f32 * 0.05);
         }
 
         // --- Cascade banner ---
@@ -1009,7 +986,10 @@ mod tests {
         g.request_hint();
         assert!(g.hint.is_some());
         g.start_swap((0, 0), (0, 1));
-        assert!(g.hint.is_none(), "the hint should disappear once the player acts");
+        assert!(
+            g.hint.is_none(),
+            "the hint should disappear once the player acts"
+        );
     }
 
     #[test]
@@ -1083,7 +1063,11 @@ mod tests {
         g.request_hint();
         let h = g.hint.expect("hint should exist");
         assert_eq!(h.elapsed, 0.0);
-        assert!((h.ttl - 3.0).abs() < 1e-6, "ttl should be 3s, got {}", h.ttl);
+        assert!(
+            (h.ttl - 3.0).abs() < 1e-6,
+            "ttl should be 3s, got {}",
+            h.ttl
+        );
     }
 
     #[test]

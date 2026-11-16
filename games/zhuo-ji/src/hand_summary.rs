@@ -55,8 +55,12 @@ mod tests {
     use super::*;
     use crate::components::{GangSource, Suit};
 
-    fn w(r: u8) -> Tile { Tile::new(Suit::Wan, r) }
-    fn ti(r: u8) -> Tile { Tile::new(Suit::Tiao, r) }
+    fn w(r: u8) -> Tile {
+        Tile::new(Suit::Wan, r)
+    }
+    fn ti(r: u8) -> Tile {
+        Tile::new(Suit::Tiao, r)
+    }
 
     #[test]
     fn test_empty_snapshot_has_no_ji_or_dou() {
@@ -97,7 +101,10 @@ mod tests {
     fn test_ji_counted_from_gang_meld() {
         let concealed: [Vec<Tile>; NUM_PLAYERS] = std::array::from_fn(|_| Vec::new());
         let mut melds: [Vec<Meld>; NUM_PLAYERS] = std::array::from_fn(|_| Vec::new());
-        melds[2] = vec![Meld::Gang { tile: ti(1), from: GangSource::An }];
+        melds[2] = vec![Meld::Gang {
+            tile: ti(1),
+            from: GangSource::An,
+        }];
         let discards: [Vec<Tile>; NUM_PLAYERS] = std::array::from_fn(|_| Vec::new());
         let snap = HandSnapshot::capture(&concealed, &melds, &discards, JiInfo::none());
         assert_eq!(snap.ji_count[2], 4);
@@ -108,9 +115,18 @@ mod tests {
         let concealed: [Vec<Tile>; NUM_PLAYERS] = std::array::from_fn(|_| Vec::new());
         let mut melds: [Vec<Meld>; NUM_PLAYERS] = std::array::from_fn(|_| Vec::new());
         melds[0] = vec![
-            Meld::Gang { tile: w(1), from: GangSource::An },
-            Meld::Gang { tile: w(2), from: GangSource::Bu },
-            Meld::Gang { tile: w(3), from: GangSource::Ming { from: 2 } },
+            Meld::Gang {
+                tile: w(1),
+                from: GangSource::An,
+            },
+            Meld::Gang {
+                tile: w(2),
+                from: GangSource::Bu,
+            },
+            Meld::Gang {
+                tile: w(3),
+                from: GangSource::Ming { from: 2 },
+            },
         ];
         let discards: [Vec<Tile>; NUM_PLAYERS] = std::array::from_fn(|_| Vec::new());
         let snap = HandSnapshot::capture(&concealed, &melds, &discards, JiInfo::none());

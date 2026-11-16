@@ -21,7 +21,9 @@ pub fn build_wall() -> Vec<Tile> {
 
 pub fn shuffle(wall: &mut [Tile], rng: &mut Rng) {
     let n = wall.len();
-    if n < 2 { return; }
+    if n < 2 {
+        return;
+    }
     for i in (1..n).rev() {
         let j = rng.next_range(i + 1);
         wall.swap(i, j);

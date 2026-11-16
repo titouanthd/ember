@@ -53,21 +53,21 @@ impl Colors {
             highlight: Color::new(0.95, 0.85, 0.35, 1.0),
             danger: Color::new(0.85, 0.35, 0.30, 1.0),
 
-            mountain_far:  Color::new(0.24, 0.34, 0.30, 1.0),
-            mountain_mid:  Color::new(0.17, 0.29, 0.23, 1.0),
+            mountain_far: Color::new(0.24, 0.34, 0.30, 1.0),
+            mountain_mid: Color::new(0.17, 0.29, 0.23, 1.0),
             mountain_near: Color::new(0.12, 0.23, 0.17, 1.0),
             mountain_fore: Color::new(0.08, 0.16, 0.11, 1.0),
             mountain_shade: Color::new(0.05, 0.12, 0.09, 1.0),
             mountain_rim: Color::new(0.42, 0.55, 0.48, 0.55),
             mist: Color::new(0.85, 0.88, 0.86, 0.15),
 
-            wall_top:         Color::new(0.20, 0.42, 0.30, 1.0),
-            wall_top_dark:    Color::new(0.11, 0.28, 0.19, 1.0),
-            wall_edge:        Color::new(0.94, 0.92, 0.86, 1.0),
+            wall_top: Color::new(0.20, 0.42, 0.30, 1.0),
+            wall_top_dark: Color::new(0.11, 0.28, 0.19, 1.0),
+            wall_edge: Color::new(0.94, 0.92, 0.86, 1.0),
             wall_edge_shadow: Color::new(0.70, 0.68, 0.60, 1.0),
-            wall_gold:        Color::new(0.83, 0.69, 0.22, 0.9),
+            wall_gold: Color::new(0.83, 0.69, 0.22, 0.9),
 
-            gold_dark:  Color::new(0.55, 0.43, 0.23, 1.0),
+            gold_dark: Color::new(0.55, 0.43, 0.23, 1.0),
             gold_light: Color::new(0.83, 0.69, 0.22, 1.0),
         }
     }
@@ -181,12 +181,29 @@ mod tests {
     fn test_colors_in_range() {
         let c = Colors::default_hermetic();
         for col in [
-            c.table_bg, c.table_border, c.tile_face, c.tile_edge, c.tile_text,
-            c.text, c.text_dim, c.highlight, c.danger,
-            c.mountain_far, c.mountain_mid, c.mountain_near, c.mountain_fore,
-            c.mountain_shade, c.mountain_rim, c.mist,
-            c.wall_top, c.wall_top_dark, c.wall_edge, c.wall_edge_shadow, c.wall_gold,
-            c.gold_dark, c.gold_light,
+            c.table_bg,
+            c.table_border,
+            c.tile_face,
+            c.tile_edge,
+            c.tile_text,
+            c.text,
+            c.text_dim,
+            c.highlight,
+            c.danger,
+            c.mountain_far,
+            c.mountain_mid,
+            c.mountain_near,
+            c.mountain_fore,
+            c.mountain_shade,
+            c.mountain_rim,
+            c.mist,
+            c.wall_top,
+            c.wall_top_dark,
+            c.wall_edge,
+            c.wall_edge_shadow,
+            c.wall_gold,
+            c.gold_dark,
+            c.gold_light,
         ] {
             for v in [col.r, col.g, col.b, col.a] {
                 assert!((0.0..=1.0).contains(&v));

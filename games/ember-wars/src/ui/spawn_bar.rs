@@ -70,7 +70,10 @@ impl SpawnBar {
                         ctx.colors.accent,
                     )
                 } else {
-                    (Color::new(base.r * 0.35, base.g * 0.35, base.b * 0.35, 1.0), base)
+                    (
+                        Color::new(base.r * 0.35, base.g * 0.35, base.b * 0.35, 1.0),
+                        base,
+                    )
                 }
             } else {
                 (

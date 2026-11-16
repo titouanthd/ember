@@ -97,9 +97,7 @@ fn user_data_dir() -> Option<PathBuf> {
     {
         std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
-            .or_else(|| {
-                std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share"))
-            })
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
             .map(|base| base.join(APP_DIR_NAME))
     }
 
@@ -108,11 +106,7 @@ fn user_data_dir() -> Option<PathBuf> {
         std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join(APP_DIR_NAME))
     }
 
-    #[cfg(not(any(
-        target_os = "macos",
-        target_os = "linux",
-        target_os = "windows"
-    )))]
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
         None
     }
@@ -149,8 +143,7 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn ensure_parent_dir_creates_missing_dirs() {
-        let tmp = std::env::temp_dir()
-            .join(format!("bore-inc-test-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!("bore-inc-test-{}", std::process::id()));
         let target = tmp.join("nested/deep/progress.ron");
         let _ = std::fs::remove_dir_all(&tmp);
 

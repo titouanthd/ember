@@ -121,15 +121,7 @@ pub fn generate_veins(seed: u32, size: f32) -> Vec<[Vec2; VEIN_POINTS]> {
 /// - `scale`: size multiplier (1.0 = normal, 0.0 = invisible).
 /// - `alpha`: global opacity.
 /// - `vein_seed`: deterministic seed for facet/vein details.
-pub fn draw_tile(
-    jade: Jade,
-    x: f32,
-    y: f32,
-    size: f32,
-    scale: f32,
-    alpha: f32,
-    vein_seed: u32,
-) {
+pub fn draw_tile(jade: Jade, x: f32, y: f32, size: f32, scale: f32, alpha: f32, vein_seed: u32) {
     if scale <= 0.01 || alpha <= 0.01 {
         return;
     }
@@ -137,12 +129,7 @@ pub fn draw_tile(
     let base = jade_color_base(jade);
     let dark = jade_color_dark(jade);
     let light = jade_color_light(jade);
-    let deep = Color::new(
-        base.r * 0.42,
-        base.g * 0.42,
-        base.b * 0.42,
-        1.0,
-    );
+    let deep = Color::new(base.r * 0.42, base.g * 0.42, base.b * 0.42, 1.0);
 
     let s = size * scale;
     let cx = x + size * 0.5;
@@ -166,7 +153,14 @@ pub fn draw_tile(
     }
 
     // 2. Deep rim (near-black copy of the shape).
-    draw_poly(cx, cy, sides, r, rot, Color::new(deep.r, deep.g, deep.b, alpha));
+    draw_poly(
+        cx,
+        cy,
+        sides,
+        r,
+        rot,
+        Color::new(deep.r, deep.g, deep.b, alpha),
+    );
 
     // 3. Body — nested polygons, each smaller and shifted up, giving a
     //    proper vertical gradient plus an implied bottom bevel.
@@ -235,14 +229,29 @@ pub fn draw_tile(
     let sparkle_r = r * 0.11;
     let sx = cx - r * 0.30;
     let sy = cy - r * 0.36;
-    draw_circle(sx, sy, sparkle_r * 2.2, Color::new(1.0, 1.0, 1.0, 0.12 * alpha));
-    draw_circle(sx, sy, sparkle_r * 1.3, Color::new(1.0, 1.0, 1.0, 0.35 * alpha));
+    draw_circle(
+        sx,
+        sy,
+        sparkle_r * 2.2,
+        Color::new(1.0, 1.0, 1.0, 0.12 * alpha),
+    );
+    draw_circle(
+        sx,
+        sy,
+        sparkle_r * 1.3,
+        Color::new(1.0, 1.0, 1.0, 0.35 * alpha),
+    );
     draw_circle(sx, sy, sparkle_r, Color::new(1.0, 1.0, 1.0, 0.95 * alpha));
 
     // 11. Secondary sparkle — faint, bottom-right.
     let s2x = cx + r * 0.34;
     let s2y = cy + r * 0.30;
-    draw_circle(s2x, s2y, sparkle_r * 0.55, Color::new(1.0, 1.0, 1.0, 0.45 * alpha));
+    draw_circle(
+        s2x,
+        s2y,
+        sparkle_r * 0.55,
+        Color::new(1.0, 1.0, 1.0, 0.45 * alpha),
+    );
 }
 
 /// Draws the shape-specific facet lines / veins / patterns.
@@ -306,14 +315,7 @@ fn draw_jade_inner_lines(
             for i in 0..4u8 {
                 let a = (i as f32) * std::f32::consts::FRAC_PI_2;
                 let (sin_a, cos_a) = a.sin_cos();
-                draw_line(
-                    cx,
-                    cy,
-                    cx + cos_a * r * 0.80,
-                    cy + sin_a * r * 0.80,
-                    1.2,
-                    c,
-                );
+                draw_line(cx, cy, cx + cos_a * r * 0.80, cy + sin_a * r * 0.80, 1.2, c);
             }
             // Small bright centre star.
             draw_poly_lines(cx, cy, 4, r * 0.18, 0.0, 1.0, c_soft);
@@ -339,14 +341,7 @@ fn draw_jade_inner_lines(
             for i in 0..5u8 {
                 let a = rot + (i as f32) * std::f32::consts::TAU / 5.0;
                 let (sin_a, cos_a) = a.sin_cos();
-                draw_line(
-                    cx,
-                    cy,
-                    cx + cos_a * r * 0.80,
-                    cy + sin_a * r * 0.80,
-                    1.0,
-                    c,
-                );
+                draw_line(cx, cy, cx + cos_a * r * 0.80, cy + sin_a * r * 0.80, 1.0, c);
             }
             // Small inner hexagon (like a coin stamp).
             draw_poly_lines(cx, cy, 6, r * 0.16, 0.0, 1.0, c_soft);
@@ -420,8 +415,22 @@ pub fn draw_selection_corners(x: f32, y: f32, size: f32, intensity: f32) {
     draw_line(x + size, y, x + size, y + corner_len, thickness, c);
     draw_line(x, y + size, x + corner_len, y + size, thickness, c);
     draw_line(x, y + size, x, y + size - corner_len, thickness, c);
-    draw_line(x + size, y + size, x + size - corner_len, y + size, thickness, c);
-    draw_line(x + size, y + size, x + size, y + size - corner_len, thickness, c);
+    draw_line(
+        x + size,
+        y + size,
+        x + size - corner_len,
+        y + size,
+        thickness,
+        c,
+    );
+    draw_line(
+        x + size,
+        y + size,
+        x + size,
+        y + size - corner_len,
+        thickness,
+        c,
+    );
 }
 
 #[cfg(test)]

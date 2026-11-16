@@ -37,7 +37,6 @@ pub fn hash_u32_3(seed: u32, x: u32, y: u32, z: u32) -> u32 {
     hash_u32(hash_u32_2(seed, x, y), z)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

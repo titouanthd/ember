@@ -12,7 +12,7 @@ use std::collections::HashSet;
 
 use ember_core::rng::Rng;
 
-use crate::components::{Jade, Tile, GRID_H, GRID_W, JADE_TYPES};
+use crate::components::{GRID_H, GRID_W, JADE_TYPES, Jade, Tile};
 
 /// The game grid: 8 rows × 8 columns of tiles.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -38,8 +38,7 @@ impl Grid {
     /// Generates a random grid while avoiding immediate matches (top
     /// and left). May still produce blocked grids — `new` retries.
     fn generate(rng: &mut Rng) -> Self {
-        let mut tiles: [[Tile; GRID_W]; GRID_H] =
-            [[Tile::new(Jade::Bai, 0, 0, 0); GRID_W]; GRID_H];
+        let mut tiles: [[Tile; GRID_W]; GRID_H] = [[Tile::new(Jade::Bai, 0, 0, 0); GRID_W]; GRID_H];
 
         for row in 0..GRID_H {
             for col in 0..GRID_W {
@@ -220,11 +219,7 @@ impl Grid {
     /// Surviving tiles keep their old `visual_row` (for the fall
     /// animation). New tiles are created with a negative `visual_row`
     /// (above the grid) to animate their appearance.
-    pub fn remove_and_collapse(
-        &mut self,
-        coords: &[(usize, usize)],
-        rng: &mut Rng,
-    ) {
+    pub fn remove_and_collapse(&mut self, coords: &[(usize, usize)], rng: &mut Rng) {
         let coord_set: HashSet<(usize, usize)> = coords.iter().copied().collect();
 
         for col in 0..GRID_W {
@@ -350,8 +345,7 @@ mod tests {
     /// `B` = Bai, `g` = Bi, `q` = Qing, `r` = Hong, `y` = Huang,
     /// `m` = Mo, `.` = Bai (placeholder, not interpreted).
     fn grid_from_str(rows: [&str; GRID_H]) -> Grid {
-        let mut tiles: [[Tile; GRID_W]; GRID_H] =
-            [[Tile::new(Jade::Bai, 0, 0, 0); GRID_W]; GRID_H];
+        let mut tiles: [[Tile; GRID_W]; GRID_H] = [[Tile::new(Jade::Bai, 0, 0, 0); GRID_W]; GRID_H];
         for (r, line) in rows.iter().enumerate() {
             assert_eq!(line.len(), GRID_W, "row {r} length");
             for (c, ch) in line.chars().enumerate() {
@@ -485,13 +479,7 @@ mod tests {
     #[test]
     fn find_matches_empty_on_idle_grid() {
         let g = grid_from_str([
-            "BgyrmqBg",
-            "gqrmBygm",
-            "qrmBgyqr",
-            "rmBgyqrm",
-            "mBgyqrmB",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BgyrmqBg", "gqrmBygm", "qrmBgyqr", "rmBgyqrm", "mBgyqrmB", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         assert!(g.find_matches().is_empty());
@@ -500,13 +488,7 @@ mod tests {
     #[test]
     fn find_matches_detects_horizontal_three() {
         let g = grid_from_str([
-            "BBBgqrmy",
-            "gqrmBgyq",
-            "qrmBgyqr",
-            "rmBgyqrm",
-            "mBgyqrmB",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BBBgqrmy", "gqrmBgyq", "qrmBgyqr", "rmBgyqrm", "mBgyqrmB", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         let m = g.find_matches();
@@ -519,13 +501,7 @@ mod tests {
     #[test]
     fn find_matches_detects_vertical_three() {
         let g = grid_from_str([
-            "BgyqrmBy",
-            "BqrmBgyq",
-            "BrmBgyqr",
-            "rmBgyqrm",
-            "mBgyqrmB",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BgyqrmBy", "BqrmBgyq", "BrmBgyqr", "rmBgyqrm", "mBgyqrmB", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         let m = g.find_matches();
@@ -537,13 +513,7 @@ mod tests {
     #[test]
     fn find_matches_detects_horizontal_four() {
         let g = grid_from_str([
-            "BBBBqrmy",
-            "gqrmBgyq",
-            "qrmBgyqr",
-            "rmBgyqrm",
-            "mBgyqrmB",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BBBBqrmy", "gqrmBgyq", "qrmBgyqr", "rmBgyqrm", "mBgyqrmB", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         let m = g.find_matches();
@@ -555,13 +525,7 @@ mod tests {
         // Cross centered at (2, 3): Bi in row 2 cols 2,3,4 and in col 3
         // rows 2,3,4.
         let g = grid_from_str([
-            "BgyqrmBy",
-            "gqrmBgyq",
-            "qBgggBrB",
-            "rmBgBgyq",
-            "mBggBgrm",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BgyqrmBy", "gqrmBgyq", "qBgggBrB", "rmBgBgyq", "mBggBgrm", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         let m = g.find_matches();
@@ -578,13 +542,7 @@ mod tests {
         // Same grid as above: (2, 3) is shared between the horizontal
         // run (row 2) and the vertical run (col 3).
         let g = grid_from_str([
-            "BgyqrmBy",
-            "gqrmBgyq",
-            "qBgggBrB",
-            "rmBgBgyq",
-            "mBggBgrm",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BgyqrmBy", "gqrmBgyq", "qBgggBrB", "rmBgBgyq", "mBggBgrm", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         let m = g.find_matches();
@@ -595,13 +553,7 @@ mod tests {
     #[test]
     fn find_matches_are_sorted() {
         let g = grid_from_str([
-            "BBBgqrmy",
-            "gqrmBgyq",
-            "qrmBgyqr",
-            "rmBgyqrm",
-            "mBgyqrmB",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BBBgqrmy", "gqrmBgyq", "qrmBgyqr", "rmBgyqrm", "mBgyqrmB", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         let m = g.find_matches();
@@ -615,13 +567,7 @@ mod tests {
     #[test]
     fn has_match_at_center_of_three() {
         let g = grid_from_str([
-            "BBBgqrmy",
-            "gqrmBgyq",
-            "qrmBgyqr",
-            "rmBgyqrm",
-            "mBgyqrmB",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BBBgqrmy", "gqrmBgyq", "qrmBgyqr", "rmBgyqrm", "mBgyqrmB", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         assert!(g.has_match_at(0, 0));
@@ -644,13 +590,7 @@ mod tests {
         // Grid with an obvious swap at the top: swapping (0,0) and
         // (0,1) aligns 3 Bai in row 0.
         let g = grid_from_str([
-            "BgBqrmyq",
-            "BqrmBgyq",
-            "BrmBgyqr",
-            "rmBgyqrm",
-            "mBgyqrmB",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BgBqrmyq", "BqrmBgyq", "BrmBgyqr", "rmBgyqrm", "mBgyqrmB", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         assert!(g.has_any_valid_move());
@@ -659,13 +599,7 @@ mod tests {
     #[test]
     fn would_match_after_swap_does_not_mutate() {
         let g = grid_from_str([
-            "BgBqrmyq",
-            "BqrmBgyq",
-            "BrmBgyqr",
-            "rmBgyqrm",
-            "mBgyqrmB",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BgBqrmyq", "BqrmBgyq", "BrmBgyqr", "rmBgyqrm", "mBgyqrmB", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         let before = g;
@@ -715,13 +649,7 @@ mod tests {
         // Tag the jades of column 0 with distinct values to trace
         // their positions after collapse.
         let mut g = grid_from_str([
-            "BgyqrmBy",
-            "gqrmBgyq",
-            "qrmBgyqr",
-            "rmBgyqrm",
-            "mBgyqrmB",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BgyqrmBy", "gqrmBgyq", "qrmBgyqr", "rmBgyqrm", "mBgyqrmB", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         let mut rng = Rng::new(1);
@@ -799,8 +727,7 @@ mod tests {
 
     #[test]
     fn pick_safe_jade_avoids_horizontal_match() {
-        let mut tiles: [[Tile; GRID_W]; GRID_H] =
-            [[Tile::new(Jade::Bai, 0, 0, 0); GRID_W]; GRID_H];
+        let mut tiles: [[Tile; GRID_W]; GRID_H] = [[Tile::new(Jade::Bai, 0, 0, 0); GRID_W]; GRID_H];
         tiles[0][0] = Tile::new(Jade::Bi, 0, 0, 0);
         tiles[0][1] = Tile::new(Jade::Bi, 0, 1, 0);
         // We want a jade for (0, 2): it must not be Bi.
@@ -813,8 +740,7 @@ mod tests {
 
     #[test]
     fn pick_safe_jade_avoids_vertical_match() {
-        let mut tiles: [[Tile; GRID_W]; GRID_H] =
-            [[Tile::new(Jade::Bai, 0, 0, 0); GRID_W]; GRID_H];
+        let mut tiles: [[Tile; GRID_W]; GRID_H] = [[Tile::new(Jade::Bai, 0, 0, 0); GRID_W]; GRID_H];
         tiles[0][0] = Tile::new(Jade::Hong, 0, 0, 0);
         tiles[1][0] = Tile::new(Jade::Hong, 1, 0, 0);
         // We want a jade for (2, 0): it must not be Hong.
@@ -830,13 +756,7 @@ mod tests {
     #[test]
     fn count_matches_matches_find_matches_len() {
         let g = grid_from_str([
-            "BBBgqrmy",
-            "gqrmBgyq",
-            "qrmBgyqr",
-            "rmBgyqrm",
-            "mBgyqrmB",
-            "BgyqrmBg",
-            "gyqrmBgy",
+            "BBBgqrmy", "gqrmBgyq", "qrmBgyqr", "rmBgyqrm", "mBgyqrmB", "BgyqrmBg", "gyqrmBgy",
             "yqrmBgyq",
         ]);
         assert_eq!(g.count_matches(), g.find_matches().len());

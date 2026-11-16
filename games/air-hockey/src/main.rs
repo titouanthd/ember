@@ -124,12 +124,26 @@ fn draw_table(ctx: &GameContext, shake: Vec2) {
     let step = 80.0;
     let mut x = a.wall + step;
     while x < a.w - a.wall - 1.0 {
-        draw_line(x + ox, a.wall + oy, x + ox, a.h - a.wall + oy, 1.0, ctx.colors.grid);
+        draw_line(
+            x + ox,
+            a.wall + oy,
+            x + ox,
+            a.h - a.wall + oy,
+            1.0,
+            ctx.colors.grid,
+        );
         x += step;
     }
     let mut y = a.wall + step;
     while y < a.h - a.wall - 1.0 {
-        draw_line(a.wall + ox, y + oy, a.w - a.wall + ox, y + oy, 1.0, ctx.colors.grid);
+        draw_line(
+            a.wall + ox,
+            y + oy,
+            a.w - a.wall + ox,
+            y + oy,
+            1.0,
+            ctx.colors.grid,
+        );
         y += step;
     }
 
@@ -141,7 +155,13 @@ fn draw_table(ctx: &GameContext, shake: Vec2) {
         2.0,
         ctx.colors.midline,
     );
-    draw_circle_lines(a.mid_x() + ox, a.mid_y() + oy, 60.0, 2.0, ctx.colors.midline);
+    draw_circle_lines(
+        a.mid_x() + ox,
+        a.mid_y() + oy,
+        60.0,
+        2.0,
+        ctx.colors.midline,
+    );
 
     let b = ctx.colors.table_border;
     draw_rectangle(ox, oy, a.w, a.wall, b);
@@ -248,7 +268,13 @@ fn draw_hud(game: &Game, ctx: &GameContext, shake: Vec2) {
     draw_centered(&score_text, cx + 2.0, top + 2.0, 48, ctx.colors.text_shadow);
     draw_centered(&score_text, cx, top, 48, ctx.colors.text);
 
-    draw_centered(&rounds_text, cx + 1.0, top + 39.0, 22, ctx.colors.text_shadow);
+    draw_centered(
+        &rounds_text,
+        cx + 1.0,
+        top + 39.0,
+        22,
+        ctx.colors.text_shadow,
+    );
     draw_centered(&rounds_text, cx, top + 38.0, 22, ctx.colors.text);
 }
 
@@ -268,16 +294,40 @@ fn draw_overlays(game: &Game, ctx: &GameContext, shake: Vec2) {
     ) || (matches!(game.phase, Phase::Playing) && game.paused);
 
     if dim {
-        draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0.0, 0.0, 0.0, 0.55));
+        draw_rectangle(
+            0.0,
+            0.0,
+            screen_width(),
+            screen_height(),
+            Color::new(0.0, 0.0, 0.0, 0.55),
+        );
     }
 
     match game.phase {
         Phase::Menu => {
             draw_centered("AIR HOCKEY", cx, cy - 140.0, 72, ctx.colors.text);
-            draw_centered("ESPACE : Joueur vs Joueur", cx, cy - 20.0, 32, ctx.colors.text);
-            draw_centered("ENTRÉE : Joueur vs IA",     cx, cy + 30.0, 32, ctx.colors.text);
-            draw_centered("J1 : W A S D     J2 : Flèches", cx, cy + 100.0, 24, ctx.colors.text);
-            draw_centered("P : pause     Échap : quitter", cx, cy + 140.0, 20, ctx.colors.text);
+            draw_centered(
+                "ESPACE : Joueur vs Joueur",
+                cx,
+                cy - 20.0,
+                32,
+                ctx.colors.text,
+            );
+            draw_centered("ENTRÉE : Joueur vs IA", cx, cy + 30.0, 32, ctx.colors.text);
+            draw_centered(
+                "J1 : W A S D     J2 : Flèches",
+                cx,
+                cy + 100.0,
+                24,
+                ctx.colors.text,
+            );
+            draw_centered(
+                "P : pause     Échap : quitter",
+                cx,
+                cy + 140.0,
+                20,
+                ctx.colors.text,
+            );
         }
         Phase::Countdown { t } => {
             // Durations: three number slots, then a shorter GO slot.
@@ -285,7 +335,7 @@ fn draw_overlays(game: &Game, ctx: &GameContext, shake: Vec2) {
             let total = ctx.tuning.countdown;
             let num_duration = (total - GO_WINDOW).max(0.0);
             let step_dur = (num_duration / 3.0).max(1e-3);
-            let elapsed = (total - t).max(0.0);   // 0 at start → total at end
+            let elapsed = (total - t).max(0.0); // 0 at start → total at end
 
             let (label, frac) = if elapsed < num_duration {
                 // Numbers 3 → 2 → 1, each with its own 0..1 progress.
@@ -341,11 +391,5 @@ fn draw_overlays(game: &Game, ctx: &GameContext, shake: Vec2) {
 
 fn draw_centered(text: &str, center_x: f32, y: f32, size: u16, color: Color) {
     let dim = measure_text(text, None, size, 1.0);
-    draw_text(
-        text,
-        center_x - dim.width / 2.0,
-        y,
-        size as f32,
-        color,
-    );
+    draw_text(text, center_x - dim.width / 2.0, y, size as f32, color);
 }

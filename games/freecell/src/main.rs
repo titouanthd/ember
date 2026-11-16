@@ -113,7 +113,14 @@ fn render_drop_target(ctx: &GameContext, game: &Game, input: &Input) {
     } else {
         Color::new(0.95, 0.30, 0.35, 0.55)
     };
-    draw_rectangle_lines(rect.x - 2.0, rect.y - 2.0, rect.w + 4.0, rect.h + 4.0, 3.0, color);
+    draw_rectangle_lines(
+        rect.x - 2.0,
+        rect.y - 2.0,
+        rect.w + 4.0,
+        rect.h + 4.0,
+        3.0,
+        color,
+    );
 }
 
 fn handle_playing_input(game: &mut Game, ctx: &GameContext, input: &Input) {

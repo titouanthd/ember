@@ -1,0 +1,14 @@
+[package]
+name = "ember"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ember-core.workspace = true
+ember-scene.workspace = true
+ember-ui.workspace = true
+ember-assets.workspace = true
+ember-servers.workspace = true
+ember-input.workspace = true
+ember-render-macroquad.workspace = true
+ember-audio-macroquad.workspace = true

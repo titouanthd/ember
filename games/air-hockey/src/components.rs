@@ -59,7 +59,12 @@ pub struct Paddle {
 
 impl Paddle {
     pub fn new(pos: Vec2, radius: f32, side: Side) -> Self {
-        Self { pos, vel: Vec2::ZERO, radius, side }
+        Self {
+            pos,
+            vel: Vec2::ZERO,
+            radius,
+            side,
+        }
     }
 
     /// Speed below which we treat the paddle as at rest.
@@ -84,7 +89,12 @@ pub struct Puck {
 
 impl Puck {
     pub fn new(pos: Vec2, radius: f32) -> Self {
-        Self { pos, vel: Vec2::ZERO, radius, spin: 0.0 }
+        Self {
+            pos,
+            vel: Vec2::ZERO,
+            radius,
+            spin: 0.0,
+        }
     }
 }
 
@@ -107,7 +117,10 @@ impl Trail {
     pub const LIFETIME: f32 = 0.20;
 
     pub fn new() -> Self {
-        Self { points: VecDeque::with_capacity(Self::MAX_LEN), age: 0.0 }
+        Self {
+            points: VecDeque::with_capacity(Self::MAX_LEN),
+            age: 0.0,
+        }
     }
 
     /// Push the current puck position. Drops the oldest point when full.
@@ -142,12 +155,16 @@ impl Trail {
     /// for older points, matching the draw-side fade-out.
     pub fn iter(&self) -> impl Iterator<Item = (Vec2, f32)> + '_ {
         let len = self.points.len();
-        self.points.iter().enumerate().rev().map(move |(i, &(p, age))| {
-            let from_front = (len - 1 - i) as f32 / Self::MAX_LEN.max(1) as f32;
-            let life = (age / Self::LIFETIME).clamp(0.0, 1.0);
-            let t = (from_front + life).clamp(0.0, 1.0);
-            (p, t)
-        })
+        self.points
+            .iter()
+            .enumerate()
+            .rev()
+            .map(move |(i, &(p, age))| {
+                let from_front = (len - 1 - i) as f32 / Self::MAX_LEN.max(1) as f32;
+                let life = (age / Self::LIFETIME).clamp(0.0, 1.0);
+                let t = (from_front + life).clamp(0.0, 1.0);
+                (p, t)
+            })
     }
 
     #[inline]
@@ -174,7 +191,12 @@ pub struct Particle {
 
 impl Particle {
     pub fn new(pos: Vec2, vel: Vec2, life: f32) -> Self {
-        Self { pos, vel, life, max_life: life }
+        Self {
+            pos,
+            vel,
+            life,
+            max_life: life,
+        }
     }
 
     /// Fade fraction in [0, 1]: 1 = just spawned, 0 = about to die.

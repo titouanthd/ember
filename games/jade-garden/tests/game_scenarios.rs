@@ -11,14 +11,12 @@
 
 use std::collections::HashSet;
 
-use jade_garden::components::{Jade, GRID_H, GRID_W};
+use jade_garden::components::{GRID_H, GRID_W, Jade};
 use jade_garden::grid::Grid;
 use jade_garden::level::{self, LevelConfig, Objective};
 use jade_garden::poem;
 use jade_garden::progress::Progress;
-use jade_garden::scoring::{
-    base_score_for_tile_count, cascade_multiplier, compute_stars,
-};
+use jade_garden::scoring::{base_score_for_tile_count, cascade_multiplier, compute_stars};
 
 fn levels() -> Vec<LevelConfig> {
     pollster::block_on(level::load_levels()).expect("levels.ron should parse")
@@ -114,8 +112,7 @@ fn scoring_increases_with_tile_count_and_cascade() {
     }
     for c in 0..8 {
         assert!(
-            cascade_multiplier(c + 1) > cascade_multiplier(c)
-                || cascade_multiplier(c) >= 5.0,
+            cascade_multiplier(c + 1) > cascade_multiplier(c) || cascade_multiplier(c) >= 5.0,
             "cascade multiplier not increasing at c={c}"
         );
     }

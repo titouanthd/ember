@@ -3,12 +3,12 @@
 use glam::Vec2;
 use macroquad::prelude::Color;
 
-use crate::catapult::{Catapult, CATAPULT_HITBOX_H};
+use crate::catapult::{CATAPULT_HITBOX_H, Catapult};
 use crate::components::{
-    rgba, AttackTarget, PendingAttack, Projectile, ProjectileKind, Team, Tower, Unit, UnitId,
+    AttackTarget, PendingAttack, Projectile, ProjectileKind, Team, Tower, Unit, UnitId, rgba,
 };
 use crate::juice::{HIT_FLASH_DURATION, Juice};
-use crate::units::{unit_stats, UnitStats};
+use crate::units::{UnitStats, unit_stats};
 
 pub const MAX_PROJECTILES: usize = 200;
 pub const HEALER_MIDLINE_MARGIN: f32 = 300.0;
@@ -456,9 +456,7 @@ pub fn resolve_attacks(
             Target::Catapult(t) => AttackTarget::Catapult(t),
         };
 
-        let effective_cd = stats
-            .attack_cooldown
-            .max(crate::stickman::ATTACK_DURATION);
+        let effective_cd = stats.attack_cooldown.max(crate::stickman::ATTACK_DURATION);
         units[i].pending_attack = Some(PendingAttack {
             target: at,
             damage: units[i].damage,
@@ -604,8 +602,10 @@ pub fn resolve_projectiles(
             let c = &*player_catapult;
             if c.is_alive() {
                 let (rx, ry, rw, rh) = c.rect();
-                proj_pos.x >= rx && proj_pos.x <= rx + rw
-                    && proj_pos.y >= ry && proj_pos.y <= ry + rh
+                proj_pos.x >= rx
+                    && proj_pos.x <= rx + rw
+                    && proj_pos.y >= ry
+                    && proj_pos.y <= ry + rh
             } else {
                 false
             }
@@ -613,8 +613,10 @@ pub fn resolve_projectiles(
             match enemy_catapult.as_ref() {
                 Some(c) if c.is_alive() => {
                     let (rx, ry, rw, rh) = c.rect();
-                    proj_pos.x >= rx && proj_pos.x <= rx + rw
-                        && proj_pos.y >= ry && proj_pos.y <= ry + rh
+                    proj_pos.x >= rx
+                        && proj_pos.x <= rx + rw
+                        && proj_pos.y >= ry
+                        && proj_pos.y <= ry + rh
                 }
                 _ => false,
             }

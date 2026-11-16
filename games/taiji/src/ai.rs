@@ -1,5 +1,5 @@
 // games/taiji/src/ai.rs
-use crate::components::{QiBall, Paddle};
+use crate::components::{Paddle, QiBall};
 
 pub struct AiController {
     pub target_y: f32,

@@ -44,7 +44,9 @@ impl Disk {
     /// Cheap deterministic noise. No `Rng` dependency (Rng API drift
     /// across sessions is a known trap; we only need "different enough").
     fn noise(counter: u32, salt: u32) -> f32 {
-        let h = counter.wrapping_mul(2654435761).wrapping_add(salt.wrapping_mul(40503));
+        let h = counter
+            .wrapping_mul(2654435761)
+            .wrapping_add(salt.wrapping_mul(40503));
         ((h & 0xFFFF) as f32) / 65536.0
     }
 
@@ -55,9 +57,8 @@ impl Disk {
         for p in &mut self.particles {
             p.radius -= p.radius_speed * dt;
             p.angle += p.angle_speed * dt;
-            p.brightness = ((p.radius - MIN_RADIUS) / (MAX_RADIUS - MIN_RADIUS))
-                .clamp(0.0, 1.0)
-                * 0.65;
+            p.brightness =
+                ((p.radius - MIN_RADIUS) / (MAX_RADIUS - MIN_RADIUS)).clamp(0.0, 1.0) * 0.65;
         }
         self.particles.retain(|p| p.radius > MIN_RADIUS);
 
@@ -105,7 +106,12 @@ impl Disk {
             draw_circle(center.x, center.y, r, accent.with_alpha(a));
         }
         draw_circle(center.x, center.y, star_r, accent);
-        draw_circle(center.x, center.y, star_r * 0.55, Color::new(1.0, 1.0, 1.0, 0.9));
+        draw_circle(
+            center.x,
+            center.y,
+            star_r * 0.55,
+            Color::new(1.0, 1.0, 1.0, 0.9),
+        );
 
         // Bodies: one dot per owned building, grouped per paradigm orbit.
         for (pidx, &paradigm) in Paradigm::ALL.iter().enumerate() {
@@ -149,7 +155,12 @@ impl Disk {
             let y = center.y + p.radius * p.angle.sin();
             draw_circle(x, y, p.size, accent.with_alpha(p.brightness));
         }
-        draw_circle(center.x, center.y, star_r * 0.55, Color::new(1.0, 1.0, 1.0, 0.9));
+        draw_circle(
+            center.x,
+            center.y,
+            star_r * 0.55,
+            Color::new(1.0, 1.0, 1.0, 0.9),
+        );
     }
 }
 

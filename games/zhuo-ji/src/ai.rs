@@ -26,8 +26,7 @@ pub fn decide_discard(hand: &[Tile], melds: &[Meld]) -> usize {
         let s = shanten(&after, melds);
         let n = count_neighbors(hand, i);
 
-        let better = s < best_shanten
-            || (s == best_shanten && n < best_neighbors);
+        let better = s < best_shanten || (s == best_shanten && n < best_neighbors);
 
         if better {
             best_idx = i;
@@ -45,9 +44,7 @@ fn count_neighbors(hand: &[Tile], idx: usize) -> usize {
     hand.iter()
         .enumerate()
         .filter(|(j, _)| *j != idx)
-        .filter(|(_, u)| {
-            u.suit == t.suit && (u.rank as i32 - t.rank as i32).abs() <= 2
-        })
+        .filter(|(_, u)| u.suit == t.suit && (u.rank as i32 - t.rank as i32).abs() <= 2)
         .count()
 }
 
@@ -73,7 +70,10 @@ pub fn decide_claim(hand: &[Tile], melds: &[Meld], discard: Tile) -> Option<Clai
     });
 
     let mut after_melds = melds.to_vec();
-    after_melds.push(Meld::Peng { tile: discard, from: 0 });
+    after_melds.push(Meld::Peng {
+        tile: discard,
+        from: 0,
+    });
 
     let after = shanten(&after_hand, &after_melds);
 
@@ -113,7 +113,10 @@ pub fn decide_an_gang(hand: &[Tile], melds: &[Meld]) -> Option<Tile> {
             }
         });
         let mut after_melds = melds.to_vec();
-        after_melds.push(Meld::Gang { tile, from: GangSource::An });
+        after_melds.push(Meld::Gang {
+            tile,
+            from: GangSource::An,
+        });
         if shanten(&after_hand, &after_melds) <= before {
             return Some(tile);
         }
@@ -131,9 +134,15 @@ mod tests {
     use super::*;
     use crate::components::{ClaimKind, Suit, Tile};
 
-    fn w(r: u8) -> Tile { Tile::new(Suit::Wan, r) }
-    fn ti(r: u8) -> Tile { Tile::new(Suit::Tiao, r) }
-    fn d(r: u8) -> Tile { Tile::new(Suit::Tong, r) }
+    fn w(r: u8) -> Tile {
+        Tile::new(Suit::Wan, r)
+    }
+    fn ti(r: u8) -> Tile {
+        Tile::new(Suit::Tiao, r)
+    }
+    fn d(r: u8) -> Tile {
+        Tile::new(Suit::Tong, r)
+    }
 
     fn sorted(mut v: Vec<Tile>) -> Vec<Tile> {
         v.sort();
@@ -149,10 +158,18 @@ mod tests {
     #[test]
     fn test_discards_isolated_tile_from_complete_shapes() {
         let hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9),
-            ti(1), ti(1), ti(1),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(1),
+            ti(1),
+            ti(1),
             d(5),
             d(9),
         ]);
@@ -163,11 +180,20 @@ mod tests {
     #[test]
     fn test_unique_optimal_discard_to_stay_tenpai() {
         let hand = sorted(vec![
-            w(1), w(2), w(3),
-            w(4), w(5), w(6),
-            w(7), w(8), w(9), w(9),
-            ti(7), ti(8),
-            d(1), d(1),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            w(9),
+            ti(7),
+            ti(8),
+            d(1),
+            d(1),
         ]);
         assert_eq!(hand.len(), 14);
 
@@ -186,10 +212,19 @@ mod tests {
     #[test]
     fn test_keeps_pair_rather_than_breaking_it() {
         let hand = sorted(vec![
-            ti(5), ti(5),
-            w(1), w(3), w(5), w(7), w(9),
-            d(1), d(3), d(5), d(7),
-            ti(1), ti(3),
+            ti(5),
+            ti(5),
+            w(1),
+            w(3),
+            w(5),
+            w(7),
+            w(9),
+            d(1),
+            d(3),
+            d(5),
+            d(7),
+            ti(1),
+            ti(3),
             w(2),
         ]);
         let idx = decide_discard(&hand, &[]);
@@ -199,10 +234,19 @@ mod tests {
     #[test]
     fn test_deterministic() {
         let hand = sorted(vec![
-            w(1), w(4), w(7),
-            ti(1), ti(4), ti(7),
-            d(1), d(4), d(7),
-            w(2), w(5), ti(2), d(5),
+            w(1),
+            w(4),
+            w(7),
+            ti(1),
+            ti(4),
+            ti(7),
+            d(1),
+            d(4),
+            d(7),
+            w(2),
+            w(5),
+            ti(2),
+            d(5),
         ]);
         assert_eq!(decide_discard(&hand, &[]), decide_discard(&hand, &[]));
     }
@@ -211,8 +255,14 @@ mod tests {
     fn test_handles_melds() {
         let concealed = sorted(vec![w(1), w(2), w(3), w(4), w(5), w(6), d(2), d(2)]);
         let melds = vec![
-            Meld::Peng { tile: ti(1), from: 1 },
-            Meld::Peng { tile: ti(5), from: 2 },
+            Meld::Peng {
+                tile: ti(1),
+                from: 1,
+            },
+            Meld::Peng {
+                tile: ti(5),
+                from: 2,
+            },
         ];
         let idx = decide_discard(&concealed, &melds);
         assert!(idx < concealed.len());
@@ -226,8 +276,18 @@ mod tests {
     #[test]
     fn test_isolated_honor_like_tile_discarded_first() {
         let hand = sorted(vec![
-            w(1), w(2), w(3), w(4), w(5), w(6), w(7), w(8), w(9),
-            ti(2), ti(3), ti(4),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            w(8),
+            w(9),
+            ti(2),
+            ti(3),
+            ti(4),
             d(1),
             d(9),
         ]);
@@ -251,11 +311,19 @@ mod tests {
     #[test]
     fn test_decide_claim_peng_when_it_helps() {
         let hand = sorted(vec![
-            w(3), w(3),
-            w(1), w(1), w(2),
-            ti(4), ti(5), ti(6),
-            d(2), d(3), d(4),
-            d(7), d(8),
+            w(3),
+            w(3),
+            w(1),
+            w(1),
+            w(2),
+            ti(4),
+            ti(5),
+            ti(6),
+            d(2),
+            d(3),
+            d(4),
+            d(7),
+            d(8),
         ]);
         let r = decide_claim(&hand, &[], w(3));
         assert!(r.is_none() || r == Some(ClaimKind::Peng));
@@ -285,8 +353,20 @@ mod tests {
     #[test]
     fn test_decide_an_gang_none_without_four() {
         let hand = sorted(vec![
-            w(1), w(1), w(1), w(2), w(3), w(4), w(5), w(6), w(7),
-            ti(1), ti(2), ti(3), d(1), d(1),
+            w(1),
+            w(1),
+            w(1),
+            w(2),
+            w(3),
+            w(4),
+            w(5),
+            w(6),
+            w(7),
+            ti(1),
+            ti(2),
+            ti(3),
+            d(1),
+            d(1),
         ]);
         assert_eq!(decide_an_gang(&hand, &[]), None);
     }

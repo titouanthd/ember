@@ -108,7 +108,12 @@ impl TableLayout {
         Self {
             scr_w,
             scr_h,
-            sizes: TileSizes { hand, river, ai_back, ai_meld },
+            sizes: TileSizes {
+                hand,
+                river,
+                ai_back,
+                ai_meld,
+            },
             hand_gap: 4.0,
             drawn_gap: 24.0,
             meld_gap: 24.0,
@@ -141,8 +146,7 @@ impl TableLayout {
         if tile_count == 0 {
             return 0.0;
         }
-        tile_count as f32 * self.sizes.hand.w
-            + (tile_count - 1) as f32 * self.hand_gap
+        tile_count as f32 * self.sizes.hand.w + (tile_count - 1) as f32 * self.hand_gap
     }
 
     pub fn hand_start_x(&self, tile_count: usize) -> f32 {
@@ -177,19 +181,13 @@ impl TableLayout {
         if meld_count == 0 {
             return 0.0;
         }
-        meld_count as f32 * self.meld_width()
-            + (meld_count as f32 - 1.0) * MELD_INTER_GAP
+        meld_count as f32 * self.meld_width() + (meld_count as f32 - 1.0) * MELD_INTER_GAP
     }
 
     /// Returns the top-left of the melds row for an AI seat.
     /// East is anchored on the right (melds extend leftward visually
     /// even though the row occupies [origin.x, origin.x + row_w]).
-    pub fn ai_melds_origin(
-        &self,
-        seat: Seat,
-        concealed_total: usize,
-        meld_count: usize,
-    ) -> Vec2 {
+    pub fn ai_melds_origin(&self, seat: Seat, concealed_total: usize, meld_count: usize) -> Vec2 {
         let t = self.sizes.ai_meld;
         let row_w = self.melds_row_width(meld_count);
         match seat {
@@ -214,10 +212,7 @@ impl TableLayout {
                     + (concealed_total.saturating_sub(1)) as f32 * 2.0;
                 let col_top = self.cy() - ch * 0.5;
                 let col_right = self.scr_w - self.margin - self.avatar - 12.0;
-                Vec2::new(
-                    col_right - row_w,
-                    col_top - t.h - 20.0,
-                )
+                Vec2::new(col_right - row_w, col_top - t.h - 20.0)
             }
             Seat::South => Vec2::ZERO,
         }
@@ -229,19 +224,14 @@ impl TableLayout {
         let row_w = self.melds_row_width(meld_count);
         let hand_start = self.hand_start_x(hand_tile_count);
         let origin_x = hand_start - self.meld_gap - row_w;
-        let y = self.human_row_y()
-            + (self.sizes.hand.h - self.sizes.ai_meld.h) * 0.5;
+        let y = self.human_row_y() + (self.sizes.hand.h - self.sizes.ai_meld.h) * 0.5;
         Vec2::new(origin_x, y)
     }
 
     /// Lays out a row of melds starting at `origin` (top-left of the
     /// row). The `is_gang` slice flags which melds are Gangs (extra
     /// stacked tile above the middle slot).
-    pub fn melds_row_layout(
-        &self,
-        origin: Vec2,
-        is_gang: &[bool],
-    ) -> MeldsLayout {
+    pub fn melds_row_layout(&self, origin: Vec2, is_gang: &[bool]) -> MeldsLayout {
         let t = self.sizes.ai_meld;
         let g = 2.0;
         let mw = self.meld_width();
@@ -254,16 +244,10 @@ impl TableLayout {
         for &gang in is_gang {
             let mut slots = [Vec2::ZERO; MELD_SLOTS];
             for (slot, s) in slots.iter_mut().enumerate() {
-                *s = Vec2::new(
-                    cursor_x + slot as f32 * (t.w + g),
-                    origin.y,
-                );
+                *s = Vec2::new(cursor_x + slot as f32 * (t.w + g), origin.y);
             }
             let stack = if gang {
-                Some(Vec2::new(
-                    cursor_x + 1.0 * (t.w + g),
-                    origin.y - t.h * 0.55,
-                ))
+                Some(Vec2::new(cursor_x + 1.0 * (t.w + g), origin.y - t.h * 0.55))
             } else {
                 None
             };
@@ -278,13 +262,11 @@ impl TableLayout {
     // ─── Rivers ──────────────────────────────────────────────────────
 
     pub fn river_row_width(&self) -> f32 {
-        self.river_cols as f32 * self.sizes.river.w
-            + (self.river_cols - 1) as f32 * self.river_gap
+        self.river_cols as f32 * self.sizes.river.w + (self.river_cols - 1) as f32 * self.river_gap
     }
 
     pub fn river_col_height(&self) -> f32 {
-        self.river_cols as f32 * self.sizes.river.h
-            + (self.river_cols - 1) as f32 * self.river_gap
+        self.river_cols as f32 * self.sizes.river.h + (self.river_cols - 1) as f32 * self.river_gap
     }
 
     pub fn river_anchor(&self, seat: Seat) -> Vec2 {
@@ -296,14 +278,8 @@ impl TableLayout {
         match seat {
             Seat::South => Vec2::new(cx - rw * 0.5, cy + FRAME_HALF),
             Seat::North => Vec2::new(cx - rw * 0.5, cy - FRAME_HALF - t.h),
-            Seat::West => Vec2::new(
-                cx - FRAME_HALF - t.w,
-                cy - self.river_col_height() * 0.5,
-            ),
-            Seat::East => Vec2::new(
-                cx + FRAME_HALF,
-                cy - self.river_col_height() * 0.5,
-            ),
+            Seat::West => Vec2::new(cx - FRAME_HALF - t.w, cy - self.river_col_height() * 0.5),
+            Seat::East => Vec2::new(cx + FRAME_HALF, cy - self.river_col_height() * 0.5),
         }
     }
 
@@ -371,26 +347,20 @@ impl TableLayout {
         let g = 2.0;
         match seat {
             Seat::North => {
-                let row_w = concealed_total as f32 * t.w
-                    + (concealed_total.saturating_sub(1)) as f32 * g;
+                let row_w =
+                    concealed_total as f32 * t.w + (concealed_total.saturating_sub(1)) as f32 * g;
                 let base_x = self.cx() - row_w * 0.5;
-                Vec2::new(
-                    base_x - t.w - 14.0,
-                    self.margin + self.avatar + 18.0,
-                )
+                Vec2::new(base_x - t.w - 14.0, self.margin + self.avatar + 18.0)
             }
             Seat::West => {
-                let col_h = concealed_total as f32 * t.h
-                    + (concealed_total.saturating_sub(1)) as f32 * g;
+                let col_h =
+                    concealed_total as f32 * t.h + (concealed_total.saturating_sub(1)) as f32 * g;
                 let base_y = self.cy() - col_h * 0.5;
-                Vec2::new(
-                    self.margin + self.avatar + 12.0,
-                    base_y - t.h - 14.0,
-                )
+                Vec2::new(self.margin + self.avatar + 12.0, base_y - t.h - 14.0)
             }
             Seat::East => {
-                let col_h = concealed_total as f32 * t.h
-                    + (concealed_total.saturating_sub(1)) as f32 * g;
+                let col_h =
+                    concealed_total as f32 * t.h + (concealed_total.saturating_sub(1)) as f32 * g;
                 let base_y = self.cy() - col_h * 0.5;
                 Vec2::new(
                     self.scr_w - self.margin - self.avatar - 12.0 - t.w,
@@ -419,10 +389,7 @@ impl TableLayout {
     // ─── Wall + clock ─────────────────────────────────────────────────
 
     pub fn wall_pos(&self) -> Vec2 {
-        Vec2::new(
-            self.scr_w - self.margin - self.wall.x,
-            self.margin + 4.0,
-        )
+        Vec2::new(self.scr_w - self.margin - self.wall.x, self.margin + 4.0)
     }
 
     pub fn clock_pos(&self) -> Vec2 {

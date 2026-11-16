@@ -38,8 +38,20 @@ const NEAR_PINE: Rgba = [0x45, 0x6B, 0x48, 0xFF];
 // ---------- Layer kinds ----------
 
 enum LayerKind {
-    Hills { count: u32, min_h: i32, max_h: i32, min_w: i32, max_w: i32 },
-    Pines { count: u32, min_h: i32, max_h: i32, min_w: i32, max_w: i32 },
+    Hills {
+        count: u32,
+        min_h: i32,
+        max_h: i32,
+        min_w: i32,
+        max_w: i32,
+    },
+    Pines {
+        count: u32,
+        min_h: i32,
+        max_h: i32,
+        min_w: i32,
+        max_w: i32,
+    },
 }
 
 struct LayerSpec {
@@ -160,7 +172,13 @@ impl BackgroundData {
             });
         }
 
-        Self { layers, sun, clouds, birds, winds }
+        Self {
+            layers,
+            sun,
+            clouds,
+            birds,
+            winds,
+        }
     }
 
     pub fn upload(self) -> Background {
@@ -169,8 +187,7 @@ impl BackgroundData {
             .into_iter()
             .zip(LAYER_SPECS.iter())
             .map(|(canvas, spec)| {
-                let texture =
-                    Texture2D::from_rgba8(canvas.width, canvas.height, &canvas.pixels);
+                let texture = Texture2D::from_rgba8(canvas.width, canvas.height, &canvas.pixels);
                 texture.set_filter(FilterMode::Nearest);
                 UploadedLayer {
                     texture,
@@ -261,14 +278,7 @@ impl Background {
         }
     }
 
-    pub fn draw(
-        &self,
-        cam_x: f32,
-        horizon_screen_y: f32,
-        screen_ox: f32,
-        vw: f32,
-        scale: f32,
-    ) {
+    pub fn draw(&self, cam_x: f32, horizon_screen_y: f32, screen_ox: f32, vw: f32, scale: f32) {
         draw_sun_glow(&self.sun, horizon_screen_y, screen_ox, scale);
 
         for c in &self.clouds {
@@ -348,7 +358,13 @@ fn render_layer(spec: &LayerSpec, rng: &mut Rng) -> Canvas {
     let horizon_y = LAYER_H as i32 - 1;
 
     match &spec.kind {
-        LayerKind::Hills { count, min_h, max_h, min_w, max_w } => {
+        LayerKind::Hills {
+            count,
+            min_h,
+            max_h,
+            min_w,
+            max_w,
+        } => {
             for _ in 0..*count {
                 let w = rng.range(*min_w, *max_w + 1);
                 let h = rng.range(*min_h, *max_h + 1);
@@ -356,7 +372,13 @@ fn render_layer(spec: &LayerSpec, rng: &mut Rng) -> Canvas {
                 draw_hill_wrapped(&mut c, cx, horizon_y, w, h, spec.color);
             }
         }
-        LayerKind::Pines { count, min_h, max_h, min_w, max_w } => {
+        LayerKind::Pines {
+            count,
+            min_h,
+            max_h,
+            min_w,
+            max_w,
+        } => {
             for _ in 0..*count {
                 let w = rng.range(*min_w, *max_w + 1);
                 let h = rng.range(*min_h, *max_h + 1);
@@ -542,7 +564,10 @@ mod tests {
         apply_top_alpha_fade(&mut c, 5);
         let top_alpha = c.get(0, 0).unwrap()[3];
         let bottom_alpha = c.get(0, 19).unwrap()[3];
-        assert!(top_alpha < bottom_alpha, "top {top_alpha} bottom {bottom_alpha}");
+        assert!(
+            top_alpha < bottom_alpha,
+            "top {top_alpha} bottom {bottom_alpha}"
+        );
         assert_eq!(bottom_alpha, 255);
     }
 

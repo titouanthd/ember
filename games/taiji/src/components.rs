@@ -33,14 +33,18 @@ impl Paddle {
     }
 
     pub fn move_up(&mut self, dt: f32) {
-        if dt <= 0.0 { return; }
+        if dt <= 0.0 {
+            return;
+        }
         let new_y = (self.transform.position.y - self.speed * dt).max(0.0);
         self.velocity_y = (new_y - self.transform.position.y) / dt;
         self.transform.position.y = new_y;
     }
 
     pub fn move_down(&mut self, dt: f32, screen_h: f32) {
-        if dt <= 0.0 { return; }
+        if dt <= 0.0 {
+            return;
+        }
         let max_y = screen_h - self.transform.scale.y;
         let new_y = (self.transform.position.y + self.speed * dt).min(max_y);
         self.velocity_y = (new_y - self.transform.position.y) / dt;

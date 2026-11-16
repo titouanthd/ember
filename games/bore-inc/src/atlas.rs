@@ -64,7 +64,10 @@ impl AtlasBuilder {
             canvas.width,
             canvas.height,
         );
-        assert!(!self.seen.contains_key(name), "duplicate sprite name: {name}");
+        assert!(
+            !self.seen.contains_key(name),
+            "duplicate sprite name: {name}"
+        );
 
         let i = self.sprites.len() as u32;
         let col = i % COLS;
@@ -337,10 +340,7 @@ mod tests {
             for b in rects.iter().skip(i + 1) {
                 let overlap_x = a.x < b.x + b.w && a.x + a.w > b.x;
                 let overlap_y = a.y < b.y + b.h && a.y + a.h > b.y;
-                assert!(
-                    !(overlap_x && overlap_y),
-                    "rects overlap: {a:?} and {b:?}",
-                );
+                assert!(!(overlap_x && overlap_y), "rects overlap: {a:?} and {b:?}",);
             }
         }
     }

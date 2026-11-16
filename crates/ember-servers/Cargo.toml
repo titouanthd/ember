@@ -1,0 +1,7 @@
+[package]
+name = "ember-servers"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ember-core.workspace = true

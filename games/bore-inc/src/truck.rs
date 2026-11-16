@@ -140,9 +140,7 @@ impl Truck {
         }
 
         let y_down = self.pos.y + MAX_STEP_DOWN;
-        if self.has_ground_at(x, y_down, world)
-            && self.body_is_clear(x, self.pos.y, world)
-        {
+        if self.has_ground_at(x, y_down, world) && self.body_is_clear(x, self.pos.y, world) {
             return Ok(self.pos.y);
         }
 
@@ -242,7 +240,11 @@ mod tests {
             t.tick(dt, 1.0, &world);
         }
         // ~35 px moved.
-        assert!((t.distance_traveled - 35.0).abs() < 1.5, "d = {}", t.distance_traveled);
+        assert!(
+            (t.distance_traveled - 35.0).abs() < 1.5,
+            "d = {}",
+            t.distance_traveled
+        );
     }
 
     #[test]
@@ -305,9 +307,13 @@ mod tests {
 
     #[test]
     fn truck_climbs_a_one_tile_step() {
-        let world = build_world(30, 20, |col, row| {
-            if col >= 10 { row >= 14 } else { row >= 15 }
-        });
+        let world = build_world(
+            30,
+            20,
+            |col, row| {
+                if col >= 10 { row >= 14 } else { row >= 15 }
+            },
+        );
         let mut t = Truck::new(Vec2::new(32.0, 208.0));
         let dt = 1.0 / 60.0;
         for _ in 0..200 {
@@ -320,9 +326,13 @@ mod tests {
 
     #[test]
     fn truck_descends_a_one_tile_step() {
-        let world = build_world(30, 20, |col, row| {
-            if col < 10 { row >= 14 } else { row >= 15 }
-        });
+        let world = build_world(
+            30,
+            20,
+            |col, row| {
+                if col < 10 { row >= 14 } else { row >= 15 }
+            },
+        );
         let mut t = Truck::new(Vec2::new(32.0, 192.0));
         let dt = 1.0 / 60.0;
         for _ in 0..200 {
@@ -348,9 +358,7 @@ mod tests {
 
     #[test]
     fn truck_is_blocked_by_a_low_ceiling() {
-        let world = build_world(30, 20, |col, row| {
-            row >= 15 || (col >= 10 && row == 13)
-        });
+        let world = build_world(30, 20, |col, row| row >= 15 || (col >= 10 && row == 13));
         let mut t = Truck::new(Vec2::new(32.0, 208.0));
         let dt = 1.0 / 60.0;
         for _ in 0..200 {
@@ -374,9 +382,13 @@ mod tests {
 
     #[test]
     fn truck_refuses_a_two_tile_step_up() {
-        let world = build_world(30, 20, |col, row| {
-            if col >= 10 { row >= 13 } else { row >= 15 }
-        });
+        let world = build_world(
+            30,
+            20,
+            |col, row| {
+                if col >= 10 { row >= 13 } else { row >= 15 }
+            },
+        );
         let mut t = Truck::new(Vec2::new(32.0, 208.0));
         let dt = 1.0 / 60.0;
         for _ in 0..200 {

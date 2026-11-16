@@ -59,7 +59,10 @@ pub fn compute_g_gain(game: &Game) -> u64 {
 /// The run is reset via `Game::new()`, then `g_total`, `g_multiplier`
 /// and the log are set to their post-collapse values.
 pub fn prestige(game: &mut Game) -> u64 {
-    assert!(can_prestige(game), "prestige requires paradigm >= {MIN_PARADIGM:?}");
+    assert!(
+        can_prestige(game),
+        "prestige requires paradigm >= {MIN_PARADIGM:?}"
+    );
 
     let gain = compute_g_gain(game);
     let new_total = game.g_total + gain;

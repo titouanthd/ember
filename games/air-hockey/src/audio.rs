@@ -85,8 +85,12 @@ mod tests {
     fn test_all_events_are_handled() {
         for ev in [
             GameEvent::Wall,
-            GameEvent::Paddle { impact_speed: 100.0 },
-            GameEvent::Paddle { impact_speed: 2000.0 },
+            GameEvent::Paddle {
+                impact_speed: 100.0,
+            },
+            GameEvent::Paddle {
+                impact_speed: 2000.0,
+            },
             GameEvent::Goal(Side::Left),
             GameEvent::Goal(Side::Right),
             GameEvent::CountdownBeep,

@@ -22,6 +22,4 @@ pub async fn load_default_font() -> Option<Font> {
 
 // Re-export the text helpers so existing call sites (menu.rs,
 // upgrade_modal.rs) keep working without changing their imports.
-pub use ember_stdlib::fonts::{
-    draw_text_bold, draw_text_regular, measure_bold, measure_regular,
-};
+pub use ember_stdlib::fonts::{draw_text_bold, draw_text_regular, measure_bold, measure_regular};

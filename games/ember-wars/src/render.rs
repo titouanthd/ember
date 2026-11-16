@@ -75,18 +75,18 @@ fn draw_local_hp_bar(ctx: &GameContext, tower: &Tower, cam_x: f32, gy: f32, shak
 
     let txt = format!("{:.0} / {:.0}", tower.hp.max(0.0), tower.max_hp);
     let dim = measure_text(&txt, None, 14, 1.0);
-    draw_text(&txt, sx - dim.width * 0.5, hp_y - 5.0, 14.0, ctx.colors.text);
+    draw_text(
+        &txt,
+        sx - dim.width * 0.5,
+        hp_y - 5.0,
+        14.0,
+        ctx.colors.text,
+    );
 }
 
 // ---------- Catapulte ----------
 
-fn draw_catapult_visual(
-    ctx: &GameContext,
-    c: &Catapult,
-    cam_x: f32,
-    shake: Vec2,
-    team: Team,
-) {
+fn draw_catapult_visual(ctx: &GameContext, c: &Catapult, cam_x: f32, shake: Vec2, team: Team) {
     let sx = c.pos.x - cam_x + shake.x;
     let sy = c.pos.y + shake.y;
 
@@ -117,7 +117,13 @@ fn draw_catapult_visual(
         let y = base_y + i as f32 * (base_h / 3.0);
         draw_line(base_x + 3.0, y, base_x + base_w - 3.0, y, 0.8, wood_dark);
     }
-    draw_rectangle(base_x + 2.0, base_y + base_h - 2.5, base_w - 4.0, 2.0, accent);
+    draw_rectangle(
+        base_x + 2.0,
+        base_y + base_h - 2.5,
+        base_w - 4.0,
+        2.0,
+        accent,
+    );
 
     // Roues
     let wheel_r = 4.5;
@@ -132,7 +138,14 @@ fn draw_catapult_visual(
     let pivot = Vec2::new(sx, sy - base_h - pivot_h);
 
     draw_line(base_x + 8.0, base_y, pivot.x - 3.0, pivot.y, 5.0, wood);
-    draw_line(base_x + base_w - 8.0, base_y, pivot.x + 3.0, pivot.y, 5.0, wood);
+    draw_line(
+        base_x + base_w - 8.0,
+        base_y,
+        pivot.x + 3.0,
+        pivot.y,
+        5.0,
+        wood,
+    );
     let leg_mid_y = (base_y + pivot.y) * 0.5;
     let leg_a_x = (base_x + 8.0 + pivot.x - 3.0) * 0.5;
     let leg_b_x = (base_x + base_w - 8.0 + pivot.x + 3.0) * 0.5;
@@ -179,7 +192,13 @@ fn draw_catapult_visual(
 
     // Contrepoids
     let cw = 13.0;
-    draw_rectangle(counter_pos.x - cw * 0.5, counter_pos.y - cw * 0.5, cw, cw, wood_dark);
+    draw_rectangle(
+        counter_pos.x - cw * 0.5,
+        counter_pos.y - cw * 0.5,
+        cw,
+        cw,
+        wood_dark,
+    );
     draw_rectangle_lines(
         counter_pos.x - cw * 0.5,
         counter_pos.y - cw * 0.5,
@@ -209,16 +228,32 @@ fn draw_catapult_visual(
     let sling_len = 14.0;
     let sling_bottom = Vec2::new(tip.x, tip.y + sling_len);
     draw_line(tip.x, tip.y, sling_bottom.x, sling_bottom.y, 1.5, rope);
-    draw_circle(sling_bottom.x, sling_bottom.y, 5.0, Color::new(0.55, 0.42, 0.28, 1.0));
+    draw_circle(
+        sling_bottom.x,
+        sling_bottom.y,
+        5.0,
+        Color::new(0.55, 0.42, 0.28, 1.0),
+    );
     draw_circle_lines(sling_bottom.x, sling_bottom.y, 5.0, 1.0, wood_dark);
-    draw_circle(sling_bottom.x, sling_bottom.y, 2.0, Color::new(0.85, 0.85, 0.85, 1.0));
+    draw_circle(
+        sling_bottom.x,
+        sling_bottom.y,
+        2.0,
+        Color::new(0.85, 0.85, 0.85, 1.0),
+    );
 
     // Barre HP
     let bar_w = 62.0;
     let bar_h = 5.0;
     let bar_x = sx - bar_w * 0.5;
     let bar_y = pivot.y - 26.0;
-    draw_rectangle(bar_x, bar_y, bar_w, bar_h, Color::new(0.05, 0.05, 0.08, 1.0));
+    draw_rectangle(
+        bar_x,
+        bar_y,
+        bar_w,
+        bar_h,
+        Color::new(0.05, 0.05, 0.08, 1.0),
+    );
     draw_rectangle(
         bar_x,
         bar_y,
@@ -245,9 +280,22 @@ fn draw_catapult_ghost(c: &Catapult, sx: f32, sy: f32, team: Team) {
     let pivot_h = 45.0;
     let pivot = Vec2::new(sx, sy - base_h - pivot_h);
     draw_line(base_x + 8.0, base_y, pivot.x - 3.0, pivot.y, 5.0, ghost);
-    draw_line(base_x + base_w - 8.0, base_y, pivot.x + 3.0, pivot.y, 5.0, ghost);
+    draw_line(
+        base_x + base_w - 8.0,
+        base_y,
+        pivot.x + 3.0,
+        pivot.y,
+        5.0,
+        ghost,
+    );
 
-    draw_rectangle(base_x + 2.0, base_y + base_h - 2.5, base_w - 4.0, 2.0, accent);
+    draw_rectangle(
+        base_x + 2.0,
+        base_y + base_h - 2.5,
+        base_w - 4.0,
+        2.0,
+        accent,
+    );
 
     let txt = format!("REBUILD {:.1}s", c.rebuild_remaining());
     let dim = measure_text(&txt, None, 14, 1.0);
@@ -316,15 +364,7 @@ fn draw_unit(ctx: &GameContext, u: &Unit, cam_x: f32, shake: Vec2) {
         Team::Enemy => -1.0,
     };
 
-    crate::stickman::draw(
-        u,
-        Vec2::new(sx, sy),
-        size,
-        facing,
-        pose,
-        anim_phase,
-        color,
-    );
+    crate::stickman::draw(u, Vec2::new(sx, sy), size, facing, pose, anim_phase, color);
 
     if u.hp < u.max_hp {
         let bar_w = size.x + 6.0;

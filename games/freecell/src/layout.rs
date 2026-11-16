@@ -34,8 +34,7 @@ pub fn free_cell_rect(index: usize, ctx: &GameContext) -> Rect {
 /// The four foundations, indexed 0..4, laid out right-aligned inside the
 /// board's horizontal span.
 pub fn foundation_rect(index: usize, ctx: &GameContext) -> Rect {
-    let x_start =
-        board_x_offset(ctx) + board_width(ctx) - 4.0 * ctx.card_w - 3.0 * ctx.column_gap;
+    let x_start = board_x_offset(ctx) + board_width(ctx) - 4.0 * ctx.card_w - 3.0 * ctx.column_gap;
     let x = x_start + index as f32 * (ctx.card_w + ctx.column_gap);
     let y = ctx.playfield_y() + 10.0;
     Rect::new(x, y, ctx.card_w, ctx.card_h)
@@ -49,11 +48,7 @@ pub fn column_top(index: usize, ctx: &GameContext) -> Vec2 {
 }
 
 /// The rect for a card at position `card_index` in column `column_index`.
-pub fn card_rect_in_column(
-    column_index: usize,
-    card_index: usize,
-    ctx: &GameContext,
-) -> Rect {
+pub fn card_rect_in_column(column_index: usize, card_index: usize, ctx: &GameContext) -> Rect {
     let top = column_top(column_index, ctx);
     let y = top.y + card_index as f32 * ctx.card_stack_offset;
     Rect::new(top.x, y, ctx.card_w, ctx.card_h)

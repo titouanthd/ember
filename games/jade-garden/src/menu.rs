@@ -13,7 +13,7 @@ use macroquad::prelude::*;
 
 use crate::config::GameContext;
 use crate::fonts::PoemFont;
-use crate::level::{objective_label, star_tier_label, ChapterConfig, LevelConfig};
+use crate::level::{ChapterConfig, LevelConfig, objective_label, star_tier_label};
 use crate::progress::Progress;
 use crate::util::fmt_time;
 
@@ -23,32 +23,32 @@ mod palette {
     use macroquad::prelude::*;
 
     // Dark lacquer background gradient.
-    pub const BG_TOP: Color    = Color::new(0.105, 0.080, 0.055, 1.0);
+    pub const BG_TOP: Color = Color::new(0.105, 0.080, 0.055, 1.0);
     pub const BG_BOTTOM: Color = Color::new(0.045, 0.032, 0.022, 1.0);
 
     // Header / footer opaque bars.
-    pub const BAR_BG: Color       = Color::new(0.075, 0.058, 0.040, 1.0);
-    pub const BAR_BORDER: Color   = Color::new(0.42, 0.32, 0.16, 1.0);
+    pub const BAR_BG: Color = Color::new(0.075, 0.058, 0.040, 1.0);
+    pub const BAR_BORDER: Color = Color::new(0.42, 0.32, 0.16, 1.0);
 
     // Level card states.
-    pub const CARD_BG: Color             = Color::new(0.135, 0.105, 0.070, 1.0);
-    pub const CARD_BG_HOVER: Color       = Color::new(0.215, 0.165, 0.095, 1.0);
-    pub const CARD_BORDER: Color         = Color::new(0.36, 0.28, 0.16, 1.0);
-    pub const CARD_LOCKED_BG: Color      = Color::new(0.075, 0.062, 0.048, 1.0);
-    pub const CARD_LOCKED_BORDER: Color  = Color::new(0.20, 0.165, 0.115, 1.0);
+    pub const CARD_BG: Color = Color::new(0.135, 0.105, 0.070, 1.0);
+    pub const CARD_BG_HOVER: Color = Color::new(0.215, 0.165, 0.095, 1.0);
+    pub const CARD_BORDER: Color = Color::new(0.36, 0.28, 0.16, 1.0);
+    pub const CARD_LOCKED_BG: Color = Color::new(0.075, 0.062, 0.048, 1.0);
+    pub const CARD_LOCKED_BORDER: Color = Color::new(0.20, 0.165, 0.115, 1.0);
 
     // Info panel.
-    pub const PANEL_BG: Color     = Color::new(0.090, 0.070, 0.048, 1.0);
-    pub const PANEL_FRAME: Color  = Color::new(0.55, 0.42, 0.20, 1.0);
-    pub const PANEL_INNER: Color  = Color::new(0.32, 0.24, 0.12, 1.0);
+    pub const PANEL_BG: Color = Color::new(0.090, 0.070, 0.048, 1.0);
+    pub const PANEL_FRAME: Color = Color::new(0.55, 0.42, 0.20, 1.0);
+    pub const PANEL_INNER: Color = Color::new(0.32, 0.24, 0.12, 1.0);
 
     // Text.
-    pub const GOLD: Color        = Color::new(0.94, 0.78, 0.40, 1.0);
-    pub const GOLD_SOFT: Color   = Color::new(0.80, 0.65, 0.32, 1.0);
-    pub const IVORY: Color       = Color::new(0.96, 0.92, 0.82, 1.0);
-    pub const SEPIA: Color       = Color::new(0.60, 0.51, 0.38, 1.0);
-    pub const SEPIA_DIM: Color   = Color::new(0.42, 0.35, 0.25, 1.0);
-    pub const CINNABAR: Color    = Color::new(0.86, 0.32, 0.20, 1.0);
+    pub const GOLD: Color = Color::new(0.94, 0.78, 0.40, 1.0);
+    pub const GOLD_SOFT: Color = Color::new(0.80, 0.65, 0.32, 1.0);
+    pub const IVORY: Color = Color::new(0.96, 0.92, 0.82, 1.0);
+    pub const SEPIA: Color = Color::new(0.60, 0.51, 0.38, 1.0);
+    pub const SEPIA_DIM: Color = Color::new(0.42, 0.35, 0.25, 1.0);
+    pub const CINNABAR: Color = Color::new(0.86, 0.32, 0.20, 1.0);
 }
 
 /// Action emitted by the menu when the player clicks something.
@@ -72,11 +72,7 @@ pub struct Menu {
 }
 
 impl Menu {
-    pub fn new(
-        chapters: Vec<ChapterConfig>,
-        levels: Vec<LevelConfig>,
-        progress: Progress,
-    ) -> Self {
+    pub fn new(chapters: Vec<ChapterConfig>, levels: Vec<LevelConfig>, progress: Progress) -> Self {
         Self {
             chapters,
             levels,
@@ -89,24 +85,17 @@ impl Menu {
 
     // ---------- Public API ----------
 
-    pub fn tick(
-        &mut self,
-        _dt: f32,
-        mouse: Vec2,
-        click: bool,
-    ) -> Option<MenuAction> {
+    pub fn tick(&mut self, _dt: f32, mouse: Vec2, click: bool) -> Option<MenuAction> {
         let vw = screen_width();
         let vh = screen_height();
 
         let content_h = self.total_height();
-        let visible_h =
-            (vh - FOOTER_H - CONTENT_BOTTOM_RESERVE - CONTENT_TOP).max(1.0);
+        let visible_h = (vh - FOOTER_H - CONTENT_BOTTOM_RESERVE - CONTENT_TOP).max(1.0);
         self.max_scroll = (content_h - visible_h).max(0.0);
 
         let (_, wy) = mouse_wheel();
         if wy.abs() > 0.0 {
-            self.scroll_y =
-                (self.scroll_y - wy * 40.0).clamp(0.0, self.max_scroll);
+            self.scroll_y = (self.scroll_y - wy * 40.0).clamp(0.0, self.max_scroll);
         }
         let step = 500.0 * get_frame_time();
         if is_key_down(KeyCode::Down) {
@@ -137,8 +126,8 @@ impl Menu {
         // Debug-only buttons (visible only while Ctrl is held).
         #[cfg(debug_assertions)]
         {
-            let debug_visible = is_key_down(KeyCode::LeftControl)
-                || is_key_down(KeyCode::RightControl);
+            let debug_visible =
+                is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
             if debug_visible {
                 let scare = debug_scare_button_rect(vw, vh);
                 if click && rect_contains(scare, mouse.x, mouse.y) {
@@ -194,8 +183,7 @@ impl Menu {
         if level_idx == 0 {
             return true;
         }
-        (0..level_idx)
-            .all(|i| self.progress.level_completed(&self.levels[i].id))
+        (0..level_idx).all(|i| self.progress.level_completed(&self.levels[i].id))
     }
 
     pub fn is_chapter_unlocked(&self, chapter_idx: usize) -> bool {
@@ -228,9 +216,7 @@ impl Menu {
         let mut y = base_y;
         for ci in 0..chapter_idx {
             let count = self.levels_of_chapter(ci).len();
-            y += CHAPTER_HEADER_H
-                + count as f32 * (LEVEL_H + LEVEL_GAP)
-                + CHAPTER_GAP;
+            y += CHAPTER_HEADER_H + count as f32 * (LEVEL_H + LEVEL_GAP) + CHAPTER_GAP;
         }
         y
     }
@@ -239,9 +225,7 @@ impl Menu {
         let mut h = 0.0;
         for ci in 0..self.chapters.len() {
             let count = self.levels_of_chapter(ci).len();
-            h += CHAPTER_HEADER_H
-                + count as f32 * (LEVEL_H + LEVEL_GAP)
-                + CHAPTER_GAP;
+            h += CHAPTER_HEADER_H + count as f32 * (LEVEL_H + LEVEL_GAP) + CHAPTER_GAP;
         }
         h
     }
@@ -329,11 +313,7 @@ impl Menu {
         };
 
         let (bg, border, accent) = if !unlocked {
-            (
-                CARD_LOCKED_BG,
-                CARD_LOCKED_BORDER,
-                CARD_LOCKED_BORDER,
-            )
+            (CARD_LOCKED_BG, CARD_LOCKED_BORDER, CARD_LOCKED_BORDER)
         } else if hovered {
             (
                 CARD_BG_HOVER,
@@ -554,14 +534,7 @@ impl Menu {
         // Title + underline.
         draw_text("JADE GARDEN", cx, 50.0, 30.0, GOLD);
         let dim_title = measure_text("JADE GARDEN", None, 30, 1.0);
-        draw_line(
-            cx,
-            58.0,
-            cx + dim_title.width,
-            58.0,
-            1.0,
-            GOLD_SOFT,
-        );
+        draw_line(cx, 58.0, cx + dim_title.width, 58.0, 1.0, GOLD_SOFT);
         draw_text("CAMPAIGN", cx, 76.0, 11.0, SEPIA);
 
         // Right side: poem progress.
@@ -571,23 +544,11 @@ impl Menu {
             crate::poem::TOTAL_CHARS
         );
         let dim_p = measure_text(&poem_txt, None, 15, 1.0);
-        draw_text(
-            poem_txt,
-            vw - PAD_X - dim_p.width,
-            46.0,
-            15.0,
-            IVORY,
-        );
+        draw_text(poem_txt, vw - PAD_X - dim_p.width, 46.0, 15.0, IVORY);
 
         let stars_txt = format!("★ {} earned", self.progress.total_stars());
         let dim_s = measure_text(&stars_txt, None, 12, 1.0);
-        draw_text(
-            stars_txt,
-            vw - PAD_X - dim_s.width,
-            70.0,
-            12.0,
-            GOLD_SOFT,
-        );
+        draw_text(stars_txt, vw - PAD_X - dim_s.width, 70.0, 12.0, GOLD_SOFT);
     }
 
     fn draw_footer(&self, vw: f32, vh: f32) {
@@ -597,21 +558,14 @@ impl Menu {
         draw_rectangle(0.0, vh - FOOTER_H, vw, FOOTER_H, BAR_BG);
         draw_line(0.0, vh - FOOTER_H, vw, vh - FOOTER_H, 1.5, BAR_BORDER);
 
-        let hint =
-            "Click a mission   |   Scroll ↑↓ or wheel   |   [Tab] Help   |   [Esc] Quit";
+        let hint = "Click a mission   |   Scroll ↑↓ or wheel   |   [Tab] Help   |   [Esc] Quit";
         let dim = measure_text(hint, None, 14, 1.0);
-        draw_text(
-            hint,
-            vw * 0.5 - dim.width * 0.5,
-            vh - 16.0,
-            14.0,
-            SEPIA,
-        );
+        draw_text(hint, vw * 0.5 - dim.width * 0.5, vh - 16.0, 14.0, SEPIA);
 
         #[cfg(debug_assertions)]
         {
-            let debug_visible = is_key_down(KeyCode::LeftControl)
-                || is_key_down(KeyCode::RightControl);
+            let debug_visible =
+                is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
             if debug_visible {
                 use palette::*;
                 let mouse = Vec2::new(mouse_position().0, mouse_position().1);
@@ -726,12 +680,7 @@ fn debug_epilogue_button_rect(vw: f32, vh: f32) -> Rect {
 /// under each star. The label is either a numeric score threshold
 /// (for Score levels, and for tiers 2-3 of every level) or "obj" for
 /// tier 1 of ClearJade / FillPoem levels.
-fn draw_star_rating_with_thresholds(
-    r: Rect,
-    stars: u8,
-    unlocked: bool,
-    level: &LevelConfig,
-) {
+fn draw_star_rating_with_thresholds(r: Rect, stars: u8, unlocked: bool, level: &LevelConfig) {
     use palette::*;
 
     let star_y = r.y + 30.0;
@@ -867,11 +816,7 @@ mod tests {
 
     fn sample_menu() -> Menu {
         let chapters = vec![chapter(0, "C0"), chapter(1, "C1")];
-        let levels = vec![
-            level("a", 0, 1),
-            level("b", 0, 2),
-            level("c", 1, 3),
-        ];
+        let levels = vec![level("a", 0, 1), level("b", 0, 2), level("c", 1, 3)];
         Menu::new(chapters, levels, Progress::default())
     }
 

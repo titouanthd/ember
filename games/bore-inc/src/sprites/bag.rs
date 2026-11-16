@@ -105,10 +105,7 @@ mod tests {
     #[test]
     fn render_produces_non_empty_canvas() {
         for level in 0..LEVELS {
-            assert!(
-                !render(level).is_empty(),
-                "bag level {level} is empty"
-            );
+            assert!(!render(level).is_empty(), "bag level {level} is empty");
         }
     }
 

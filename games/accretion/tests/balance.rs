@@ -17,9 +17,7 @@
 //! always 3-5× faster than a casual human in an incremental game.
 
 use accretion::components::{BuildingId, Paradigm, ResourceId};
-use accretion::economy::{
-    self, BUILDINGS, PassiveEffect, compute_multipliers, id_to_def,
-};
+use accretion::economy::{self, BUILDINGS, PassiveEffect, compute_multipliers, id_to_def};
 use accretion::paradigm;
 use accretion::systems::Game;
 
@@ -146,7 +144,9 @@ fn choose_next_building(game: &Game) -> Option<BuildingId> {
                 if def.paradigm > game.paradigm {
                     continue;
                 }
-                let Some((r, _)) = def.production else { continue };
+                let Some((r, _)) = def.production else {
+                    continue;
+                };
                 if r != *resource {
                     continue;
                 }
@@ -206,9 +206,7 @@ impl RunReport {
         let buildings: f64 = self
             .final_buildings
             .iter()
-            .map(|(b, n)| {
-                *n as f64 * id_to_def(*b).base_cost.iter().map(|(_, v)| *v).sum::<f64>()
-            })
+            .map(|(b, n)| *n as f64 * id_to_def(*b).base_cost.iter().map(|(_, v)| *v).sum::<f64>())
             .sum();
         resources + buildings
     }
@@ -233,12 +231,7 @@ impl RunReport {
 /// - `sim_step`: simulation timestep in seconds.
 /// - `max_time`: safety bound (e.g. 5h = 18000s).
 /// - `g_total`: prestige bonus at start (0 for the first run).
-fn simulate_greedy(
-    click_rate: f32,
-    sim_step: f32,
-    max_time: f32,
-    g_total: u64,
-) -> RunReport {
+fn simulate_greedy(click_rate: f32, sim_step: f32, max_time: f32, g_total: u64) -> RunReport {
     let mut game = Game::new();
     game.g_total = g_total;
     game.g_multiplier = 1.0 + 0.05 * g_total as f64;
@@ -495,10 +488,18 @@ fn prestige_loop_is_satisfying() {
 
     println!();
     println!("=== Prestige loop ===");
-    println!("  Run 1 (G=0):      {:.1} min,  mass {:.0},  G_gain +{}",
-             r1.total_time / 60.0, r1.total_mass_run(), g);
-    println!("  Run 2 (G={}):      {:.1} min,  ratio {:.2}",
-             g, r2.total_time / 60.0, ratio);
+    println!(
+        "  Run 1 (G=0):      {:.1} min,  mass {:.0},  G_gain +{}",
+        r1.total_time / 60.0,
+        r1.total_mass_run(),
+        g
+    );
+    println!(
+        "  Run 2 (G={}):      {:.1} min,  ratio {:.2}",
+        g,
+        r2.total_time / 60.0,
+        ratio
+    );
     println!("  Target range: 0.55 – 0.85");
 
     assert!(

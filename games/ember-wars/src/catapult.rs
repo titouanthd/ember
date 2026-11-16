@@ -238,11 +238,7 @@ impl Catapult {
         points
     }
 
-    pub fn try_fire_multi(
-        &mut self,
-        team: Team,
-        damage_mult: f32,
-    ) -> Option<Vec<Projectile>> {
+    pub fn try_fire_multi(&mut self, team: Team, damage_mult: f32) -> Option<Vec<Projectile>> {
         if !self.is_ready() {
             return None;
         }

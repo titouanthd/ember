@@ -27,7 +27,7 @@ impl TickTimer {
     /// (breakpoint, alt-tab, pause GC) : on abandonne le surplus plutôt que de
     /// tenter de rattraper indéfiniment et d'aggraver la frame suivante.
     pub const MAX_TICKS_PER_ADVANCE: u32 = 8;
-    
+
     /// Crée un timer avec une durée de tick donnée (en secondes).
     ///
     /// La durée est clampée à un minimum de `1e-6` pour éviter les

@@ -2,7 +2,7 @@
 use ember_stdlib::input::Input;
 use macroquad::prelude::*;
 use taiji::systems::{self, MatchState, ScoreEvent};
-use taiji::{config::GameContext, render, App, AppState};
+use taiji::{App, AppState, config::GameContext, render};
 
 fn window_conf() -> Conf {
     Conf {
@@ -24,8 +24,7 @@ async fn main() {
     let virtual_h = ctx.screen_h;
     let render_target = render_target(virtual_w as u32, virtual_h as u32);
     render_target.texture.set_filter(FilterMode::Linear);
-    let mut game_camera =
-        Camera2D::from_display_rect(Rect::new(0.0, 0.0, virtual_w, virtual_h));
+    let mut game_camera = Camera2D::from_display_rect(Rect::new(0.0, 0.0, virtual_w, virtual_h));
     game_camera.render_target = Some(render_target.clone());
 
     loop {
@@ -81,8 +80,14 @@ async fn main() {
         // Effet visuel du Souffle du Temps (Teinte bleue)
         if match_state.time_scale < 0.95 {
             let intensity = (1.0 - match_state.time_scale) / 0.75;
-            draw_rectangle(0.0, 0.0, virtual_w, virtual_h, Color::new(0.4, 0.6, 0.8, intensity * 0.2));
-            
+            draw_rectangle(
+                0.0,
+                0.0,
+                virtual_w,
+                virtual_h,
+                Color::new(0.4, 0.6, 0.8, intensity * 0.2),
+            );
+
             // Texte "YIN" subtil
             let text = "YIN";
             let dim = measure_text(text, None, 20, 1.0);
@@ -106,12 +111,8 @@ async fn main() {
         // --- Blit avec letterbox ---
         set_default_camera();
         clear_background(BLACK);
-        let (dst_x, dst_y, dst_w, dst_h) = render::letterbox_rect(
-            screen_width(),
-            screen_height(),
-            virtual_w,
-            virtual_h,
-        );
+        let (dst_x, dst_y, dst_w, dst_h) =
+            render::letterbox_rect(screen_width(), screen_height(), virtual_w, virtual_h);
         draw_texture_ex(
             &render_target.texture,
             dst_x,
@@ -140,7 +141,7 @@ fn draw_paddle(paddle: &taiji::Paddle, ctx: &GameContext) {
 
 fn draw_ball(match_state: &MatchState, ctx: &GameContext) {
     let ball = &match_state.ball;
-    
+
     // La balle devient bleue quand le temps est ralenti
     let color = if match_state.time_scale < 0.95 {
         Color::new(0.0, 0.5, 1.0, 1.0) // Bleu Yin

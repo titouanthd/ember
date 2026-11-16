@@ -10,8 +10,8 @@ use macroquad::prelude::Color;
 use crate::ai;
 use crate::camera::Camera2D;
 use crate::catapult::{
-    Catapult, CATAPULT_HP, CATAPULT_MAX_RANGE, CATAPULT_MIN_RANGE, CATAPULT_OFFSET_X,
-    CATAPULT_REBUILD_TIME,
+    CATAPULT_HP, CATAPULT_MAX_RANGE, CATAPULT_MIN_RANGE, CATAPULT_OFFSET_X, CATAPULT_REBUILD_TIME,
+    Catapult,
 };
 use crate::combat;
 use crate::components::{Projectile, Team, Tower, Unit, UnitIdGen};
@@ -75,16 +75,14 @@ impl Game {
         seed: u32,
         progress: &Progress,
     ) -> Result<Self, String> {
-        let level = config::level_by_id(level_id)
-            .ok_or_else(|| format!("unknown level id: {level_id}"))?;
+        let level =
+            config::level_by_id(level_id).ok_or_else(|| format!("unknown level id: {level_id}"))?;
         let palette = textures::palette_by_id(&level.palette)
             .ok_or_else(|| format!("unknown palette: {}", level.palette))?;
         let balance = config::balance();
 
         let ground_y = ctx.viewport_h * GROUND_Y_RATIO;
-        let visual_seed = seed
-            .wrapping_mul(0x9E37_79B9)
-            .wrapping_add(0x85EB_CA6B);
+        let visual_seed = seed.wrapping_mul(0x9E37_79B9).wrapping_add(0x85EB_CA6B);
 
         let player_upgrades = progress.tree.clone();
         let tower_hp = level.tower_hp * player_upgrades.tower_hp_mult();
@@ -113,10 +111,7 @@ impl Game {
             balance.mana_regen * level.ai.mana_regen_mult,
         );
 
-        let mut catapult = Catapult::new(Vec2::new(
-            player_tower.x + CATAPULT_OFFSET_X,
-            ground_y,
-        ));
+        let mut catapult = Catapult::new(Vec2::new(player_tower.x + CATAPULT_OFFSET_X, ground_y));
         catapult.configure(
             CATAPULT_MAX_RANGE + player_upgrades.catapult_range_add(),
             CATAPULT_HP * player_upgrades.catapult_hp_mult(),
@@ -217,8 +212,7 @@ impl Game {
             let crit_chance = self.player_upgrades.turret_crit_chance();
             self.catapult.fire_rate_mult = fire_rate_mult;
             self.catapult.multi_shot = multi;
-            if let Some(mut shots) = self.catapult.try_fire_multi(Team::Player, damage_mult)
-            {
+            if let Some(mut shots) = self.catapult.try_fire_multi(Team::Player, damage_mult) {
                 self.juice.shake(2.0, 0.06);
                 for p in &mut shots {
                     if crit_chance > 0.0 && self.rng.next_f32() < crit_chance {
@@ -301,11 +295,7 @@ impl Game {
         if !can_spawn(kind, Team::Player, &self.units) {
             return false;
         }
-        let cd = self
-            .player_cooldowns
-            .get(kind)
-            .copied()
-            .unwrap_or_default();
+        let cd = self.player_cooldowns.get(kind).copied().unwrap_or_default();
         if cd.is_active() {
             return false;
         }
@@ -592,9 +582,7 @@ mod tests {
         p.tree.grant("catapult_rebuild");
         let g = Game::new(&ctx(), "sh_02", 0, &p).expect("creates");
         // CATAPULT_REBUILD_TIME = 10 × 0.60 → 6.
-        assert!(
-            (g.catapult.rebuild.duration() - CATAPULT_REBUILD_TIME * 0.60).abs() < 1e-3
-        );
+        assert!((g.catapult.rebuild.duration() - CATAPULT_REBUILD_TIME * 0.60).abs() < 1e-3);
     }
 
     // ---------- Enemy catapult ----------

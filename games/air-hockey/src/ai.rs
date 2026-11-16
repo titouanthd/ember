@@ -43,7 +43,10 @@ pub struct AiState {
 
 impl AiState {
     pub fn new() -> Self {
-        Self { perceived_y: 0.0, timer: 0.0 }
+        Self {
+            perceived_y: 0.0,
+            timer: 0.0,
+        }
     }
 
     /// Force a fresh look on the next update (e.g. at round start).
@@ -94,8 +97,16 @@ pub fn direction(
     let dx = goal_x - pad.pos.x;
     let dy = target_y - pad.pos.y;
 
-    let x_dir = if dx.abs() < deadzone { 0.0 } else { dx.signum() };
-    let y_dir = if dy.abs() < deadzone { 0.0 } else { dy.signum() };
+    let x_dir = if dx.abs() < deadzone {
+        0.0
+    } else {
+        dx.signum()
+    };
+    let y_dir = if dy.abs() < deadzone {
+        0.0
+    } else {
+        dy.signum()
+    };
 
     let dir = Vec2::new(x_dir, y_dir);
     // Normalize then scale to the AI's speed budget. If dir is zero,
@@ -148,7 +159,11 @@ mod tests {
         // should still believe the puck is up (still moving up).
         puck.pos = Vec2::new(ctx.arena.mid_x(), 600.0);
         let d2 = direction(&pad, &puck, &ctx.arena, &ctx.tuning, &mut st, 1.0 / 60.0);
-        assert!(d2.y < 0.0, "AI should still be tracking the old y, got {:?}", d2);
+        assert!(
+            d2.y < 0.0,
+            "AI should still be tracking the old y, got {:?}",
+            d2
+        );
 
         // After REACTION_TIME elapses, it should notice.
         for _ in 0..20 {

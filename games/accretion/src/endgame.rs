@@ -15,7 +15,11 @@ pub const ENDGAME_LIGHT_THRESHOLD: f64 = 10_000.0;
 /// Whether the player can trigger the endgame choice right now.
 pub fn can_endgame(game: &Game) -> bool {
     game.paradigm == Paradigm::Star
-        && game.resources.get(&ResourceId::Light).copied().unwrap_or(0.0)
+        && game
+            .resources
+            .get(&ResourceId::Light)
+            .copied()
+            .unwrap_or(0.0)
             >= ENDGAME_LIGHT_THRESHOLD
 }
 

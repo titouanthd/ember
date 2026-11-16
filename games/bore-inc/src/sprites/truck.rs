@@ -166,9 +166,7 @@ fn add_outline(c: &mut Canvas, color: Rgba) {
             }
             let has_solid_neighbor = [(1i32, 0i32), (-1, 0), (0, 1), (0, -1)]
                 .iter()
-                .any(|(dx, dy)| {
-                    snapshot.get(x + dx, y + dy).is_some_and(|p| p[3] > 0)
-                });
+                .any(|(dx, dy)| snapshot.get(x + dx, y + dy).is_some_and(|p| p[3] > 0));
             if has_solid_neighbor {
                 c.set(x, y, color);
             }

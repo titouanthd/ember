@@ -179,7 +179,7 @@ This is a *spec-first* repository. Every engine crate follows this loop:
 - **Between versions**, the top-level `docs/engine/README.md` (not
   versioned) links to the current version and lists the diffs.
 
----
+---S
 
 ## 8. Cross-references
 

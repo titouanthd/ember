@@ -28,11 +28,7 @@ type SwapCandidate = ((usize, usize), (usize, usize), u32);
 /// Resolves all cascades from a swapped grid, returning how much
 /// progress toward `objective` was earned. Matches the logic in
 /// `systems.rs::begin_resolution` exactly.
-fn resolve_cascades_objective(
-    grid: &mut Grid,
-    objective: Objective,
-    rng: &mut Rng,
-) -> u32 {
+fn resolve_cascades_objective(grid: &mut Grid, objective: Objective, rng: &mut Rng) -> u32 {
     let mut progress = 0u32;
     let mut cascade_level = 0u32;
     loop {
@@ -48,9 +44,7 @@ fn resolve_cascades_objective(
             Objective::ClearJade(jade, _) => {
                 let n = matches
                     .iter()
-                    .filter(|&&(r, c)| {
-                        grid.get(r, c).map(|t| t.jade == jade).unwrap_or(false)
-                    })
+                    .filter(|&&(r, c)| grid.get(r, c).map(|t| t.jade == jade).unwrap_or(false))
                     .count() as u32;
                 progress += n;
             }
@@ -243,8 +237,7 @@ fn find_best_seeds() {
         let mut max_seed = 0u32;
 
         for seed in 1..=SEED_MAX {
-            let prog =
-                play_greedy_for_objective(seed, lvl.moves, lvl.objective);
+            let prog = play_greedy_for_objective(seed, lvl.moves, lvl.objective);
             if prog > max_prog {
                 max_prog = prog;
                 max_seed = seed;
@@ -253,8 +246,11 @@ fn find_best_seeds() {
             if (MIN_RATIO..=MAX_RATIO).contains(&ratio) {
                 let mid = (MIN_RATIO + MAX_RATIO) * 0.5;
                 let dist = (ratio - mid).abs();
-                let current_dist =
-                    if best_ratio == 0.0 { f32::MAX } else { (best_ratio - mid).abs() };
+                let current_dist = if best_ratio == 0.0 {
+                    f32::MAX
+                } else {
+                    (best_ratio - mid).abs()
+                };
                 if dist < current_dist {
                     best_seed = seed;
                     best_ratio = ratio;
@@ -274,8 +270,7 @@ fn find_best_seeds() {
             let marker = if best_seed != lvl.seed { "←" } else { " " };
             println!(
                 "{:<5} {:<28} {:>6} {:>6} {:>8.2}  {}/{} {}",
-                lvl.id, lvl.name, lvl.seed, best_seed, best_ratio,
-                best_prog, target, marker,
+                lvl.id, lvl.name, lvl.seed, best_seed, best_ratio, best_prog, target, marker,
             );
         }
     }

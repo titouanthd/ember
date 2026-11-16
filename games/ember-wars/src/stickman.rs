@@ -61,13 +61,34 @@ enum AttackPhase {
 fn attack_phase(t: f32) -> (AttackPhase, f32) {
     let t = t.clamp(0.0, 1.0);
     if t < WINDUP_END {
-        (AttackPhase::Windup, if WINDUP_END > 0.0 { t / WINDUP_END } else { 0.0 })
+        (
+            AttackPhase::Windup,
+            if WINDUP_END > 0.0 {
+                t / WINDUP_END
+            } else {
+                0.0
+            },
+        )
     } else if t < STRIKE_END {
         let span = STRIKE_END - WINDUP_END;
-        (AttackPhase::Strike, if span > 0.0 { (t - WINDUP_END) / span } else { 1.0 })
+        (
+            AttackPhase::Strike,
+            if span > 0.0 {
+                (t - WINDUP_END) / span
+            } else {
+                1.0
+            },
+        )
     } else {
         let span = 1.0 - STRIKE_END;
-        (AttackPhase::Recovery, if span > 0.0 { (t - STRIKE_END) / span } else { 1.0 })
+        (
+            AttackPhase::Recovery,
+            if span > 0.0 {
+                (t - STRIKE_END) / span
+            } else {
+                1.0
+            },
+        )
     }
 }
 
@@ -168,15 +189,7 @@ fn attack_t(pose: Pose, phase: f32) -> f32 {
     }
 }
 
-pub fn draw(
-    unit: &Unit,
-    pos: Vec2,
-    size: Vec2,
-    facing: f32,
-    pose: Pose,
-    phase: f32,
-    color: Color,
-) {
+pub fn draw(unit: &Unit, pos: Vec2, size: Vec2, facing: f32, pose: Pose, phase: f32, color: Color) {
     let p = proportions(size);
     let line_w = p.line_w;
 
@@ -199,8 +212,22 @@ pub fn draw(
     let leg_r_vec = Vec2::new(f * leg_r.sin() * p.leg_len, leg_r.cos() * p.leg_len);
     let leg_l_end = leg_base + leg_l_vec;
     let leg_r_end = leg_base + leg_r_vec;
-    draw_line(leg_base.x, leg_base.y, leg_l_end.x, leg_l_end.y, line_w, color);
-    draw_line(leg_base.x, leg_base.y, leg_r_end.x, leg_r_end.y, line_w, color);
+    draw_line(
+        leg_base.x,
+        leg_base.y,
+        leg_l_end.x,
+        leg_l_end.y,
+        line_w,
+        color,
+    );
+    draw_line(
+        leg_base.x,
+        leg_base.y,
+        leg_r_end.x,
+        leg_r_end.y,
+        line_w,
+        color,
+    );
 
     // Torse.
     draw_line(pelvis.x, pelvis.y, neck.x, neck.y, line_w, color);
@@ -210,8 +237,22 @@ pub fn draw(
     let arm_r_vec = Vec2::new(f * arm_r.sin() * p.arm_len, arm_r.cos() * p.arm_len);
     let arm_l_end = neck + arm_l_vec;
     let arm_r_end = neck + arm_r_vec;
-    draw_line(neck.x, neck.y, arm_l_end.x, arm_l_end.y, line_w * 0.85, color);
-    draw_line(neck.x, neck.y, arm_r_end.x, arm_r_end.y, line_width_safe(line_w), color);
+    draw_line(
+        neck.x,
+        neck.y,
+        arm_l_end.x,
+        arm_l_end.y,
+        line_w * 0.85,
+        color,
+    );
+    draw_line(
+        neck.x,
+        neck.y,
+        arm_r_end.x,
+        arm_r_end.y,
+        line_width_safe(line_w),
+        color,
+    );
 
     // Tête.
     draw_circle(head_center.x, head_center.y, p.head_r, color);

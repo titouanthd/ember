@@ -2,25 +2,19 @@
 resolver = "3"
 members = [
     "crates/ember-core",
-    "crates/ember-stdlib",
+    "crates/ember-macros",
+    "crates/ember-servers",
+    "crates/ember-render-macroquad",
+    "crates/ember-audio-macroquad",
+    "crates/ember-input",
+    "crates/ember-scene",
+    "crates/ember-ui",
+    "crates/ember-assets",
     "crates/ember-editor",
-    "games/pong",
-    "games/breakout",
-    "games/snake",
-    "games/asteroids", 
-    "games/bullet-hell", 
-    "games/minesweeper", 
-    "games/simon", 
-    "games/memory", 
-    "games/freecell", 
-    "games/air-hockey",
-    "games/zhuo-ji",
-    "games/ember-wars",
-    "games/jade-garden", 
-    "games/bore-inc",
-    "games/accretion", 
-    "games/taiji", 
-    "games/pagoda",
+    "crates/ember",
+    "crates/ember-stdlib",
+    "games/*",
+    "xtask",
 ]
 
 [workspace.package]
@@ -28,15 +22,27 @@ edition = "2024"
 version = "0.1.0"
 
 [workspace.dependencies]
-# --- Tier 1 : moteur pur ---
+ember-core             = { path = "crates/ember-core" }
+ember-macros           = { path = "crates/ember-macros" }
+ember-servers          = { path = "crates/ember-servers" }
+ember-render-macroquad = { path = "crates/ember-render-macroquad" }
+ember-audio-macroquad  = { path = "crates/ember-audio-macroquad" }
+ember-input            = { path = "crates/ember-input" }
+ember-scene            = { path = "crates/ember-scene" }
+ember-ui               = { path = "crates/ember-ui" }
+ember-assets           = { path = "crates/ember-assets" }
+ember-editor           = { path = "crates/ember-editor" }
+ember                  = { path = "crates/ember" }
+ember-stdlib           = { path = "crates/ember-stdlib" }
+
+# New for ember-macros (its Cargo.toml uses *.workspace = true):
+syn         = { version = "2", features = ["full"] }
+quote       = "1"
+proc-macro2 = "1"
+
 glam   = "0.27"
 serde  = { version = "1", features = ["derive"] }
 ron    = "0.8"
 
-# --- Tier 2 : stdlib (graphique) ---
 macroquad = { version = "0.4", features = ["audio"] }
 dotenvy   = "0.15"
-
-# --- Crates internes ---
-ember-core   = { path = "crates/ember-core" }
-ember-stdlib = { path = "crates/ember-stdlib" }

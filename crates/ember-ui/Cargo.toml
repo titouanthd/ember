@@ -1,0 +1,8 @@
+[package]
+name = "ember-ui"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ember-scene.workspace = true
+ember-servers.workspace = true

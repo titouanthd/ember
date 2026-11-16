@@ -262,12 +262,7 @@ fn fill_bedrock(cells: &mut [Option<Tile>], p: &LevelParams) {
 
 // ---------- Veins ----------
 
-fn scatter_veins(
-    cells: &mut [Option<Tile>],
-    p: &LevelParams,
-    rng: &mut Rng,
-    spec: &VeinSpec,
-) {
+fn scatter_veins(cells: &mut [Option<Tile>], p: &LevelParams, rng: &mut Rng, spec: &VeinSpec) {
     let bottom_limit = p.height - p.bedrock_rows;
     let row_min = (p.surface_row + spec.row_min_offset).min(bottom_limit);
     let row_max = (p.surface_row + spec.row_max_offset + 1).min(bottom_limit);
@@ -391,9 +386,7 @@ mod tests {
         let mut diffs = 0;
         for row in 0..a.height() {
             for col in 0..a.width() {
-                if a.tile(col, row).map(|t| t.kind)
-                    != b.tile(col, row).map(|t| t.kind)
-                {
+                if a.tile(col, row).map(|t| t.kind) != b.tile(col, row).map(|t| t.kind) {
                     diffs += 1;
                 }
             }
@@ -553,10 +546,7 @@ mod tests {
     fn level_three_is_not_softlocked() {
         for seed in [1u32, 42, 999] {
             let w = generate(seed, LevelKind::Three);
-            assert!(
-                bfs_reaches_right_edge(&w),
-                "seed {seed} softlocked",
-            );
+            assert!(bfs_reaches_right_edge(&w), "seed {seed} softlocked",);
         }
     }
 
@@ -579,9 +569,7 @@ mod tests {
                     assert!(
                         !matches!(
                             k,
-                            Some(TileKind::Coal)
-                                | Some(TileKind::Iron)
-                                | Some(TileKind::Crystal)
+                            Some(TileKind::Coal) | Some(TileKind::Iron) | Some(TileKind::Crystal)
                         ),
                         "{kind:?} vein above surface at ({col}, {row})",
                     );

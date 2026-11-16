@@ -9,7 +9,7 @@ use ember_stdlib::time::Cooldown;
 use glam::Vec2;
 
 use crate::bag::Bag;
-use crate::components::{ResourceKind, TileKind, TILE_SIZE};
+use crate::components::{ResourceKind, TILE_SIZE, TileKind};
 use crate::input::{Facing, GameInput};
 use crate::world::World;
 
@@ -99,12 +99,7 @@ impl Archie {
 
     // ---------- Simulation ----------
 
-    pub fn tick(
-        &mut self,
-        dt: f32,
-        input: GameInput,
-        world: &mut World,
-    ) -> Option<BreakResult> {
+    pub fn tick(&mut self, dt: f32, input: GameInput, world: &mut World) -> Option<BreakResult> {
         self.coyote.tick(dt);
         self.jump_buffer.tick(dt);
 
@@ -197,12 +192,7 @@ impl Archie {
         !world.is_solid(front_col, body_top_row - 1)
     }
 
-    pub fn mine(
-        &mut self,
-        dir: Facing,
-        dt: f32,
-        world: &mut World,
-    ) -> Option<BreakResult> {
+    pub fn mine(&mut self, dir: Facing, dt: f32, world: &mut World) -> Option<BreakResult> {
         let (col, row) = self.tile_in_direction(dir);
         self.mine_tile_at(col, row, dt, world)
     }
@@ -242,7 +232,11 @@ impl Archie {
 
         let broken_kind = if let Some(tile) = world.tile_mut(col, row) {
             tile.damage(dps * dt);
-            if tile.is_broken() { Some(tile.kind) } else { None }
+            if tile.is_broken() {
+                Some(tile.kind)
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -271,8 +265,7 @@ impl Archie {
         // The `- 0.01` puts the sample *inside* the row the feet
         // land in, not on the boundary with the row above.
         let coll_row = World::pixel_to_row(feet_y - 0.01);
-        let collided = (col_left..=col_right)
-            .any(|col| world.is_solid(col, coll_row));
+        let collided = (col_left..=col_right).any(|col| world.is_solid(col, coll_row));
 
         // Ground snap: even if no new row was entered, if the row
         // directly under the feet is solid, we're supported. This
@@ -280,8 +273,7 @@ impl Archie {
         // vy never crosses the tile boundary, but the feet are
         // touching the tile top.
         let snap_row = World::pixel_to_row(feet_y);
-        let snapped = (col_left..=col_right)
-            .any(|col| world.is_solid(col, snap_row));
+        let snapped = (col_left..=col_right).any(|col| world.is_solid(col, snap_row));
 
         let landed_row = if collided {
             Some(coll_row)

@@ -7,16 +7,16 @@ use macroquad::prelude::*;
 use crate::atlas::Atlas;
 use crate::audio::MusicPlayer;
 use crate::background::Background;
-use crate::components::{TileKind, TILE_SIZE};
+use crate::components::{TILE_SIZE, TileKind};
 use crate::config::GameContext;
 use crate::drop::Drop;
 use crate::hq::HqState;
 use crate::input::GameInput;
-use crate::levelgen::{generate, LevelKind};
-use crate::player::{Archie, ARCHIE_HEIGHT};
+use crate::levelgen::{LevelKind, generate};
+use crate::player::{ARCHIE_HEIGHT, Archie};
 use crate::progress::Progress;
 use crate::sprites::archie::ArchieSprites;
-use crate::truck::{Truck, TRUCK_HEIGHT};
+use crate::truck::{TRUCK_HEIGHT, Truck};
 use crate::world::World;
 
 const LEVEL_COMPLETE_DELAY: f32 = 1.5;
@@ -126,7 +126,8 @@ impl AppState {
         let seed = self.progress.level_seed(kind.id(), fallback_seed);
         let mut game = Game::with_seed(seed, kind);
         game.apply_upgrades(&self.progress);
-        game.world.apply_delta(&self.progress.level_delta(kind.id()));
+        game.world
+            .apply_delta(&self.progress.level_delta(kind.id()));
         self.game = Some(game);
         self.current_level = kind;
     }
@@ -336,7 +337,13 @@ impl AppState {
 
         let title = "BORE INC.";
         let d = measure_text(title, None, 56, 1.0);
-        draw_text(title, vw * 0.5 - d.width * 0.5, vh * 0.42, 56.0, ctx.colors.gold);
+        draw_text(
+            title,
+            vw * 0.5 - d.width * 0.5,
+            vh * 0.42,
+            56.0,
+            ctx.colors.gold,
+        );
 
         let prompt = "Click anywhere to begin";
         let d = measure_text(prompt, None, 20, 1.0);
@@ -346,7 +353,12 @@ impl AppState {
             vw * 0.5 - d.width * 0.5,
             vh * 0.72,
             20.0,
-            Color::new(ctx.colors.gold.r, ctx.colors.gold.g, ctx.colors.gold.b, pulse),
+            Color::new(
+                ctx.colors.gold.r,
+                ctx.colors.gold.g,
+                ctx.colors.gold.b,
+                pulse,
+            ),
         );
     }
 
@@ -358,11 +370,23 @@ impl AppState {
 
         let title = "BORE INC.";
         let d = measure_text(title, None, 72, 1.0);
-        draw_text(title, vw * 0.5 - d.width * 0.5, vh * 0.36, 72.0, ctx.colors.gold);
+        draw_text(
+            title,
+            vw * 0.5 - d.width * 0.5,
+            vh * 0.36,
+            72.0,
+            ctx.colors.gold,
+        );
 
         let sub = "An incremental mining game";
         let d = measure_text(sub, None, 20, 1.0);
-        draw_text(sub, vw * 0.5 - d.width * 0.5, vh * 0.36 + 38.0, 20.0, ctx.colors.text_dim);
+        draw_text(
+            sub,
+            vw * 0.5 - d.width * 0.5,
+            vh * 0.36 + 38.0,
+            20.0,
+            ctx.colors.text_dim,
+        );
 
         let prompt = "Press any movement key to begin";
         let d = measure_text(prompt, None, 18, 1.0);
@@ -372,7 +396,12 @@ impl AppState {
             vw * 0.5 - d.width * 0.5,
             vh * 0.72,
             18.0,
-            Color::new(ctx.colors.text.r, ctx.colors.text.g, ctx.colors.text.b, pulse),
+            Color::new(
+                ctx.colors.text.r,
+                ctx.colors.text.g,
+                ctx.colors.text.b,
+                pulse,
+            ),
         );
     }
 
@@ -383,18 +412,42 @@ impl AppState {
         draw_rectangle(0.0, 0.0, vw, vh * 0.65, ctx.colors.bg_top);
 
         let d = measure_text(big, None, 64, 1.0);
-        draw_text(big, vw * 0.5 - d.width * 0.5, vh * 0.44, 64.0, ctx.colors.gold);
+        draw_text(
+            big,
+            vw * 0.5 - d.width * 0.5,
+            vh * 0.44,
+            64.0,
+            ctx.colors.gold,
+        );
 
         let d = measure_text(small, None, 18, 1.0);
-        draw_text(small, vw * 0.5 - d.width * 0.5, vh * 0.44 + 34.0, 18.0, ctx.colors.text_dim);
+        draw_text(
+            small,
+            vw * 0.5 - d.width * 0.5,
+            vh * 0.44 + 34.0,
+            18.0,
+            ctx.colors.text_dim,
+        );
 
         let meta = format!("tile = {TILE_SIZE}px");
         let d = measure_text(&meta, None, 12, 1.0);
-        draw_text(&meta, vw * 0.5 - d.width * 0.5, vh * 0.44 + 64.0, 12.0, ctx.colors.text_dim);
+        draw_text(
+            &meta,
+            vw * 0.5 - d.width * 0.5,
+            vh * 0.44 + 64.0,
+            12.0,
+            ctx.colors.text_dim,
+        );
 
         let hint = "[Esc] Title";
         let d = measure_text(hint, None, 14, 1.0);
-        draw_text(hint, vw * 0.5 - d.width * 0.5, vh - 32.0, 14.0, ctx.colors.text_dim);
+        draw_text(
+            hint,
+            vw * 0.5 - d.width * 0.5,
+            vh - 32.0,
+            14.0,
+            ctx.colors.text_dim,
+        );
     }
 
     fn draw_game(&self, ctx: &GameContext) {
@@ -670,7 +723,8 @@ impl Game {
         };
         let x = b.col as f32 * TILE_SIZE + TILE_SIZE * 0.5;
         let y = b.row as f32 * TILE_SIZE + TILE_SIZE * 0.5;
-        self.drops.push(Drop::new(glam::Vec2::new(x, y), resource, 1));
+        self.drops
+            .push(Drop::new(glam::Vec2::new(x, y), resource, 1));
     }
 
     fn tick_drops(&mut self, dt: f32) {
@@ -766,8 +820,8 @@ impl Game {
             ctx.colors.bg_bottom,
         );
 
-        let horizon_screen_y = screen_oy
-            + (self.world.surface_row as f32 * TILE_SIZE - cam_y) * scale;
+        let horizon_screen_y =
+            screen_oy + (self.world.surface_row as f32 * TILE_SIZE - cam_y) * scale;
 
         background.draw(cam_x, horizon_screen_y, screen_ox, vw, scale);
 
@@ -775,48 +829,45 @@ impl Game {
         let sy = |wy: f32| -> f32 { (screen_oy + (wy - cam_y) * scale).floor() };
 
         let col_min = ((cam_x / TILE_SIZE).floor() as i32 - 2).max(0);
-        let col_max = (((cam_x + VIRTUAL_W) / TILE_SIZE).ceil() as i32 + 2)
-            .min(self.world.width() as i32);
+        let col_max =
+            (((cam_x + VIRTUAL_W) / TILE_SIZE).ceil() as i32 + 2).min(self.world.width() as i32);
         let row_min = ((cam_y / TILE_SIZE).floor() as i32 - 2).max(0);
-        let row_max = (((cam_y + VIRTUAL_H) / TILE_SIZE).ceil() as i32 + 2)
-            .min(self.world.height() as i32);
+        let row_max =
+            (((cam_y + VIRTUAL_H) / TILE_SIZE).ceil() as i32 + 2).min(self.world.height() as i32);
 
         for row in row_min..row_max {
             for col in col_min..col_max {
-                let Ok(cu) = usize::try_from(col) else { continue };
-                let Ok(ru) = usize::try_from(row) else { continue };
-                let Some(tile) = self.world.tile(cu, ru) else { continue };
+                let Ok(cu) = usize::try_from(col) else {
+                    continue;
+                };
+                let Ok(ru) = usize::try_from(row) else {
+                    continue;
+                };
+                let Some(tile) = self.world.tile(cu, ru) else {
+                    continue;
+                };
                 let (r, g, b) = tile.kind.color();
-                let base =
-                    Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0);
+                let base = Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0);
                 let x = sx(col as f32 * TILE_SIZE);
                 let y = sy(row as f32 * TILE_SIZE);
                 let s = TILE_SIZE * scale;
                 draw_rectangle(x, y, s, s, base);
 
                 // Grass tufts on exposed dirt tops.
-                if tile.kind == TileKind::Dirt
-                    && ru > 0
-                    && self.world.tile(cu, ru - 1).is_none()
-                {
-                    draw_grass_tufts(
-                        x,
-                        y,
-                        s,
-                        cu,
-                        ru,
-                        self.world.seed,
-                        ctx.colors.grass,
-                        scale,
-                    );
+                if tile.kind == TileKind::Dirt && ru > 0 && self.world.tile(cu, ru - 1).is_none() {
+                    draw_grass_tufts(x, y, s, cu, ru, self.world.seed, ctx.colors.grass, scale);
                 }
 
                 // Damage chips + crack overlay, only for damaged tiles.
                 let stage = tile.crack_stage();
                 if stage > 0 {
                     draw_tile_damage_chips(
-                        x, y, s,
-                        cu, ru, self.world.seed,
+                        x,
+                        y,
+                        s,
+                        cu,
+                        ru,
+                        self.world.seed,
                         stage,
                         (r, g, b),
                         scale,
@@ -827,11 +878,7 @@ impl Game {
 
                 // Corner chamfers: soften exposed corners so the
                 // terrain reads as slopes, not staircase.
-                draw_corner_chamfers(
-                    x, y, s, scale,
-                    &self.world, cu, ru,
-                    ctx.colors.bg_bottom,
-                );
+                draw_corner_chamfers(x, y, s, scale, &self.world, cu, ru, ctx.colors.bg_bottom);
             }
         }
 
@@ -912,13 +959,7 @@ impl Game {
                     bar_h,
                     Color::new(0.0, 0.0, 0.0, 0.55),
                 );
-                draw_rectangle(
-                    tx + 2.0 * scale,
-                    bar_y,
-                    bar_w,
-                    bar_h,
-                    ctx.colors.gold,
-                );
+                draw_rectangle(tx + 2.0 * scale, bar_y, bar_w, bar_h, ctx.colors.gold);
             }
 
             // Directional blocked arrow.
@@ -951,8 +992,16 @@ impl Game {
             crate::hud::draw_bag_readout(&self.archie.bag, center_x, top_y, ctx);
         }
 
-        let state = if self.archie.on_ground { "ground" } else { "air" };
-        let mode = if self.archie_in_truck { "DRIVING" } else { "on foot" };
+        let state = if self.archie.on_ground {
+            "ground"
+        } else {
+            "air"
+        };
+        let mode = if self.archie_in_truck {
+            "DRIVING"
+        } else {
+            "on foot"
+        };
         let line = format!(
             "pos ({:.0}, {:.0})  vy {:+.0}  {}  {}  drops {}  bag {}/{}  truck {}/{}",
             self.archie.pos.x,
@@ -1006,7 +1055,11 @@ impl Default for Game {
 }
 
 fn archie_frame_name(game: &Game, sprites: &ArchieSprites) -> String {
-    let dir = if game.archie.facing.is_left() { "L" } else { "R" };
+    let dir = if game.archie.facing.is_left() {
+        "L"
+    } else {
+        "R"
+    };
 
     if game.mining_this_frame {
         let n = sprites.mine_r.len().max(1);

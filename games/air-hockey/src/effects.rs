@@ -140,8 +140,7 @@ impl Particles {
             let angle = rng.next_f32_range(0.0, std::f32::consts::TAU);
             let s = rng.next_f32_range(0.5 * speed, speed);
             let vel = Vec2::new(angle.cos(), angle.sin()) * s;
-            self.items
-                .push(Particle::new(origin, vel, Self::LIFETIME));
+            self.items.push(Particle::new(origin, vel, Self::LIFETIME));
         }
     }
 

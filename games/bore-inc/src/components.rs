@@ -131,7 +131,10 @@ pub struct Tile {
 
 impl Tile {
     pub fn new(kind: TileKind) -> Self {
-        Self { kind, hp: kind.hp() }
+        Self {
+            kind,
+            hp: kind.hp(),
+        }
     }
 
     pub fn is_broken(&self) -> bool {

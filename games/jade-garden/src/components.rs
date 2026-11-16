@@ -172,8 +172,7 @@ mod tests {
 
     #[test]
     fn jade_shapes_are_distinct() {
-        let mut shapes: Vec<JadeShape> =
-            Jade::ALL.iter().map(|j| j.shape()).collect();
+        let mut shapes: Vec<JadeShape> = Jade::ALL.iter().map(|j| j.shape()).collect();
         shapes.sort_by_key(|s| *s as u8);
         shapes.dedup();
         assert_eq!(shapes.len(), JADE_TYPES, "every jade needs a unique shape");

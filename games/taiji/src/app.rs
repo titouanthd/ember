@@ -1,8 +1,8 @@
 // games/taiji/src/app.rs
-use macroquad::prelude::*;
-use ember_stdlib::input::Input;
-use ember_stdlib::graphics::text::draw_centered;
 use crate::config::GameContext;
+use ember_stdlib::graphics::text::draw_centered;
+use ember_stdlib::input::Input;
+use macroquad::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppState {
@@ -18,7 +18,8 @@ pub struct App {
     pub score_ai: i32,
 }
 
-impl Default for App {         // ← new impl block
+impl Default for App {
+    // ← new impl block
     fn default() -> Self {
         Self::new()
     }
@@ -81,7 +82,11 @@ impl App {
                 draw_centered("Press ESC to resume", cx, 320.0, 30, DARKGRAY);
             }
             AppState::GameOver => {
-                let winner = if self.score_player > self.score_ai { "YANG WINS" } else { "YIN WINS" };
+                let winner = if self.score_player > self.score_ai {
+                    "YANG WINS"
+                } else {
+                    "YIN WINS"
+                };
                 draw_centered(winner, cx, 250.0, 60, BLACK);
                 draw_centered("Press SPACE to return", cx, 320.0, 30, DARKGRAY);
             }

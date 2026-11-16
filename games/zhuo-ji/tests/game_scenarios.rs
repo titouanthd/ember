@@ -11,10 +11,18 @@ fn ctx() -> GameContext {
 fn empty_input() -> Input {
     Input {
         mouse_pos: Vec2::ZERO,
-        mouse_left_pressed: false, mouse_left_down: false, mouse_left_released: false,
-        mouse_right_pressed: false, mouse_right_down: false, mouse_right_released: false,
-        mouse_middle_pressed: false, mouse_middle_down: false, mouse_middle_released: false,
-        keys_pressed: Vec::new(), keys_down: Vec::new(), keys_released: Vec::new(),
+        mouse_left_pressed: false,
+        mouse_left_down: false,
+        mouse_left_released: false,
+        mouse_right_pressed: false,
+        mouse_right_down: false,
+        mouse_right_released: false,
+        mouse_middle_pressed: false,
+        mouse_middle_down: false,
+        mouse_middle_released: false,
+        keys_pressed: Vec::new(),
+        keys_down: Vec::new(),
+        keys_released: Vec::new(),
     }
 }
 
@@ -31,7 +39,10 @@ fn advance_to_human_discard(g: &mut Game, c: &GameContext, max_frames: usize) {
             g.phase,
             Phase::Hu { .. } | Phase::HuangZhuang | Phase::MatchOver { .. }
         ) {
-            panic!("advance_to_human_discard: game ended, phase = {:?}", g.phase);
+            panic!(
+                "advance_to_human_discard: game ended, phase = {:?}",
+                g.phase
+            );
         }
         g.update(&empty_input(), c, 1.0 / 60.0);
     }
@@ -120,21 +131,32 @@ fn test_full_turn_with_claims_does_not_deadlock() {
         let mut reached = false;
         for _ in 0..4000 {
             match g.phase {
-                Phase::AwaitingDiscard { player: 0 } => { reached = true; break; }
+                Phase::AwaitingDiscard { player: 0 } => {
+                    reached = true;
+                    break;
+                }
                 Phase::Hu { .. } | Phase::HuangZhuang | Phase::MatchOver { .. } => break,
                 _ => {}
             }
             g.update(&empty_input(), &c, 1.0 / 60.0);
         }
-        if !reached { break; }
+        if !reached {
+            break;
+        }
         g.human_discard(0, &c).unwrap();
         for _ in 0..240 {
-            if matches!(g.phase, Phase::Hu { .. } | Phase::HuangZhuang | Phase::MatchOver { .. }) {
+            if matches!(
+                g.phase,
+                Phase::Hu { .. } | Phase::HuangZhuang | Phase::MatchOver { .. }
+            ) {
                 break;
             }
             g.update(&empty_input(), &c, 1.0 / 60.0);
         }
-        if matches!(g.phase, Phase::Hu { .. } | Phase::HuangZhuang | Phase::MatchOver { .. }) {
+        if matches!(
+            g.phase,
+            Phase::Hu { .. } | Phase::HuangZhuang | Phase::MatchOver { .. }
+        ) {
             break;
         }
     }
@@ -147,7 +169,9 @@ fn test_wall_exhaustion_terminates_game() {
     for _ in 0..5000 {
         match g.phase {
             Phase::Hu { .. } | Phase::HuangZhuang | Phase::MatchOver { .. } => return,
-            Phase::AwaitingDiscard { player: 0 } => { g.human_discard(0, &c); }
+            Phase::AwaitingDiscard { player: 0 } => {
+                g.human_discard(0, &c);
+            }
             _ => {}
         }
         g.update(&empty_input(), &c, 1.0 / 60.0);
@@ -166,7 +190,9 @@ fn test_scores_are_zero_sum_after_a_hand() {
                 assert_eq!(sum, 0);
                 return;
             }
-            Phase::AwaitingDiscard { player: 0 } => { g.human_discard(0, &c); }
+            Phase::AwaitingDiscard { player: 0 } => {
+                g.human_discard(0, &c);
+            }
             _ => {}
         }
         g.update(&empty_input(), &c, 1.0 / 60.0);

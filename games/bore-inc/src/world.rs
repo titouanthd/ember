@@ -13,7 +13,7 @@
 
 use ember_stdlib::grid::Grid;
 
-use crate::components::{Tile, TileKind, TILE_SIZE};
+use crate::components::{TILE_SIZE, Tile, TileKind};
 
 /// One recorded cell change: `(col, row, new_kind)`. `None` = cell
 /// mined out. `TileKind` is stored (not full `Tile`) because a

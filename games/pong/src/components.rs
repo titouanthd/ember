@@ -206,7 +206,10 @@ mod tests {
         let mut paddle = Paddle::new(0.0, 0.0, 10.0, 50.0, 200.0, WHITE);
         paddle.reset_velocity();
         paddle.move_up(0.1);
-        assert_eq!(paddle.velocity_y, 0.0, "paddle pinned at wall has no velocity");
+        assert_eq!(
+            paddle.velocity_y, 0.0,
+            "paddle pinned at wall has no velocity"
+        );
     }
 
     #[test]

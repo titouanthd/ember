@@ -3,7 +3,8 @@
 use glam::Vec2;
 use macroquad::prelude::*;
 
-use jade_garden::audio::{default_playlist, MusicPlayer};
+use jade_garden::Easing;
+use jade_garden::audio::{MusicPlayer, default_playlist};
 use jade_garden::components::{GRID_H, GRID_W};
 use jade_garden::config::GameContext;
 use jade_garden::fonts::PoemFont;
@@ -13,14 +14,13 @@ use jade_garden::level;
 use jade_garden::menu::{Menu, MenuAction};
 use jade_garden::poem;
 use jade_garden::progress;
-use jade_garden::scroll_painting::{self, DRIFT_SPEED};
 use jade_garden::scoring::compute_stars;
+use jade_garden::scroll_painting::{self, DRIFT_SPEED};
 use jade_garden::systems::{Game, Phase};
 use jade_garden::tile_render::{
-    draw_selection_corners, draw_tile, draw_tile_glow, jade_shape_params,
-    TILE_GAP, TILE_SIZE, TILE_STRIDE,
+    TILE_GAP, TILE_SIZE, TILE_STRIDE, draw_selection_corners, draw_tile, draw_tile_glow,
+    jade_shape_params,
 };
-use jade_garden::Easing;
 use jade_garden::util::fmt_time;
 
 const EPILOGUE_FADE_IN: f32 = 1.2;
@@ -32,8 +32,7 @@ const EPILOGUE_PROSE_DELAY: f32 = 1.8;
 const HALLOWEEN_FLASH_WHITE_END: f32 = 0.15;
 const HALLOWEEN_FLASH_RED_END: f32 = 0.35;
 const HALLOWEEN_ZOOM_DURATION: f32 = 5.0;
-const HALLOWEEN_ZOOM_END: f32 =
-    HALLOWEEN_FLASH_RED_END + HALLOWEEN_ZOOM_DURATION;
+const HALLOWEEN_ZOOM_END: f32 = HALLOWEEN_FLASH_RED_END + HALLOWEEN_ZOOM_DURATION;
 const HALLOWEEN_FADE_END: f32 = HALLOWEEN_ZOOM_END + 0.4;
 const HALLOWEEN_MESSAGE_START: f32 = HALLOWEEN_FADE_END;
 
@@ -70,21 +69,11 @@ fn window_conf() -> Conf {
 #[cfg(not(target_arch = "wasm32"))]
 fn load_window_icon() -> Option<macroquad::miniquad::conf::Icon> {
     let bytes = include_bytes!("../assets/icon-256.png");
-    let img = image::load_from_memory_with_format(
-        bytes,
-        image::ImageFormat::Png,
-    )
-    .ok()?;
+    let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Png).ok()?;
 
-    let small = image::imageops::resize(
-        &img, 16, 16, image::imageops::FilterType::Lanczos3,
-    );
-    let medium = image::imageops::resize(
-        &img, 32, 32, image::imageops::FilterType::Lanczos3,
-    );
-    let big = image::imageops::resize(
-        &img, 64, 64, image::imageops::FilterType::Lanczos3,
-    );
+    let small = image::imageops::resize(&img, 16, 16, image::imageops::FilterType::Lanczos3);
+    let medium = image::imageops::resize(&img, 32, 32, image::imageops::FilterType::Lanczos3);
+    let big = image::imageops::resize(&img, 64, 64, image::imageops::FilterType::Lanczos3);
 
     let mut icon = macroquad::miniquad::conf::Icon {
         small: [0; 16 * 16 * 4],
@@ -180,8 +169,7 @@ impl AppState {
 
     fn begin_level(&mut self, idx: usize) {
         let level = self.menu.levels[idx].clone();
-        let already_completed =
-            self.menu.progress.level_completed(&level.id);
+        let already_completed = self.menu.progress.level_completed(&level.id);
         let stop_on_objective = !already_completed;
         self.game = Some(Game::with_level_and_progress(level, stop_on_objective));
         self.screen = AppScreen::Game(idx);
@@ -463,9 +451,8 @@ async fn main() {
                 AppScreen::Intro(idx) => {
                     state.intro_elapsed += dt;
                     let ready = state.intro_elapsed >= INTRO_MIN_DURATION;
-                    let advance = click
-                        || is_key_pressed(KeyCode::Enter)
-                        || is_key_pressed(KeyCode::Space);
+                    let advance =
+                        click || is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space);
 
                     if is_key_pressed(KeyCode::Escape) {
                         state.back_to_menu();
@@ -493,9 +480,7 @@ async fn main() {
                         // ─── Final phase: silence, then jumpscare ───
                         state.halloween_final_elapsed += dt;
 
-                        if !state.halloween_scream_played
-                            && state.halloween_final_elapsed >= 0.7
-                        {
+                        if !state.halloween_scream_played && state.halloween_final_elapsed >= 0.7 {
                             jade_garden::audio::play_scream();
                             state.halloween_scream_played = true;
                         }
@@ -506,10 +491,8 @@ async fn main() {
                     } else {
                         // ─── Message phase ───
                         let escape = is_key_pressed(KeyCode::Escape);
-                        let advance =
-                            state.halloween_elapsed >= HALLOWEEN_MESSAGE_START
-                                && (is_key_pressed(KeyCode::Enter)
-                                    || is_key_pressed(KeyCode::Space));
+                        let advance = state.halloween_elapsed >= HALLOWEEN_MESSAGE_START
+                            && (is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space));
 
                         if escape {
                             state.end_halloween();
@@ -539,9 +522,7 @@ async fn main() {
                         }
                         Phase::Won => handle_won(&mut state, idx, dt),
                         Phase::Lost => {
-                            if is_key_pressed(KeyCode::Enter)
-                                || is_key_pressed(KeyCode::Escape)
-                            {
+                            if is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Escape) {
                                 state.back_to_menu();
                             } else if is_key_pressed(KeyCode::R) {
                                 state.start_level(idx);
@@ -717,8 +698,7 @@ fn draw_epilogue(_ctx: &GameContext, state: &AppState) {
     let poem_x = vw * 0.5 - 5.0 * char_size * 0.5;
     let poem_y = vh * 0.18;
 
-    let last_char_time =
-        19.0 * EPILOGUE_CHAR_DELAY + 3.0 * EPILOGUE_LINE_PAUSE;
+    let last_char_time = 19.0 * EPILOGUE_CHAR_DELAY + 3.0 * EPILOGUE_LINE_PAUSE;
     let all_revealed_at = last_char_time + EPILOGUE_CHAR_FADE;
 
     let pulse_start = all_revealed_at + 0.6;
@@ -728,8 +708,7 @@ fn draw_epilogue(_ctx: &GameContext, state: &AppState) {
         let line = (i / 5) as usize;
         let col = (i % 5) as usize;
 
-        let char_start =
-            i as f32 * EPILOGUE_CHAR_DELAY + line as f32 * EPILOGUE_LINE_PAUSE;
+        let char_start = i as f32 * EPILOGUE_CHAR_DELAY + line as f32 * EPILOGUE_LINE_PAUSE;
         let local = ((t - char_start) / EPILOGUE_CHAR_FADE).clamp(0.0, 1.0);
         let alpha = Easing::EaseOut.apply(local);
         if alpha <= 0.01 {
@@ -781,8 +760,7 @@ fn draw_epilogue(_ctx: &GameContext, state: &AppState) {
     }
 
     let prose_start = all_revealed_at + EPILOGUE_PROSE_DELAY;
-    let prose_alpha = Easing::EaseOut
-        .apply(((t - prose_start) / 0.8).clamp(0.0, 1.0));
+    let prose_alpha = Easing::EaseOut.apply(((t - prose_start) / 0.8).clamp(0.0, 1.0));
 
     if prose_alpha > 0.01 {
         let footer_y = poem_y + 4.0 * line_spacing + 48.0;
@@ -828,8 +806,7 @@ fn draw_epilogue(_ctx: &GameContext, state: &AppState) {
     }
 
     let prompt_start = prose_start + 4.0 * 0.45 + 1.8;
-    let prompt_alpha = Easing::EaseOut
-        .apply(((t - prompt_start) / 0.8).clamp(0.0, 1.0));
+    let prompt_alpha = Easing::EaseOut.apply(((t - prompt_start) / 0.8).clamp(0.0, 1.0));
 
     if prompt_alpha > 0.01 {
         let hint = "[Enter] return to menu";
@@ -883,15 +860,7 @@ fn draw_halloween(state: &AppState) {
             let sx = (rand_shake_seed(ft_scare) - 0.5) * shake;
             let sy = (rand_shake_seed(ft_scare + 7.3) - 0.5) * shake;
 
-            draw_alien(
-                vw * 0.5 + sx,
-                vh * 0.5 + sy,
-                7.0,
-                1.0,
-                1.0,
-                vw,
-                vh,
-            );
+            draw_alien(vw * 0.5 + sx, vh * 0.5 + sy, 7.0, 1.0, 1.0, vw, vh);
         }
         return;
     }
@@ -905,16 +874,15 @@ fn draw_halloween(state: &AppState) {
         return;
     }
     if t < HALLOWEEN_FLASH_RED_END {
-        let tt = (t - HALLOWEEN_FLASH_WHITE_END)
-            / (HALLOWEEN_FLASH_RED_END - HALLOWEEN_FLASH_WHITE_END);
+        let tt =
+            (t - HALLOWEEN_FLASH_WHITE_END) / (HALLOWEEN_FLASH_RED_END - HALLOWEEN_FLASH_WHITE_END);
         let alpha = 1.0 - tt;
         draw_rectangle(0.0, 0.0, vw, vh, Color::new(0.55, 0.05, 0.02, alpha));
         return;
     }
 
     // Zoom phase.
-    let zoom_t =
-        ((t - HALLOWEEN_FLASH_RED_END) / HALLOWEEN_ZOOM_DURATION).clamp(0.0, 1.0);
+    let zoom_t = ((t - HALLOWEEN_FLASH_RED_END) / HALLOWEEN_ZOOM_DURATION).clamp(0.0, 1.0);
     let ease = 1.0 - (1.0 - zoom_t).powi(2);
     let zoom = 0.15 + ease * 3.35;
 
@@ -1060,8 +1028,7 @@ fn draw_egg(cx: f32, cy: f32, w: f32, h: f32, color: Color) {
         let t = i as f32 / (STRIPS - 1) as f32;
         let y_norm = t * 2.0 - 1.0;
         let egg_factor = 1.0 + 0.18 * y_norm;
-        let half_w =
-            (1.0 - y_norm * y_norm).max(0.0).sqrt() * w * 0.5 * egg_factor;
+        let half_w = (1.0 - y_norm * y_norm).max(0.0).sqrt() * w * 0.5 * egg_factor;
         draw_rectangle(
             cx - half_w,
             top_y + i as f32 * strip_h,
@@ -1072,14 +1039,7 @@ fn draw_egg(cx: f32, cy: f32, w: f32, h: f32, color: Color) {
     }
 }
 
-fn draw_slanted_almond(
-    cx: f32,
-    cy: f32,
-    w: f32,
-    h: f32,
-    tilt: f32,
-    color: Color,
-) {
+fn draw_slanted_almond(cx: f32, cy: f32, w: f32, h: f32, tilt: f32, color: Color) {
     const STRIPS: usize = 40;
     let strip_h = h / STRIPS as f32;
     let top_y = cy - h * 0.5;
@@ -1122,13 +1082,7 @@ fn draw_tapered_column(
     }
 }
 
-fn draw_forehead_veins(
-    cx: f32,
-    top_cy: f32,
-    head_w: f32,
-    head_h: f32,
-    color: Color,
-) {
+fn draw_forehead_veins(cx: f32, top_cy: f32, head_w: f32, head_h: f32, color: Color) {
     for i in 0..3 {
         let offset = (i as f32 - 1.0) * 0.18;
         let start_x = cx + head_w * offset * 0.6;
@@ -1137,8 +1091,7 @@ fn draw_forehead_veins(
         let mut prev = (start_x, start_y);
         for s in 1..=SEGS {
             let t = s as f32 / SEGS as f32;
-            let x =
-                start_x + (t * 8.0 + i as f32 * 2.0).sin() * head_w * 0.05;
+            let x = start_x + (t * 8.0 + i as f32 * 2.0).sin() * head_w * 0.05;
             let y = start_y + t * head_h * 0.22;
             draw_line(prev.0, prev.1, x, y, 1.2, color);
             prev = (x, y);
@@ -1163,9 +1116,7 @@ fn draw_halloween_message(vw: f32, vh: f32, t: f32) {
     let y_ember = base + 278.0;
     let y_year = base + 306.0;
 
-    let fade = |start: f32| -> f32 {
-        Easing::EaseOut.apply(((t - start) / 0.9).clamp(0.0, 1.0))
-    };
+    let fade = |start: f32| -> f32 { Easing::EaseOut.apply(((t - start) / 0.9).clamp(0.0, 1.0)) };
 
     let centered = |text: &str, y: f32, size: f32, color: Color, alpha: f32| {
         if alpha <= 0.01 {
@@ -1344,8 +1295,7 @@ fn draw_wooden_board(
     for i in 0..grain_lines {
         let t = (i as f32 + 0.5) / grain_lines as f32;
         let gy_line = wy + 6.0 + t * (wh - 12.0);
-        let wave =
-            ((gy_line * 0.09).sin() + (gy_line * 0.21).cos() * 0.5) * 3.5;
+        let wave = ((gy_line * 0.09).sin() + (gy_line * 0.21).cos() * 0.5) * 3.5;
         let a = 0.05 + 0.04 * (gy_line * 0.13).sin().abs();
         draw_line(
             wx + 6.0,
@@ -1367,12 +1317,7 @@ fn draw_wooden_board(
             wx + ww - 4.0,
             gy_line + wave,
             1.0,
-            Color::new(
-                wood_highlight.r,
-                wood_highlight.g,
-                wood_highlight.b,
-                0.18,
-            ),
+            Color::new(wood_highlight.r, wood_highlight.g, wood_highlight.b, 0.18),
         );
     }
 
@@ -1646,13 +1591,7 @@ fn draw_intro(ctx: &GameContext, state: &AppState, level_idx: usize) {
         "…"
     };
     let d = measure_text(hint, None, 16, 1.0);
-    draw_text(
-        hint,
-        vw * 0.5 - d.width * 0.5,
-        vh * 0.88,
-        16.0,
-        dim,
-    );
+    draw_text(hint, vw * 0.5 - d.width * 0.5, vh * 0.88, 16.0, dim);
 }
 
 fn draw_won_overlay(ctx: &GameContext, state: &AppState, game: &Game) {
@@ -1683,9 +1622,17 @@ fn draw_won_overlay(ctx: &GameContext, state: &AppState, game: &Game) {
     );
 
     let run_time = state.win_reveal.as_ref().map(|r| r.run_time).unwrap_or(0.0);
-    let new_best = state.win_reveal.as_ref().map(|r| r.new_best).unwrap_or(false);
+    let new_best = state
+        .win_reveal
+        .as_ref()
+        .map(|r| r.new_best)
+        .unwrap_or(false);
     let score_line = if new_best {
-        format!("Score {}   ·   {}   ·   NEW BEST", game.score, fmt_time(run_time))
+        format!(
+            "Score {}   ·   {}   ·   NEW BEST",
+            game.score,
+            fmt_time(run_time)
+        )
     } else {
         format!("Score {}   ·   {}", game.score, fmt_time(run_time))
     };
@@ -1695,7 +1642,11 @@ fn draw_won_overlay(ctx: &GameContext, state: &AppState, game: &Game) {
         vw * 0.5 - d.width * 0.5,
         vh * 0.11 + 30.0,
         18.0,
-        if new_best { ctx.colors.gold } else { poem_light },
+        if new_best {
+            ctx.colors.gold
+        } else {
+            poem_light
+        },
     );
 
     let char_size = 48.0;
@@ -1730,15 +1681,13 @@ fn draw_won_overlay(ctx: &GameContext, state: &AppState, game: &Game) {
                 }
             } else {
                 let offset = (global - from) as f32;
-                let local_t = ((elapsed - offset * CHAR_REVEAL_DURATION)
-                    / CHAR_REVEAL_DURATION)
+                let local_t = ((elapsed - offset * CHAR_REVEAL_DURATION) / CHAR_REVEAL_DURATION)
                     .clamp(0.0, 1.0);
                 let alpha = Easing::EaseOut.apply(local_t);
                 if alpha > 0.01
                     && let Some(c) = poem::char_at(global)
                 {
-                    let color =
-                        Color::new(poem_gold.r, poem_gold.g, poem_gold.b, alpha);
+                    let color = Color::new(poem_gold.r, poem_gold.g, poem_gold.b, alpha);
                     state.poem_font.draw(
                         &c.to_string(),
                         x + char_size * 0.08,
@@ -1753,9 +1702,8 @@ fn draw_won_overlay(ctx: &GameContext, state: &AppState, game: &Game) {
 
     for i in 0..(to - from) {
         let global = from + i;
-        let local_t = ((elapsed - i as f32 * CHAR_REVEAL_DURATION)
-            / CHAR_REVEAL_DURATION)
-            .clamp(0.0, 1.0);
+        let local_t =
+            ((elapsed - i as f32 * CHAR_REVEAL_DURATION) / CHAR_REVEAL_DURATION).clamp(0.0, 1.0);
         let alpha = Easing::EaseOut.apply(local_t);
         if alpha <= 0.01 {
             continue;
@@ -1781,20 +1729,12 @@ fn draw_won_overlay(ctx: &GameContext, state: &AppState, game: &Game) {
 
     let footer_y = poem_y + 4.0 * line_spacing + 30.0;
 
-    state.poem_font.draw_centered(
-        poem::POEM_TITLE,
-        vw * 0.5,
-        footer_y,
-        16.0,
-        poem_light,
-    );
-    state.poem_font.draw_centered(
-        poem::POEM_AUTHOR,
-        vw * 0.5,
-        footer_y + 22.0,
-        13.0,
-        dim,
-    );
+    state
+        .poem_font
+        .draw_centered(poem::POEM_TITLE, vw * 0.5, footer_y, 16.0, poem_light);
+    state
+        .poem_font
+        .draw_centered(poem::POEM_AUTHOR, vw * 0.5, footer_y + 22.0, 13.0, dim);
 
     let progress = format!("{} / {}", to, poem::TOTAL_CHARS);
     let d = measure_text(&progress, None, 22, 1.0);
@@ -1811,13 +1751,7 @@ fn draw_won_overlay(ctx: &GameContext, state: &AppState, game: &Game) {
     if elapsed >= reveal_done_at {
         let hint = "[Enter] continue    [R] replay    [Esc] menu";
         let d = measure_text(hint, None, 16, 1.0);
-        draw_text(
-            hint,
-            vw * 0.5 - d.width * 0.5,
-            vh - 36.0,
-            16.0,
-            dim_more,
-        );
+        draw_text(hint, vw * 0.5 - d.width * 0.5, vh - 36.0, 16.0, dim_more);
     }
 }
 
@@ -1855,7 +1789,10 @@ mod tests {
 
     #[test]
     fn non_final_levels_never_trigger_reveals() {
-        assert_eq!(next_reveal_step(false, false, false, true), RevealStep::Menu);
+        assert_eq!(
+            next_reveal_step(false, false, false, true),
+            RevealStep::Menu
+        );
         assert_eq!(next_reveal_step(false, true, false, true), RevealStep::Menu);
         assert_eq!(next_reveal_step(false, false, true, true), RevealStep::Menu);
         assert_eq!(next_reveal_step(false, true, true, false), RevealStep::Menu);
@@ -1863,14 +1800,26 @@ mod tests {
 
     #[test]
     fn epilogue_plays_first_after_final_level() {
-        assert_eq!(next_reveal_step(true, false, false, true), RevealStep::Epilogue);
-        assert_eq!(next_reveal_step(true, false, false, false), RevealStep::Epilogue);
-        assert_eq!(next_reveal_step(true, false, true, true), RevealStep::Epilogue);
+        assert_eq!(
+            next_reveal_step(true, false, false, true),
+            RevealStep::Epilogue
+        );
+        assert_eq!(
+            next_reveal_step(true, false, false, false),
+            RevealStep::Epilogue
+        );
+        assert_eq!(
+            next_reveal_step(true, false, true, true),
+            RevealStep::Epilogue
+        );
     }
 
     #[test]
     fn halloween_plays_after_epilogue_when_in_season() {
-        assert_eq!(next_reveal_step(true, true, false, true), RevealStep::Halloween);
+        assert_eq!(
+            next_reveal_step(true, true, false, true),
+            RevealStep::Halloween
+        );
     }
 
     #[test]
@@ -1897,7 +1846,14 @@ mod tests {
 
     #[test]
     fn month_from_unix_always_returns_1_to_12() {
-        for secs in [0u64, 1, 86400, 1_000_000_000, 2_000_000_000, u32::MAX as u64] {
+        for secs in [
+            0u64,
+            1,
+            86400,
+            1_000_000_000,
+            2_000_000_000,
+            u32::MAX as u64,
+        ] {
             let m = month_from_unix(secs);
             assert!((1..=12).contains(&m), "secs {secs} → month {m}");
         }
@@ -1907,13 +1863,13 @@ mod tests {
     fn month_from_unix_on_known_dates() {
         // All timestamps are 00:00:00 UTC on the 1st of the month.
         let cases = [
-            (0u64, 1u64),            // 1970-01-01
-            (1704067200u64, 1u64),   // 2024-01-01
-            (1717200000u64, 6u64),   // 2024-06-01
-            (1727740800u64, 10u64),  // 2024-10-01
-            (1733011200u64, 12u64),  // 2024-12-01
-            (1735689600u64, 1u64),   // 2025-01-01
-            (1751328000u64, 7u64),   // 2025-07-01
+            (0u64, 1u64),           // 1970-01-01
+            (1704067200u64, 1u64),  // 2024-01-01
+            (1717200000u64, 6u64),  // 2024-06-01
+            (1727740800u64, 10u64), // 2024-10-01
+            (1733011200u64, 12u64), // 2024-12-01
+            (1735689600u64, 1u64),  // 2025-01-01
+            (1751328000u64, 7u64),  // 2025-07-01
         ];
         for (secs, expected) in cases {
             assert_eq!(

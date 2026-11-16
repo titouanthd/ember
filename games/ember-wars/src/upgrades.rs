@@ -79,7 +79,11 @@ impl UpgradeTreeDefs {
             }
         }
 
-        let roots: Vec<_> = self.nodes.iter().filter(|n| n.requires.is_empty()).collect();
+        let roots: Vec<_> = self
+            .nodes
+            .iter()
+            .filter(|n| n.requires.is_empty())
+            .collect();
         if roots.len() != 1 {
             return Err(format!("expected exactly 1 root, found {}", roots.len()));
         }
@@ -402,7 +406,11 @@ mod tests {
 
     #[test]
     fn tree_has_exactly_one_root() {
-        let roots: Vec<_> = defs().nodes.iter().filter(|n| n.requires.is_empty()).collect();
+        let roots: Vec<_> = defs()
+            .nodes
+            .iter()
+            .filter(|n| n.requires.is_empty())
+            .collect();
         assert_eq!(roots.len(), 1);
         assert_eq!(roots[0].id, "root");
     }

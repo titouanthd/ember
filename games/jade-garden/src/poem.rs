@@ -3,12 +3,7 @@
 //! Each character has a global index 0-19 (5 per line × 4 lines).
 //! The player reveals characters in order, one per level.
 
-pub const POEM_LINES: [&str; 4] = [
-    "春眠不觉晓",
-    "处处闻啼鸟",
-    "夜来风雨声",
-    "花落知多少",
-];
+pub const POEM_LINES: [&str; 4] = ["春眠不觉晓", "处处闻啼鸟", "夜来风雨声", "花落知多少"];
 
 /// Pinyin (with tones) for each character, in the same order.
 pub const POEM_PINYIN: [[&str; 5]; 4] = [

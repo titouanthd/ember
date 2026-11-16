@@ -24,7 +24,12 @@ pub struct Arena {
 impl Arena {
     /// Default arena per DESIGN.md §12.
     pub const fn default_layout() -> Self {
-        Self { w: 1280.0, h: 720.0, goal_h: 158.0, wall: 6.0 }
+        Self {
+            w: 1280.0,
+            h: 720.0,
+            goal_h: 158.0,
+            wall: 6.0,
+        }
     }
 
     /// Horizontal centre line.

@@ -11,8 +11,8 @@ use crate::config::GameContext;
 use crate::layout::{TableLayout, TileSize};
 use crate::tiles;
 use crate::ui::panel;
-use ember_stdlib::ui::hit;
 use ember_stdlib::graphics::text::draw_centered;
+use ember_stdlib::ui::hit;
 
 const PANEL_W: f32 = 1040.0;
 const PANEL_H: f32 = 780.0;
@@ -183,7 +183,7 @@ impl HelpGeom {
         let content_y = py + CONTENT_TOP;
         let content_w = pw - 88.0;
         let content_h = ph - CONTENT_TOP - BTN_H - 40.0;
-        
+
         Self {
             px,
             py,
@@ -301,26 +301,19 @@ pub fn hit_test(layout: &TableLayout, state: &HelpState, mouse: Vec2) -> HelpAct
 
 // ─── Drawing ─────────────────────────────────────────────────────────────
 
-pub fn draw_help_overlay(
-    layout: &TableLayout,
-    ctx: &GameContext,
-    state: &HelpState,
-    mouse: Vec2,
-) {
+pub fn draw_help_overlay(layout: &TableLayout, ctx: &GameContext, state: &HelpState, mouse: Vec2) {
     draw_rectangle(
-        0.0, 0.0, layout.scr_w, layout.scr_h,
+        0.0,
+        0.0,
+        layout.scr_w,
+        layout.scr_h,
         Color::new(0.02, 0.05, 0.04, 0.94),
     );
 
     let g = HelpGeom::new(layout);
 
     // Panel background + gold double border + corner diamonds.
-    panel::draw_premium_panel(
-        Rect::new(g.px, g.py, g.pw, g.ph),
-        1.0,
-        9.0,
-        &ctx.colors,
-    );
+    panel::draw_premium_panel(Rect::new(g.px, g.py, g.pw, g.ph), 1.0, 9.0, &ctx.colors);
 
     text_centered(
         "How to play Zhuo Ji",
@@ -386,7 +379,11 @@ fn draw_tabs(g: &HelpGeom, ctx: &GameContext, state: &HelpState, mouse: Vec2) {
         draw_rectangle(x, y, w, h, bg);
         draw_rectangle_lines(x, y, w, h, 2.0, border);
         let label = tab.label();
-        let txt = if active { ctx.colors.tile_text } else { ctx.colors.text };
+        let txt = if active {
+            ctx.colors.tile_text
+        } else {
+            ctx.colors.text
+        };
         text_centered(label, x + w * 0.5, y + h * 0.5 + 7.0, 17.0, txt);
     }
 }
@@ -443,16 +440,36 @@ fn draw_goal(g: &HelpGeom, ctx: &GameContext) {
 
     heading(x, y, "Goal", ctx);
     y += LINE + 6.0;
-    body(x + 20.0, y, "Form 4 sets (triplets or sequences) + 1 pair,", ctx);
+    body(
+        x + 20.0,
+        y,
+        "Form 4 sets (triplets or sequences) + 1 pair,",
+        ctx,
+    );
     y += LINE;
-    body(x + 20.0, y, "and do it before the other three players.", ctx);
+    body(
+        x + 20.0,
+        y,
+        "and do it before the other three players.",
+        ctx,
+    );
     y += LINE;
-    dim(x + 20.0, y, "No Chi (eating) in Guiyang: only Peng, Gang, Hu.", ctx);
+    dim(
+        x + 20.0,
+        y,
+        "No Chi (eating) in Guiyang: only Peng, Gang, Hu.",
+        ctx,
+    );
     y += LINE + 18.0;
 
     heading(x, y, "The tiles", ctx);
     y += LINE + 6.0;
-    dim(x + 20.0, y, "3 suits x 9 ranks x 4 copies = 108 tiles.", ctx);
+    dim(
+        x + 20.0,
+        y,
+        "3 suits x 9 ranks x 4 copies = 108 tiles.",
+        ctx,
+    );
     y += LINE + 6.0;
 
     let preview_y = y;
@@ -467,7 +484,13 @@ fn draw_goal(g: &HelpGeom, ctx: &GameContext) {
     for (i, t) in sample.iter().enumerate() {
         tiles::draw_tile_flat(*t, tx, preview_y, preview_size, &ctx.colors, &ctx.font);
         let cx = tx + preview_size.w * 0.5;
-        text_centered(labels[i], cx, preview_y + preview_size.h + 20.0, 14.0, ctx.colors.text_dim);
+        text_centered(
+            labels[i],
+            cx,
+            preview_y + preview_size.h + 20.0,
+            14.0,
+            ctx.colors.text_dim,
+        );
         tx += preview_size.w + 40.0;
     }
     y = preview_y + preview_size.h + 48.0;
@@ -483,9 +506,21 @@ fn draw_goal(g: &HelpGeom, ctx: &GameContext) {
 
     heading(x, y, "The 3 actions", ctx);
     y += LINE + 6.0;
-    term_line(x + 20.0, y, "PENG", "- Take a discarded tile to form a triplet (3 identical)", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "PENG",
+        "- Take a discarded tile to form a triplet (3 identical)",
+        ctx,
+    );
     y += LINE;
-    term_line(x + 20.0, y, "GANG", "- Take a discarded tile to form a quad (4 identical)", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "GANG",
+        "- Take a discarded tile to form a quad (4 identical)",
+        ctx,
+    );
     y += LINE;
     term_line(x + 20.0, y, "HU", "- Win: your hand is complete", ctx);
 }
@@ -506,19 +541,26 @@ fn draw_patterns(g: &HelpGeom, ctx: &GameContext) {
     draw_text("Fan", c_fan, y, 15.0, ctx.colors.text_dim);
     draw_text("Description", c_desc, y, 15.0, ctx.colors.text_dim);
     y += 8.0;
-    draw_line(x + 20.0, y, x + g.content_w - 20.0, y, 1.0, ctx.colors.gold_dark);
+    draw_line(
+        x + 20.0,
+        y,
+        x + g.content_w - 20.0,
+        y,
+        1.0,
+        ctx.colors.gold_dark,
+    );
     y += 20.0;
 
     let rows: &[(&str, &str, &str)] = &[
-        ("Pinghu",       "1",  "Standard hand (4 sets + 1 pair)"),
-        ("Da dui zi",    "5",  "All triplets (4 triplets + 1 pair)"),
-        ("Qi dui",       "10", "Seven pairs"),
-        ("Qing yi se",   "10", "Single suit (Wan / Tiao / Tong)"),
-        ("Bao ting",     "10", "Declared ready from the start"),
-        ("Qing da dui",  "15", "Da dui zi + Qing yi se"),
-        ("Long qi dui",  "20", "5 pairs + 1 concealed quad"),
-        ("Qing qi dui",  "20", "Qi dui + Qing yi se"),
-        ("Qing long bei","30", "Long qi dui + Qing yi se"),
+        ("Pinghu", "1", "Standard hand (4 sets + 1 pair)"),
+        ("Da dui zi", "5", "All triplets (4 triplets + 1 pair)"),
+        ("Qi dui", "10", "Seven pairs"),
+        ("Qing yi se", "10", "Single suit (Wan / Tiao / Tong)"),
+        ("Bao ting", "10", "Declared ready from the start"),
+        ("Qing da dui", "15", "Da dui zi + Qing yi se"),
+        ("Long qi dui", "20", "5 pairs + 1 concealed quad"),
+        ("Qing qi dui", "20", "Qi dui + Qing yi se"),
+        ("Qing long bei", "30", "Long qi dui + Qing yi se"),
     ];
     for (name, fan, desc) in rows {
         draw_text(name, c_name, y, 16.0, ctx.colors.highlight);
@@ -528,9 +570,21 @@ fn draw_patterns(g: &HelpGeom, ctx: &GameContext) {
     }
 
     y += 14.0;
-    draw_line(x + 20.0, y, x + g.content_w - 20.0, y, 1.0, ctx.colors.gold_dark);
+    draw_line(
+        x + 20.0,
+        y,
+        x + g.content_w - 20.0,
+        y,
+        1.0,
+        ctx.colors.gold_dark,
+    );
     y += 24.0;
-    dim(x + 20.0, y, "Formula: Total = Pattern + Dou + Ji (in fan).", ctx);
+    dim(
+        x + 20.0,
+        y,
+        "Formula: Total = Pattern + Dou + Ji (in fan).",
+        ctx,
+    );
 }
 
 // ─── Tab 3: Dou ──────────────────────────────────────────────────────────
@@ -549,12 +603,24 @@ fn draw_dou(g: &HelpGeom, ctx: &GameContext) {
     dim(x + 40.0, y, "Each other player pays you 2 fan.", ctx);
     y += LINE + 8.0;
 
-    term_line(x + 20.0, y, "Pa po dou", "- Added kong (upgrade a Peng)", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Pa po dou",
+        "- Added kong (upgrade a Peng)",
+        ctx,
+    );
     y += LINE;
     dim(x + 40.0, y, "Each other player pays you 3 fan.", ctx);
     y += LINE + 8.0;
 
-    term_line(x + 20.0, y, "Dian dou", "- Exposed kong (from a discard)", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Dian dou",
+        "- Exposed kong (from a discard)",
+        ctx,
+    );
     y += LINE;
     dim(x + 40.0, y, "Only the discarder pays you 1 fan.", ctx);
     y += LINE + 22.0;
@@ -562,17 +628,35 @@ fn draw_dou(g: &HelpGeom, ctx: &GameContext) {
     let box_y = y - 8.0;
     let box_h = LINE * 4.0 + 24.0;
     draw_rectangle(
-        x + 20.0, box_y, g.content_w - 40.0, box_h,
+        x + 20.0,
+        box_y,
+        g.content_w - 40.0,
+        box_h,
         Color::new(0.22, 0.16, 0.08, 1.0),
     );
     draw_rectangle_lines(
-        x + 20.0, box_y, g.content_w - 40.0, box_h,
-        2.0, ctx.colors.highlight,
+        x + 20.0,
+        box_y,
+        g.content_w - 40.0,
+        box_h,
+        2.0,
+        ctx.colors.highlight,
     );
     let mut by = box_y + 28.0;
-    draw_text("IMPORTANT RULE: the Dou passport", x + 40.0, by, 18.0, ctx.colors.highlight);
+    draw_text(
+        "IMPORTANT RULE: the Dou passport",
+        x + 40.0,
+        by,
+        18.0,
+        ctx.colors.highlight,
+    );
     by += LINE + 4.0;
-    body(x + 40.0, by, "Without a Dou, you can only win by self-draw (Zimo),", ctx);
+    body(
+        x + 40.0,
+        by,
+        "Without a Dou, you can only win by self-draw (Zimo),",
+        ctx,
+    );
     by += LINE;
     body(x + 40.0, by, "or with a Da dui zi or better.", ctx);
     by += LINE;
@@ -587,7 +671,12 @@ fn draw_ji(g: &HelpGeom, ctx: &GameContext) {
 
     heading(x, y, "The Ji are the chickens", ctx);
     y += LINE + 6.0;
-    dim(x + 20.0, y, "1 Ji = 1 fan from each other player, at hand end.", ctx);
+    dim(
+        x + 20.0,
+        y,
+        "1 Ji = 1 fan from each other player, at hand end.",
+        ctx,
+    );
     y += LINE + 18.0;
 
     body(x + 20.0, y, "Permanent Ji (always counted):", ctx);
@@ -606,25 +695,45 @@ fn draw_ji(g: &HelpGeom, ctx: &GameContext) {
 
     body(x + 20.0, y, "Special variants:", ctx);
     y += LINE;
-    term_line(x + 40.0, y, "Jin ji", "(2 fan)  - If the flip is 9 Tiao, 1 Tiao becomes golden", ctx);
+    term_line(
+        x + 40.0,
+        y,
+        "Jin ji",
+        "(2 fan)  - If the flip is 9 Tiao, 1 Tiao becomes golden",
+        ctx,
+    );
     y += LINE;
-    term_line(x + 40.0, y, "Chong feng ji", "- The first discarded 1 Tiao counts double", ctx);
+    term_line(
+        x + 40.0,
+        y,
+        "Chong feng ji",
+        "- The first discarded 1 Tiao counts double",
+        ctx,
+    );
     y += LINE;
-    term_line(x + 40.0, y, "Ze ren ji", "- If that Ji is Peng'd, the discarder pays +1 fan", ctx);
+    term_line(
+        x + 40.0,
+        y,
+        "Ze ren ji",
+        "- If that Ji is Peng'd, the discarder pays +1 fan",
+        ctx,
+    );
 }
 
 // ─── Tab 5: Tiles ────────────────────────────────────────────────────────
 
 fn draw_tiles(g: &HelpGeom, ctx: &GameContext, state: &HelpState, mouse: Vec2) {
     // ─── Suit filter row ─────────────────────────────────────────
-    draw_text("Suit:", g.content_x + 20.0, g.content_y + 45.0, 16.0, ctx.colors.text_dim);
+    draw_text(
+        "Suit:",
+        g.content_x + 20.0,
+        g.content_y + 45.0,
+        16.0,
+        ctx.colors.text_dim,
+    );
     let suit_labels = ["All", "Wan", "Tiao", "Tong"];
-    let suit_values: [Option<Suit>; 4] = [
-        None,
-        Some(Suit::Wan),
-        Some(Suit::Tiao),
-        Some(Suit::Tong),
-    ];
+    let suit_values: [Option<Suit>; 4] =
+        [None, Some(Suit::Wan), Some(Suit::Tiao), Some(Suit::Tong)];
     for (i, label) in suit_labels.iter().enumerate() {
         let rect = suit_btn_rect(g, i);
         let active = state.suit_filter == suit_values[i];
@@ -633,10 +742,20 @@ fn draw_tiles(g: &HelpGeom, ctx: &GameContext, state: &HelpState, mouse: Vec2) {
     }
 
     // ─── Rank filter row ─────────────────────────────────────────
-    draw_text("Rank:", g.content_x + 20.0, g.content_y + 89.0, 16.0, ctx.colors.text_dim);
+    draw_text(
+        "Rank:",
+        g.content_x + 20.0,
+        g.content_y + 89.0,
+        16.0,
+        ctx.colors.text_dim,
+    );
     for i in 0..10 {
         let rect = rank_btn_rect(g, i);
-        let label = if i == 0 { "All".to_string() } else { i.to_string() };
+        let label = if i == 0 {
+            "All".to_string()
+        } else {
+            i.to_string()
+        };
         let active = if i == 0 {
             state.rank_filter.is_none()
         } else {
@@ -674,18 +793,13 @@ fn draw_tiles(g: &HelpGeom, ctx: &GameContext, state: &HelpState, mouse: Vec2) {
             let x = grid_x + (rank as f32 - 1.0) * (tile_w + gap_x);
             let tile = Tile::new(*suit, rank);
 
-            let matches_suit = state.suit_filter.is_none()
-                || state.suit_filter == Some(*suit);
-            let matches_rank = state.rank_filter.is_none()
-                || state.rank_filter == Some(rank);
+            let matches_suit = state.suit_filter.is_none() || state.suit_filter == Some(*suit);
+            let matches_rank = state.rank_filter.is_none() || state.rank_filter == Some(rank);
 
             tiles::draw_tile_flat(tile, x, row_y, size, &ctx.colors, &ctx.font);
 
             if !(matches_suit && matches_rank) {
-                draw_rectangle(
-                    x, row_y, size.w, size.h,
-                    Color::new(0.08, 0.16, 0.11, 0.75),
-                );
+                draw_rectangle(x, row_y, size.w, size.h, Color::new(0.08, 0.16, 0.11, 0.75));
             }
         }
     }
@@ -709,7 +823,11 @@ fn draw_filter_btn(
 ) {
     let (x, y, w, h) = rect;
     let (bg, border, txt) = if active {
-        (ctx.colors.gold_dark, ctx.colors.gold_light, ctx.colors.tile_text)
+        (
+            ctx.colors.gold_dark,
+            ctx.colors.gold_light,
+            ctx.colors.tile_text,
+        )
     } else if hovered {
         (
             Color::new(0.20, 0.30, 0.24, 1.0),
@@ -736,19 +854,58 @@ fn draw_specials(g: &HelpGeom, ctx: &GameContext) {
 
     heading(x, y, "Special situations", ctx);
     y += LINE + 6.0;
-    term_line(x + 20.0, y, "Gang shang pao", "- Win on the tile discarded after a Gang", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Gang shang pao",
+        "- Win on the tile discarded after a Gang",
+        ctx,
+    );
     y += LINE;
-    term_line(x + 20.0, y, "Qiang gang", "- Steal a Bu Gang tile to win", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Qiang gang",
+        "- Steal a Bu Gang tile to win",
+        ctx,
+    );
     y += LINE;
-    term_line(x + 20.0, y, "Huang zhuang", "- Empty wall: hands are revealed.", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Huang zhuang",
+        "- Empty wall: hands are revealed.",
+        ctx,
+    );
     y += LINE;
-    dim(x + 60.0, y, "Non-tenpai players pay tenpai players (hand value).", ctx);
+    dim(
+        x + 60.0,
+        y,
+        "Non-tenpai players pay tenpai players (hand value).",
+        ctx,
+    );
     y += LINE;
-    dim(x + 60.0, y, "Dou and Ji don't count during Huang zhuang.", ctx);
+    dim(
+        x + 60.0,
+        y,
+        "Dou and Ji don't count during Huang zhuang.",
+        ctx,
+    );
     y += LINE;
-    term_line(x + 20.0, y, "Bao ting", "- Declared ready from the start:", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Bao ting",
+        "- Declared ready from the start:",
+        ctx,
+    );
     y += LINE;
-    dim(x + 60.0, y, "if you win, your fan = that of a Qing yi se (10).", ctx);
+    dim(
+        x + 60.0,
+        y,
+        "if you win, your fan = that of a Qing yi se (10).",
+        ctx,
+    );
     y += LINE + 22.0;
 
     heading(x, y, "Scoring", ctx);
@@ -778,37 +935,88 @@ fn draw_interface(g: &HelpGeom, ctx: &GameContext) {
     heading(x, y, "Reading the screen", ctx);
     y += LINE + 10.0;
 
-    term_line(x + 20.0, y, "Shanten", "- how many tiles you are from a winning hand.", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Shanten",
+        "- how many tiles you are from a winning hand.",
+        ctx,
+    );
     y += LINE;
     dim(x + 60.0, y, "0 = tenpai (1 tile away).", ctx);
     y += LINE;
     dim(x + 60.0, y, "1 = 1-shanten (2 tiles away), and so on.", ctx);
     y += LINE;
-    dim(x + 60.0, y, "Shown in the top-left corner of the screen.", ctx);
+    dim(
+        x + 60.0,
+        y,
+        "Shown in the top-left corner of the screen.",
+        ctx,
+    );
     y += LINE + 20.0;
 
     heading(x, y, "Indicators on the table", ctx);
     y += LINE + 10.0;
 
-    term_line(x + 20.0, y, "Gold dot", "- a tile that is useful for your hand", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Gold dot",
+        "- a tile that is useful for your hand",
+        ctx,
+    );
     y += LINE;
     dim(x + 60.0, y, "(it forms a pair or a partial sequence).", ctx);
     y += LINE + 8.0;
 
-    term_line(x + 20.0, y, "Clock arc", "- time left for your decision.", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Clock arc",
+        "- time left for your decision.",
+        ctx,
+    );
     y += LINE;
-    dim(x + 60.0, y, "Green -> yellow -> red as the timer runs out.", ctx);
+    dim(
+        x + 60.0,
+        y,
+        "Green -> yellow -> red as the timer runs out.",
+        ctx,
+    );
     y += LINE + 8.0;
 
-    term_line(x + 20.0, y, "Center arrow", "- points to the current player.", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Center arrow",
+        "- points to the current player.",
+        ctx,
+    );
     y += LINE + 8.0;
 
-    term_line(x + 20.0, y, "Avatar frame", "- highlighted gold for the active seat.", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Avatar frame",
+        "- highlighted gold for the active seat.",
+        ctx,
+    );
     y += LINE + 8.0;
 
-    term_line(x + 20.0, y, "Drawn marker", "- a small triangle marks the tile", ctx);
+    term_line(
+        x + 20.0,
+        y,
+        "Drawn marker",
+        "- a small triangle marks the tile",
+        ctx,
+    );
     y += LINE;
-    dim(x + 60.0, y, "just drawn this turn, shown apart from the hand.", ctx);
+    dim(
+        x + 60.0,
+        y,
+        "just drawn this turn, shown apart from the hand.",
+        ctx,
+    );
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────

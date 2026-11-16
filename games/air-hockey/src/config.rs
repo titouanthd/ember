@@ -256,10 +256,19 @@ mod tests {
     fn test_colors_alpha_ranges() {
         let c = Colors::default_hermetic();
         for col in [
-            c.table_bg, c.table_border, c.grid, c.midline,
-            c.p1, c.p2, c.puck, c.puck_trail,
-            c.goal_p1, c.goal_p2, c.goal_flash,
-            c.text, c.text_shadow,
+            c.table_bg,
+            c.table_border,
+            c.grid,
+            c.midline,
+            c.p1,
+            c.p2,
+            c.puck,
+            c.puck_trail,
+            c.goal_p1,
+            c.goal_p2,
+            c.goal_flash,
+            c.text,
+            c.text_shadow,
         ] {
             assert!((0.0..=1.0).contains(&col.a));
             assert!((0.0..=1.0).contains(&col.r));

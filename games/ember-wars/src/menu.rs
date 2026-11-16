@@ -90,7 +90,12 @@ pub fn level_rect(row: usize, vw: f32, chapter_top_y: f32) -> Rect {
     let w = level_w(vw);
     let x = PAD_X;
     let y = chapter_top_y + CHAPTER_HEADER_H + row as f32 * (LEVEL_H + LEVEL_GAP);
-    Rect { x, y, w, h: LEVEL_H }
+    Rect {
+        x,
+        y,
+        w,
+        h: LEVEL_H,
+    }
 }
 
 /// Y du haut du chapitre `chapter_idx` (dans la coordonnée de scroll).
@@ -156,8 +161,7 @@ fn draw_chapters(
 
     for (ci, chapter) in chapters.iter().enumerate() {
         let chapter_y = chapter_top_y(ci, base_y);
-        let chapter_h =
-            CHAPTER_HEADER_H + chapter.levels.len() as f32 * (LEVEL_H + LEVEL_GAP);
+        let chapter_h = CHAPTER_HEADER_H + chapter.levels.len() as f32 * (LEVEL_H + LEVEL_GAP);
 
         if chapter_y + chapter_h < 0.0 || chapter_y > bottom_limit {
             continue;
@@ -215,13 +219,7 @@ fn draw_chapter_header(
     } else {
         Color::new(0.38, 0.38, 0.42, 1.0)
     };
-    fonts::draw_text_regular(
-        &chapter.subtitle,
-        PAD_X + 280.0,
-        y + 58.0,
-        17.0,
-        sub_color,
-    );
+    fonts::draw_text_regular(&chapter.subtitle, PAD_X + 280.0, y + 58.0, 17.0, sub_color);
 
     let sep_y = y + CHAPTER_HEADER_H - CHAPTER_SEP_OFFSET;
     draw_line(
@@ -405,13 +403,7 @@ fn draw_scrollbar(ctx: &GameContext, state: &MenuState, vw: f32, vh: f32) {
 
 // ---------- Info panel ----------
 
-fn draw_info_panel(
-    ctx: &GameContext,
-    state: &MenuState,
-    progress: &Progress,
-    vw: f32,
-    vh: f32,
-) {
+fn draw_info_panel(ctx: &GameContext, state: &MenuState, progress: &Progress, vw: f32, vh: f32) {
     let panel = info_panel_rect(vw, vh);
 
     draw_rectangle(
@@ -483,13 +475,7 @@ fn draw_info_panel(
     draw_line(x, y, x + w, y, 1.0, Color::new(0.22, 0.24, 0.30, 1.0));
     y += 22.0;
 
-    fonts::draw_text_regular(
-        "OBJECTIVE",
-        x,
-        y,
-        11.0,
-        Color::new(0.50, 0.52, 0.58, 1.0),
-    );
+    fonts::draw_text_regular("OBJECTIVE", x, y, 11.0, Color::new(0.50, 0.52, 0.58, 1.0));
     y += 20.0;
     let obj_txt = match &level.objective {
         Objective::Destroy => "Destroy the enemy tower".to_string(),
@@ -501,13 +487,7 @@ fn draw_info_panel(
     draw_line(x, y, x + w, y, 1.0, Color::new(0.22, 0.24, 0.30, 1.0));
     y += 22.0;
 
-    fonts::draw_text_regular(
-        "STARS",
-        x,
-        y,
-        11.0,
-        Color::new(0.50, 0.52, 0.58, 1.0),
-    );
+    fonts::draw_text_regular("STARS", x, y, 11.0, Color::new(0.50, 0.52, 0.58, 1.0));
     y += 28.0;
 
     let (star_str, star_color) = if !level_unlocked {
@@ -528,13 +508,7 @@ fn draw_info_panel(
     y += 38.0;
 
     if level_unlocked {
-        fonts::draw_text_regular(
-            "REWARD",
-            x,
-            y,
-            11.0,
-            Color::new(0.50, 0.52, 0.58, 1.0),
-        );
+        fonts::draw_text_regular("REWARD", x, y, 11.0, Color::new(0.50, 0.52, 0.58, 1.0));
         y += 20.0;
         fonts::draw_text_bold(
             &format!("+{:.0} gold", level.reward_gold),
@@ -609,13 +583,7 @@ fn draw_header(ctx: &GameContext, progress: &Progress, vw: f32) {
 }
 
 fn draw_footer(ctx: &GameContext, vw: f32, vh: f32) {
-    draw_rectangle(
-        0.0,
-        vh - FOOTER_H,
-        vw,
-        FOOTER_H,
-        ctx.colors.bg,
-    );
+    draw_rectangle(0.0, vh - FOOTER_H, vw, FOOTER_H, ctx.colors.bg);
 
     draw_line(
         0.0,
@@ -626,8 +594,7 @@ fn draw_footer(ctx: &GameContext, vw: f32, vh: f32) {
         Color::new(0.18, 0.20, 0.24, 1.0),
     );
 
-    let hint =
-        "Click a mission   |   Scroll ↑↓ or wheel   |   [Tab] Upgrades   |   [Esc] Quit";
+    let hint = "Click a mission   |   Scroll ↑↓ or wheel   |   [Tab] Upgrades   |   [Esc] Quit";
     let dim = fonts::measure_regular(hint, 14.0);
     fonts::draw_text_regular(
         hint,
@@ -655,8 +622,7 @@ pub fn handle_menu_input(state: &mut MenuState, progress: &Progress) -> Option<S
     }
 
     if is_key_down(KeyCode::Down) {
-        state.scroll_y =
-            (state.scroll_y + 500.0 * get_frame_time()).min(state.max_scroll);
+        state.scroll_y = (state.scroll_y + 500.0 * get_frame_time()).min(state.max_scroll);
     }
     if is_key_down(KeyCode::Up) {
         state.scroll_y = (state.scroll_y - 500.0 * get_frame_time()).max(0.0);

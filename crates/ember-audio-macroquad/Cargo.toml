@@ -1,0 +1,8 @@
+[package]
+name = "ember-audio-macroquad"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ember-core.workspace = true
+ember-servers.workspace = true

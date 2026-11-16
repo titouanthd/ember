@@ -8,9 +8,9 @@ use crate::layout::{TableLayout, TileSize};
 use crate::tiles;
 use crate::ui::panel;
 
-use ember_stdlib::ui::hit;
-use ember_stdlib::graphics::text::draw_right;
 use ember_stdlib::graphics::text::draw_centered;
+use ember_stdlib::graphics::text::draw_right;
+use ember_stdlib::ui::hit;
 
 pub const VERSION: &str = "0.1.0";
 
@@ -93,7 +93,12 @@ impl MenuGeom {
         let pw = PANEL_W.min(layout.scr_w - 80.0);
         let ph = PANEL_H.min(layout.scr_h - 80.0);
         let r = ember_stdlib::layout::centered_rect(layout.scr_w, layout.scr_h, pw, ph);
-        Self { px: r.x, py: r.y, pw: r.w, ph: r.h }
+        Self {
+            px: r.x,
+            py: r.y,
+            pw: r.w,
+            ph: r.h,
+        }
     }
 }
 
@@ -127,42 +132,50 @@ pub fn hit_test(layout: &TableLayout, mouse: Vec2) -> MenuAction {
 pub fn draw_menu(layout: &TableLayout, ctx: &GameContext, state: &MenuState, mouse: Vec2) {
     // Soft dimmer over the background mountains.
     draw_rectangle(
-        0.0, 0.0, layout.scr_w, layout.scr_h,
+        0.0,
+        0.0,
+        layout.scr_w,
+        layout.scr_h,
         Color::new(0.02, 0.05, 0.04, 0.45),
     );
 
     let g = MenuGeom::new(layout);
 
     // Panel background + gold double border + corner diamonds.
-    panel::draw_premium_panel(
-        Rect::new(g.px, g.py, g.pw, g.ph),
-        1.0,
-        10.0,
-        &ctx.colors,
-    );
+    panel::draw_premium_panel(Rect::new(g.px, g.py, g.pw, g.ph), 1.0, 10.0, &ctx.colors);
 
     // Pulsing title.
     let cx = g.px + g.pw * 0.5;
     let pulse = 1.0 + 0.03 * (get_time() as f32 * 2.5).sin();
-    text_centered("Zhuo Ji", cx, g.py + 110.0, 64.0 * pulse, ctx.colors.highlight);
+    text_centered(
+        "Zhuo Ji",
+        cx,
+        g.py + 110.0,
+        64.0 * pulse,
+        ctx.colors.highlight,
+    );
 
     // CJK subtitle (uses the TileFont).
     if ctx.font.is_available() {
-        ctx.font.draw_centered(
-            "贵阳捉鸡麻将",
-            cx,
-            g.py + 155.0,
-            28.0,
-            ctx.colors.text,
-        );
+        ctx.font
+            .draw_centered("贵阳捉鸡麻将", cx, g.py + 155.0, 28.0, ctx.colors.text);
     }
-    text_centered("Guiyang Mahjong", cx, g.py + 190.0, 18.0, ctx.colors.text_dim);
+    text_centered(
+        "Guiyang Mahjong",
+        cx,
+        g.py + 190.0,
+        18.0,
+        ctx.colors.text_dim,
+    );
 
     // Divider.
     draw_line(
-        g.px + 80.0, g.py + 215.0,
-        g.px + g.pw - 80.0, g.py + 215.0,
-        1.0, ctx.colors.gold_dark,
+        g.px + 80.0,
+        g.py + 215.0,
+        g.px + g.pw - 80.0,
+        g.py + 215.0,
+        1.0,
+        ctx.colors.gold_dark,
     );
 
     // Three decorative tiles: 5W, 1T, 8D (two permanent Ji highlighted).

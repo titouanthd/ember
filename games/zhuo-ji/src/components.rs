@@ -88,7 +88,10 @@ pub struct Player {
 
 impl Player {
     pub fn new(is_ai: bool) -> Self {
-        Self { is_ai, ..Default::default() }
+        Self {
+            is_ai,
+            ..Default::default()
+        }
     }
 
     /// Merged and sorted view of concealed + drawn. Used by all
@@ -143,9 +146,20 @@ mod tests {
 
     #[test]
     fn test_meld_tile_count() {
-        assert_eq!(Meld::Peng { tile: Tile::new(Suit::Wan, 1), from: 1 }.tile_count(), 3);
         assert_eq!(
-            Meld::Gang { tile: Tile::new(Suit::Tiao, 5), from: GangSource::An }.tile_count(),
+            Meld::Peng {
+                tile: Tile::new(Suit::Wan, 1),
+                from: 1
+            }
+            .tile_count(),
+            3
+        );
+        assert_eq!(
+            Meld::Gang {
+                tile: Tile::new(Suit::Tiao, 5),
+                from: GangSource::An
+            }
+            .tile_count(),
             4
         );
     }
@@ -157,17 +171,17 @@ mod tests {
         assert_eq!(p.tile_count(), 13);
         p.drawn = Some(Tile::new(Suit::Wan, 2));
         assert_eq!(p.tile_count(), 14);
-        p.melds.push(Meld::Peng { tile: Tile::new(Suit::Tiao, 5), from: 1 });
+        p.melds.push(Meld::Peng {
+            tile: Tile::new(Suit::Tiao, 5),
+            from: 1,
+        });
         assert_eq!(p.tile_count(), 17);
     }
 
     #[test]
     fn test_player_all_tiles_merges_drawn() {
         let mut p = Player::new(false);
-        p.concealed = vec![
-            Tile::new(Suit::Wan, 1),
-            Tile::new(Suit::Wan, 3),
-        ];
+        p.concealed = vec![Tile::new(Suit::Wan, 1), Tile::new(Suit::Wan, 3)];
         p.drawn = Some(Tile::new(Suit::Wan, 2));
         let all = p.all_tiles();
         assert_eq!(all.len(), 3);

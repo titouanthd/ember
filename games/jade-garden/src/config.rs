@@ -35,27 +35,27 @@ impl Colors {
     pub fn defaults() -> Self {
         Self {
             // Dark lacquer background.
-            paper_top:    Color::new(0.09, 0.075, 0.060, 1.0),  // #17130F
-            paper_bottom: Color::new(0.05, 0.040, 0.035, 1.0),  // #0D0A08
+            paper_top: Color::new(0.09, 0.075, 0.060, 1.0), // #17130F
+            paper_bottom: Color::new(0.05, 0.040, 0.035, 1.0), // #0D0A08
 
             // Warm dark translucent panel.
-            panel_bg:     Color::new(0.14, 0.11, 0.085, 0.90),
+            panel_bg: Color::new(0.14, 0.11, 0.085, 0.90),
 
             // Aged gold leaf border.
-            panel_border: Color::new(0.72, 0.55, 0.26, 1.0),   // #B88A42
+            panel_border: Color::new(0.72, 0.55, 0.26, 1.0), // #B88A42
 
             // Warm ivory text.
-            text:         Color::new(0.94, 0.89, 0.78, 1.0),   // #EDE3C7
-            text_dim:     Color::new(0.60, 0.53, 0.42, 1.0),   // #9A876B
+            text: Color::new(0.94, 0.89, 0.78, 1.0), // #EDE3C7
+            text_dim: Color::new(0.60, 0.53, 0.42, 1.0), // #9A876B
 
             // Imperial gold.
-            gold:         Color::new(0.87, 0.70, 0.34, 1.0),   // #DDB357
+            gold: Color::new(0.87, 0.70, 0.34, 1.0), // #DDB357
 
             // Cinnabar red for selection.
-            select:       Color::new(0.86, 0.31, 0.20, 1.0),   // #DB4F33
+            select: Color::new(0.86, 0.31, 0.20, 1.0), // #DB4F33
 
             // Deep cinnabar for danger.
-            danger:       Color::new(0.80, 0.24, 0.16, 1.0),   // #CC3D28
+            danger: Color::new(0.80, 0.24, 0.16, 1.0), // #CC3D28
         }
     }
 

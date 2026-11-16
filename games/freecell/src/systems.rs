@@ -3,9 +3,9 @@
 
 use std::collections::HashMap;
 
+use ember_stdlib::ui::hit;
 use glam::Vec2;
 use macroquad::prelude::Rect;
-use ember_stdlib::ui::hit;
 
 use ember_core::app::GameState;
 
@@ -468,7 +468,11 @@ impl Game {
     }
 
     pub fn record_best_if_needed(&mut self) {
-        if ember_stdlib::persistence::update_best_in_map(&mut self.best_times, self.seed, self.elapsed) {
+        if ember_stdlib::persistence::update_best_in_map(
+            &mut self.best_times,
+            self.seed,
+            self.elapsed,
+        ) {
             self.best_handle.save(&self.best_times);
             self.was_new_best = true;
         }

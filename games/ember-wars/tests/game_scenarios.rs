@@ -2,8 +2,8 @@
 
 use ember_wars::components::Team;
 use ember_wars::config::GameContext;
-use ember_wars::progress::{stars_for_victory, Progress};
-use ember_wars::systems::{Game, Phase, GROUND_Y_RATIO};
+use ember_wars::progress::{Progress, stars_for_victory};
+use ember_wars::systems::{GROUND_Y_RATIO, Game, Phase};
 use ember_wars::units::spawn_unit;
 
 use glam::Vec2;
@@ -136,10 +136,42 @@ fn bomber_explodes_and_damages_neighbors() {
     let mut g = new_game(1);
     disable_ai(&mut g);
     let gy = ground_y_for_test();
-    let bomber = spawn_unit(&mut g.id_gen, "bomber", Team::Player, Vec2::new(200.0, gy), 1.0, 1.0).unwrap();
-    let e1 = spawn_unit(&mut g.id_gen, "grunt", Team::Enemy, Vec2::new(215.0, gy), 1.0, 1.0).unwrap();
-    let e2 = spawn_unit(&mut g.id_gen, "grunt", Team::Enemy, Vec2::new(240.0, gy), 1.0, 1.0).unwrap();
-    let e3 = spawn_unit(&mut g.id_gen, "grunt", Team::Enemy, Vec2::new(500.0, gy), 1.0, 1.0).unwrap();
+    let bomber = spawn_unit(
+        &mut g.id_gen,
+        "bomber",
+        Team::Player,
+        Vec2::new(200.0, gy),
+        1.0,
+        1.0,
+    )
+    .unwrap();
+    let e1 = spawn_unit(
+        &mut g.id_gen,
+        "grunt",
+        Team::Enemy,
+        Vec2::new(215.0, gy),
+        1.0,
+        1.0,
+    )
+    .unwrap();
+    let e2 = spawn_unit(
+        &mut g.id_gen,
+        "grunt",
+        Team::Enemy,
+        Vec2::new(240.0, gy),
+        1.0,
+        1.0,
+    )
+    .unwrap();
+    let e3 = spawn_unit(
+        &mut g.id_gen,
+        "grunt",
+        Team::Enemy,
+        Vec2::new(500.0, gy),
+        1.0,
+        1.0,
+    )
+    .unwrap();
     g.units.extend([bomber, e1, e2, e3]);
 
     for _ in 0..18 {
@@ -154,11 +186,8 @@ fn bomber_explodes_and_damages_neighbors() {
 #[test]
 fn levels_load_and_run() {
     for level_id in [
-        "sh_01", "sh_02", "sh_03",
-        "gy_01", "gy_02", "gy_03",
-        "hk_01", "hk_02", "hk_03",
-        "cd_01", "cd_02", "cd_03",
-        "bj_01", "bj_02", "bj_03",
+        "sh_01", "sh_02", "sh_03", "gy_01", "gy_02", "gy_03", "hk_01", "hk_02", "hk_03", "cd_01",
+        "cd_02", "cd_03", "bj_01", "bj_02", "bj_03",
     ] {
         let p = Progress::default();
         let mut g = Game::new(&ctx(), level_id, 1, &p).expect("level exists");
@@ -211,7 +240,9 @@ fn chapter_4_unlocked_only_after_chapter_3_cleared() {
     let mut p = Progress::default();
     assert!(!p.is_chapter_unlocked(3));
 
-    for id in ["sh_01", "sh_02", "sh_03", "gy_01", "gy_02", "gy_03", "hk_01", "hk_02"] {
+    for id in [
+        "sh_01", "sh_02", "sh_03", "gy_01", "gy_02", "gy_03", "hk_01", "hk_02",
+    ] {
         p.record_win(id, 1, 0.0);
     }
     assert!(!p.is_chapter_unlocked(3));
@@ -226,10 +257,8 @@ fn chapter_5_unlocked_only_after_chapter_4_cleared() {
     assert!(!p.is_chapter_unlocked(4));
 
     for id in [
-        "sh_01", "sh_02", "sh_03",
-        "gy_01", "gy_02", "gy_03",
-        "hk_01", "hk_02", "hk_03",
-        "cd_01", "cd_02",
+        "sh_01", "sh_02", "sh_03", "gy_01", "gy_02", "gy_03", "hk_01", "hk_02", "hk_03", "cd_01",
+        "cd_02",
     ] {
         p.record_win(id, 1, 0.0);
     }
@@ -261,11 +290,8 @@ fn catapult_never_reaches_enemy_tower() {
     use ember_wars::systems::TOWER_OFFSET_X;
 
     for level_id in [
-        "sh_01", "sh_02", "sh_03",
-        "gy_01", "gy_02", "gy_03",
-        "hk_01", "hk_02", "hk_03",
-        "cd_01", "cd_02", "cd_03",
-        "bj_01", "bj_02", "bj_03",
+        "sh_01", "sh_02", "sh_03", "gy_01", "gy_02", "gy_03", "hk_01", "hk_02", "hk_03", "cd_01",
+        "cd_02", "cd_03", "bj_01", "bj_02", "bj_03",
     ] {
         let p = Progress::default();
         let g = Game::new(&ctx(), level_id, 1, &p).expect("level exists");
@@ -306,13 +332,19 @@ fn enemy_catapult_present_only_on_flagged_levels() {
     for id in ["sh_01", "sh_02", "gy_01", "hk_01", "cd_01"] {
         let p = Progress::default();
         let g = Game::new(&ctx(), id, 1, &p).expect("level exists");
-        assert!(g.enemy_catapult.is_none(), "level {id} should NOT have enemy catapult");
+        assert!(
+            g.enemy_catapult.is_none(),
+            "level {id} should NOT have enemy catapult"
+        );
     }
     // Niveaux avec catapulte ennemie.
     for id in ["cd_03", "bj_02", "bj_03"] {
         let p = Progress::default();
         let g = Game::new(&ctx(), id, 1, &p).expect("level exists");
-        assert!(g.enemy_catapult.is_some(), "level {id} should have enemy catapult");
+        assert!(
+            g.enemy_catapult.is_some(),
+            "level {id} should have enemy catapult"
+        );
     }
 }
 

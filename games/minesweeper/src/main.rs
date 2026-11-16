@@ -1,13 +1,13 @@
 //! Minesweeper — Session C: difficulties, menu, persistence.
 
+use ember_stdlib::graphics::text::draw_right;
+use ember_stdlib::ui::hit;
 use minesweeper::Game;
 use minesweeper::GameState;
 use minesweeper::components::{BoardState, Cell, CellState};
 use minesweeper::config::{GameContext, load_config};
 use minesweeper::difficulties::DifficultyData;
 use minesweeper::systems;
-use ember_stdlib::ui::hit;
-use ember_stdlib::graphics::text::draw_right;
 
 use ember_stdlib::input::Input;
 use ember_stdlib::ui::button::ButtonEvent;
@@ -240,7 +240,13 @@ fn render_menu(ctx: &GameContext, game: &Game, input: &Input) {
 
         draw_text(line1, rect.0 + 20.0, rect.1 + 22.0, 22.0, ctx.color_text);
         draw_text(line2, rect.0 + 20.0, rect.1 + 42.0, 16.0, ctx.color_text);
-        draw_right(&line3, rect.0 + rect.2 - 20.0, rect.1 + 42.0, 16, ctx.color_text);
+        draw_right(
+            &line3,
+            rect.0 + rect.2 - 20.0,
+            rect.1 + 42.0,
+            16,
+            ctx.color_text,
+        );
     }
 
     // Same instance as the one updated in handle_menu_input.

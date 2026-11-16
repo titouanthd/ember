@@ -60,7 +60,9 @@ mod tests {
         let mut b = Rng::new(2);
         let mut diffs = 0;
         for _ in 0..100 {
-            if a.next_u32() != b.next_u32() { diffs += 1; }
+            if a.next_u32() != b.next_u32() {
+                diffs += 1;
+            }
         }
         assert!(diffs > 90, "only {diffs}/100 differences");
     }
