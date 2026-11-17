@@ -272,6 +272,7 @@ name = "ember-input"
 version = "0.1.0"
 dependencies = [
  "ember-core",
+ "glam",
 ]
 
 [[package]]

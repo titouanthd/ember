@@ -5,3 +5,4 @@ edition.workspace = true
 
 [dependencies]
 ember-core.workspace = true
+glam.workspace = true
