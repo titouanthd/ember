@@ -27,6 +27,10 @@ pub enum SceneError {
     InvalidName(String),
     /// Reading a scene file failed.
     Io(String),
+    /// A nested `instance:` could not be loaded.
+    Asset(String),
+    /// A scene instances itself, directly or through other scenes.
+    InstanceCycle(String),
 }
 
 impl fmt::Display for SceneError {
@@ -42,6 +46,8 @@ impl fmt::Display for SceneError {
             Self::ClassNotRegistered(c) => write!(f, "class `{c}` is not registered"),
             Self::InvalidName(n) => write!(f, "invalid node name `{n}`"),
             Self::Io(m) => write!(f, "scene io error: {m}"),
+            Self::Asset(m) => write!(f, "nested scene load failed: {m}"),
+            Self::InstanceCycle(c) => write!(f, "cycle detected instancing {c}"),
             Self::Cycle { child, parent } => {
                 write!(
                     f,

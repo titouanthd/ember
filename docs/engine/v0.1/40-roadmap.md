@@ -138,9 +138,9 @@ editor is finished.
 
 > **Progress:** 🟡 `ClassDB` (ADR-024), `Variant`, `PackedScene` /
 > `.escene` (ADR-025) and `AssetServer` with UID registry, PNG
-> textures and RON/scene assets (ADR-026) are in. Open: nested
-> `instance:`, scene-declared connection wiring, hot-reload watching,
-> audio/font loaders.
+> textures and RON/scene assets (ADR-026) are in, plus nested
+> `instance:` with cycle detection (ADR-027). Open: scene-declared
+> connection wiring, hot-reload watching, audio/font loaders.
 
 ### 5.1 Scope
 

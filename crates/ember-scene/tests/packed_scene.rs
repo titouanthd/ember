@@ -148,3 +148,72 @@ fn scene_loads_through_the_asset_server() {
     assert_eq!(handle.get().root_template_class(), "Player");
     assert!(server.uid_of("player.escene").is_some());
 }
+
+fn scene_dir(tag: &str, files: &[(&str, &str)]) -> ember_assets::AssetServer {
+    let dir = std::env::temp_dir().join(format!("ember-inst-{tag}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    for (name, body) in files {
+        std::fs::write(dir.join(name), body).unwrap();
+    }
+    ember_assets::AssetServer::new(&dir).unwrap()
+}
+
+#[test]
+fn nested_instance_is_built_and_overridden() {
+    let level = r#"(format: 1, uid: "uid://level_00001", nodes: [
+        (name: "Level", class: "Sprite"),
+        (name: "Hero", instance: "player.escene", parent: ".", z: 3.0),
+    ])"#;
+    let server = scene_dir("ok", &[("player.escene", FIXTURE), ("level.escene", level)]);
+    let db = classes();
+    let mut tree = NodeTree::new();
+    let scene = server.scene("level.escene").unwrap();
+    let root = scene
+        .get()
+        .instantiate_with(&db, &server, &mut tree)
+        .unwrap();
+    tree.set_root(root);
+
+    let hero = tree.find(root, "Hero").unwrap();
+    assert_eq!(tree.get(hero).unwrap().z(), 3.0);
+    assert!(tree.find(root, "Hero/Sprite/Gun").is_some());
+}
+
+#[test]
+fn instance_cycle_is_rejected_and_leaves_tree_empty() {
+    let a = r#"(format: 1, uid: "uid://a_00001", nodes: [
+        (name: "A", class: "Sprite"), (name: "B", instance: "b.escene", parent: "."),
+    ])"#;
+    let b = r#"(format: 1, uid: "uid://b_00001", nodes: [
+        (name: "B", class: "Sprite"), (name: "A", instance: "a.escene", parent: "."),
+    ])"#;
+    let server = scene_dir("cycle", &[("a.escene", a), ("b.escene", b)]);
+    let mut tree = NodeTree::new();
+    let scene = server.scene("a.escene").unwrap();
+    let err = scene
+        .get()
+        .instantiate_with(&classes(), &server, &mut tree)
+        .unwrap_err();
+    assert!(matches!(err, SceneError::InstanceCycle(_)), "{err}");
+    assert_eq!(tree.len(), 0);
+}
+
+#[test]
+fn instance_without_asset_server_or_with_both_fields_fails() {
+    let s = r#"(format: 1, uid: "u", nodes: [
+        (name: "A", class: "Sprite"), (name: "B", instance: "x.escene", parent: "."),
+    ])"#;
+    let scene = PackedScene::from_ron(s).unwrap();
+    let mut tree = NodeTree::new();
+    assert!(matches!(
+        scene.instantiate(&classes(), &mut tree),
+        Err(SceneError::Asset(_))
+    ));
+    assert_eq!(tree.len(), 0);
+    assert!(
+        PackedScene::from_ron(
+            r#"(format: 1, uid: "u", nodes: [(name: "A", class: "Sprite", instance: "x.escene")])"#
+        )
+        .is_err()
+    );
+}
