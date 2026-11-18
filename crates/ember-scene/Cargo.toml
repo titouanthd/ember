@@ -11,3 +11,5 @@ ember-macros.workspace = true
 ember-input.workspace = true
 slotmap.workspace = true
 glam.workspace = true
+serde.workspace = true
+ron.workspace = true
