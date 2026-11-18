@@ -52,6 +52,14 @@ editor is finished.
 
 ## 3. Phase 0 — Foundations
 
+> **Progress:** 🟡 `MainLoop` (`ember-core::main_loop`) and
+> `Input::primary_action` (`ember-input`) are in. **Open:**
+> `ember_stdlib::juice` does not exist yet (`juice.rs` copies remain in
+> `ember-wars`, `pagoda`, `jade-garden`); `Cooldown::running` is not
+> added (only a no-arg `ember_core::time::Cooldown::ready()` exists, no
+> deprecation of `new`); `audio.rs` copies remain in `air-hockey`,
+> `bore-inc`, `jade-garden`, `pagoda`. The workspace has 17 games, not 18.
+
 ### 3.1 Scope
 
 - Extract `ember_stdlib::juice` from the 6 duplicate `juice.rs` files
@@ -81,7 +89,7 @@ editor is finished.
 - `crates/ember_core/src/main_loop.rs` (+ tests)
 - `crates/ember_core/src/time/cooldown.rs` updated with deprecations
 - `crates/ember_stdlib/src/input.rs` updated with `primary_action`
-- All 18 games' `juice.rs` files replaced with `use ember_stdlib::juice::*;`
+- All 17 games' `juice.rs` files replaced with `use ember_stdlib::juice::*;`
 - Workspace green
 
 ### 3.5 Estimated effort
@@ -113,7 +121,7 @@ editor is finished.
 
 ### 4.3 Exit criteria
 
-- A hand-written test game (not one of the 18) can create a `NodeTree`,
+- A hand-written test game (not one of the 17) can create a `NodeTree`,
   add a `Sprite` node, and render it via `ember_render_macroquad`.
 - `NodeTree::process` order is verified by a test with 3 nodes that
   assert their `process` order.
@@ -349,9 +357,14 @@ editor is finished.
 
 ## 10. Phase 7 — Migration
 
+> **Progress:** 🟡 1 of 17 games migrated (`pong`: `NodeTree` +
+> `SceneLoop` + `PointScored` signal, 20-line `main.rs`). Other games
+> still use `macroquad` and `ember-stdlib` directly. `ember-ui`
+> (Phase 5) and `ember-editor` (Phase 6) are stubs.
+
 ### 10.1 Scope
 
-Migrate all 18 games onto `MainLoop + NodeTree + Servers`. One game per
+Migrate all 17 games onto `MainLoop + NodeTree + Servers`. One game per
 PR. Order matters — see [41-migration-guide.md](41-migration-guide.md).
 
 ### 10.2 Entry criteria
@@ -370,14 +383,14 @@ Per-game:
 
 Global:
 
-- All 18 games migrated.
+- All 17 games migrated.
 - No game imports `macroquad` directly.
 - `ember_stdlib::input` is still used by games for input (indirectly
   through `NodeContext`).
 
 ### 10.4 Deliverables
 
-- 18 PRs, one per game, in the order defined by
+- 17 PRs, one per game, in the order defined by
   [41-migration-guide.md §3](41-migration-guide.md#3-migration-order)
 - A `MIGRATION_LOG.md` recording per-game effort and unexpected issues
 - Updated `game_scenarios.rs` files (unchanged behavior, adapted to new
@@ -471,7 +484,7 @@ games can begin before the editor exists).
 | M4 — Backends are swappable | P4 | `macroquad` is isolated to 2 crates |
 | M5 — UI works | P5 | A menu can be built with `Button`, `VBox`, `Label` |
 | M6 — Authoring works | P6 | A `.escene` can be edited outside code |
-| M7 — POC complete | P7 | All 18 games run on the engine |
+| M7 — POC complete | P7 | All 17 games run on the engine |
 | M8 — v0.1 released | P8 | No deprecated APIs remain |
 
 ## 14. Cross-references

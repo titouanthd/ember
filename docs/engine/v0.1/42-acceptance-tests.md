@@ -229,7 +229,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace --no-fail-fast
 ```
 
-Both must pass with **zero** warnings and **zero** failures. All 18
+Both must pass with **zero** warnings and **zero** failures. All 17
 games, all their tests, all lints.
 
 This is the POC's final gate. `v0.1.0` is tagged on the commit that

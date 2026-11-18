@@ -36,7 +36,7 @@ The two dominant models in the Rust game ecosystem are:
 - **Scene tree** (Godot, Fyrox): entities are nodes, nodes own children,
   each node carries its own behavior.
 
-The workspace's 18 games include:
+The workspace's 17 games include:
 
 - Turn-based (`freecell`, `minesweeper`, `simon`, `memory`)
 - Physics-driven (`pong`, `air-hockey`, `asteroids`, `bullet-hell`)
@@ -364,7 +364,7 @@ pass.
 ### Context
 
 Every game implements the same menu-confirm pattern: Space OR Enter OR
-Left Click OR gamepad South. That's three checks per game, times 18
+Left Click OR gamepad South. That's three checks per game, times 17
 games, times every menu.
 
 ### Decision

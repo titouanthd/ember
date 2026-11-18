@@ -520,13 +520,13 @@ each widget only implements the specifics.
 
 Because drag-and-drop is 3× the complexity of click handling (drag
 threshold, drag ghost, drop targets, `CanDrop` negotiation, cancellation).
-The 18 games don't need it; shipping it half-done would be worse than
+The 17 games don't need it; shipping it half-done would be worse than
 not shipping it.
 
 ## 12. Open questions
 
 - **Q1:** Should `Control::on_mouse_up` return `bool` (consumed)?
-  *Provisional:* v0.2. v0.1 propagates everywhere, and 18/18 games work.
+  *Provisional:* v0.2. v0.1 propagates everywhere, and 17/17 games work.
 - **Q2:** Should `TextInput` support copy/paste? *Provisional:* v0.2.
   Needs clipboard access (platform-specific).
 - **Q3:** Should `Theme` be a `Resource` (asset-loaded) or a struct?

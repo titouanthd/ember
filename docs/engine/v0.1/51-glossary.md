@@ -131,7 +131,7 @@ startup (registering assets, initialising game state). Games work
 without it; it's the extension point. See [40-roadmap.md](40-roadmap.md).
 
 **POC** — Proof of Concept. The v0.1 milestone: engine structure works,
-all 18 games migrate, `ember-wars` passes its conformance suite. See
+all 17 games migrate, `ember-wars` passes its conformance suite. See
 [00-overview.md §4](00-overview.md#4-what-poc-means-here).
 
 **prelude** — a curated set of re-exports (`ember::prelude::*`) that

@@ -75,7 +75,7 @@ if input.pressed(Key::Space) || input.pressed(Key::Enter) || input.mouse_pressed
 }
 ```
 
-That's three checks per game, times 18 games, times every menu
+That's three checks per game, times 17 games, times every menu
 transition. `primary_action` collapses it to one call:
 
 ```rust
@@ -363,7 +363,7 @@ abandoned.
 
 ### 10.4 Why gamepad/touch are stubs in v0.1
 
-Because none of the 18 existing games use them. Adding full support is
+Because none of the 17 existing games use them. Adding full support is
 a real feature (SDL-style device enumeration, per-device state, device
 hotplug), not a weekend task. The stubs exist so the API can be designed
 now and implemented in v0.2 without breaking changes.

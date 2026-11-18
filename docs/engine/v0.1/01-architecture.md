@@ -98,7 +98,7 @@ ember_workspace/
 └── games/
     ├── ember-wars/
     ├── jade-garden/
-    └── … (18 total)
+    └── … (17 total)
 ```
 
 ### 3.2 Per-crate dependency graph (allowed edges only)
@@ -289,7 +289,7 @@ green — they are the acceptance criteria for Phase 4's exit.
   persistence, layout. These are useful regardless of the engine architecture.
   They gradually become a *facade over* `ember_core` and *complements to*
   `ember_scene` — but their public API stays.
-- **All 18 games' logic code** — the `systems::update`, `resolve_attacks`,
+- **All 17 games' logic code** — the `systems::update`, `resolve_attacks`,
   `resolve_projectiles`, etc. functions. Migration replaces the *wrapping*,
   not the *contents*.
 

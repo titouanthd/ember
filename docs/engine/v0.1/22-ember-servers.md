@@ -499,7 +499,7 @@ check.
   no. Games call it explicitly after bulk updates — automatic rebuild
   wastes work.
 - **Q4:** Should `RenderingServer` expose low-level vertices? *Provisional:*
-  no. Primitives + sprites cover 18/18 games.
+  no. Primitives + sprites cover 17/17 games.
 
 ## 11. Cross-references
 

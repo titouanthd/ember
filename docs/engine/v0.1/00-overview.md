@@ -25,7 +25,7 @@ the loop, the UI, and the asset pipeline every single time**.
 
 ## 3. Why this engine exists (evidence from the current codebase)
 
-The workspace already contains 18 working 2D games. Reading through them
+The workspace already contains 17 working 2D games. Reading through them
 surfaces three concrete pains that a small engine will solve:
 
 ### 3.1 The `main.rs` duplication
@@ -38,14 +38,15 @@ Every game's `main.rs` reimplements the same pattern:
 - Loop: read input → update state → draw → maybe save
 - Handle restart
 
-That is 40–80 lines per game, × 18 games, × every bug that ever gets
+That is 40–80 lines per game, × 17 games, × every bug that ever gets
 fixed in that pattern. A `MainLoop` trait collapses it to under 10 lines
 per game, all sharing the same code path.
 
 ### 3.2 The `juice.rs` duplication
 
 Six games (`accretion`, `ember-wars`, `jade-garden`, `pagoda`, `air-hockey`,
-`asteroids`) each ship a `juice.rs` implementing floating text, particles,
+`asteroids`) were audited as shipping a `juice.rs` (3 copies remain today:
+`ember-wars`, `pagoda`, `jade-garden`), implementing floating text, particles,
 screen shake, shockwave, and hit flash. They are near-identical copies.
 Extracting `ember_stdlib::juice` deletes ~600 lines of duplicated code
 today and prevents the six copies from silently diverging tomorrow.
@@ -77,7 +78,7 @@ Concretely, POC means:
 | Statically linked plugins | Dynamic loading (GDExtension equivalent) |
 | Scene format round-trips | Full editor |
 | Scene-tree architecture | Pure ECS (ECS is an optional extra crate) |
-| All 18 existing games still pass | Every game on the old code path deleted |
+| All 17 existing games still pass | Every game on the old code path deleted |
 
 The **acceptance test** is that **`ember-wars` migrates end-to-end** —
 catapults, units, projectiles, waves, upgrades, AI, combat resolution —
@@ -105,7 +106,7 @@ migration checklist.
 - `ember_editor` — POC inspector (scene tree + property panel, no WYSIWYG)
 - `ember` — top-level facade crate that re-exports the prelude
 - `.escene` v1 format spec
-- Migration of all 18 games onto the new `MainLoop + SceneTree`
+- Migration of all 17 games onto the new `MainLoop + SceneTree`
 
 ### 5.2 Out of scope (v0.1)
 
@@ -131,7 +132,7 @@ The POC is done when **all** of the following are true:
 
 | # | Criterion | How measured |
 |---|---|---|
-| 1 | 18 games still runnable | Manual launch + smoke test of each |
+| 1 | 17 games still runnable | Manual launch + smoke test of each |
 | 2 | `ember-wars` lib + scenarios green | `cargo test -p ember-wars` |
 | 3 | `ember-wars` `main.rs` ≤ 10 lines | `wc -l games/ember-wars/src/main.rs` |
 | 4 | No game imports `macroquad` outside `ember_render_macroquad` | `grep -r "macroquad" games/*/src/` returns only engine crates |

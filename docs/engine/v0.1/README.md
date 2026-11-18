@@ -9,9 +9,26 @@ Ember is a 2D game engine written in Rust, sitting on top of
 This directory is the single source of truth for its architecture, API
 specifications, formats, and roadmap.
 
-The current workspace already ships **18 playable 2D games**. This
+The current workspace already ships **17 playable 2D games**. This
 documentation describes how those games get a real engine underneath
 them without rewriting their logic — the goal of the v0.1 POC.
+
+**Naming:** specs say `ember_core`, `ember_scene`, …; the actual
+crates and directories use hyphens (`ember-core`, `ember-scene`;
+backends live in `crates/ember-render/macroquad` and
+`crates/ember-audio/macroquad`).
+
+### Implementation snapshot
+
+| Area | State |
+|---|---|
+| `ember-core`, `ember-scene`, `ember-servers`, `ember-assets`, `ember-input`, macroquad backends | 🟡 implemented, partially (see ADR-022…028) |
+| `ember-macros` | 🟡 `#[derive(Node)]` only |
+| `ember-ui`, `ember-editor` | ⬜ stubs |
+| Games migrated to `NodeTree` | 1 / 17 (`pong`) |
+
+Per-phase detail lives in the *Progress* notes of
+[40-roadmap.md](40-roadmap.md).
 
 ---
 

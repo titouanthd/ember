@@ -33,7 +33,7 @@ This works until you want to:
 3. Run in headless CI without a window.
 4. Profile the renderer without a GPU.
 
-Every one of these becomes a code change in 18 games, × every draw call.
+Every one of these becomes a code change in 17 games, × every draw call.
 Servers reduce the change to one crate:
 
 ```rust
@@ -229,7 +229,7 @@ simple.
 ### 6.1 Status
 
 **Deferred to v0.2.** The current `ember_stdlib::collider` module covers
-what the 18 games need (AABB overlap, circle-vs-circle, circle-vs-AABB,
+what the 17 games need (AABB overlap, circle-vs-circle, circle-vs-AABB,
 swept AABB). It is a pure function library, not a server.
 
 The `PhysicsServer` trait is sketched here so the seam exists, but the
@@ -433,7 +433,7 @@ reloading an asset (`AssetServer::reload(path)`) can swap the
 ### 11.4 Why the deferred `PhysicsServer`
 
 Because the games don't need it yet. Shipping a trait we don't use is
-worse than deferring it. The `collider` module covers 18/18 games today;
+worse than deferring it. The `collider` module covers 17/17 games today;
 the trait lands when a game needs spatial indexing.
 
 ## 12. Open questions
