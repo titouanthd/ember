@@ -1,6 +1,6 @@
 # 12 — Servers
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; three server traits, mocks and macroquad backends exist; `AssetServer`-driven texture lifecycle, shader API and `MainLoop::new(servers)` creation are not implemented.
 > **Audience:** game authors, implementers
 > **Prerequisites:** [10-nodes-and-scenes.md](10-nodes-and-scenes.md)
 
@@ -54,10 +54,10 @@ sequenceDiagram
     participant A as AudioServer
     participant P as PhysicsServer
 
-    Main->>R: create(RenderingBackend::Macroquad)
-    Main->>A: create(AudioBackend::Macroquad)
-    Main->>P: create(PhysicsBackend::Collider)
-    Main->>Loop: new(game, R, A, P)
+    Main->>R: MacroquadRenderer::new()
+    Main->>A: MacroquadAudio::new()
+    Main->>Loop: SceneLoop::new(tree, R, A, viewport)
+    Note over Loop,P: SceneLoop creates and owns LinearPhysics itself
     loop frame
         Loop->>R: begin_frame(viewport)
         Loop->>Loop: process / draw
@@ -74,20 +74,23 @@ sequenceDiagram
 
 Servers are created **once at startup** by the top-level `main`.
 Implementations are concrete types (`MacroquadRenderer`,
-`MacroquadAudio`, `ColliderPhysics`), but once created they are stored as
-`Box<dyn Trait>` and passed around by trait object.
+`MacroquadAudio`, `LinearPhysics`). `ember_scene::SceneLoop<R, A>` is
+generic over the rendering and audio backends and owns them by value (not
+`Box<dyn Trait>`); it is the only place they are stored. Everything else
+sees them as `&mut dyn Trait`.
 
 ### 3.2 Ownership
 
-The `MainLoop` owns the servers for its lifetime. Each `NodeContext`
-borrows them, one level deep:
+`SceneLoop` owns the servers for its lifetime. Each pass bundles them
+into a `Servers` struct and the tree builds one `NodeContext` per
+callback, borrowing them one level deep (ADR-022):
 
 ```rust
-pub struct NodeContext<'a> {
-    rendering: &'a mut dyn RenderingServer,
-    audio: &'a mut dyn AudioServer,
-    // physics not in v0.1; see §6
-    // ...
+pub struct Servers<'a> {
+    pub rendering: &'a mut dyn RenderingServer,
+    pub audio: &'a mut dyn AudioServer,
+    pub physics: &'a mut dyn PhysicsServer,
+    pub input: &'a Input,
 }
 ```
 
@@ -97,10 +100,9 @@ prevents race conditions in the future thread pool.
 
 ### 3.3 Destruction
 
-Servers drop after `MainLoop::finalize()`. Nothing in a node's
-`finalize` should try to use a server — the servers are already
-unborrowed at that point, and calling `ctx.render()` would fail to
-compile (no `ctx` in `finalize`'s signature).
+Servers drop with the `SceneLoop` after `MainLoop::finalize()` (which
+clears the tree). `Node::finalize(&mut self)` has no `ctx`, so a node
+cannot use a server there; calling `ctx.render()` would not compile.
 
 ## 4. RenderingServer
 
@@ -112,6 +114,7 @@ pub trait RenderingServer {
     fn begin_frame(&mut self, viewport: Rect);
     fn end_frame(&mut self);
     fn set_clear_color(&mut self, color: Color);
+    fn viewport(&self) -> Rect;
 
     // --- Camera ---
     fn set_camera(&mut self, offset: Vec2);
@@ -124,18 +127,27 @@ pub trait RenderingServer {
     // --- Primitives ---
     fn draw_rect(&mut self, rect: Rect, color: Color);
     fn draw_rect_outline(&mut self, rect: Rect, thickness: f32, color: Color);
+    fn draw_rect_rotated(&mut self, rect: Rect, rotation_radians: f32, color: Color);
     fn draw_circle(&mut self, center: Vec2, radius: f32, color: Color);
+    fn draw_circle_outline(&mut self, center: Vec2, radius: f32, thickness: f32, color: Color);
     fn draw_line(&mut self, a: Vec2, b: Vec2, thickness: f32, color: Color);
+    fn draw_triangle(&mut self, a: Vec2, b: Vec2, c: Vec2, color: Color);
 
     // --- Sprites ---
     fn draw_sprite(&mut self, texture: TextureId, dst: Rect, src: Option<Rect>, tint: Color);
 
     // --- Text ---
     fn draw_text(&mut self, text: &str, pos: Vec2, size: f32, color: Color);
+    fn draw_text_with_font(&mut self, font: FontId, text: &str, pos: Vec2, size: f32, color: Color);
+    fn measure_text(&self, text: &str, size: f32) -> TextMetrics;
+    fn measure_text_with_font(&self, font: FontId, text: &str, size: f32) -> TextMetrics;
+    fn set_default_font(&mut self, font: Option<FontId>);
 
-    // --- Textures ---
-    fn create_texture(&mut self, image: &Image) -> TextureId;
+    // --- Textures and fonts ---
+    fn create_texture(&mut self, image: &Image) -> Result<TextureId, ServerError>;
     fn destroy_texture(&mut self, id: TextureId);
+    fn create_font(&mut self, bytes: &[u8]) -> Result<FontId, ServerError>;
+    fn destroy_font(&mut self, id: FontId);
 
     // --- Capability probing ---
     fn supports(&self, feature: RenderFeature) -> bool;
@@ -146,14 +158,20 @@ pub enum RenderFeature {
     AlphaBlending,
     CustomShaders,
     TextureArray,
-    // v0.2: Instancing, Compute, ...
+    Instancing,
 }
 ```
+
+The method set beyond the original floor (fallible `create_texture`,
+`draw_triangle`, `draw_circle_outline`, `draw_rect_rotated`, font
+methods, `viewport`, `destroy_font`) is recorded in ADR-016. `set_z`
+only stores the value (`current_z()`); the macroquad backend does not yet
+reorder draws by z.
 
 ### 4.2 Naming convention
 
 - `draw_*` — immediate draw call, resets at `end_frame`
-- `set_*` — changes persistent state (camera, z, clear color)
+- `set_*` — changes persistent state (camera, z, clear color, default font)
 - `create_*` / `destroy_*` — resource lifecycle
 - `supports` — capability probe
 
@@ -166,18 +184,22 @@ order** within a z-level.
 
 This matches macroquad's model and is what makes the trait implementable
 on both immediate-mode backends (macroquad) and retained-mode backends
-(wgpu, where batching is explicit).
+(wgpu, where batching is explicit). In the macroquad backend
+`begin_frame`/`end_frame` are markers only: draws execute immediately in
+call order, with no reordering.
 
 ### 4.4 Texture lifecycle
 
 `create_texture` returns a `TextureId`, an opaque handle. The server
-owns the underlying GPU resource. `destroy_texture` is optional — the
-server drops unreferenced textures when the `AssetServer` drops the
-corresponding `Handle<Texture>`.
+owns the underlying GPU resource and may fail (`ServerError::Backend`,
+e.g. an empty image). `destroy_texture` must be called explicitly: there
+is no drop hook, so dropping a `Handle<Texture>` does not destroy the
+GPU texture (ADR-026). Unknown ids are ignored by `destroy_texture` and
+`draw_sprite`.
 
-Games never call `create_texture` directly. They go through the
-`AssetServer` (see [13-assets.md](13-assets.md)). The direct API exists
-for the `AssetServer` itself to use.
+Games normally go through the `AssetServer` (see
+[13-assets.md](13-assets.md)); `AssetServer::texture` takes the renderer
+and calls `create_texture` for you.
 
 ## 5. AudioServer
 
@@ -197,6 +219,10 @@ pub trait AudioServer {
     // --- Lifecycle ---
     fn flush(&mut self);   // flush pending buffers to the device
 
+    // --- Clips (ADR-016) ---
+    fn load_clip(&mut self, bytes: &[u8]) -> Result<AudioClipId, ServerError>;
+    fn destroy_clip(&mut self, clip: AudioClipId);
+
     // --- Capability probing ---
     fn supports(&self, feature: AudioFeature) -> bool;
 }
@@ -206,62 +232,67 @@ pub enum AudioFeature {
     PitchShift,
     Streaming,
     PositionalAudio,
-    // v0.2: Effects
 }
 ```
+
+The macroquad backend reports none of these features: `pitch` is
+accepted and ignored.
 
 ### 5.2 Playback model
 
 `play` returns a `SoundId`, which is a handle you can `stop` with.
-Finished sounds (`SoundId`s that completed naturally) are auto-removed
-from the server's active list; calling `stop` on a finished sound is a
-**no-op** (see [02-principles §5.4](02-principles.md#54-what-is-never-an-error)).
+Calling `stop` on an unknown or already-stopped sound is a **no-op**
+(see [02-principles §5.4](02-principles.md#54-what-is-never-an-error)).
+Playing an unknown clip still returns a `SoundId`, but nothing plays.
+*Not yet implemented:* auto-removal of naturally finished sounds in the
+macroquad backend (the `SoundId` stays tracked until `stop`/`stop_all`).
 
 ### 5.3 Why no `loop` parameter
 
 Loops are game logic, not server logic. A game that wants looping music
-calls `play` from its `process` when `is_playing(music_id)` returns
-false. Or it uses a `Loop` wrapper in the game crate. The server stays
-simple.
+calls `play` again from its own logic (for example on a timer) or uses a
+`Loop` wrapper in the game crate. The server stays simple. (There is no
+`is_playing` query yet; the macroquad backend always plays with
+`looped: false`.)
 
 ## 6. PhysicsServer
 
 ### 6.1 Status
 
-**Deferred to v0.2.** The current `ember_stdlib::collider` module covers
-what the 17 games need (AABB overlap, circle-vs-circle, circle-vs-AABB,
-swept AABB). It is a pure function library, not a server.
-
-The `PhysicsServer` trait is sketched here so the seam exists, but the
-v0.1 implementation is a thin shim over `collider`:
+**Implemented in v0.1 as `LinearPhysics`** (ADR-017, ADR-028): the trait
+uses opaque `u64` handles rather than `NodeId` (which lives in the L3
+`ember_scene`). `LinearPhysics` lives in `ember-servers` and is written
+against `ember_core::math::{Aabb, Circle}`; `ember_stdlib::collider` is
+not migrated. Spatial indexing and swept tests are *not yet implemented*.
 
 ```rust
 pub trait PhysicsServer {
-    fn query_overlaps(&self, shape: &Shape, mask: CollisionMask) -> Vec<NodeId>;
+    fn register(&mut self, shape: Shape, mask: CollisionMask) -> u64;
+    fn unregister(&mut self, handle: u64);
+    fn update(&mut self, handle: u64, shape: Shape); // move/reshape
+    fn query_overlaps(&self, shape: &Shape, mask: CollisionMask) -> Vec<u64>;
     fn raycast(&self, from: Vec2, to: Vec2, mask: CollisionMask) -> Option<RayHit>;
-    fn register(&mut self, id: NodeId, shape: Shape, mask: CollisionMask);
-    fn unregister(&mut self, id: NodeId);
-    fn rebuild(&mut self);  // recompute spatial index
+    fn rebuild(&mut self);  // no-op for LinearPhysics
 }
 
 pub struct RayHit {
-    pub node: NodeId,
     pub point: Vec2,
     pub normal: Vec2,
     pub distance: f32,
 }
 ```
 
+`Shape` (exported as `PhysicsShape`) is `Aabb(Aabb)` or `Circle(Circle)`.
+
 ### 6.2 Why a trait if `collider` is enough
 
 Because some games (bullet-hell, asteroids) do collision resolution
-hundreds of times per frame. A `Vec<(NodeId, Shape)>` linear scan at 300
-entities is O(n²). A spatial hash makes it O(n·k). The trait leaves
-room for `PhysicsBackend::SpatialHash` in v0.2 without changing game
-code.
+hundreds of times per frame. A linear scan at 300 entities is O(n²). A
+spatial hash makes it O(n·k). The trait leaves room for a spatial-hash
+backend in v0.2 without changing game code.
 
-For v0.1, `PhysicsBackend::Linear` walks the registry and calls
-`collider::overlaps`. It is what the games already do.
+For v0.1, `LinearPhysics` walks its registry per query (O(n), fine below
+~300 shapes). A spatial-hash backend is *not yet implemented*.
 
 ## 7. Backend registration
 
@@ -269,24 +300,25 @@ For v0.1, `PhysicsBackend::Linear` walks the registry and calls
 
 ```rust
 // At the top of the game's main():
-let rendering: Box<dyn RenderingServer> =
-    Box::new(MacroquadRenderer::new().await);
-let audio: Box<dyn AudioServer> =
-    Box::new(MacroquadAudio::new());
-let physics: Box<dyn PhysicsServer> =
-    Box::new(LinearPhysics::new());
-
-// The MainLoop takes them.
-let mut loop_ = MainLoop::new::<MyGame>(rendering, audio, physics);
-loop_.run().await;
+let scene_loop = SceneLoop::new(
+    tree,
+    MacroquadRenderer::new(),
+    MacroquadAudio::new(),
+    Rect::new(0.0, 0.0, 800.0, 600.0),
+);
+// Opens a window and drives the loop (ember_render_macroquad::run_window).
+run_window("My game", 800, 600, scene_loop);
 ```
 
-Games never see `MacroquadRenderer` — they only see `Box<dyn RenderingServer>`.
-Switching backends is a one-line change in `main`.
+`SceneLoop` creates its own `LinearPhysics`. Node code only sees
+`&mut dyn RenderingServer` via `ctx.render()`, so switching backends is a
+change in `main`. `MainLoop` is a trait (`ember_core::MainLoop`), not a
+struct; there is no `MainLoop::new`.
 
 ### 7.2 Backend crate convention
 
-- `ember_render_macroquad` exports `MacroquadRenderer`
+- `ember_render_macroquad` exports `MacroquadRenderer` (plus the `run` / `run_window` runners and `poll_input`)
+- `ember_audio_macroquad` exports `MacroquadAudio`
 - A future `ember_render_wgpu` exports `WgpuRenderer`
 - No crate exports more than one concrete backend type
 
@@ -314,9 +346,9 @@ The `supports(feature)` method is how the game finds out.
 
 ```rust
 if ctx.render().supports(RenderFeature::CustomShaders) {
-    ctx.render().use_shader(...);
+    // shader path (*not yet implemented*: no `use_shader` on the trait)
 } else {
-    ctx.render().draw_rect(...);  // fallback
+    ctx.render().draw_rect(rect, color);  // fallback
 }
 ```
 
@@ -325,9 +357,11 @@ if ctx.render().supports(RenderFeature::CustomShaders) {
 | Feature | Supported |
 |---|---|
 | `AlphaBlending` | ✅ |
-| `CustomShaders` | ✅ (via `macroquad::material`) |
+| `CustomShaders` | flag reported ✅, but the trait has no shader API yet |
 | `TextureArray` | ❌ |
 | `Instancing` | ❌ (v0.2 candidate) |
+
+`MacroquadAudio` reports no `AudioFeature`s.
 
 A game that queries `Instancing` gets `false` and must take the
 slow path. This is honest and correct.
@@ -358,7 +392,7 @@ impl Node for Sprite {
     fn draw(&self, ctx: &mut DrawContext) {
         if let Some(tex) = self.texture.get() {
             let dst = Rect::new(self.pos.x, self.pos.y, self.size.x, self.size.y);
-            ctx.render().draw_sprite(tex.id(), dst, None, WHITE);
+            ctx.render().draw_sprite(tex.id(), dst, None, Color::WHITE);
         }
     }
 }
@@ -370,10 +404,10 @@ impl Node for Sprite {
 impl Node for Button {
     fn process(&mut self, _dt: f32, ctx: &mut NodeContext) {
         if ctx.input().primary_action() {
-            let clip = ctx.assets().audio("click.ogg");
-            if let Some(clip) = clip.get() {
-                ctx.audio().play(clip.id(), 0.8, 1.0);
-            }
+            // `self.click` is an `AudioClipId` obtained earlier from
+            // `AudioServer::load_clip`. (`ctx.assets()` and an audio asset
+            // loader are *not yet implemented*.)
+            ctx.audio().play(self.click, 0.8, 1.0);
         }
     }
 }
@@ -386,8 +420,8 @@ impl Node for Player {
     fn physics_process(&mut self, _dt: f32, ctx: &mut NodeContext) {
         let origin = self.pos;
         let target = origin + self.aim_dir * 100.0;
-        if let Some(hit) = ctx.physics().raycast(origin, target, CollisionMask::ENEMY) {
-            self.target = Some(hit.node);
+        if let Some(hit) = ctx.physics().raycast(origin, target, CollisionMask::from_bits(ENEMY_LAYER)) {
+            self.hit_point = Some(hit.point);
         }
     }
 }
@@ -423,18 +457,17 @@ method without changing the borrow structure.
 
 The `AssetServer` owns `Handle<Texture>`, which is a reference-counted
 pointer to a `Texture` struct. The `Texture` struct holds a
-`TextureId` — the server's handle. When the last `Handle<Texture>`
-drops, the `Texture` drops, calling `rendering.destroy_texture(id)`.
+`TextureId` — the server's handle. `Handle<T>` is `Arc<RwLock<T>>`, so
+`AssetServer::reload` can swap the `TextureId` inside the shared
+`Texture` (destroying the old one) without every node updating its
+`Handle`. Dropping the last handle does **not** call `destroy_texture`
+yet (ADR-026); that is *not yet implemented*.
 
-This split (asset owns the handle, server owns the resource) means
-reloading an asset (`AssetServer::reload(path)`) can swap the
-`TextureId` without every node needing to update its `Handle`.
+### 11.4 Why a handle-based `PhysicsServer`
 
-### 11.4 Why the deferred `PhysicsServer`
-
-Because the games don't need it yet. Shipping a trait we don't use is
-worse than deferring it. The `collider` module covers 17/17 games today;
-the trait lands when a game needs spatial indexing.
+The trait shipped in v0.1 with `LinearPhysics` (ADR-028). It keys shapes
+by `u64` handles to keep `NodeId` out of L2 (ADR-017); the scene layer
+will own any `NodeId ↔ u64` map.
 
 ## 12. Open questions
 
@@ -446,8 +479,8 @@ the trait lands when a game needs spatial indexing.
   *Provisional:* no. Failed playback is silent
   ([02-principles §5.4](02-principles.md#54-what-is-never-an-error)).
 - **Q3:** Should `RenderingServer` support a custom shader registry?
-  *Provisional:* v0.1 exposes `use_shader(&str)` for named shaders
-  registered by the game. This is a stub; a full shader pipeline is v0.2.
+  *Provisional:* not in v0.1. `RenderFeature::CustomShaders` exists as a
+  flag but there is no `use_shader` method; a shader pipeline is v0.2.
 - **Q4:** Should the trait be `Send + Sync`? *Provisional:* no, `&mut`
   is enough. Add `Send + Sync` bounds when threading arrives.
 

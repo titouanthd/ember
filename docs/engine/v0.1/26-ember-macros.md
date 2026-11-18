@@ -1,6 +1,6 @@
 # 26 — `ember_macros`
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; `#[derive(Node)]` (minimal, ADR-019) and no-op `#[signal]` exist; `#[export]` handling, generated `new()`/serialize/registration are not implemented
 > **Audience:** implementers
 > **Prerequisites:** [21-ember-scene.md](21-ember-scene.md), [11-signals.md](11-signals.md)
 
@@ -8,29 +8,54 @@
 
 Specify the procedural macros that reduce boilerplate: `#[derive(Node)]`,
 `#[signal]`, `#[export]`, and their associated attributes. This is the
-crate that turns a plain Rust struct into a fully registered scene node.
+crate that turns a plain Rust struct into a scene node.
+
+> **Implementation status (ADR-019):** only a reduced subset exists.
+> `#[derive(Node)]` requires `#[class_name = "..."]` and a user-declared
+> `name: String` field, and emits just `impl Object` (`class_name`,
+> `as_any`, `as_any_mut`) and `impl Node` (`name`, `set_name`). It does
+> **not** add fields, generate `new()`, `serialize()` or registration
+> functions. `#[signal]` is a no-op marker; `#[export]` is accepted by the
+> derive but ignored. Everything below describing more than that is
+> *Not yet implemented* (planned). Tests: `crates/ember-scene/tests/derive_works.rs`
+> (happy path only; `trybuild` failure tests are deferred).
 
 ## 2. Module layout
 
+Actual layout (`crates/ember-macros`):
+
 ```
-ember_macros/
+ember-macros/
 ├── Cargo.toml
-├── src/
-│   ├── lib.rs          macro entry points
-│   ├── derive_node.rs  #[derive(Node)]
-│   ├── signal.rs       #[signal]
-│   ├── export.rs       #[export] parsing
-│   ├── class_name.rs   #[class_name]
-│   └── utils.rs        shared helpers
+└── src/
+    ├── lib.rs      entry points: derive(Node), #[signal]
+    └── node.rs     derive(Node) implementation
 ```
+
+The split below (`derive_node.rs`, `signal.rs`, `export.rs`, …) is
+*not yet implemented* — planned if the crate grows.
 
 ## 3. `#[derive(Node)]`
 
 ### 3.1 The attribute set
 
+Implemented form (ADR-019): `#[class_name]` is **required** (compile
+error if missing), and the struct must declare `name: String` itself.
+
 ```rust
 #[derive(Node)]
-#[class_name = "Player"]     // optional; defaults to struct name
+#[class_name = "Player"]
+pub struct Player {
+    pub name: String,
+    pub speed: f32,
+}
+```
+
+Planned form (*not yet implemented*):
+
+```rust
+#[derive(Node)]
+#[class_name = "Player"]     // planned: optional; defaults to struct name
 pub struct Player {
     #[export] pub speed: f32,
     #[export] pub hp: f32,
@@ -40,7 +65,10 @@ pub struct Player {
 
 ### 3.2 What it generates
 
-For the `Player` above, the macro generates:
+**Today** only `impl Object` (`class_name`, `as_any`, `as_any_mut`) and
+`impl Node` (`name`, `set_name`, against the user's `name` field) are
+emitted. The rest of this section is the *planned* expansion (not yet
+implemented; `SignalTable` was dropped from nodes by ADR-023):
 
 ```rust
 // === Object impl ===
@@ -85,6 +113,9 @@ pub fn register_player(db: &mut ClassDB) {
 
 ### 3.3 The magic fields
 
+*Not yet implemented, and not implementable as a derive* (ADR-019: derive
+macros cannot add fields). Planned design:
+
 The macro adds two private fields to the struct:
 
 - `__node_name: String`
@@ -99,6 +130,10 @@ to compile because the magic fields are private to the module and must
 be initialised.
 
 ### 3.4 Field attributes
+
+*Not yet implemented.* `#[export]` is registered as an inert attribute of
+the derive, so it compiles but has no effect; `default = ` / `skip` forms
+are not parsed.
 
 | Attribute | Effect |
 |---|---|
@@ -130,6 +165,8 @@ For non-default values, override:
 ```
 
 ### 3.6 Supported field types
+
+*Not yet implemented* (no `#[export]` processing exists).
 
 `#[export]` supports:
 
@@ -182,6 +219,10 @@ pub struct Damaged {
 
 ### 4.2 What it generates
 
+**Today it generates nothing:** `#[signal]` returns the item unchanged.
+`Signal` is satisfied by a blanket impl for `Send + Sync + 'static`
+types. The expansion below is *not yet implemented* (planned):
+
 ```rust
 pub struct Damaged {
     pub amount: f32,
@@ -225,6 +266,9 @@ Compile errors if you try to use a `!Send` signal (e.g. one containing
 an `Rc`). This is intentional — see [11-signals.md §3.2](11-signals.md#32-payload-requirements).
 
 ## 5. `#[export]`
+
+*Not yet implemented* — this whole section is planned. `ember-scene` nodes
+receive properties through hand-written `Node::set_property` (ADR-025).
 
 ### 5.1 Standalone usage
 
@@ -277,6 +321,9 @@ place `NodeId` round-trips through disk.
 
 ### 6.1 Usage
 
+`#[class_name = "X"]` (also accepts `#[class_name("X")]`) is required by
+the derive today; there is no default and no PascalCase validation.
+
 ```rust
 #[derive(Node)]
 #[class_name = "MyCustomName"]
@@ -311,7 +358,8 @@ name is what `ClassDB` registers and what `.escene` files reference.
 
 ### 7.3 `#[derive(Node)]` on generic types
 
-**Not supported in v0.1.** A node with a lifetime parameter or type
+**Not supported in v0.1** (the derive forwards generics, but this is
+untested and `class_name` is a single static name). A node with a lifetime parameter or type
 parameter cannot derive `Node` because `Node::class_name` requires a
 unique `'static` name and `ClassDB::register` requires `T: 'static`.
 
@@ -326,8 +374,10 @@ uses composition (a `Node` struct containing the enum as a field).
 
 ### 8.1 Auto-registration
 
-The derive macro generates a `register_<snake_name>` function. It does
-**not** auto-register with `ClassDB` — that requires a call site.
+The derive macro does **not** generate a `register_<snake_name>` function
+(planned, not implemented) and does not auto-register with `ClassDB` —
+that requires a call site. `ClassDB::register::<T>()` requires
+`T: Object + Default`; otherwise use `register_with(ctor)`.
 
 The plugin's `build` method registers everything:
 
@@ -354,11 +404,19 @@ that's 30 lines in one function, in one file. Acceptable.
 
 ## 9. Error messages
 
-The macros produce compile errors for misuse:
+Implemented compile errors (all via `syn::Error`):
 
 | Error | Cause |
 |---|---|
-| `#[class_name]` requires `#[derive(Node)]` | Orphan attribute |
+| `#[derive(Node)] requires the attribute #[class_name = "..."]` | Missing attribute |
+| `#[class_name] expects a string literal` / `expected #[class_name = "..."]` | Malformed attribute |
+| `#[derive(Node)] requires a field `name: String`` | Missing field |
+| `#[derive(Node)] can only be applied to structs` | Enum/union |
+
+Planned, *not yet implemented*:
+
+| Error | Cause |
+|---|---|
 | Class name must be PascalCase | Validation |
 | `#[export]` field type `{T}` is not supported | Unknown type |
 | Duplicate `#[class_name]` | Two attributes on same struct |
@@ -370,6 +428,10 @@ Good error messages are part of the spec — each macro should use
 ## 10. Examples
 
 ### 10.1 A complete node
+
+*Planned form* — it relies on `#[export(default = …)]`, a generated
+`new()` and the unimplemented signal-table API; today the struct needs an
+explicit `name: String` and hand-written construction and `set_property`.
 
 ```rust
 use ember::prelude::*;
@@ -428,7 +490,9 @@ If this node is serialized and instantiated, the `.escene` looks like:
 
 ### 10.3 Manual impl (no derive)
 
-For a struct that cannot use the derive macro:
+For a struct that cannot use the derive macro (this is what the derive
+actually expands to today, minus the planned hidden fields and
+`SignalTable`; `Object::class_name` has a `where Self: Sized` bound):
 
 ```rust
 pub struct ManualNode {

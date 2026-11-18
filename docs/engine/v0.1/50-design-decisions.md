@@ -1,6 +1,6 @@
 # 50 — Design Decisions (ADRs)
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; ADR-001..028 numbered consistently, ADR-016..028 match code except ADR-011 and ADR-020 loaders (not implemented, noted inline)
 > **Audience:** all
 > **Prerequisites:** [01-architecture.md](01-architecture.md), [02-principles.md](02-principles.md)
 
@@ -372,7 +372,9 @@ games, times every menu.
 **`Input::primary_action()`** returns true if any of {Space, Enter,
 Left Click, Gamepad South} pressed this frame.
 
-Also `secondary_action()` for Escape / Backspace / Gamepad East.
+Implementation (`ember-input`) also counts any touch started this frame
+for `primary_action()`. `secondary_action()` covers Escape / Backspace /
+Right Click / Gamepad East.
 
 ### Alternatives
 
@@ -409,6 +411,10 @@ cause of the 31-test `ember-wars` bug.
 
 Deprecate `new` → `running`, `with_duration` → `ready` (removed in
 v0.2).
+
+> **Not implemented:** `ember_core::time::Cooldown` still has `new(d)`
+> and `with_duration(d)`, and only a no-arg `ready()` (already ready);
+> `running` does not exist and nothing is deprecated.
 
 ### Alternatives
 
@@ -659,7 +665,7 @@ pub trait PhysicsServer {
 }
 ~~~
 
-The mapping from `NodeId` to `u64` (if any) is `ember_scene`'s concern in v0.2+, when a real physics implementation lands. For v0.1 the trait has no implementation; `ember_stdlib::collider` continues to be what games actually use.
+The mapping from `NodeId` to `u64` (if any) is `ember_scene`'s concern. The trait also gained `update(handle, shape)` (ADR-028). `LinearPhysics` (ADR-028) is the v0.1 implementation; games that have not migrated still use `ember_stdlib::collider`.
 
 ### Alternatives
 
@@ -799,9 +805,10 @@ async.
 
 For v0.1:
 
-- **Native**: `create_font` and `load_clip` block on the async
-  macroquad call via `futures::executor::block_on`. The cost is
-  negligible — these are called once at startup, not per frame.
+- **Native**: `load_clip` blocks on the async macroquad call via
+  `futures::executor::block_on`; `create_font` calls the synchronous
+  `load_ttf_font_from_bytes`. The cost is negligible — these are called
+  once at startup, not per frame.
 - **Wasm**: `create_font` and `load_clip` return
   `Err(ServerError::NotSupported)`. Games on wasm load fonts and audio
   **before entering the loop** (directly via
@@ -832,9 +839,9 @@ existing practice; it does not change it.
 
 ### Consequences
 
-- Native games can call `ctx.assets().load_font("...")` or
-  `ctx.assets().load_audio("...")` from anywhere — the asset server
-  hides the sync-blocking detail.
+- Native games can call `create_font` / `load_clip` from anywhere. A
+  `load_font` / `load_audio` asset path does not exist yet (font/audio
+  loaders are deferred, ADR-026).
 - Wasm games must load fonts and audio in `main.rs` before the loop.
   This is a constraint, not a bug — Pagoda works this way today.
 - The two backend structs grow one small `adopt_*` method each (~10
@@ -1037,7 +1044,8 @@ tables. `AssetServer` (needed for `instance:`) does not exist yet.
 
 ### Deferred
 
-- `instance:` nodes error until `AssetServer` (5c); no cycle check yet.
+- `instance:` nodes error until `AssetServer` (5c); no cycle check yet
+  (both resolved by ADR-027).
 - Connections are parsed, validated and kept, but not wired: no
   method-name dispatch exists. They are applied when scenes can name
   handlers.

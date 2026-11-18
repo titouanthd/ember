@@ -1,6 +1,6 @@
 # 00 — Overview
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; goals and scope are accurate, but only pong is migrated and several in-scope items are unimplemented (flagged inline)
 > **Audience:** all
 > **Prerequisites:** none
 
@@ -59,7 +59,8 @@ Four call sites used the wrong one, and 31 tests failed in `ember-wars` as
 a direct consequence (catapults spawned dead, units spawned on cooldown,
 bombers never detonated). Renaming the constructors to
 `Cooldown::running(d)` / `Cooldown::ready(d)` and deprecating `new` removes
-the footgun structurally. This is the kind of API sharpening a real engine
+the footgun structurally (planned; not yet in code — only a no-arg
+`Cooldown::ready()` exists). This is the kind of API sharpening a real engine
 does on purpose.
 
 **Every design decision in this document set traces back to one of these
@@ -100,10 +101,14 @@ migration checklist.
 - `ember_render_macroquad` — reference `RenderingServer` impl
 - `ember_audio_macroquad` — reference `AudioServer` impl
 - `ember_assets` — `AssetServer`, `Handle<T>`, UID registry, hot-reload
-- `ember_input` — input mapping, `primary_action`, action-map RON format
-- `ember_ui` — retained-mode `Control` nodes
-- `ember_macros` — `#[derive(Node)]`, `#[signal]`, `#[export]`
+  (hot-reload watching not implemented)
+- `ember_input` — input mapping, `primary_action` (action-map RON format
+  not implemented)
+- `ember_ui` — retained-mode `Control` nodes (stub)
+- `ember_macros` — `#[derive(Node)]`, `#[signal]`, `#[export]` (`#[signal]`
+  is a no-op marker; `#[export]` is a field attribute with no effect)
 - `ember_editor` — POC inspector (scene tree + property panel, no WYSIWYG)
+  (stub)
 - `ember` — top-level facade crate that re-exports the prelude
 - `.escene` v1 format spec
 - Migration of all 17 games onto the new `MainLoop + SceneTree`
@@ -134,7 +139,7 @@ The POC is done when **all** of the following are true:
 |---|---|---|
 | 1 | 17 games still runnable | Manual launch + smoke test of each |
 | 2 | `ember-wars` lib + scenarios green | `cargo test -p ember-wars` |
-| 3 | `ember-wars` `main.rs` ≤ 10 lines | `wc -l games/ember-wars/src/main.rs` |
+| 3 | `ember-wars` `main.rs` ≤ 10 lines (currently 210; only `pong` is migrated, at 20) | `wc -l games/ember-wars/src/main.rs` |
 | 4 | No game imports `macroquad` outside `ember_render_macroquad` | `grep -r "macroquad" games/*/src/` returns only engine crates |
 | 5 | `juice.rs` deleted from all games | `find games -name juice.rs` → empty |
 | 6 | `audio.rs` deleted from all games | `find games -name audio.rs` → empty |
@@ -142,6 +147,9 @@ The POC is done when **all** of the following are true:
 | 8 | Scene inspector loads, edits a property, saves | Manual walkthrough |
 | 9 | Workspace green under clippy `-D warnings` | CI |
 | 10 | All Wave 3 files marked ✅ | Review log |
+
+Status today: criteria 4–6 and 8 are unmet (3 `juice.rs`, 4 `audio.rs` remain);
+7 is met by `PackedScene` round-trip tests.
 
 Criterion 4 is the crucial one for future-proofing: as long as exactly one
 crate depends on `macroquad`, swapping to `wgpu` later is a contained change.
@@ -201,9 +209,9 @@ explains *why* each of our non-obvious choices is non-obvious.
 
 - **What we borrow:** The entire rendering stack for v0.1. Ember is a
   thin layer above macroquad today.
-- **Why we do not fork macroquad:** Its `miniquad::RenderingBackend` trait
-  is the natural seam. Our `RenderingServer` is a higher-level façade on
-  top of it, not a fork.
+- **Why we do not fork macroquad:** Our `RenderingServer` is a
+  higher-level façade over macroquad's drawing API, not a fork (the
+  backend does not touch `miniquad` directly).
 - **Why the seam matters:** if v0.2 wants wgpu, we write
   `ember_render_wgpu` and don't touch `ember_scene`, `ember_ui`, or any
   game. That is the whole point of the trait crate + impl crate split.
@@ -220,7 +228,7 @@ than being lost:
   users depend on `serde` directly? *Provisional answer:* direct
   dependency — no wrapper crates unless proven necessary.
 - **Q3:** Hot-reload scope — assets only (v0.1) vs also scenes?
-  *Provisional answer:* assets only; scene hot-reload is a v0.2 topic.
+  *Answer:* assets only; scene hot-reload is a v0.2 topic (ADR-015).
 - **Q4:** Should the editor use `egui` for the inspector panel, or
   reimplement everything in `ember_ui`? *Provisional answer:* `egui`
   for the editor only; `ember_ui` is for runtime UIs, not developer tools.

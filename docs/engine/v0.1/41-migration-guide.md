@@ -1,6 +1,6 @@
 # 41 — Migration Guide
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; 1 of 17 games (pong) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [40-roadmap.md](40-roadmap.md), [21-ember-scene.md](21-ember-scene.md)
 
@@ -12,6 +12,16 @@ the engine structure (`MainLoop`, `NodeTree`, `NodeContext`,
 `RenderingServer`). One game at a time, with a rollback plan.
 
 This is the file you read before you start a migration PR.
+
+> **Progress:** only `games/pong` is migrated (commit "migrate to NodeTree
+> with SceneLoop and PointScored signals"). The other 16 games still use
+> their own `main.rs` and macroquad directly. The recipe in §4 is the
+> original plan; where the real engine API differs, notes below say so.
+> In particular, the engine entry point is
+> `ember::prelude::{SceneLoop, run_window}` (`run_window(title, w, h, loop)`),
+> `MainLoop` (`ember-core`) has `init`/`process`/`physics_process`/
+> `draw(&mut self)`/`finalize` and **no** `progress()`/`progress_mut()`, and
+> there is no `ember::run(game).await`.
 
 ## 2. Principles
 
@@ -32,7 +42,7 @@ introduced in the shared PR is harder to bisect.
 
 ### 2.3 Tests green before, green after
 
-Every game already has `game_scenarios.rs` and unit tests. All of them
+Every game already has unit tests and most have `tests/game_scenarios.rs`. All of them
 must pass **at every commit** of the migration branch. Not "at the end
 of the branch" — every commit.
 
@@ -83,6 +93,10 @@ sequential and each can be a separate commit.
 Create `games/<game>/src/game.rs` (or reuse `lib.rs`) with a `Game`
 struct that implements `MainLoop`.
 
+*Planned recipe; superseded by pong's approach (§5.2): instead of a custom
+`MainLoop`, build a `NodeTree` and hand it to `SceneLoop`, which already
+implements `MainLoop`.*
+
 ```rust
 pub struct Game {
     world: World,
@@ -95,7 +109,7 @@ impl MainLoop for Game {
         // (stub for now)
         true
     }
-    fn draw(&self) {
+    fn draw(&mut self) {
         // (stub for now)
     }
 }
@@ -104,10 +118,9 @@ impl MainLoop for Game {
 Add `impl Game` to `main.rs`:
 
 ```rust
-#[macroquad::main("Game")]
-async fn main() {
+fn main() {
     let game = Game::new();
-    ember::run(game).await;
+    run_window("Game", 800, 600, game);
 }
 ```
 
@@ -128,7 +141,7 @@ impl MainLoop for Game {
         true
     }
 
-    fn draw(&self) {
+    fn draw(&mut self) {
         self.world.draw();
     }
 }
@@ -141,13 +154,15 @@ looks identical to pre-migration.
 
 If the game calls `macroquad::draw_rectangle`, `macroquad::draw_text`,
 etc. directly, replace with `ctx.render().draw_rect(...)`. This requires
-moving `draw` to take `&mut NodeContext` — but `MainLoop::draw` is
-`&self`. Solution: create a single root `Node` that owns the world's
+moving drawing behind `DrawContext` (`Node::draw(&self, ctx: &mut
+DrawContext)`, `ctx.render()` returns the `RenderingServer`). Solution: create a single root `Node` that owns the world's
 draw logic, and let `NodeTree::draw` drive it.
 
 ```rust
 #[derive(Node)]
+#[class_name = "Root"]
 pub struct Root {
+    name: String,
     world: World,
 }
 
@@ -166,7 +181,7 @@ identical but `macroquad` is gone from `World`.
 
 ### Step 4 — Move input capture to Input
 
-`Input::capture()` becomes `ctx.input()`. The `World::update` signature
+`Input::capture()` becomes `ctx.input()` (inside `Node::process`). The `World::update` signature
 stays `fn update(&mut self, dt: f32, input: &Input)` — no change needed.
 
 ```rust
@@ -207,10 +222,11 @@ Replace `macroquad::audio::play_sound_once` with
 
 ### Step 7 — Add progress persistence through MainLoop
 
-Implement `progress()` and `progress_mut()` on the `Game` struct.
-Replace direct `save::load` / `save::save` calls.
+*Not yet implemented in the engine:* `MainLoop` has no `progress()` /
+`progress_mut()`. Keep the game's own `save::load` / `save::save` until a
+persistence API lands.
 
-**Commit: "progress through MainLoop"** — save/load still works.
+**Commit: "progress through MainLoop"** — deferred.
 
 ### Step 8 — Delete old code
 
@@ -232,11 +248,26 @@ Replace direct `save::load` / `save::save` calls.
 - Migration time: ~2 hours.
 - The migration is a model for the rest.
 
-### 5.2 pong
+### 5.2 pong — **migrated**
 
-- 20 unit + 13 scenario.
-- Signals migration (Phase 3) already has a branch. When Phase 7
-  starts, this branch is rebased and merged.
+- 20 unit + 13 scenario + 3 headless `SceneLoop` tests
+  (`games/pong/tests/scene.rs`).
+- Result: `src/scene.rs` has two nodes — `Pong` (root; owns the match,
+  reads input in `process`, draws via `DrawContext`) and `Scoreboard`
+  (child; listens to `PointScored` / `MatchReset` signals emitted via
+  `ctx.emit`). `main.rs` (20 lines) calls `scene::build_tree`, wraps it in
+  `SceneLoop::new(tree, MacroquadRenderer, MacroquadAudio, viewport)` and
+  `run_window`.
+- Lessons: pure logic (`systems`, `components`) was untouched; the
+  `Node` impls are written by hand (`Object` + `Node`) rather than with
+  derive; entities stay plain structs inside one node (steps 5's "one
+  node per entity" was not needed); handlers find their node via
+  `ctx.current_id()` + `tree().get_mut` + downcast; `dt` is capped
+  (`MAX_FRAME_DT`) inside the node; tests drive `SceneLoop` with
+  `MockRenderer`/`MockAudio`.
+- Deviations from §8: `main.rs` is 20 lines (limit 10) and `pong` still
+  depends on `macroquad` (config colours, `render.rs`, the window
+  backend). Order in §3 has pong 2nd but it was migrated first.
 
 ### 5.3 simon
 
@@ -272,8 +303,8 @@ Replace direct `save::load` / `save::save` calls.
 
 - 19 unit + 10 scenario.
 - Wraparound rendering: the `RenderingServer` needs a "world wraps" mode
-  to draw sprites that straddle the edge. Add as a v0.1 trait method:
-  `set_wrap_mode(WrapMode::Wrap)`.
+  to draw sprites that straddle the edge. Planned as a v0.1 trait method
+  `set_wrap_mode(WrapMode::Wrap)` — *not yet implemented*.
 
 ### 5.9 air-hockey
 
@@ -370,15 +401,16 @@ A migration is done when:
 
 | Criterion | How verified |
 |---|---|
-| `main.rs` is ≤ 10 lines | `wc -l games/<game>/src/main.rs` |
-| Game has `impl MainLoop for Game` | `grep -c "impl MainLoop" games/<game>/src/*.rs` returns 1 |
+| `main.rs` is ≤ 10 lines (pong: 20 — target relaxed in practice) | `wc -l games/<game>/src/main.rs` |
+| Game runs a `SceneLoop` (or `impl MainLoop`) | `grep -rn "SceneLoop\|impl MainLoop" games/<game>/src/` |
 | No `use macroquad` in game code | `grep -rn "macroquad" games/<game>/src/` returns 0 hits |
 | No `juice.rs` | `ls games/<game>/src/juice.rs` fails |
 | No `audio.rs` | `ls games/<game>/src/audio.rs` fails |
 | All tests pass | `cargo test -p <game>` |
 | Visual behavior matches | Manual play-test against pre-migration video |
 
-The first four are grep-able and can be added to CI. The last one
+The first four are grep-able and can be added to CI (none is in CI yet;
+pong still contains macroquad imports). The last one
 requires human verification.
 
 ## 9. Cross-references

@@ -1,8 +1,17 @@
 # 24 — `ember_ui`
 
-> **Status:** ⬜ draft
+> **Status:** ⬜ draft — reviewed 2026-11-19; not implemented yet (`crates/ember-ui` is an empty stub)
 > **Audience:** game authors, implementers
 > **Prerequisites:** [21-ember-scene.md](21-ember-scene.md), [23-ember-render-macroquad.md](23-ember-render-macroquad.md)
+
+> **Not yet implemented.** `crates/ember-ui/src/lib.rs` contains only a doc
+> comment; no module, type or trait in this document exists. It is still
+> a dependency of the `ember` facade crate. Note also that
+> `#[derive(Node)]` as used in the examples below is the *planned* form —
+> today it needs `#[class_name]` and a user-declared `name: String`, and
+> generates no `new()` or `#[export]` handling (see ADR-019 and
+> [26-ember-macros.md](26-ember-macros.md)). Only pong's `Scoreboard`
+> (hand-drawn text via `DrawContext`) stands in for UI in games today.
 
 ## 1. Purpose
 

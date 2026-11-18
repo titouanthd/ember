@@ -1,6 +1,6 @@
 # 14 — Main Loop
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; `MainLoop`, fixed-step runner (`ember::run`/`run_window`) and `SceneLoop` implemented; `progress`/dirty-save hook and profiling are not
 > **Audience:** game authors, implementers
 > **Prerequisites:** [10-nodes-and-scenes.md](10-nodes-and-scenes.md), [12-servers.md](12-servers.md)
 
@@ -28,7 +28,8 @@ pub trait MainLoop {
     /// Called 0..N times per frame at a fixed `1/60` dt.
     fn physics_process(&mut self, fixed_dt: f32) {}
 
-    /// Called once per frame after process.
+    /// Called once per frame after process. `&mut self` because
+    /// rendering backends are stateful (ADR-022).
     fn draw(&mut self) {}
 
     /// Called once before shutdown. Best-effort.
@@ -36,49 +37,54 @@ pub trait MainLoop {
 }
 ```
 
-Games rarely implement `MainLoop` themselves — the derive macro or a
-`Game` trait wraps the common case. But the trait exists so a game that
-needs fine-grained control can implement it directly.
+The trait and its constants live in `ember_core::main_loop`
+(`FIXED_DT = 1/60`, `MAX_FRAME_DT = 0.25`; `ember::MainLoop` re-exports the
+trait). The common case is `ember_scene::SceneLoop`, which adapts a
+`NodeTree` plus its backends to `MainLoop` (`init` flushes the tree so
+`ready` runs, `process`/`physics_process` run the tree passes, `draw` does
+`begin_frame` → `tree.draw` → `end_frame` → `audio.flush`, `finalize` calls
+`tree.clear`). There is no derive macro or `Game` trait; a game with
+fine-grained needs implements `MainLoop` directly.
 
 ## 3. The loop
 
 ### 3.1 Algorithm
 
 ```rust
-pub async fn run<L: MainLoop>(mut loop_: L) {
-    const FIXED_DT: f32 = 1.0 / 60.0;
-    const MAX_FRAME_DT: f32 = 0.25;   // cap on catch-up
-
-    if !loop_.init() {
+// ember_render_macroquad::run, re-exported as ember::run
+pub async fn run<L: MainLoop + InputSink>(mut game: L) {
+    if !game.init() {
         return;
     }
-
     let mut accumulator = 0.0;
-
     loop {
-        let dt = macroquad::time::get_frame_time().min(MAX_FRAME_DT);
+        let dt = get_frame_time().min(MAX_FRAME_DT);
+        game.set_input(poll_input());   // one Input snapshot per frame
 
         // fixed-step physics
         accumulator += dt;
         while accumulator >= FIXED_DT {
-            loop_.physics_process(FIXED_DT);
+            game.physics_process(FIXED_DT);
             accumulator -= FIXED_DT;
         }
 
         // variable-step process
-        if !loop_.process(dt) {
+        if !game.process(dt) {
             break;
         }
 
-        // draw
-        loop_.draw();
-
-        macroquad::window::next_frame().await;
+        game.draw();
+        next_frame().await;
     }
-
-    loop_.finalize();
+    game.finalize();
 }
+
+/// Opens a window and runs `game` (blocking).
+pub fn run_window<L: MainLoop + InputSink + 'static>(title: &str, width: i32, height: i32, game: L);
 ```
+
+The runner requires `InputSink` (`ember_input`) so it can hand each frame's
+`Input` to the game; `SceneLoop` implements it.
 
 ### 3.2 What each phase does
 
@@ -103,7 +109,7 @@ decrements by `1/60` in `physics_process` does not.
 
 ```mermaid
 flowchart TD
-    A[frame starts] --> B[dt = min(frame_time, 0.25)]
+    A[frame starts] --> B["dt = min(frame_time, 0.25)"]
     B --> C[acc += dt]
     C --> D{acc >= 1/60?}
     D -->|yes| E[physics_process 1/60]
@@ -219,21 +225,28 @@ fn process(&mut self, _dt: f32) -> bool {
 }
 ```
 
-The engine exits the loop, calls `finalize`, drops servers, exits the
-process.
+The runner exits the loop and calls `finalize`. `SceneLoop` also stops when
+a node calls `ctx.quit()` (`NodeTree::request_quit`) or
+`SceneLoop::request_quit()`.
 
 ### 6.2 What happens on quit
 
 1. `process` returns `false`.
 2. Loop exits.
 3. `MainLoop::finalize()` is called — the last chance to save progress.
-4. Servers drop (in reverse creation order: physics, audio, rendering).
-5. Process exits.
+   For `SceneLoop` this calls `NodeTree::clear`, running every node's
+   `Node::finalize` bottom-up.
+4. The game value (and with it the backends) is dropped when `run` returns.
 
-Node `finalize` methods run **during server drop**, so they must not use
-servers (see [12-servers §3.3](12-servers.md#33-destruction)).
+`Node::finalize` takes no context, so it cannot use servers (see
+[12-servers §3.3](12-servers.md#33-destruction)).
 
 ## 7. Progress save
+
+> *Not yet implemented.* `MainLoop` has no `progress` / `progress_mut`
+> methods, no `Serializable` trait, no dirty flag and no automatic save;
+> games persist progress themselves (e.g. via `ember_stdlib::persistence`).
+> The design below is the plan.
 
 ### 7.1 The hook
 
@@ -285,7 +298,7 @@ stateDiagram-v2
     Init --> [*]: init() returns false
     Running --> Running: process() returns true
     Running --> Shutdown: process() returns false
-    Running --> Shutdown: window close event
+    Running --> Shutdown: window close event (backend-dependent)
     Shutdown --> Finalized: finalize() called
     Finalized --> [*]
 ```
@@ -325,9 +338,12 @@ impl MainLoop for Minimal {
     }
 }
 
-#[macroquad::main("Minimal")]
-async fn main() {
-    ember::run(Minimal { frames: 0 }).await;
+impl InputSink for Minimal {
+    fn set_input(&mut self, _input: Input) {}
+}
+
+fn main() {
+    ember::run_window("Minimal", 800, 600, Minimal { frames: 0 });
 }
 ```
 
@@ -421,12 +437,12 @@ into `AudioServer`. Forcing one policy would exclude the other.
 ## 11. Open questions
 
 - **Q1:** Should the fixed tick rate be configurable? *Provisional:* yes
-  in v0.2 (`MainLoop::tick_rate() -> f32`, default 60).
-- **Q2:** Should `draw` be `&self` or `&mut self`? *Provisional:*
-  `&self` — drawing is read-only by design. A `&mut self` variant is a
-  v0.2 candidate if games need interior mutability (unlikely).
+  in v0.2 (`MainLoop::tick_rate() -> f32`, default 60). Today `FIXED_DT` is a constant.
+- **Q2:** Should `draw` be `&self` or `&mut self`? *Resolved (ADR-022):*
+  `&mut self`, because rendering backends are stateful. Node-level
+  `Node::draw` stays `&self`.
 - **Q3:** Should the loop expose per-phase timing (for profiling)?
-  *Provisional:* yes, via `ember_profiling` macros. The loop calls
+  *Provisional:* yes, via `ember_profiling` macros (*not yet implemented*). The loop calls
   `profile_scope!("physics")` around each phase. No-op unless the
   feature is enabled.
 - **Q4:** Should `finalize` be async? *Provisional:* no — it runs after

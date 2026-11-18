@@ -1,6 +1,6 @@
 # 20 — `ember_core`
 
-> **Status:** 🟡 partial — `Variant`, `ClassDB` implemented (ADR-024, ADR-025)
+> **Status:** 🟡 partial — reviewed 2026-11-19; math, `Color`, `Cooldown`, `TickTimer`, hash, `Rng`, `Variant`, `ClassDB`, `MainLoop` exist with a smaller API than specced; `Stopwatch`, `Plugin`, prelude and several helpers are not implemented.
 > **Audience:** implementers
 > **Prerequisites:** [01-architecture.md](01-architecture.md), [02-principles.md](02-principles.md)
 
@@ -11,129 +11,117 @@ random numbers, the `Variant` tagged union, and the `Object`/`ClassDB`
 registry. Every other crate depends on `ember_core`; nothing in
 `ember_core` depends on any other Ember crate.
 
+> **Reading note.** The signatures below were reconciled with the code on
+> 2026-11-19. Anything marked *Not yet implemented* is still planned; the
+> shipped API is smaller and in places differs (e.g. `Aabb` is min/max,
+> `Rng` is xorshift32, `Cooldown::new` starts running).
+
 ## 2. Module layout
 
 ```
-ember_core/
-├── Cargo.toml
-├── src/
-│   ├── lib.rs          re-exports only
-│   ├── prelude.rs      curated re-exports
-│   ├── error.rs        CoreError
-│   ├── math/
-│   │   ├── mod.rs
-│   │   ├── vec.rs      Vec2
-│   │   ├── rect.rs     Rect
-│   │   ├── aabb.rs     Aabb
-│   │   └── circle.rs   Circle
-│   ├── color.rs        Color
-│   ├── time/
-│   │   ├── mod.rs
-│   │   ├── cooldown.rs Cooldown
-│   │   ├── tick.rs     Tick (fixed accumulator)
-│   │   └── stopwatch.rs
-│   ├── hash.rs         deterministic hash
-│   ├── rng.rs          seeded xoshiro
-│   ├── variant.rs      Variant
-│   ├── class_db.rs     Object, ClassDB
-│   └── plugin.rs       Plugin trait
+ember-core/src/
+├── lib.rs          module declarations + re-exports (no prelude.rs)
+├── error.rs        CoreError (Parse only)
+├── math/
+│   ├── mod.rs      re-exports Aabb, Circle, Rect
+│   ├── vec.rs      `reflect` helper (Vec2 itself is glam::Vec2)
+│   ├── rect.rs     Rect
+│   ├── aabb.rs     Aabb
+│   └── circle.rs   Circle
+├── color.rs        Color
+├── image.rs        Image (RGBA8 buffer)
+├── time/
+│   ├── mod.rs
+│   ├── cooldown.rs Cooldown
+│   └── tick.rs     TickTimer (fixed accumulator)
+├── hash.rs         deterministic hash
+├── rng.rs          seeded xorshift32 Rng
+├── variant.rs      Variant
+├── object.rs       Object trait
+├── class_db.rs     ClassDB
+├── main_loop.rs    MainLoop trait, FIXED_DT, MAX_FRAME_DT
+├── app/            GameState (Start/Playing/LevelCleared/GameOver/Win)
+└── io.rs           save_to_file / load_from_file (RON), IoError
 ```
+
+*Not yet implemented:* `prelude.rs`, `plugin.rs`, `time/stopwatch.rs`.
 
 ## 3. Math
 
 ### 3.1 `Vec2`
 
-```rust
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
-#[repr(C)]
-pub struct Vec2 { pub x: f32, pub y: f32 }
+`Vec2` is `glam::Vec2` used directly: there is no `ember_core::math::Vec2`
+re-export, so crates depend on `glam` themselves. All the methods of the
+original sketch come from glam (with glam names: `length_squared`,
+`distance_squared`, `normalize_or_zero`, `perp_dot`, `lerp`, ...).
+`glam::Vec2::normalize` does not panic on zero (it yields NaN), so the
+"panics" policy of §3.5 does not apply.
 
-impl Vec2 {
-    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
-    pub const ONE: Self = Self { x: 1.0, y: 1.0 };
-    pub const X: Self = Self { x: 1.0, y: 0.0 };
-    pub const Y: Self = Self { x: 0.0, y: 1.0 };
-
-    pub const fn new(x: f32, y: f32) -> Self;
-    pub const fn splat(v: f32) -> Self;
-
-    pub fn length_sq(self) -> f32;
-    pub fn length(self) -> f32;
-    pub fn distance(self, other: Self) -> f32;
-    pub fn distance_sq(self, other: Self) -> f32;
-    pub fn dot(self, other: Self) -> f32;
-    pub fn cross(self, other: Self) -> f32;   // z-component of 3D cross
-    pub fn normalized(self) -> Self;           // panics if zero (see §3.5)
-    pub fn normalize_or_zero(self) -> Self;    // safe for zero vectors
-    pub fn rotate(self, radians: f32) -> Self;
-    pub fn angle(self) -> f32;                 // radians, -π..π
-    pub fn lerp(self, other: Self, t: f32) -> Self;
-    pub fn clamp_length(self, max: f32) -> Self;
-}
-```
-
-**Operators:** `Add`, `Sub`, `Mul<f32>`, `Div<f32>`, `Neg`, `AddAssign`,
-`SubAssign`, `MulAssign<f32>`, `Index<usize>` (read-only).
-
-**Note:** `glam::Vec2` is re-exported under the hood. The `ember_core::math::Vec2`
-type is a newtype or a direct re-export — decision in
-[50-design-decisions.md](50-design-decisions.md) (currently direct
-re-export via `pub use glam::Vec2`).
+`ember_core::math::reflect(v, n)` reflects `v` about the unit normal `n`
+(glam has no `Vec2::reflect`).
 
 ### 3.2 `Rect`
 
 ```rust
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
-#[repr(C)]
 pub struct Rect { pub x: f32, pub y: f32, pub w: f32, pub h: f32 }
 
 impl Rect {
-    pub const ZERO: Self = Self { x: 0.0, y: 0.0, w: 0.0, h: 0.0 };
-
     pub const fn new(x: f32, y: f32, w: f32, h: f32) -> Self;
-    pub const fn from_min_size(min: Vec2, size: Vec2) -> Self;
+    pub fn from_min_size(min: Vec2, size: Vec2) -> Self;
     pub fn from_center_size(center: Vec2, size: Vec2) -> Self;
-    pub fn from_corners(a: Vec2, b: Vec2) -> Self;   // normalises
 
-    pub fn min(self) -> Vec2;
-    pub fn max(self) -> Vec2;
-    pub fn center(self) -> Vec2;
-    pub fn size(self) -> Vec2;
+    pub fn min(&self) -> Vec2;
+    pub fn max(&self) -> Vec2;
+    pub fn center(&self) -> Vec2;
+    pub fn size(&self) -> Vec2;
 
-    pub fn contains(self, point: Vec2) -> bool;      // edges inclusive
-    pub fn contains_strict(self, point: Vec2) -> bool; // edges exclusive
-    pub fn overlaps(self, other: Rect) -> bool;      // edges inclusive
-    pub fn intersect(self, other: Rect) -> Option<Rect>;
-    pub fn union(self, other: Rect) -> Rect;
-    pub fn expand(self, amount: f32) -> Rect;
-    pub fn translate(self, offset: Vec2) -> Rect;
+    pub fn contains(&self, p: Vec2) -> bool;              // edges inclusive
+    pub fn intersects(&self, other: &Rect) -> bool;       // positive area
+    pub fn intersect(&self, other: &Rect) -> Option<Rect>; // None if touching
+    pub fn to_aabb(&self) -> Aabb;
+    pub fn from_aabb(aabb: &Aabb) -> Self;
 }
 ```
+
+Methods take `&self` / `&Rect`. *Not yet implemented:* `Rect::ZERO`,
+`from_corners`, `contains_strict`, `union`, `expand`, `translate`
+(use `Rect::default()` for zero).
 
 ### 3.3 `Aabb`
 
-Axis-aligned bounding box, stored as **center + half_extent** internally
-(distinct from `Rect` which stores top-left + size).
+Axis-aligned bounding box stored as **`min` / `max`** corners (not
+center + half extent). `Rect` is the top-left + size spelling.
 
 ```rust
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Aabb { pub center: Vec2, pub half_extent: Vec2 }
+pub struct Aabb { pub min: Vec2, pub max: Vec2 }
 
 impl Aabb {
-    pub fn new(center: Vec2, half_extent: Vec2) -> Self;
-    pub fn from_corners(a: Vec2, b: Vec2) -> Self;
-    pub fn from_rect(r: Rect) -> Self;
-    pub fn to_rect(self) -> Rect;
+    pub fn from_corners(a: Vec2, b: Vec2) -> Self;        // normalises
+    pub fn from_center_half(center: Vec2, half: Vec2) -> Self;
+    pub fn from_top_left_size(top_left: Vec2, size: Vec2) -> Self;
 
-    pub fn min(self) -> Vec2;
-    pub fn max(self) -> Vec2;
-    pub fn size(self) -> Vec2;
-    pub fn contains(self, point: Vec2) -> bool;
-    pub fn overlaps(self, other: Aabb) -> bool;
-    pub fn closest_point(self, point: Vec2) -> Vec2;
-    pub fn penetration(self, other: Aabb) -> Option<Vec2>;  // MTD vector
+    pub fn center(&self) -> Vec2;
+    pub fn size(&self) -> Vec2;
+    pub fn half_size(&self) -> Vec2;
+    pub fn width(&self) -> f32;
+    pub fn height(&self) -> f32;
+
+    pub fn contains(&self, point: Vec2) -> bool;          // edges inclusive
+    pub fn contains_strict(&self, point: Vec2) -> bool;
+    pub fn overlaps(&self, other: &Aabb) -> bool;         // edges inclusive
+    pub fn overlaps_strict(&self, other: &Aabb) -> bool;
+    /// `(axis, depth)`; axis is unit, from `other` towards `self`.
+    pub fn penetration(&self, other: &Aabb) -> Option<(Vec2, f32)>;
+    pub fn distance_to_point(&self, point: Vec2) -> f32;
+    pub fn closest_point(&self, point: Vec2) -> Vec2;
 }
 ```
+
+Convert with `Rect::to_aabb` / `Rect::from_aabb`. `penetration` is strict
+(touching edges give `None`) and returns an axis plus depth, not an MTD
+vector.
 
 ### 3.4 `Circle`
 
@@ -143,28 +131,28 @@ pub struct Circle { pub center: Vec2, pub radius: f32 }
 
 impl Circle {
     pub fn new(center: Vec2, radius: f32) -> Self;
-    pub fn contains(self, point: Vec2) -> bool;
-    pub fn overlaps(self, other: Circle) -> bool;
-    pub fn overlaps_aabb(self, aabb: Aabb) -> bool;
-    pub fn closest_point_on_edge(self, from: Vec2) -> Vec2;
+    pub fn diameter(&self) -> f32;
+    pub fn area(&self) -> f32;
+    pub fn circumference(&self) -> f32;
+    pub fn contains(&self, point: Vec2) -> bool;
+    pub fn contains_strict(&self, point: Vec2) -> bool;
+    pub fn overlaps(&self, other: &Circle) -> bool;
+    pub fn overlaps_aabb(&self, aabb: &Aabb) -> bool;
+    pub fn closest_point_on_edge(&self, point: Vec2) -> Vec2;
 }
 ```
 
 ### 3.5 Math panics policy
 
-Functions documented with `# Panics` are the only permitted panic sites
-in `ember_core` (see [02-principles I4](02-principles.md#i4--no-unwrapexpect-in-engine-crates)):
-
-- `Vec2::normalized` — panics if `length_sq() == 0.0`. Callers who can't
-  guarantee non-zero use `normalize_or_zero`.
-
-That's it. Everything else returns `Option` / `Result` or produces a
-well-defined default.
+`ember_core`'s own math has no documented panic sites. Everything
+returns `Option` / `Result` or a well-defined default (see
+[02-principles I4](02-principles.md#i4--no-unwrapexpect-in-engine-crates)).
 
 ## 4. `Color`
 
 ```rust
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[repr(C)]
 pub struct Color { pub r: f32, pub g: f32, pub b: f32, pub a: f32 }
 
 impl Color {
@@ -175,142 +163,133 @@ impl Color {
     pub const GREEN: Self;
     pub const BLUE: Self;
     pub const YELLOW: Self;
-    pub const CYAN: Self;
-    pub const MAGENTA: Self;
 
+    pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self;
     pub const fn rgb(r: f32, g: f32, b: f32) -> Self;      // a = 1.0
     pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self;
-    pub fn from_hex(hex: u32) -> Self;                     // 0xRRGGBB or 0xRRGGBBAA
-    pub fn from_u8(r: u8, g: u8, b: u8, a: u8) -> Self;
 
     pub fn with_alpha(self, a: f32) -> Self;
-    pub fn lerp(self, other: Self, t: f32) -> Self;
-    pub fn to_array(self) -> [f32; 4];                     // macroquad interop
+    pub fn to_array(self) -> [f32; 4];
+    pub fn from_array(a: [f32; 4]) -> Self;
 }
 ```
 
-Compatible with `macroquad::prelude::Color` — same field layout, same
-defaults, same `From` conversions (see [23-ember-render-macroquad.md](23-ember-render-macroquad.md)).
+*Not yet implemented:* `CYAN`, `MAGENTA`, `from_hex`, `from_u8`, `lerp`.
+
+Same field layout as `macroquad::prelude::Color`. The macroquad backend
+converts field-by-field with internal helpers; there are no public `From`
+impls (see [23-ember-render-macroquad.md](23-ember-render-macroquad.md)).
+
+`ember_core::Image` (RGBA8 buffer: `new`, `from_rgba8`, `width`,
+`height`, `as_bytes`, `set_pixel`) is the pixel type passed to
+`RenderingServer::create_texture`.
 
 ## 5. Time
 
-### 5.1 `Cooldown` — the renamed API
+### 5.1 `Cooldown`
 
 ```rust
-#[derive(Clone, Debug)]
-pub struct Cooldown {
-    duration: f32,
-    remaining: f32,
-}
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+pub struct Cooldown { remaining: f32, duration: f32 }
 
 impl Cooldown {
-    /// Ready immediately. After `.trigger()`, becomes not-ready for `duration`.
-    pub fn ready(duration: f32) -> Self;
+    /// Running: `remaining == duration`.
+    pub fn new(duration: f32) -> Self;
+    /// Ready now, remembers `duration` for `reset()`.
+    pub fn with_duration(duration: f32) -> Self;
+    /// Ready, zero duration (same as `Default`).
+    pub fn ready() -> Self;
+    /// Running with `remaining` left; duration is extended if smaller.
+    pub fn from_remaining(remaining: f32, duration: f32) -> Self;
 
-    /// Already running. Becomes ready after `duration`.
-    pub fn running(duration: f32) -> Self;
-
-    /// Ready now with `duration` of 0.
-    pub fn immediate() -> Self;
-
-    /// Reconstructs from a saved `remaining` value, clamping to valid range.
-    pub fn from_remaining(duration: f32, remaining: f32) -> Self;
-
-    // --- Deprecated (removed in v0.2) ---
-    #[deprecated(since = "0.1.0", note = "use `Cooldown::running(d)`")]
-    pub fn new(duration: f32) -> Self { Self::running(duration) }
-
-    #[deprecated(since = "0.1.0", note = "use `Cooldown::ready(d)`")]
-    pub fn with_duration(duration: f32) -> Self { Self::ready(duration) }
-
-    // --- Queries ---
     pub fn duration(&self) -> f32;
     pub fn remaining(&self) -> f32;
     pub fn is_ready(&self) -> bool;
     pub fn is_active(&self) -> bool;
-    pub fn fraction(&self) -> f32;            // 0..1, 1.0 when ready
+    pub fn fraction(&self) -> f32;            // elapsed, 0..1; 1.0 when ready
+    pub fn remaining_fraction(&self) -> f32;  // 1..0
 
-    // --- Mutation ---
-    pub fn tick(&mut self, dt: f32);           // reduces remaining, clamps at 0
-    pub fn tick_returning(&mut self, dt: f32) -> bool;  // true on frame it expires
+    pub fn tick(&mut self, dt: f32);           // clamps at 0; dt <= 0 ignored
+    pub fn tick_returning(&mut self, dt: f32) -> bool;  // true on the expiring tick
     pub fn trigger(&mut self, duration: f32);  // restart with new duration
     pub fn reset(&mut self);                   // restart with stored duration
     pub fn clear(&mut self);                   // force ready
 }
 ```
 
-**Semantic contract:**
+> **Divergence from the original spec.** The planned rename
+> (`Cooldown::ready(d)` / `running(d)` / `immediate()`, with `new` and
+> `with_duration` deprecated) is **not implemented**. In v0.1:
+> `Cooldown::new(d)` is *running*, `with_duration(d)` is *ready*, and
+> `ready()` takes no argument. `from_remaining` takes `(remaining,
+> duration)`. `Cooldown` derives `Copy` and serde.
 
 | Constructor | Initial `is_ready()` |
 |---|---|
-| `ready(d)` | `true` |
-| `running(d)` | `d <= 0.0` (immediately ready if zero/negative duration) |
-| `immediate()` | `true` |
+| `new(d)` | `d <= 0.0` |
+| `with_duration(d)` | `true` |
+| `ready()` | `true` |
 
-**Negative dt:** `tick(-1.0)` is a no-op (matches `ember_core::time::Cooldown::tick_ignores_negative_dt`).
+**Negative dt:** `tick(-1.0)` is a no-op.
 
 **Fixed-step safety:** because `Cooldown::tick` clamps at zero,
 calling it with `1/60` in `physics_process` produces identical behaviour
 across frame rates.
 
-### 5.2 `Tick` — fixed-step accumulator
+### 5.2 `TickTimer` — fixed-step accumulator
+
+The type is named `TickTimer` (not `Tick`).
 
 ```rust
-#[derive(Clone, Debug)]
-pub struct Tick {
-    duration: f32,
-    accumulator: f32,
-}
+#[derive(Debug, Clone)]
+pub struct TickTimer { /* accumulator, tick_duration */ }
 
-impl Tick {
-    pub fn new(duration: f32) -> Self;
+impl TickTimer {
+    pub const MAX_TICKS_PER_ADVANCE: u32 = 8;
+
+    pub fn new(tick_duration: f32) -> Self;      // clamped to >= 1e-6
     pub fn duration(&self) -> f32;
     pub fn set_duration(&mut self, duration: f32);
 
-    /// Advances and returns how many whole ticks elapsed.
-    /// Capped at `max_ticks` per call (default 8).
-    pub fn advance(&mut self, dt: f32, max_ticks: u32) -> u32;
+    /// Advances and returns whole ticks elapsed, capped at
+    /// `MAX_TICKS_PER_ADVANCE` (surplus dropped). Negative dt → 0.
+    pub fn advance(&mut self, dt: f32) -> u32;
 
-    pub fn progress(&self) -> f32;   // 0..1 within the current tick
+    pub fn progress(&self) -> f32;     // 0..1 within the current tick
+    pub fn accumulator(&self) -> f32;
     pub fn reset(&mut self);
 }
 ```
 
 ### 5.3 `Stopwatch`
 
-```rust
-#[derive(Clone, Debug, Default)]
-pub struct Stopwatch {
-    elapsed: f32,
-    running: bool,
-}
+*Not yet implemented.* Planned API:
 
-impl Stopwatch {
-    pub fn new() -> Self;
-    pub fn start(&mut self);
-    pub fn stop(&mut self);
-    pub fn reset(&mut self);
-    pub fn tick(&mut self, dt: f32);
-    pub fn elapsed(&self) -> f32;
-    pub fn is_running(&self) -> bool;
-}
+```rust
+pub struct Stopwatch { /* elapsed, running */ }
+// new, start, stop, reset, tick(dt), elapsed(), is_running()
 ```
+
+### 5.4 `MainLoop` and fixed step
+
+`ember_core::main_loop` defines the `MainLoop` trait (`init`, `process`,
+`physics_process`, `draw(&mut self)`, `finalize`, see
+[14-main-loop.md](14-main-loop.md)) and the constants `FIXED_DT = 1/60` and
+`MAX_FRAME_DT = 0.25`.
 
 ## 6. Hashing
 
 ```rust
-// ember_core::hash
+// ember_core::hash (re-exported at the crate root)
 
-pub fn hash_u32(input: u32) -> u32;
-pub fn hash_2d(x: i32, y: i32) -> u32;
-pub fn hash_3d(x: i32, y: i32, z: i32) -> u32;
-
-/// Deterministic, avalanche-distributed hash of a seed + input.
-pub fn hash_with_seed(seed: u32, input: u32) -> u32;
-
-/// 0..1 float from a hash. Uses the top 24 bits for the mantissa.
-pub fn hash_to_f32(h: u32) -> f32;
+/// MurmurHash3-finalizer based; `(seed, x)` -> 32 bits.
+pub fn hash_u32(seed: u32, x: u32) -> u32;
+pub fn hash_u32_2(seed: u32, x: u32, y: u32) -> u32;
+pub fn hash_u32_3(seed: u32, x: u32, y: u32, z: u32) -> u32;
 ```
+
+*Not yet implemented:* `hash_2d`, `hash_3d`, `hash_with_seed`,
+`hash_to_f32` (use `Rng` for floats).
 
 **Contract:** every function is deterministic for the same input (no
 seeding by OS entropy), produces well-distributed output (avalanche test
@@ -320,53 +299,46 @@ passes), and is safe for zero input.
 
 ### 7.1 `Rng`
 
+An **xorshift32** generator (single `u32` state), not xoshiro256**.
+
 ```rust
 #[derive(Clone, Debug)]
-pub struct Rng { /* xoshiro256** state */ }
+pub struct Rng { state: u32 }
 
 impl Rng {
-    pub fn new(seed: u64) -> Self;
+    pub const ZERO_SEED_FALLBACK: u32 = 0xDEAD_BEEF;
 
-    // --- State ---
-    pub fn state(&self) -> [u64; 4];
-    pub fn set_state(&mut self, state: [u64; 4]);
-    pub fn seed(&self) -> u64;
+    pub fn new(seed: u32) -> Self;             // 0 -> fallback
+    pub fn from_state(state: u32) -> Self;
+    pub fn state(&self) -> u32;
+    pub fn set_state(&mut self, state: u32);   // 0 -> fallback
 
-    // --- Basic ---
     pub fn next_u32(&mut self) -> u32;
-    pub fn next_u64(&mut self) -> u64;
-    pub fn next_f32(&mut self) -> f32;         // [0, 1)
-    pub fn next_f64(&mut self) -> f64;         // [0, 1)
-
-    // --- Range ---
-    pub fn range_u32(&mut self, lo: u32, hi: u32) -> u32;      // [lo, hi)
-    pub fn range_usize(&mut self, lo: usize, hi: usize) -> usize;
-    pub fn range_f32(&mut self, lo: f32, hi: f32) -> f32;      // [lo, hi)
-    pub fn range_i32(&mut self, lo: i32, hi: i32) -> i32;
-
-    // --- Choice ---
-    pub fn bool(&mut self) -> bool;
-    pub fn choice<'a, T>(&mut self, slice: &'a [T]) -> Option<&'a T>;
-    pub fn shuffle<T>(&mut self, slice: &mut [T]);
+    pub fn next_f32(&mut self) -> f32;                       // [0, 1)
+    pub fn next_range(&mut self, n: usize) -> usize;         // [0, n), 0 if n == 0
+    pub fn next_f32_range(&mut self, min: f32, max: f32) -> f32;
+    pub fn next_bool(&mut self) -> bool;
 }
 ```
 
+*Not yet implemented:* `next_u64`/`next_f64`, `range_*`, `choice`,
+`shuffle`, `seed()`, 64-bit/xoshiro state.
+
 **Contract:**
-- Same seed → same sequence, forever (this is a compatibility guarantee).
-- `seed(0)` does not lock up (special-cased).
+- Same seed → same sequence.
+- Seed/state `0` does not lock up (replaced by `ZERO_SEED_FALLBACK`).
 - `next_f32()` is in `[0, 1)`, never `1.0`.
 
-### 7.2 Legacy helpers
+### 7.2 Free helpers
 
-For compatibility with existing `ember_stdlib::rng` code:
+Bridges for code that stores the RNG state as a bare `u32`:
 
 ```rust
-pub fn rand01(seed: u64, index: u64) -> f32;
-pub fn rand_usize(seed: u64, index: u64, n: usize) -> usize;
+pub fn rand01(state: &mut u32) -> f32;
+pub fn rand_usize(state: &mut u32, n: usize) -> usize;
 ```
 
-These are stateless (index-driven), used by `ember_stdlib::grid` for
-deterministic tile generation.
+They advance `*state` in place (they are not index-driven).
 
 ## 8. `Variant`
 
@@ -405,6 +377,9 @@ impl Variant {
 }
 ```
 
+RON syntax is tuple-style: `Float(1.0)`, `Vec2(1.0, 2.0)`,
+`Color(r, g, b, a)`. `from_ron` errors are `CoreError::Parse`.
+
 **Why not `serde_json::Value`:** because `Variant` is `Send + Sync +
 'static`, has a fixed set of primitives that maps to `Object` properties,
 and round-trips through RON (which the scene format uses).
@@ -426,118 +401,92 @@ types) can also implement `Object`.
 
 ### 9.2 `ClassDB`
 
-A global (thread-local, no `static mut`) registry of type names to
-constructors. Populated at startup by the `#[derive(Node)]` macro's
-generated `register` function.
+A plain value (no global, thread-local or `static mut` state) mapping
+class names to constructors. Games create one and pass it by reference.
+`#[derive(Node)]` does **not** generate a `register` function; games call
+`register::<T>()` / `register_node::<T>()` explicitly (ADR-019, ADR-024).
 
 ```rust
-pub struct ClassDB { /* HashMap<&'static str, fn() -> Box<dyn Object>> */ }
+#[derive(Default)]
+pub struct ClassDB { /* BTreeMap<&'static str, Entry> */ }
 
 impl ClassDB {
     pub fn new() -> Self;
 
-    /// Register a class. Idempotent — same name registered twice is a no-op.
-    pub fn register<T: Object>(&mut self) where T: Default;
-
-    /// Register with a custom constructor.
+    /// Register under `T::class_name()`. Idempotent: first registration wins.
+    pub fn register<T: Object + Default>(&mut self);
     pub fn register_with<T: Object>(&mut self, ctor: fn() -> T);
+    pub fn is_registered(&self, class_name: &str) -> bool;
 
-    /// Instantiate by name. Returns `None` if unregistered.
-    pub fn instantiate(&mut self, class_name: &str) -> Option<Box<dyn Object>>;
+    /// Fresh instance by name; `None` if unregistered. Takes `&self`.
+    pub fn instantiate(&self, class_name: &str) -> Option<Box<dyn Object>>;
 
-    /// List all registered class names (sorted).
+    /// Registered class names, sorted.
     pub fn names(&self) -> Vec<&'static str>;
+
+    /// Per-class extension values keyed by type (ADR-024).
+    pub fn set_extension<E: Any + Send + Sync>(&mut self, class_name: &str, ext: E) -> bool;
+    pub fn extension<E: Any + Send + Sync>(&self, class_name: &str) -> Option<&E>;
 }
 ```
 
-**Threading model:** `ClassDB` is created once per thread and passed
-around by reference. `#[derive(Node)]` generates a `register_class(db)`
-function that each crate's `init` calls. No global mutable state (see
+`ember_scene::ClassDbNodes` adds `register_node`, `register_node_with`
+and `instantiate_node` for `Box<dyn Node>` (see
+[21-ember-scene.md](21-ember-scene.md)).
+
+**Threading model:** no global mutable state (see
 [02-principles I3](02-principles.md#i3--no-global-mutable-state)).
 
 ## 10. `Plugin` trait
 
-The single extension point between games and the engine.
+*Not yet implemented.* There is no `Plugin` trait in `ember-core` (it
+would need `AssetServer` and `Node`, which live in higher layers). Games
+currently build a `ClassDB` and a `NodeTree` in `main` and hand a
+`SceneLoop` to `run_window`. The planned shape:
 
 ```rust
 pub trait Plugin: Sized + 'static {
-    /// Called once at startup. Register classes, load assets, create root.
     fn build(class_db: &mut ClassDB, assets: &mut AssetServer) -> Self;
-
-    /// Construct the initial root node from the plugin's state.
     fn root(&mut self) -> Box<dyn Node>;
-
-    /// Optional cleanup before shutdown.
     fn shutdown(&mut self) {}
-}
-```
-
-A game's `lib.rs` typically looks like:
-
-```rust
-pub struct EmberWarsPlugin { config: GameConfig }
-
-impl Plugin for EmberWarsPlugin {
-    fn build(class_db: &mut ClassDB, assets: &mut AssetServer) -> Self {
-        class_db.register::<Unit>();
-        class_db.register::<Catapult>();
-        // ...
-        let config = assets.load("config/levels.ron").unwrap_or_default();
-        Self { config }
-    }
-
-    fn root(&mut self) -> Box<dyn Node> {
-        Box::new(GameRoot::new(self.config.clone()))
-    }
 }
 ```
 
 ## 11. Error type
 
 ```rust
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum CoreError {
-    #[error("parse error: {0}")]
     Parse(String),
-
-    #[error("value out of range: {0}")]
-    OutOfRange(String),
-
-    #[error("type mismatch: expected {expected}, got {actual}")]
-    TypeMismatch { expected: &'static str, actual: &'static str },
-
-    #[error("class not registered: {0}")]
-    ClassNotRegistered(String),
 }
 ```
+
+Implements `Display` and `std::error::Error` by hand (no `thiserror`).
+*Not yet implemented:* `OutOfRange`, `TypeMismatch`, `ClassNotRegistered`.
+
+`ember_core::io` also provides `save_to_file` / `load_from_file` (RON)
+with its own `IoError`.
 
 ## 12. Prelude
 
-```rust
-pub mod prelude {
-    pub use crate::math::{Vec2, Rect, Aabb, Circle};
-    pub use crate::color::Color;
-    pub use crate::time::{Cooldown, Tick, Stopwatch};
-    pub use crate::rng::Rng;
-    pub use crate::hash::{hash_2d, hash_3d};
-    pub use crate::class_db::{Object, ClassDB};
-    pub use crate::plugin::Plugin;
-    pub use crate::error::CoreError;
-}
-```
+*Not yet implemented.* `ember_core` has no `prelude` module; it
+re-exports its main types at the crate root: `ClassDB`, `Color`,
+`CoreError`, `GameState`, `Image`, `MainLoop`, `Object`, `Rng`,
+`Variant`, `Aabb`, `Circle`, `reflect`, `Cooldown`, `TickTimer`,
+`hash_u32{,_2,_3}`. The `ember` facade crate provides the game-facing
+prelude.
 
 ## 13. Design notes
 
-### 13.1 Why `Vec2` is a re-export, not a newtype
+### 13.1 Why `Vec2` is glam's, not a newtype
 
 Every game already uses `glam::Vec2` extensively. A newtype would require
-`From`/`Into` conversions everywhere. A direct `pub use glam::Vec2` keeps
-the code identical while routing through `ember_core::math::Vec2` so that
-if we ever switch to `mint` or a custom SIMD type, the re-export is a
+`From`/`Into` conversions everywhere, so v0.1 uses `glam::Vec2` directly.
+`ember_core` does not re-export it yet, so a future swap is not a
 one-line change.
 
-### 13.2 Why `Cooldown` is renamed, not patched
+### 13.2 Why `Cooldown` is to be renamed, not patched (rename pending)
 
 The current `Cooldown::new` semantics (starts active) are *correct* for
 what the function does — it's the *name* that's wrong. A programmer

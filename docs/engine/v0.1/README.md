@@ -1,6 +1,6 @@
 # Ember Engine — Documentation (v0.1)
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; index and snapshot mirror per-file status headers
 > **Audience:** all (entry point)
 > **Prerequisites:** none
 
@@ -58,13 +58,15 @@ Per-phase detail lives in the *Progress* notes of
 
 ## 3. Status legend
 
-Every file begins with a status header so readers know what they can rely on:
+Every file begins with a status header (line 3) so readers know what they can rely on:
 
 | Status | Meaning | Safe to code against? |
 |---|---|---|
 | 📋 planned | Documented in this README, not yet written | No |
 | ⬜ draft | Written, awaiting review | No — content may change |
 | 🟨 review | Reviewed, actively refined | Cautiously — flag mismatches |
+| 🟡 partial | Reviewed against code; part of the spec is implemented, the rest is flagged inline | Only the implemented parts |
+| ✅ up to date | Reviewed against code and matches it | Yes |
 | ✅ frozen | Locked; code must conform; changes need an ADR | Yes |
 
 **Rule:** any file referenced by a crate's public API must be ✅ frozen
@@ -78,44 +80,44 @@ before that crate's first PR lands.
 
 | File | Purpose | Status |
 |---|---|---|
-| [00-overview.md](00-overview.md) | What Ember is, POC scope, success criteria | ⬜ draft |
-| [01-architecture.md](01-architecture.md) | Layer diagram, crate map, dependency rules | ⬜ draft |
-| [02-principles.md](02-principles.md) | Invariants, naming, testing, error handling | ⬜ draft |
-| [51-glossary.md](51-glossary.md) | Terms and acronyms, cross-referenced | ⬜ draft |
+| [00-overview.md](00-overview.md) | What Ember is, POC scope, success criteria | 🟡 partial |
+| [01-architecture.md](01-architecture.md) | Layer diagram, crate map, dependency rules | 🟡 partial |
+| [02-principles.md](02-principles.md) | Invariants, naming, testing, error handling | 🟡 partial |
+| [51-glossary.md](51-glossary.md) | Terms and acronyms, cross-referenced | 🟡 partial |
 
 ### Wave 2 — Concepts
 
 | File | Purpose | Status |
 |---|---|---|
-| [10-nodes-and-scenes.md](10-nodes-and-scenes.md) | Node, NodeId, NodeTree, PackedScene, lifecycle | 📋 planned |
-| [11-signals.md](11-signals.md) | Typed signals, connect/emit, ordering | 📋 planned |
-| [12-servers.md](12-servers.md) | Rendering/Audio/Physics trait contracts | 📋 planned |
-| [13-assets.md](13-assets.md) | AssetServer, UIDs, hot-reload, async | 📋 planned |
-| [14-main-loop.md](14-main-loop.md) | MainLoop, fixed step, pause, quit | 📋 planned |
-| [15-input.md](15-input.md) | Input mapping, primary_action, gamepad/touch | 📋 planned |
+| [10-nodes-and-scenes.md](10-nodes-and-scenes.md) | Node, NodeId, NodeTree, PackedScene, lifecycle | 🟡 partial |
+| [11-signals.md](11-signals.md) | Typed signals, connect/emit, ordering | 🟡 partial |
+| [12-servers.md](12-servers.md) | Rendering/Audio/Physics trait contracts | 🟡 partial |
+| [13-assets.md](13-assets.md) | AssetServer, UIDs, hot-reload, async | 🟡 partial |
+| [14-main-loop.md](14-main-loop.md) | MainLoop, fixed step, pause, quit | 🟡 partial |
+| [15-input.md](15-input.md) | Input mapping, primary_action, gamepad/touch | 🟡 partial |
 
 ### Wave 3 — Crate Specifications
 
 | File | Purpose | Status |
 |---|---|---|
-| [20-ember-core.md](20-ember-core.md) | math, time, hash, rng, Variant, Object/ClassDB | 📋 planned |
-| [21-ember-scene.md](21-ember-scene.md) | Full Node / SceneTree / PackedScene API | 📋 planned |
-| [22-ember-servers.md](22-ember-servers.md) | Trait signatures, backend registration | 📋 planned |
-| [23-ember-render-macroquad.md](23-ember-render-macroquad.md) | Reference backend implementation | 📋 planned |
-| [24-ember-ui.md](24-ember-ui.md) | Control nodes, layout, focus, theming | 📋 planned |
-| [25-ember-assets.md](25-ember-assets.md) | Loader registry, UID lookup, hot-reload | 📋 planned |
-| [26-ember-macros.md](26-ember-macros.md) | #[derive(Node)], #[signal], #[export] | 📋 planned |
+| [20-ember-core.md](20-ember-core.md) | math, time, hash, rng, Variant, Object/ClassDB | 🟡 partial |
+| [21-ember-scene.md](21-ember-scene.md) | Full Node / SceneTree / PackedScene API | 🟡 partial |
+| [22-ember-servers.md](22-ember-servers.md) | Trait signatures, backend registration | 🟡 partial |
+| [23-ember-render-macroquad.md](23-ember-render-macroquad.md) | Reference backend implementation | 🟡 partial |
+| [24-ember-ui.md](24-ember-ui.md) | Control nodes, layout, focus, theming | ⬜ draft |
+| [25-ember-assets.md](25-ember-assets.md) | Loader registry, UID lookup, hot-reload | 🟡 partial |
+| [26-ember-macros.md](26-ember-macros.md) | #[derive(Node)], #[signal], #[export] | 🟡 partial |
 
 ### Wave 4 — Format, Process & Reference
 
 | File | Purpose | Status |
 |---|---|---|
-| [30-escene-format.md](30-escene-format.md) | `.escene` v1 spec, examples, migration | 📋 planned |
-| [40-roadmap.md](40-roadmap.md) | 9 phases, entry/exit criteria | 📋 planned |
-| [41-migration-guide.md](41-migration-guide.md) | Per-game checklist, rollback | 📋 planned |
-| [42-acceptance-tests.md](42-acceptance-tests.md) | ember-wars as conformance suite | 📋 planned |
-| [43-testing-strategy.md](43-testing-strategy.md) | Unit/integration/conformance matrix, CI | 📋 planned |
-| [50-design-decisions.md](50-design-decisions.md) | ADRs with alternatives considered | 📋 planned |
+| [30-escene-format.md](30-escene-format.md) | `.escene` v1 spec, examples, migration | 🟡 partial |
+| [40-roadmap.md](40-roadmap.md) | 9 phases, entry/exit criteria | 🟡 partial |
+| [41-migration-guide.md](41-migration-guide.md) | Per-game checklist, rollback | 🟡 partial |
+| [42-acceptance-tests.md](42-acceptance-tests.md) | ember-wars as conformance suite | ⬜ draft |
+| [43-testing-strategy.md](43-testing-strategy.md) | Unit/integration/conformance matrix, CI | 🟡 partial |
+| [50-design-decisions.md](50-design-decisions.md) | ADRs with alternatives considered | 🟡 partial |
 
 ---
 
@@ -196,7 +198,7 @@ This is a *spec-first* repository. Every engine crate follows this loop:
 - **Between versions**, the top-level `docs/engine/README.md` (not
   versioned) links to the current version and lists the diffs.
 
----S
+---
 
 ## 8. Cross-references
 

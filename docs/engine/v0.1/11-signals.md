@@ -1,6 +1,6 @@
 # 11 — Signals
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; typed signals, connect/emit/deferred/scoped implemented (ADR-023); `#[signal]` is a no-op marker not in the prelude, scene-declared connections are not wired
 > **Audience:** game authors, implementers
 > **Prerequisites:** [10-nodes-and-scenes.md](10-nodes-and-scenes.md)
 
@@ -64,9 +64,11 @@ pub struct Damaged {
 }
 ```
 
-The attribute is a no-op marker — it does not transform the struct.
-Its sole purpose is to make the intent grep-able and to enable an
-optional linter (`cargo ember lint`) in v0.2 that warns about structs
+The attribute is a no-op marker — it does not transform the struct. It
+exists in `ember_macros` (`ember_macros::signal`) but is **not** re-exported
+by `ember::prelude`, and is optional: any `Send + Sync + 'static` type is a
+signal (blanket impl), so the attribute is purely documentation. Its sole purpose is to make the intent grep-able and to enable an
+optional linter (`cargo ember lint`, *not yet implemented*, v0.2) that warns about structs
 used only in `emit`/`connect` calls.
 
 ### 3.2 Payload requirements
@@ -85,7 +87,8 @@ In practice, this means:
 - **No references.** Use `NodeId`, not `&Node`.
 
 This is what allows the signal table to be stored in a `HashMap` without
-lifetime complications.
+lifetime complications. `Signal` lives in `ember_scene::signal` and is
+re-exported by `ember_scene::prelude`.
 
 ### 3.3 Where signals live
 
@@ -100,18 +103,21 @@ nodes can emit or receive the same signal type. This is deliberate — a
 
 ```rust
 ctx.connect::<BodyEntered>(target_id, |ctx, ev| {
-    let health = ctx.tree().get_mut(ctx.current_id()).unwrap();
-    // ...
+    // ctx.current_id() == target_id here
+    if let Some(health) = ctx.tree().get_mut(ctx.current_id()) { /* ... */ }
 });
 ```
 
-The `connect` method is on `NodeContext` (see [10-nodes-and-scenes.md §2.4](10-nodes-and-scenes.md#24-nodecontext)).
+`connect` exists on both `NodeContext` and `NodeTree` (for setup code); see [10-nodes-and-scenes.md §2.4](10-nodes-and-scenes.md#24-nodecontext)).
 It takes:
 
 - `target: NodeId` — who receives the signal
 - `handler: impl Fn(&mut NodeContext, &T) + Send + Sync + 'static`
 
-The handler is stored in a `Vec` per `(target, TypeId)` pair.
+Handlers are stored as `Arc` in one tree-level `SignalTable`, in a `Vec` per
+signal `TypeId`, in connection order (ADR-023). If the target is the node
+whose callback is currently running, it is checked out of the tree
+(ADR-022), so `ctx.tree().get_mut(target)` returns `None`.
 
 ### 4.2 Disconnecting
 
@@ -119,10 +125,9 @@ The handler is stored in a `Vec` per `(target, TypeId)` pair.
 ctx.disconnect::<BodyEntered>(target_id);
 ```
 
-Removes **all** handlers of that type connected to `target_id`. There is
-no way to disconnect a single handler in v0.1 — the closure cannot be
-compared. If you need per-handler lifetime, use a scoped connection
-(§6).
+Removes **all** handlers of that type connected to `target_id`. Also
+available on `NodeTree`. To disconnect a single handler, use a scoped
+connection (§6).
 
 ### 4.3 Disconnection semantics
 
@@ -140,9 +145,10 @@ ctx.emit::<Damaged>(Damaged { amount: 10.0, source: attacker_id });
 ```
 
 The emitter does not specify **who** receives. The tree's `SignalTable`
-contains a `Vec<(NodeId, Handler<T>)>` for every signal type `T`. `emit`
-walks that list and calls each handler with a fresh `&mut NodeContext`
-scoped to the target.
+holds the handlers for every signal type `T`. `NodeContext::emit`
+snapshots the `T` handlers in connection order, releases the table, then
+calls each with the same `&mut NodeContext` whose `current_id()` is set to
+the handler's target. (There is no `SignalTable::emit`.)
 
 ### 5.2 Emission order
 
@@ -159,8 +165,9 @@ Inside a handler:
 
 - `ctx.current_id()` is the **target**'s id, not the emitter's.
 - `ctx.tree()` returns the full tree.
-- Mutating the tree (spawning, despawning, emitting again) is legal and
-  queued like any other mutation.
+- `ctx.spawn` / `spawn_child` / `despawn` are queued until the next flush;
+  direct `ctx.tree().attach/remove` calls are immediate and safe.
+- Emitting again is legal and runs immediately (nested).
 
 Nested emission — a handler that emits another signal — is legal. The
 inner signal's handlers run to completion before the outer signal's
@@ -169,8 +176,8 @@ dispatch continues. This is a **depth-first** dispatch order.
 ### 5.4 What the handler cannot do
 
 - Hold a reference past the handler body.
-- Spawn or despawn **immediately** (all structural changes are deferred
-  to end-of-pass, see [10-nodes-and-scenes §8.2](10-nodes-and-scenes.md#82-nodecontext-and-the-tree)).
+- Spawn or despawn **immediately** via `ctx.spawn`/`despawn` (deferred
+  to the next flush, see [10-nodes-and-scenes §8.2](10-nodes-and-scenes.md#82-nodecontext-and-the-tree)).
 
 ## 6. Scoped connections
 
@@ -185,8 +192,11 @@ let conn = ctx.connect_scoped::<ButtonClicked>(self.id, |ctx, ev| {
 drop(conn);   // automatically disconnects on drop
 ```
 
-`connect_scoped` returns a `ScopedConnection` handle. Dropping the handle
-disconnects the specific closure (it wraps a connection id internally).
+`connect_scoped` returns a `#[must_use]` `ScopedConnection` handle. Dropping
+the handle disconnects the specific closure (it wraps a connection id
+internally); the removal is applied at the tree's next `flush` or at the
+start of the next `emit`, whichever is first. `forget()` keeps the handler
+connected for good. Also available on `NodeTree`.
 
 This is the v0.1 way to disconnect a single handler. If you do not need
 fine-grained control, `connect` + `disconnect` is enough.
@@ -198,15 +208,16 @@ fine-grained control, `connect` + `disconnect` is enough.
 Internally, `SignalTable` is:
 
 ```rust
-struct SignalTable {
+pub struct SignalTable {
     handlers: HashMap<TypeId, Vec<HandlerEntry>>,
-    next_connection_id: u64,
+    next_id: u64,
+    dropped: Arc<Mutex<Vec<u64>>>,   // ids from dropped ScopedConnections
 }
 
 struct HandlerEntry {
-    connection_id: u64,
+    id: u64,
     target: NodeId,
-    handler: Box<dyn Any + Send + Sync>,  // the Box<dyn Fn(...)> erased
+    handler: Arc<dyn Any + Send + Sync>,  // an Arc<dyn Fn(&mut NodeContext, &T)>, T erased
 }
 ```
 
@@ -223,7 +234,8 @@ struct HandlerEntry {
 If a handler targets a `NodeId` that has been freed:
 
 - The handler is **not** called.
-- The stale entry is removed from the table.
+- The stale entry is removed from the table (a target that is merely queued
+  and not yet live is skipped but kept).
 
 This is a self-healing invariant — you never need to manually disconnect
 when a node despawns, but explicit disconnection keeps the table smaller.
@@ -236,7 +248,8 @@ dispatch will recurse. There is no re-entrancy guard in v0.1.
 **The safe pattern:** cycle handlers should be *pure* (no further emits
 in the same call). If a handler must emit in response, dispatch the
 second emit as deferred (`ctx.emit_deferred::<T>(payload)`), which queues
-the emission to end-of-pass.
+the emission on the tree; `flush` runs the queue FIFO, one round at a time,
+alongside the ready cascade (same 1000-round cap).
 
 ```rust
 ctx.emit_deferred::<Damaged>(Damaged { amount: 5.0, source: self.id });
@@ -291,8 +304,8 @@ pub struct Button {
 
 impl Node for Button {
     fn process(&mut self, _dt: f32, ctx: &mut NodeContext) {
-        let mouse = ctx.input().mouse_position();
-        if ctx.input().mouse_pressed(MouseButton::Left)
+        let mouse = ctx.input().mouse_pos;
+        if ctx.input().is_mouse_pressed(MouseButton::Left)
             && self.rect.contains(mouse)
         {
             ctx.emit::<ButtonClicked>(ButtonClicked);
@@ -315,9 +328,10 @@ impl Node for Button {
 )
 ```
 
-At instantiation, the packed scene resolves `"Menu/PlayButton"` to a
-`NodeId` and calls `ctx.connect::<ButtonClicked>` with a handler that
-dispatches to `Menu::_on_play`.
+*Not yet implemented.* Today `PackedScene::instantiate` validates that both
+endpoints exist but does not wire connections (ADR-025: the string-named
+`method` has no typed equivalent yet). Connect in code instead, e.g. from
+`ready`, with `ctx.connect::<ButtonClicked>(menu_id, ...)`.
 
 ## 9. Design notes
 

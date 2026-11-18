@@ -1,6 +1,6 @@
 # 23 — `ember_render_macroquad`
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; renderer, fonts, camera offset, `run`/`run_window`, input polling and audio backend work; z-sorted batching, shaders and draw-call counting are not implemented.
 > **Audience:** implementers
 > **Prerequisites:** [22-ember-servers.md](22-ember-servers.md)
 
@@ -14,353 +14,205 @@ It is the **only** crate in the workspace allowed to import
 ## 2. Module layout
 
 ```
-ember_render_macroquad/
+ember-render/macroquad/          (crate `ember-render-macroquad`)
 ├── Cargo.toml
 ├── src/
-│   ├── lib.rs
-│   ├── renderer.rs     MacroquadRenderer
-│   ├── textures.rs     texture upload/cache
-│   ├── batching.rs     draw call batching
-│   ├── text.rs         font handling
-│   ├── shaders.rs      built-in shader set
-│   └── error.rs        RenderError
+│   ├── lib.rs        re-exports (MacroquadRenderer, poll_input, run, run_window, servers, macroquad)
+│   ├── renderer.rs   MacroquadRenderer (RenderingServer impl)
+│   ├── convert.rs    Color/Rect <-> macroquad conversions
+│   ├── input.rs      poll_input() -> ember_input::Input
+│   └── run.rs        run / run_window: the native/wasm main loop driver
+└── tests/headless.rs
 ```
+
+*Not yet implemented:* `textures.rs`, `batching.rs`, `shaders.rs`, `error.rs`
+(there is no `RenderError`; failures use `ServerError`). The audio
+counterpart is `ember-audio/macroquad` (`MacroquadAudio`, §14).
 
 ## 3. `MacroquadRenderer`
 
 ### 3.1 Struct
 
-```rust
-pub struct MacroquadRenderer {
-    // frame state
-    viewport: Rect,
-    camera: Vec2,
-    current_z: f32,
-    clear_color: Color,
-
-    // textures
-    textures: HashMap<TextureId, Texture2D>,
-    next_texture_id: u64,
-
-    // shaders
-    shaders: HashMap<ShaderId, Material>,
-    active_shader: Option<ShaderId>,
-    next_shader_id: u32,
-
-    // stats
-    draw_calls: u32,
-}
-```
+Private fields: viewport, camera offset, current z, clear colour, a
+`HashMap<TextureId, Texture2D>` and `HashMap<FontId, Font>` with
+monotonic ids starting at 1, and the optional default font.
 
 ### 3.2 Constructor
 
 ```rust
 impl MacroquadRenderer {
-    /// Creates the renderer. Must be called after macroquad's context is
-    /// initialised (i.e. from inside `#[macroquad::main]`).
-    pub fn new() -> Result<Box<dyn RenderingServer>, ServerError>;
+    pub fn new() -> Self;                    // also `Default`
+    /// Register a font already loaded elsewhere (wasm path, ADR-020).
+    pub fn adopt_font(&mut self, font: Font) -> FontId;
 }
 ```
 
-The constructor is trivial — no GPU work happens until the first
-`create_texture` or `begin_frame`.
+The constructor does no GPU work; it is a plain struct, not a boxed
+trait object. Create it inside the macroquad context (`run_window`
+does this for you).
 
 ### 3.3 Trait impl strategy
 
-Every method maps to a small macroquad call. The renderer adds:
-
-1. **Z-ordered batching** — see §5.
-2. **Camera offset application** — see §4.
-3. **Texture and shader lookup** — see §6 and §7.
-4. **Draw-call counting** — see §8.
+Every method maps to a small macroquad call. The renderer adds the
+camera offset (§4) and texture/font lookup (§6, §9).
 
 ## 4. Camera and coordinates
 
-### 4.1 `set_camera`
-
-Stores the offset. Applied at `draw_*` time:
+`set_camera(offset)` stores the offset; every `draw_*` call **adds** it
+to its position (`rect.x + offset.x`, …). `draw_rect_rotated` rotates
+around the rect centre (pivot 0.5, 0.5).
 
 ```rust
 fn draw_rect(&mut self, rect: Rect, color: Color) {
-    let screen_rect = Rect {
-        x: rect.x - self.camera.x,
-        y: rect.y - self.camera.y,
-        w: rect.w,
-        h: rect.h,
-    };
-    macroquad::shapes::draw_rectangle(
-        screen_rect.x, screen_rect.y, screen_rect.w, screen_rect.h, to_mq_color(color),
-    );
-    self.draw_calls += 1;
+    let o = self.camera_offset;
+    macroquad::shapes::draw_rectangle(rect.x + o.x, rect.y + o.y, rect.w, rect.h, color_to_mq(color));
 }
 ```
 
 ### 4.2 Why offset (not matrix)
 
-macroquads' immediate-mode API uses screen coordinates. Applying an
+macroquad's immediate-mode API uses screen coordinates. Applying an
 offset per call is cheaper than setting up a camera matrix on every
-draw.
-
-Games that need rotation or zoom use `RenderingServer::use_shader` with
-a transform shader (v0.2). v0.1 is translate-only.
+draw. v0.1 is translate-only; zoom/rotation of the whole view is not
+supported.
 
 ## 5. Z-ordered batching
 
-### 5.1 The problem
-
-Macroquad draws in call order. A scene with layers (background, tiles,
-entities, UI) that draws nodes in tree order without z would draw tiles
-over entities if a tile is processed first.
-
-### 5.2 The solution
-
-The renderer **buffers draw calls** between `begin_frame` and
-`end_frame`, sorts them by `(z, sequence)`, then flushes.
-
-```rust
-enum DrawCommand {
-    Rect { rect: Rect, color: Color, z: f32, seq: u64 },
-    Sprite { texture: TextureId, dst: Rect, src: Option<Rect>, tint: Color, z: f32, seq: u64 },
-    Text { text: String, pos: Vec2, size: f32, color: Color, z: f32, seq: u64 },
-    // ...
-}
-
-struct BatchingState {
-    commands: Vec<DrawCommand>,
-    next_seq: u64,
-}
-```
-
-At `end_frame`:
-
-1. Stable-sort commands by `(z, seq)`.
-2. Walk sorted commands, coalescing adjacent ones with the same texture
-   (for sprites) or color (for rects).
-3. Emit each group via macroquad.
-
-### 5.3 Cost
-
-One `Vec<DrawCommand>` allocation per frame (reused). One sort per frame
-O(n log n) on ~1000 commands — under 50 µs on any modern CPU. For a
-POC, this is fine; for a shipping engine, a radix sort on `(z, seq)`
-would be the v0.2 optimization.
-
-### 5.4 Why not skip batching in v0.1
-
-Because z ordering is required by the scene model (see
-[10-nodes-and-scenes §3.4](10-nodes-and-scenes.md#34-draw-order)).
-Without batching, either z is ignored or the tree walk has to
-pre-sort children — the latter is what causes the `NodeTree` to carry
-a priority queue. Batching keeps `NodeTree` simple.
+*Not yet implemented.* The planned renderer buffers draw commands between
+`begin_frame` and `end_frame`, stable-sorts them by `(z, sequence)` and
+coalesces adjacent sprites/rects. In v0.1 the renderer draws
+**immediately in call order**: `begin_frame`/`end_frame` are markers and
+`set_z` only stores the value (readable via `current_z`). Visual layering
+therefore follows tree order, not `z`.
 
 ## 6. Texture management
 
 ### 6.1 `create_texture`
 
-```rust
-fn create_texture(&mut self, image: &Image) -> Result<TextureId, ServerError> {
-    let mq_tex = macroquad::texture::Texture2D::from_image(&to_mq_image(image));
-    let id = TextureId(self.next_texture_id);
-    self.next_texture_id += 1;
-    self.textures.insert(id, mq_tex);
-    Ok(id)
-}
-```
-
-`to_mq_image` copies the `Image::data` into macroquad's `Image` type.
-No conversion cost beyond the copy.
+Uploads an `ember_core::Image` via `Texture2D::from_rgba8`. An empty image
+returns `ServerError::Backend`. Ids start at 1.
 
 ### 6.2 `destroy_texture`
 
-Removes from the map. When the `Texture2D` drops, macroquad frees the
-GPU texture on the next frame.
+Removes the texture from the map (the GPU texture is freed when the
+`Texture2D` drops). The lifecycle is explicit: nothing destroys textures
+automatically (see [25-ember-assets.md](25-ember-assets.md)).
 
 ### 6.3 `texture_size`
 
-```rust
-fn texture_size(&self, id: TextureId) -> Option<Vec2> {
-    self.textures.get(&id).map(|t| Vec2::new(t.width(), t.height()))
-}
-```
+*Not yet implemented* (not in the trait). Use `Texture::{width,height}`
+from `ember-assets`.
 
-### 6.4 Sprite batching
+### 6.4 Unknown ids
 
-Consecutive `draw_sprite` calls with the same `TextureId` are coalesced
-by the batcher into one macroquad `draw_texture_ex` call per sprite —
-macroquad does not have a batched sprite API, so we accept N calls but
-minimize state switches.
+`draw_sprite` with an unknown or destroyed texture is a silent no-op.
+Each sprite is one macroquad `draw_texture_ex` call (no batching).
 
 ## 7. Shaders
 
-### 7.1 Built-in shader set
-
-v0.1 registers three shaders automatically:
-
-| Name | Purpose |
-|---|---|
-| `"grayscale"` | Convert to grayscale (for disabled UI) |
-| `"outline"` | Add an outline to sprites |
-| `"shadow"` | Draw a shadow under a sprite |
-
-`register_shader(name, source)` can add custom shaders, but the source
-must be a macroquad `Material` shader string.
-
-### 7.2 `use_shader`
-
-```rust
-fn use_shader(&mut self, shader: Option<ShaderId>) {
-    self.active_shader = shader;
-}
-```
-
-Subsequent draw calls use the active shader. Internally, this switches
-macroquad's `material` for the draw call — no explicit flush needed.
-
-### 7.3 Limitations
-
-- v0.1 supports only macroquad `Material` shaders.
-- No uniform binding beyond time and resolution.
-- Arbitrary uniform support is a v0.2 feature.
+*Not yet implemented.* There is no `register_shader`/`use_shader` and no
+built-in shader set. `RenderFeature::CustomShaders` is reported by
+`supports` as a capability flag only.
 
 ## 8. Draw-call counting
 
-`draw_call_count()` returns the number of macroquad draw calls executed
-in the last frame. Used by the debug overlay and by profiling tests.
-
-`begin_frame` resets the counter to 0; `end_frame` performs the actual
-flush (which increments the counter for each emitted call).
+*Not yet implemented* (`draw_call_count` is not in the trait).
 
 ## 9. Text rendering
 
-### 9.1 `draw_text`
+`draw_text` uses the default font (macroquad's built-in, or the one set
+via `set_default_font`). `draw_text_with_font(font, …)` uses a font from
+`create_font` / `adopt_font`; an unknown font is a silent no-op.
+`measure_text(_with_font)` returns `TextMetrics { width, height,
+offset_y }`; an unknown font falls back to the default. `destroy_font`
+resets the default font if it was that font.
 
-```rust
-fn draw_text(&mut self, text: &str, pos: Vec2, size: f32, color: Color) {
-    let screen_pos = pos - self.camera;
-    macroquad::text::draw_text(
-        text, screen_pos.x, screen_pos.y, size, to_mq_color(color),
-    );
-}
-```
-
-Uses macroquad's default font in v0.1. A loaded custom font overrides
-this via `ember_assets` — the `Handle<Font>` resolves to a
-`macroquad::text::Font` that the renderer caches.
-
-### 9.2 `measure_text`
-
-```rust
-fn measure_text(&self, text: &str, size: f32) -> Vec2 {
-    let dims = macroquad::text::measure_text(text, None, size as u16, 1.0);
-    Vec2::new(dims.width, dims.height)
-}
-```
-
-Returns pixel bounds. Used by `ember_ui` for layout.
+`create_font` is blocking on native and returns `ServerError::NotSupported`
+on wasm, where games load the font asynchronously and call `adopt_font`
+(ADR-020).
 
 ## 10. Color conversion
 
-macroquad's `Color` and `ember_core::Color` are field-identical
-(`{ r, g, b, a }`, all `f32`). Conversion is a `#[repr(C)]` transmute,
-or a one-line `From` impl:
-
-```rust
-fn to_mq_color(c: ember_core::Color) -> macroquad::prelude::Color {
-    macroquad::prelude::Color { r: c.r, g: c.g, b: c.b, a: c.a }
-}
-```
+`convert.rs` has internal helpers `color_to_mq`, `rect_to_mq` and their
+inverses; there are no public `From` impls. `ember_core::Color` is
+field-identical to macroquad's.
 
 ## 11. Feature support
 
 | Feature | Supported | Notes |
 |---|---|---|
 | `AlphaBlending` | ✅ | Default in macroquad |
-| `CustomShaders` | ✅ | `Material`-based only |
-| `TextureArray` | ❌ | macroquad has no texture arrays |
-| `Instancing` | ❌ | macroquad is per-instance |
-| `RenderToTexture` | ✅ | via `macroquad::texture::render_target` |
+| `CustomShaders` | ✅ (flag) | No shader API exists yet |
+| `TextureArray` | ❌ | |
+| `Instancing` | ❌ | |
 
-## 12. Frame lifecycle
+`RenderToTexture` is not a `RenderFeature` variant yet.
 
-```mermaid
-sequenceDiagram
-    participant ML as MainLoop
-    participant R as MacroquadRenderer
-    participant MQ as macroquad
+## 12. Frame lifecycle and `run`
 
-    ML->>R: begin_frame(viewport)
-    R->>R: clear commands, draw_calls = 0
-    R->>MQ: clear_background(clear_color)
-
-    ML->>R: draw_rect(...) × N
-    R->>R: push DrawCommand
-
-    ML->>R: draw_sprite(...) × M
-    R->>R: push DrawCommand
-
-    ML->>R: end_frame()
-    R->>R: sort by (z, seq)
-    R->>R: coalesce adjacent
-    R->>MQ: draw_rectangle × k1
-    R->>MQ: draw_texture_ex × k2
-    R->>MQ: draw_text × k3
-    R->>R: draw_calls = k1 + k2 + k3
+```rust
+pub async fn run<L: MainLoop + InputSink>(game: L);
+pub fn run_window<L: MainLoop + InputSink + 'static>(title: &str, width: i32, height: i32, game: L);
 ```
+
+`run_window` builds the macroquad `Window` and calls `run`. Per frame,
+`run` does:
+
+1. `poll_input()` → `game.set_input(..)`.
+2. A fixed-step accumulator: frame dt is capped at `MAX_FRAME_DT` (0.25)
+   and `process(dt)` / `physics_process(FIXED_DT = 1/60)` run as needed
+   (`process` returning `false` quits).
+3. `game.draw()` (for `SceneLoop`: `begin_frame`, `tree.draw`, `end_frame`,
+   `audio.flush`), then `next_frame().await`.
+4. On exit, `game.finalize()`.
+
+`input.rs::poll_input` builds an `ember_input::Input` from macroquad
+(keys A–Z, 0–9, F1–F12, arrows, Space, Enter, Escape, Tab, Backspace;
+mouse L/R/M; touches; **no gamepad**).
 
 ## 13. Error handling
 
-The only fallible operations are:
+The fallible operations are `create_texture` (empty image) and
+`create_font` (bad bytes, or `NotSupported` on wasm). Everything else is
+infallible (draw calls with unknown ids are silently skipped, matching
+[02-principles §5.4](02-principles.md#54-what-is-never-an-error)).
 
-- `create_texture` — fails if the image is malformed or the GPU is out
-  of memory.
-- `register_shader` — fails if the source doesn't compile.
+## 14. `MacroquadAudio` (`ember-audio/macroquad`)
 
-Everything else is infallible (draw calls to a nonexistent texture are
-silently skipped, matching [02-principles §5.4](02-principles.md#54-what-is-never-an-error)).
+Implements `AudioServer`: `new()`, `adopt_clip(Sound) -> AudioClipId`,
+`load_clip` (blocking on native, `NotSupported` on wasm, ADR-020) and
+`destroy_clip`. `play` clamps volume to 0..1, multiplies by the master
+volume, **ignores pitch** and never loops; an unknown clip still returns
+a `SoundId`. `stop_all` stops every clip, `flush` is a no-op,
+`supports` is always `false`.
 
-## 14. Design notes
+## 15. Design notes
 
-### 14.1 Why not use macroquad's camera
+### 15.1 Why not use macroquad's camera
 
-macroquad's `set_camera2d` is a full camera transform (position,
-rotation, zoom). Most games use translate-only. Managing the camera in
-the renderer keeps the trait's `set_camera(offset: Vec2)` simple, and
-games that need rotation use a custom shader.
+macroquad's `set_camera2d` is a full camera transform. Most games use
+translate-only; managing the offset in the renderer keeps the trait's
+`set_camera(offset: Vec2)` simple.
 
-### 14.2 Why batch only at end_frame
+### 15.2 Why copy images instead of zero-copy
 
-If batching happened per `draw_*` call, each call would do a partial sort
-and flush. Doing it once at `end_frame` gives the batcher full
-visibility — it can merge sprites from different nodes if they happen
-to share a texture and z.
+`Texture2D::from_rgba8` copies the bytes; negligible for v0.1 asset sizes.
 
-### 14.3 Why copy images instead of zero-copy
-
-`miniquad::Texture` takes ownership of its data. Copying an `Image`
-into a `Texture2D` is a `Vec<u8>` clone — negligible for v0.1 asset
-sizes (all under 1 MB).
-
-### 14.4 Why not use `Texture2D::from_image` lazily
-
-Because texture upload is fast (<1 ms for a 512×512 sprite), and doing
-it at `create_texture` time keeps the asset lifecycle linear — assets
-load, get uploaded, and are available immediately.
-
-## 15. Open questions
+## 16. Open questions
 
 - **Q1:** Should the renderer support a simple "scissor rectangle" for
   UI clipping? *Provisional:* yes — see [24-ember-ui.md](24-ember-ui.md).
-  Adds `push_clip_rect` / `pop_clip_rect` to the `RenderingServer` trait.
+  Would add `push_clip_rect` / `pop_clip_rect` (not in the trait yet).
 - **Q2:** Should the renderer cache text layout? *Provisional:* no in
   v0.1. Text layout is cheap and caching risks invalidation bugs.
 - **Q3:** Should the batcher use a radix sort? *Provisional:* only if
-  profiling shows sort cost. v0.1 uses `sort_unstable_by_key`.
+  profiling shows sort cost. v0.1 does no sorting (§5).
 - **Q4:** Should we expose `draw_call_count` per frame or cumulative?
-  *Provisional:* per-frame, reset at `begin_frame`.
+  *Provisional:* per-frame, reset at `begin_frame` (not implemented).
 
-## 16. Cross-references
+## 17. Cross-references
 
 - Server trait being implemented → [22-ember-servers.md §4](22-ember-servers.md#4-renderingserver)
-- Why batched draws → [12-servers.md §4.3](12-servers.md#43-batch-semantics)
+- Why batched draws → [12-servers.md](12-servers.md)
 - Texture lifecycle → [25-ember-assets.md](25-ember-assets.md)
 - The UI layer that uses clipping → [24-ember-ui.md](24-ember-ui.md)

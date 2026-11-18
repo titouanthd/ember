@@ -1,53 +1,52 @@
 # 21 — `ember_scene`
 
-> **Status:** 🟡 partial — tree, signals, `PackedScene` implemented (ADR-022 to 025)
+> **Status:** 🟡 partial — reviewed 2026-11-19; tree, signals, `NodeContext`/`DrawContext`, `SceneLoop`, `PackedScene` exist; `SceneWriter`/`SceneReader`, `ctx.assets()`, scene connections and several tree queries are not implemented.
 > **Audience:** implementers
 > **Prerequisites:** [10-nodes-and-scenes.md](10-nodes-and-scenes.md), [20-ember-core.md](20-ember-core.md)
 
 ## 1. Purpose
 
 Specify the full API of `ember_scene`: the `Node` trait, `NodeId`,
-`NodeTree`, `NodeContext`, `DrawContext`, `PackedScene`, `SceneWriter`,
-`SceneReader`, and `SignalTable`. This is the crate that every game
+`NodeTree`, `NodeContext`, `DrawContext`, `PackedScene`, `SceneLoop`, `SceneWriter` (stub),
+and `SignalTable`. This is the crate that every game
 interacts with most.
 
 ## 2. Module layout
 
 ```
-ember_scene/
-├── Cargo.toml
-├── src/
-│   ├── lib.rs
-│   ├── prelude.rs
-│   ├── error.rs        SceneError
-│   ├── node.rs         Node, NodeId
-│   ├── tree.rs         NodeTree
-│   ├── context.rs      NodeContext, DrawContext
-│   ├── packed.rs       PackedScene
-│   ├── writer.rs       SceneWriter
-│   ├── reader.rs       SceneReader
-│   ├── signal.rs       SignalTable, ScopedConnection
-│   └── commands.rs     DeferredCmd queue
+ember-scene/src/
+├── lib.rs          re-exports + prelude module
+├── error.rs        SceneError
+├── node.rs         Node, NodeId (slotmap key)
+├── tree.rs         NodeTree (+ deferred commands, flush)
+├── context.rs      NodeContext, DrawContext, Servers
+├── class_db.rs     ClassDbNodes (Node registration on ember_core::ClassDB)
+├── packed.rs       PackedScene, SceneAssets
+├── scene.rs        SceneWriter (empty stub)
+├── scene_loop.rs   SceneLoop<R, A>: MainLoop + InputSink
+└── signal.rs       Signal, SignalTable, ScopedConnection
 ```
+
+*Not yet implemented:* `reader.rs` (`SceneReader`); the deferred queue lives
+in `tree.rs`, not `commands.rs`.
 
 ## 3. `NodeId`
 
 ```rust
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct NodeId(u64);   // opaque; internals are (slot: u32, generation: u32)
+// slotmap::new_key_type!
+pub struct NodeId;   // Copy, Eq, Ord, Hash, Debug, Default
 
 impl NodeId {
-    /// For debugging only. Not stable across runs.
-    pub fn debug_bits(self) -> u64;
     pub fn is_null(self) -> bool;   // see §3.2
 }
-
-impl std::fmt::Display for NodeId { /* prints "Node#<slot>:<gen>" */ }
 ```
+
+`NodeId` is a `slotmap` key (slot index + generation); there is no
+`debug_bits` and no custom `Display`.
 
 ### 3.1 Contract
 
-- `NodeId` is `Copy`. It is not `Clone` (identity is the value).
+- `NodeId` is `Copy` (and therefore `Clone`).
 - A `NodeId` obtained from `tree.insert()` is valid until `tree.remove()`
   of that specific node.
 - After removal, `tree.get(id)` returns `None`.
@@ -55,13 +54,9 @@ impl std::fmt::Display for NodeId { /* prints "Node#<slot>:<gen>" */ }
 
 ### 3.2 `is_null()`
 
-`NodeId(0)` — with slot=0, gen=0 — is the "null" sentinel used in
-`Option`-free APIs (e.g. struct fields that store "no target"). It is
-never issued by `tree.insert()`.
-
-```rust
-pub const NULL: NodeId = NodeId(0);
-```
+`NodeId::default()` is the "null" sentinel used in `Option`-free APIs
+(e.g. struct fields that store "no target"). It is never issued by
+`tree.insert()`. There is no `NodeId::NULL` constant.
 
 ## 4. `Node` trait
 
@@ -82,36 +77,30 @@ pub trait Node: Object {
     fn draw(&self, ctx: &mut DrawContext) { let _ = ctx; }
     fn finalize(&mut self) {}
 
-    // === Signals ===
-    fn signals(&self) -> &SignalTable { &EMPTY_SIGNALS }
-    fn signals_mut(&mut self) -> &mut SignalTable { unimplemented!() }
-
     // === Serialization ===
+    /// Stub in v0.1 (`SceneWriter` is empty).
     fn serialize(&self, _w: &mut SceneWriter) {}
 
-    /// Called after deserialization. Default no-op.
-    fn post_deserialize(&mut self) {}
+    /// Apply one `.escene` property. Returns `false` if the key or
+    /// variant type is not understood (the loader warns and skips it).
+    fn set_property(&mut self, _key: &str, _value: &Variant) -> bool { false }
 }
 ```
 
+*Not yet implemented:* `Node::signals` / `signals_mut` / `post_deserialize`
+(signals live on the tree, ADR-023).
+
 ### 4.1 Defaults and the derive macro
 
-Every method except `name`, `set_name`, `signals` (defaulted),
-`signals_mut` (panics by default) is usable as-is. The `#[derive(Node)]`
-macro generates all of them, plus `Object::class_name`, `as_any`,
-`as_any_mut`, and a `new()` constructor.
+`Node` requires `name` and `set_name`; everything else has a default. The
+`#[derive(Node)]` macro (see [26-ember-macros.md](26-ember-macros.md))
+generates the `Object` impl and `name`/`set_name`.
 
-### 4.2 Why `signals_mut` panics by default
+### 4.2 Signals are not on the node
 
-Because 90% of nodes never emit or receive signals. A default `&mut
-SignalTable` would require every node to allocate one. Instead:
-
-- Nodes that never touch signals: `signals()` returns `&EMPTY_SIGNALS`,
-  `signals_mut()` never called.
-- Nodes that do: derive macro or manual impl overrides both.
-
-`NodeContext::connect` / `emit` handle the `signals_mut` call internally
-— game code never calls `signals_mut` directly.
+There is no per-node `SignalTable`: ADR-023 keeps a single tree-level
+table, so nodes never override signal methods. `NodeContext::connect` /
+`emit` are the only entry points.
 
 ## 5. `NodeTree`
 
@@ -119,18 +108,15 @@ SignalTable` would require every node to allocate one. Instead:
 
 ```rust
 pub struct NodeTree {
-    nodes: SlotMap<NodeId, NodeSlot>,
+    nodes: SlotMap<NodeId, NodeSlot>,   // slot.node is Option<Box<dyn Node>>:
+                                        // checked out during callbacks
     root: Option<NodeId>,
     pending: Vec<DeferredCmd>,
+    signals: SignalTable,               // one table for the whole tree
+    deferred_emits: Vec<DeferredEmit>,
     frame: u64,
-}
-
-struct NodeSlot {
-    node: Box<dyn Node>,
-    parent: Option<NodeId>,
-    children: Vec<NodeId>,
-    signal_table: SignalTable,   // owned here, borrowed via &mut
-    ready: bool,
+    quit: bool,
+    /* ... */
 }
 ```
 
@@ -173,8 +159,7 @@ impl NodeTree {
 
     // === Queries ===
     pub fn find(&self, from: NodeId, path: &str) -> Option<NodeId>;
-    pub fn find_by_class(&self, from: NodeId, class: &str) -> Option<NodeId>;
-    pub fn find_all_by_class(&self, class: &str) -> Vec<NodeId>;
+    // Not yet implemented: find_by_class, find_all_by_class
 
     // === Iteration ===
     pub fn iter(&self) -> impl Iterator<Item = (NodeId, &dyn Node)> + '_;
@@ -189,6 +174,14 @@ impl NodeTree {
     pub fn flush(&mut self, servers: &mut Servers);
 
     pub fn frame(&self) -> u64;
+
+    // === Quit / signals ===
+    pub fn request_quit(&mut self);
+    pub fn quit_requested(&self) -> bool;
+    pub fn connect<T: Signal>(&mut self, target: NodeId, handler: Handler<T>) -> u64;
+    pub fn connect_scoped<T: Signal>(&mut self, target: NodeId, handler: Handler<T>) -> ScopedConnection;
+    pub fn disconnect<T: Signal>(&mut self, target: NodeId);
+    pub fn signals(&self) -> &SignalTable;
 }
 ```
 
@@ -196,10 +189,11 @@ impl NodeTree {
 
 **`attach(child, parent)`:**
 
-- Fails if `child` is the root.
-- Fails if `child == parent`.
-- Fails if `parent` is a descendant of `child` (would create a cycle).
-- Fails if `child` already has a parent (must `detach` first).
+- `Err(IsRoot)` if `child` is the root.
+- `Err(SelfParent)` if `child == parent`.
+- `Err(Cycle { child, parent })` if `parent` is a descendant of `child`.
+- `Err(AlreadyAttached)` if `child` already has a parent (`detach` first).
+- `Err(NotFound)` for unknown ids; `detach` of a parentless node is `Err(NotAttached)`.
 - On success, pushes `child` onto `parent.children`, sets `child.parent`.
 - If `parent` is in the tree and `child.ready == false`, the tree marks
   `child` for `ready` at next flush.
@@ -216,19 +210,21 @@ impl NodeTree {
 **`remove(id)`:**
 
 - Recursively removes `id` and all descendants.
-- Runs `Node::finalize` for each (bottom-up).
 - Disconnects all signals targeting each removed node.
 - Returns the root's `Box<dyn Node>` (descendants are dropped).
+- *Not yet verified/implemented:* `Node::finalize` is called by
+  `SceneLoop::finalize` on shutdown, not per removed node.
 
 ### 5.4 Process order
 
 `process(dt)`:
 
-1. Reset `ctx.delta = dt`.
-2. Walk the tree depth-first, top-down, in `children` order.
+1. `flush()` (apply pending commands, run `ready`).
+2. Walk the tree depth-first, top-down, in `children` order; each node is
+   checked out of its slot while its callback runs (ADR-022).
 3. For each node: `node.process(dt, &mut ctx)`.
-4. After the walk: `flush()` (applies `DeferredCmd`s).
-5. Advance `frame`.
+4. `flush()` again.
+5. Advance `frame` (`process` only; `physics_process` does not).
 
 `physics_process(fixed_dt)` is identical but calls `physics_process` on
 each node.
@@ -236,12 +232,14 @@ each node.
 `draw(ctx)`:
 
 1. Walk tree in same order.
-2. Skip nodes where `visible() == false` (children still process).
+2. Skip nodes where `visible() == false`; **the whole subtree is hidden**
+   (ADR-022). Each node sets the server z (`set_z(node.z())`) first.
 3. For each visible node: `node.draw(ctx)`.
 
 ### 5.5 Ready order
 
-When `flush()` runs, any newly-attached node whose subtree is fully
+When `flush()` runs (it loops until no commands, deferred emits or ready
+nodes remain), any newly-attached node whose subtree is fully
 attached and whose `ready == false` gets its `ready` called **bottom-up**
 (children first, then parent). This matches Godot.
 
@@ -264,34 +262,32 @@ Not supported (v0.2 candidates): `%Name` (unique names), `$Node`
 ## 6. `NodeContext`
 
 ```rust
-pub struct NodeContext<'a> {
-    tree: &'a mut NodeTree,
-    rendering: &'a mut dyn RenderingServer,
-    audio: &'a mut dyn AudioServer,
-    physics: &'a mut dyn PhysicsServer,
-    assets: &'a AssetServer,
-    input: &'a Input,
-    current: NodeId,
-    delta: f32,
-    input_pressed: HashSet<Key>,   // for pressed_frame semantics
+/// Bundle of the backends, handed to every tree pass (ADR-022).
+pub struct Servers<'a> {
+    pub rendering: &'a mut dyn RenderingServer,
+    pub audio: &'a mut dyn AudioServer,
+    pub physics: &'a mut dyn PhysicsServer,
+    pub input: &'a Input,
 }
+
+pub struct NodeContext<'a> { /* tree, servers, current id, parent, delta */ }
 
 impl<'a> NodeContext<'a> {
     // === Identity ===
     pub fn current_id(&self) -> NodeId;
+    pub fn parent_id(&self) -> Option<NodeId>;
     pub fn delta(&self) -> f32;
 
     // === Server access ===
     pub fn render(&mut self) -> &mut dyn RenderingServer;
     pub fn audio(&mut self) -> &mut dyn AudioServer;
     pub fn physics(&mut self) -> &mut dyn PhysicsServer;
-    pub fn assets(&self) -> &AssetServer;
     pub fn input(&self) -> &Input;
 
     // === Tree access ===
     pub fn tree(&mut self) -> &mut NodeTree;
-    pub fn parent_id(&self) -> Option<NodeId>;
-    pub fn find(&mut self, path: &str) -> Option<NodeId>;
+    pub fn find(&mut self, path: &str) -> Option<NodeId>;   // relative to current
+    pub fn quit(&mut self);
 
     // === Spawn / despawn (deferred) ===
     pub fn spawn(&mut self, node: impl Node) -> NodeId;
@@ -305,7 +301,7 @@ impl<'a> NodeContext<'a> {
         &mut self,
         target: NodeId,
         handler: impl Fn(&mut NodeContext, &T) + Send + Sync + 'static,
-    );
+    );  // see context.rs for the exact generic bounds
     pub fn connect_scoped<T: Signal>(
         &mut self,
         target: NodeId,
@@ -315,6 +311,9 @@ impl<'a> NodeContext<'a> {
 }
 ```
 
+*Not yet implemented:* `ctx.assets()`. Assets are loaded by the game
+before building the `SceneLoop` (see [25-ember-assets.md](25-ember-assets.md)).
+
 ### 6.1 Spawn is deferred
 
 `ctx.spawn(node)` returns the `NodeId` **immediately**, but the node is
@@ -322,7 +321,7 @@ not yet inserted into the tree's live structure. The insertion is queued
 in `pending` and applied at `flush()`. Between `spawn` and `flush`:
 
 - `tree.get(id)` returns `None`.
-- `ctx.find(id, ...)` won't find it.
+- `ctx.find(path)` won't find it.
 - But `tree.attach(new_id, parent_id)` also queues, so a
   spawn-then-attach sequence works.
 
@@ -330,10 +329,11 @@ This is what prevents iterator-invalidation bugs.
 
 ### 6.2 `connect` timing
 
-`connect` is deferred too — the handler is registered in the target's
-`signal_table` at `flush()`. Between `connect` and `flush`, emitting the
-signal has no effect on that receiver. This is intentional: a `ready`
-function that connects should not receive events in the same frame.
+`connect` registers the handler in the tree's single `SignalTable`
+immediately (ADR-023). `emit` dispatches synchronously on a snapshot of
+the listeners; `emit_deferred` queues the emission until the next
+`flush`. Dropping a `ScopedConnection` queues a disconnect applied at the
+next flush or emit.
 
 ## 7. `DrawContext`
 
@@ -346,6 +346,7 @@ pub struct DrawContext<'a> {
 }
 
 impl<'a> DrawContext<'a> {
+    pub fn new(rendering: &'a mut dyn RenderingServer, /* viewport, camera */) -> Self;
     pub fn render(&mut self) -> &mut dyn RenderingServer;
     pub fn viewport(&self) -> Rect;
     pub fn camera_offset(&self) -> Vec2;
@@ -362,45 +363,50 @@ impl<'a> DrawContext<'a> {
 ## 8. `PackedScene`
 
 ```rust
-pub struct PackedScene {
-    root_template: NodeTemplate,
-    ext_resources: Vec<ExtResource>,
-    connections: Vec<ConnectionTemplate>,
-}
+pub struct PackedScene { /* parsed `.escene` file (private serde model) */ }
 
 impl PackedScene {
-    pub fn from_file(path: &Path, assets: &AssetServer) -> Result<Self, SceneError>;
-    pub fn from_ron(ron: &str) -> Result<Self, SceneError>;
+    pub fn from_ron(text: &str) -> Result<Self, SceneError>;
+    pub fn from_file(path: impl AsRef<Path>) -> Result<Self, SceneError>;
     pub fn to_ron(&self) -> String;
-
-    /// Instantiate as a standalone tree root.
-    pub fn instantiate(&self, ctx: &mut NodeContext) -> Result<NodeId, SceneError>;
-
-    /// Instantiate as a child of `parent`.
-    pub fn instantiate_into(
-        &self,
-        ctx: &mut NodeContext,
-        parent: NodeId,
-    ) -> Result<NodeId, SceneError>;
-
+    pub fn uid(&self) -> &str;
     pub fn root_template_class(&self) -> &str;
+
+    /// Builds nodes in `tree`; the root is returned detached.
+    /// `instance:` entries fail with `SceneError::Asset`.
+    pub fn instantiate(&self, classes: &ClassDB, tree: &mut NodeTree)
+        -> Result<NodeId, SceneError>;
+
+    /// Same, resolving nested `instance:` through the `AssetServer`
+    /// (cycles → `InstanceCycle`, ADR-027).
+    pub fn instantiate_with(&self, classes: &ClassDB, assets: &AssetServer,
+        tree: &mut NodeTree) -> Result<NodeId, SceneError>;
+
+    /// `instantiate` then `attach` to `parent`.
+    pub fn instantiate_into(&self, classes: &ClassDB, tree: &mut NodeTree,
+        parent: NodeId) -> Result<NodeId, SceneError>;
 }
 ```
 
+`PackedScene` implements `ember_assets::Asset` (extension `escene`,
+format 1), so `AssetServer::load::<PackedScene>` works. The
+`SceneAssets` trait (`scene(path)`) is implemented for `AssetServer`.
+Instantiation is **synchronous on the tree**, not via `NodeContext`.
+
 ### 8.1 Instantiation algorithm
 
-1. Walk `root_template` recursively.
-2. For each node template:
-   - Look up `class_name` in `ClassDB`.
-   - Construct via `ClassDB::instantiate`.
-   - Set `#[export]` fields via `Variant` deserialization.
-   - Call `post_deserialize`.
-3. Attach children to parents (deferred via `ctx.spawn_child`).
-4. Apply `connections` (deferred via `ctx.connect`).
-5. Return the root id.
-
-All steps run through `NodeContext`, so the tree updates are deferred
-and consistent with the frame loop.
+1. Verify every non-instance class is registered (`ClassNotRegistered`).
+2. Walk the node entries in order; construct via
+   `ClassDbNodes::instantiate_node`, apply `visible`/`z` and each
+   property through `Node::set_property`. Unknown or mistyped properties
+   are warned and skipped (ADR-025).
+3. Attach children to their parents (`parent` path); nested `instance:`
+   entries are built recursively (overrides reach only the nested root,
+   ADR-027).
+4. `connections` are parsed and validated but **not wired**
+   (*Not yet implemented*, ADR-025); `ext_resources` are parsed but not
+   resolved.
+5. Return the root id (detached).
 
 ### 8.2 Deep-copy guarantee
 
@@ -409,93 +415,59 @@ copied. `PackedScene` holds no live node references.
 
 ## 9. `SceneWriter` / `SceneReader`
 
-### 9.1 `SceneWriter`
+*Not yet implemented.* `SceneWriter` exists only as an empty struct
+(`pub struct SceneWriter {}`) so that `Node::serialize` has a stable
+signature; `SceneReader` does not exist. `PackedScene::to_ron` /
+`from_ron` handle (de)serialisation of the file model today. The planned
+writer API:
 
 ```rust
-pub struct SceneWriter {
-    format: u32,
-    ext_resources: Vec<ExtResource>,
-    sub_resources: Vec<SubResource>,
-    nodes: Vec<NodeBlock>,
-    connections: Vec<Connection>,
-}
-
 impl SceneWriter {
     pub fn new(format: u32) -> Self;
     pub fn write_ext_resource(&mut self, class: &str, uid: &str, path: &str);
-    pub fn write_node(
-        &mut self,
-        name: &str,
-        class: &str,
-        parent: Option<&str>,
-        properties: BTreeMap<String, Variant>,
-    );
+    pub fn write_node(&mut self, name: &str, class: &str, parent: Option<&str>,
+                      properties: BTreeMap<String, Variant>);
     pub fn write_connection(&mut self, signal: &str, from: &str, to: &str, method: &str);
-    pub fn finish(self) -> String;   // RON text
+    pub fn finish(self) -> String;
 }
 ```
-
-`Node::serialize` receives `&mut SceneWriter` and calls these methods.
-The writer accumulates everything, then `finish()` produces the file.
-
-### 9.2 `SceneReader`
-
-```rust
-pub struct SceneReader {
-    format: u32,
-    ext_resources: Vec<ExtResource>,
-    sub_resources: Vec<SubResource>,
-    nodes: Vec<NodeBlock>,
-    connections: Vec<Connection>,
-}
-
-impl SceneReader {
-    pub fn parse(ron: &str) -> Result<Self, SceneError>;
-    pub fn format(&self) -> u32;
-    pub fn ext_resources(&self) -> &[ExtResource];
-    pub fn nodes(&self) -> &[NodeBlock];
-    pub fn connections(&self) -> &[Connection];
-}
-```
-
-The reader does not construct nodes; `PackedScene::instantiate` does.
-This separation is what makes the format inspectable by the editor
-without touching runtime types.
 
 ## 10. Signals
 
 ### 10.1 `SignalTable`
 
 ```rust
-pub struct SignalTable {
-    handlers: HashMap<TypeId, Vec<HandlerEntry>>,
-    next_id: u64,
-}
+pub struct SignalTable { /* HashMap<TypeId, Vec<HandlerEntry>>, next_id, ... */ }
 
 impl SignalTable {
     pub fn new() -> Self;
     pub fn connect<T: Signal>(&mut self, target: NodeId, handler: Handler<T>) -> u64;
-    pub fn disconnect_by_id(&mut self, connection_id: u64);
+    pub fn connect_scoped<T: Signal>(&mut self, target: NodeId, handler: Handler<T>) -> ScopedConnection;
+    pub fn disconnect_by_id(&mut self, id: u64);
     pub fn disconnect_type_target<T: Signal>(&mut self, target: NodeId);
-    pub fn emit<'a, T: Signal>(&mut self, payload: T, ctx: &mut NodeContext<'a>);
-    pub fn tick(&mut self);   // remove stale entries
+    pub fn remove_target(&mut self, target: NodeId);
+    pub fn is_connected(&self, id: u64) -> bool;
+    pub fn len(&self) -> usize;
+    pub fn is_empty(&self) -> bool;
+    pub fn tick(&mut self);   // apply queued scoped disconnects
 }
 ```
 
-`Handler<T>` is `Box<dyn Fn(&mut NodeContext, &T) + Send + Sync + 'static>`.
+`Handler<T>` is `Arc<dyn Fn(&mut NodeContext<'_>, &T) + Send + Sync>`.
+Emission is driven by `NodeContext::emit` (there is no `SignalTable::emit`).
 
 ### 10.2 `ScopedConnection`
 
 ```rust
-pub struct ScopedConnection {
-    table_id: u64,
-    connection_id: u64,
-    // reference to tree's signal tables so Drop can disconnect
+pub struct ScopedConnection { /* connection id + shared drop queue */ }
+impl ScopedConnection {
+    pub fn id(&self) -> u64;
+    pub fn forget(self);   // keep the connection alive after drop
 }
-impl Drop for ScopedConnection { /* disconnects */ }
+impl Drop for ScopedConnection { /* queues a disconnect */ }
 ```
 
-Dropping a `ScopedConnection` removes the handler on the next `flush()`.
+Dropping a `ScopedConnection` removes the handler at the next `flush()` or emit.
 
 ### 10.3 `Signal` trait
 
@@ -510,46 +482,54 @@ payload. This is why the payload struct is the "signal identifier".
 ## 11. Errors
 
 ```rust
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum SceneError {
-    #[error("node not found: {0:?}")]
-    NodeNotFound(NodeId),
-
-    #[error("node already attached: {0:?}")]
+    NotFound(NodeId),
+    SelfParent(NodeId),
+    IsRoot(NodeId),
     AlreadyAttached(NodeId),
-
-    #[error("would create cycle: {0:?} as child of {1:?}")]
-    CycleDetected(NodeId, NodeId),
-
-    #[error("cannot attach root")]
-    CannotAttachRoot,
-
-    #[error("class not registered: {0}")]
-    ClassNotRegistered(String),
-
-    #[error("parse error: {0}")]
+    NotAttached(NodeId),
+    Cycle { child: NodeId, parent: NodeId },
     Parse(String),
-
-    #[error("format version {found} not supported (max {max})")]
-    UnsupportedFormat { found: u32, max: u32 },
-
-    #[error("io error: {0}")]
-    Io(#[from] std::io::Error),
+    UnsupportedFormat(u32),
+    ClassNotRegistered(String),
+    InvalidName(String),
+    Io(std::io::Error),
+    Asset(String),            // nested instance load failed
+    InstanceCycle(String),    // scene A instances A (ADR-027)
 }
 ```
+
+`Display`/`Error` are hand-written (no `thiserror`).
 
 ## 12. Prelude
 
+The prelude (`ember_scene::prelude`) re-exports the main types; check
+`lib.rs` for the current list (it includes `Node`, `NodeId`, `NodeTree`,
+`NodeContext`, `DrawContext`, `PackedScene`, `Signal`, `ScopedConnection`).
+
+### 12.1 `SceneLoop`
+
 ```rust
-pub mod prelude {
-    pub use crate::node::{Node, NodeId};
-    pub use crate::tree::NodeTree;
-    pub use crate::context::{NodeContext, DrawContext};
-    pub use crate::packed::PackedScene;
-    pub use crate::signal::{Signal, ScopedConnection};
+pub struct SceneLoop<R: RenderingServer, A: AudioServer> {
+    pub tree: NodeTree, /* backends, LinearPhysics, Input, viewport */
+}
+impl<R, A> SceneLoop<R, A> {
+    pub fn new(tree: NodeTree, rendering: R, audio: A, viewport: Rect) -> Self;
+    pub fn input_mut(&mut self) -> &mut Input;
+    pub fn set_viewport(&mut self, viewport: Rect);
+    pub fn rendering(&self) -> &R;  pub fn rendering_mut(&mut self) -> &mut R;
+    pub fn audio(&self) -> &A;
+    pub fn physics_mut(&mut self) -> &mut LinearPhysics;
+    pub fn request_quit(&mut self);
 }
 ```
+
+Implements `ember_core::MainLoop` and `ember_input::InputSink`. `draw` =
+`begin_frame`, `tree.draw`, `end_frame`, `audio.flush`; `finalize` clears
+the tree. `ClassDbNodes` (extension trait on `ClassDB`) provides
+`register_node`, `register_node_with`, `instantiate_node`.
 
 ## 13. Design notes
 
@@ -572,7 +552,7 @@ borrow scoped to `NodeContext`.
 Because "node not found" is normal (a path may be conditional). Returning
 `Result` would force every call site to handle an error that the game
 usually doesn't care about. The rare caller that needs diagnostic
-information uses `ctx.tree().find_path_debug(...)` (v0.2).
+information uses `ctx.tree().find_path_debug(...)` (*Not yet implemented*, v0.2).
 
 ### 13.4 Why `spawn` is deferred but returns a live id
 

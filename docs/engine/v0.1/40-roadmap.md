@@ -1,6 +1,6 @@
 # 40 — Roadmap
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; phase progress notes match code, later-phase specs are still plans
 > **Audience:** all
 > **Prerequisites:** [00-overview.md](00-overview.md), [01-architecture.md](01-architecture.md)
 
@@ -52,8 +52,9 @@ editor is finished.
 
 ## 3. Phase 0 — Foundations
 
-> **Progress:** 🟡 `MainLoop` (`ember-core::main_loop`) and
-> `Input::primary_action` (`ember-input`) are in. **Open:**
+> **Progress:** 🟡 The `MainLoop` trait (`ember-core::main_loop`; no
+> `run<L>()` helper yet) and `Input::primary_action` (`ember-input`, not
+> `ember_stdlib::input`) are in. **Open:**
 > `ember_stdlib::juice` does not exist yet (`juice.rs` copies remain in
 > `ember-wars`, `pagoda`, `jade-garden`); `Cooldown::running` is not
 > added (only a no-arg `ember_core::time::Cooldown::ready()` exists, no
@@ -89,7 +90,7 @@ editor is finished.
 - `crates/ember_core/src/main_loop.rs` (+ tests)
 - `crates/ember_core/src/time/cooldown.rs` updated with deprecations
 - `crates/ember_stdlib/src/input.rs` updated with `primary_action`
-- All 17 games' `juice.rs` files replaced with `use ember_stdlib::juice::*;`
+- All `juice.rs` files in games (3 remain) replaced with `use ember_stdlib::juice::*;`
 - Workspace green
 
 ### 3.5 Estimated effort
@@ -102,7 +103,8 @@ editor is finished.
 > ordering/stale-id tests are in. `crates/ember/examples/hello_scene.rs`
 > runs the tree on macroquad via `ember::run_window` (runner and input
 > poller live in `ember-render-macroquad`; `InputSink` in `ember-input`).
-> Build-verified only; not run headlessly. Deviations: ADR-022.
+> Build-verified only; not run headlessly. `NodeTreeMainLoop` was
+> replaced by `SceneLoop`. Deviations: ADR-022.
 
 ### 4.1 Scope
 
@@ -136,7 +138,7 @@ editor is finished.
 - `crates/ember_scene/tests/tree_ordering.rs`
 - `crates/ember_scene/tests/ready_ordering.rs`
 - `crates/ember_scene/tests/stale_id.rs`
-- A `examples/hello_scene.rs` in the workspace root
+- `crates/ember/examples/hello_scene.rs`
 
 ### 4.5 Estimated effort
 
@@ -149,6 +151,11 @@ editor is finished.
 > textures and RON/scene assets (ADR-026) are in, plus nested
 > `instance:` with cycle detection (ADR-027). Open: scene-declared
 > connection wiring, hot-reload watching, audio/font loaders.
+> Deviations from the deliverables below: `#[derive(Node)]` and the
+> `#[signal]` no-op live in `ember-macros/src/{lib,node}.rs` (`#[export]`
+> is a field attribute); `ClassDB` is in `ember-core/src/class_db.rs`
+> with node constructors in `ember-scene`; `PackedScene` is in
+> `ember-scene/src/packed.rs` (no `writer.rs`/`reader.rs`).
 
 ### 5.1 Scope
 
@@ -200,8 +207,9 @@ editor is finished.
 > **Progress:** 🟡 `SignalTable`, `ScopedConnection`, typed
 > `emit`/`emit_deferred`/`connect`/`disconnect` and the dispatch-order,
 > stale-target, cycle and scoped-connection tests are in (landed ahead
-> of Phase 2). Open: scene-declared connections (needs `.escene`) and
-> the pong migration. Deviations: ADR-023.
+> of Phase 2). Pong's paddle→score path uses a `PointScored` signal
+> (merged on main, unlike the branch planned below). Open:
+> scene-declared connections. Deviations: ADR-023.
 
 ### 6.1 Scope
 
@@ -241,8 +249,14 @@ editor is finished.
 
 ## 7. Phase 4 — Servers
 
-> **Progress:** ✅ `LinearPhysics` (ADR-028) is in `ember-servers` and
-> reachable as `ctx.physics()`.
+> **Progress:** 🟡 Server traits, mock backends, macroquad render/audio
+> backends, `LinearPhysics` (ADR-028, `ember-servers/src/physics/linear.rs`,
+> reachable as `ctx.physics()`) and `xtask check-layers` /
+> `check-macroquad` are in. **Open:** the `grep "use macroquad"` exit
+> criterion is unmet — `ember-stdlib` (transitional, see
+> `xtask/macroquad-allowlist.txt`) and all non-pong games still import
+> it. `MockRenderingServer` is in `ember-servers/src/mock.rs`, not
+> `tests/common/`; xtask lives in `xtask/src/`.
 
 ### 7.1 Scope
 
@@ -287,6 +301,8 @@ editor is finished.
 
 ## 8. Phase 5 — UI
 
+> **Progress:** ⬜ Not started. `crates/ember-ui/src/lib.rs` is a 4-line stub.
+
 ### 8.1 Scope
 
 - Add `crates/ember_ui`.
@@ -322,6 +338,8 @@ editor is finished.
 2–3 sessions.
 
 ## 9. Phase 6 — Editor POC
+
+> **Progress:** ⬜ Not started. `crates/ember-editor` is a stub (`lib.rs`, `main.rs`).
 
 ### 8.6 Scope
 

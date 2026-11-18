@@ -1,6 +1,6 @@
 # 30 — The `.escene` Format (v1)
 
-> **Status:** 🟡 partial — see ADR-025, ADR-027 (connections parsed but not wired)
+> **Status:** 🟡 partial — reviewed 2026-11-19; nodes, `instance:`, round-trip and validation are implemented (`ember-scene/src/packed.rs`); resources, connection wiring and `#[export]` are pending
 > **Audience:** implementers, game authors
 > **Prerequisites:** [21-ember-scene.md](21-ember-scene.md), [26-ember-macros.md](26-ember-macros.md)
 
@@ -45,8 +45,13 @@ A `.escene` file has **five sections, in order**:
 4. **Nodes** — the node tree, top-down
 5. **Connections** — signal connections between nodes
 
-Not all sections are required. An empty scene with one node needs only the
-node section.
+Not all sections are required. An empty scene with one node needs only
+`format`, `uid` and the node section.
+
+> **Implementation note (ADR-025, ADR-027):** `ext_resources`,
+> `sub_resources` and `connections` are parsed, kept and re-serialized, but
+> **not yet acted on** at instantiation. The only on-disk fixture is
+> `assets/test_fixtures/player.escene`; no game ships an `.escene` yet.
 
 ### 3.1 Minimal example
 
@@ -140,6 +145,9 @@ supported version:
 format version 2 not supported (max 1)
 ```
 
+The error is `SceneError::UnsupportedFormat(2)` ("unsupported .escene
+format 2").
+
 Downgrade (older `format` than current) is not permitted in v1 — there
 are no older formats yet. When v2 arrives, it will define a migration
 path from v1.
@@ -155,7 +163,8 @@ uid://<category>_<base36-hash>
 
 Categories: `scene_<name>_`, `sub_<type>_`, `uid_<hash>_` (fallback).
 The category prefix is a convention for human readability, not a
-correctness requirement.
+correctness requirement. The loader treats `uid` as an opaque string (it
+is used for instance-cycle detection).
 
 ## 5. Section 2: External resources
 
@@ -165,6 +174,10 @@ External resources are files elsewhere on disk (textures, audio clips,
 fonts, other scenes). Each entry records the file's **UID**, **type**,
 and **path**. At load time, the scene resolves each UID to a
 `Handle<T>`.
+
+> *Not yet implemented:* entries are parsed and round-tripped but never
+> resolved to `Handle<T>`; `ObjectRef` properties reach
+> `Node::set_property` as raw `Variant::ObjectRef` strings.
 
 ### 5.2 Fields per entry
 
@@ -189,7 +202,7 @@ content-stable.
 
 If an `ext_resource` is declared but the file doesn't exist:
 
-- **Load succeeds** with a warning, and the asset's `Handle` is
+- *(Planned, not yet implemented)* **Load succeeds** with a warning, and the asset's `Handle` is
   unresolved (`get()` returns `None`).
 - Nodes referencing the missing asset still instantiate; their
   `#[export]` fields get `Handle::invalid()`.
@@ -208,6 +221,9 @@ don't get their own file. Used for:
 - Materials
 - Animation curves
 - Sub-scene templates (rare)
+
+> *Not yet implemented:* sub-resources are parsed (`props` defaults to an
+> empty map) and round-tripped but not instantiated or referenced.
 
 ### 6.2 Fields per entry
 
@@ -251,25 +267,26 @@ is the scene root.
 | Field | Type | Required | Purpose |
 |---|---|---|---|
 | `name` | `String` | ✅ | Node name (unique within parent) |
-| `class` | `String` | ✅ | Class name (must be registered in `ClassDB`) |
-| `parent` | `String` | optional | Parent path (`"."` = immediate parent by tree order, `".."` = grandparent, `"Name"` = named sibling) |
-| `instance` | `String` | optional | Path to a nested `.escene` (mutually exclusive with `class`) |
+| `class` | `String` | one of `class`/`instance` | Class name (must be registered in `ClassDB`) |
+| `parent` | `String` | all but the root | `"."` = the scene root; otherwise a path below the root (`"Sprite"`, `"Sprite/Gun"`) |
+| `instance` | `String` | one of `class`/`instance` | Asset path of a nested `.escene`, loaded through `AssetServer` |
 | `properties` | `Map<String, Variant>` | optional | Exported field values |
 | `visible` | `bool` | optional | Default `true` |
 | `z` | `f32` | optional | Default `0.0` |
 
 ### 7.3 Parent path semantics
 
-The `parent` field refers to a previously-declared node by path. Paths
-follow the same syntax as `NodeTree::find`:
+The `parent` field refers to a previously-declared node by path
+**relative to the scene root**:
 
-- `"."` — the node declared immediately above (must be its parent)
-- `".."` — two levels up
-- `"Name"` — a sibling named `Name`
-- `"Name/Child"` — the `Child` child of a sibling `Name`
+- `"."` — the scene root itself
+- `"Name"` — a direct child of the root named `Name`
+- `"Name/Child"` — the `Child` child of `Name`
 
-Because node entries are listed parent-before-children, a `parent`
-always refers to an **earlier entry**.
+There is no `".."` form. The first entry must have no `parent`; every
+other entry must have one. A `parent` must refer to an **earlier entry**
+(otherwise `SceneError::Parse`). A duplicate name under one parent is
+`SceneError::InvalidName`.
 
 ### 7.4 Nested scene instancing
 
@@ -280,22 +297,33 @@ An entry can either:
 ```ron
 (
     name: "Player",
-    instance: "res://player.escene",
+    instance: "player.escene",
     parent: ".",
 )
 ```
 
-The nested scene is recursively instantiated at load time. Cycles are
-detected and rejected:
+The nested scene is recursively instantiated by
+`PackedScene::instantiate_with(&ClassDB, &AssetServer, &mut NodeTree)`
+(ADR-027); plain `instantiate` fails on `instance:` with
+`SceneError::Asset`. The nested root takes the entry's `name`,
+`properties`, `visible` and `z` as overrides (descendants are not
+overridable). Cycles are detected by scene `uid` and rejected, with any
+partial build removed:
 
 ```
-error: cycle detected instancing res://player.escene
-       (chain: player.escene → weapon.escene → player.escene)
+cycle detected instancing uid://a -> uid://b -> uid://a
 ```
+
+(`SceneError::InstanceCycle`.)
 
 ### 7.5 Property serialization
 
-`properties` keys are exported field names. Values are `Variant`:
+`properties` keys are property names handed to
+`Node::set_property(key, &Variant) -> bool` (ADR-025); every
+scene-loadable class implements it by hand until `#[export]` exists.
+Unknown or mistyped keys warn and are skipped. `visible: false` and
+`z != 0` are applied as the `"visible"` / `"z"` properties. Values are
+`Variant` (`ember-core`; also has `Map(BTreeMap)`):
 
 | Rust type | Variant syntax in `.escene` |
 |---|---|
@@ -318,12 +346,18 @@ Node names must be:
 - Non-empty.
 - Unique within the immediate parent.
 - Free of `/` (path separator).
-- Free of `..` (path syntax conflict).
+- Not `..` or `.` (path syntax conflict).
 
 The engine validates these at load time and returns
-`SceneError::Parse` on violation.
+`SceneError::InvalidName` on violation.
 
 ## 8. Section 5: Connections
+
+> *Not yet implemented (ADR-025):* connections are parsed and validated
+> (`from`/`to` must resolve to a node; else `SceneError::Parse`) and
+> round-tripped, but **never wired**. No `SignalReceiver` / method-name
+> dispatch exists. `from`/`to` are root-relative like `parent`
+> (`"."` = root).
 
 ### 8.1 Purpose
 
@@ -344,8 +378,8 @@ the engine resolves `from` and `to` to `NodeId`s and calls
 ### 8.3 Method dispatch
 
 The `method` field names a method the receiver must have. The method is
-resolved by a **dispatch trait** (`SignalReceiver`), which the
-`#[derive(Node)]` macro implements for every node that wants to receive
+resolved by a **dispatch trait** (`SignalReceiver`), which a future
+`#[derive(Node)]` would implement for every node that wants to receive
 scene-declared signals.
 
 ```rust
@@ -368,8 +402,8 @@ emit a signal in `ready` and its connections are already live.
 
 ### 9.1 Idempotence
 
-`PackedScene::from_file(path)?.to_ron()` produces a file that parses to
-an equivalent `PackedScene`. The text may differ (whitespace, ordering
+`PackedScene::from_file(path)?.to_ron()` produces text that parses to
+an equivalent `PackedScene` (tested in `ember-scene/tests/packed_scene.rs`). The text may differ (whitespace, ordering
 of `properties` keys) but the semantics are identical.
 
 ### 9.2 Unknown properties
@@ -378,10 +412,10 @@ A `.escene` file may contain properties that the current `Node` class
 doesn't recognise (e.g. a property added by a future version). The
 engine:
 
-- **Warns** at load time (`log::warn!`).
-- **Skips** the unknown property.
-- **Preserves** it on re-serialization (if the node's `serialize`
-  round-trips unknown fields).
+- **Warns** at load time (`eprintln!`).
+- **Skips** the unknown property (`set_property` returns `false`).
+- **Preserves** it in the `PackedScene` template, so `to_ron` round-trips
+  it.
 
 Preserving unknown properties is what allows files to survive a
 downgrade — a newer scene loads in an older engine without losing data.
@@ -477,7 +511,7 @@ the small amount of extra code.
   *Provisional:* no in v0.1. Groups are a v0.2 feature (see
   [50-design-decisions.md](50-design-decisions.md)).
 - **Q2:** Should the format support comments? *Provisional:* RON supports
-  `//` line comments. We accept them but re-serialize without them
+  `//` line comments. The parser accepts them and `to_ron` drops them
   (comments in scene files are documentation for the author, not for
   the engine).
 - **Q3:** Should `.escene` files store timestamps or authorship?
