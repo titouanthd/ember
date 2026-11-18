@@ -556,6 +556,161 @@ code hot-reload.** Code changes require a restart.
 - v0.2 might revisit code hot-reload with `subsecond` or
   `hot-lib-reloader`.
 
+## ADR-016: RenderingServer / AudioServer extensions
+
+**Status:** accepted (v0.1)
+
+### Context
+
+`12-servers.md §4.1` lists a floor of methods: `begin_frame`,
+`end_frame`, `set_clear_color`, `set_camera`, `set_z`, `draw_rect`,
+`draw_rect_outline`, `draw_circle`, `draw_line`, `draw_sprite`,
+`draw_text`, `create_texture`, `destroy_texture`, `supports`. Three
+inadequacies surfaced when implementing Phase 2 against Pagoda's actual
+needs:
+
+1. `create_texture` returned `TextureId` infallibly. GPU allocation can
+   fail (out-of-memory, invalid image format, device lost). The signature
+   provided no escape for the backend to report failure.
+2. Pagoda's `CircleButton` tessellates manually into triangles because
+   macroquad's `draw_circle` fill and `draw_circle_lines` border
+   tessellate at different resolutions, producing a visible gap. No
+   `draw_triangle` existed. Pagoda's `juice.rs` rotates falling slice
+   pieces via `draw_rectangle_ex` — no `draw_rect_rotated` existed.
+   Shockwave rings use `draw_circle_lines` — no `draw_circle_outline`
+   existed (macroquad's is in a different module than what a trait
+   would expose).
+3. Pagoda bundles DejaVu Sans Mono as default and Noto Sans SC (9 KB
+   CJK subset) for decorative glyphs. The spec's `draw_text` had no way
+   to specify a non-default font; the CJK subset needs to be drawn
+   explicitly through `draw_text_ex`.
+
+`12-servers.md §5.1` similarly omitted `load_clip` / `destroy_clip` —
+without them, `ember_assets` has no path to inject a loaded audio clip
+into the backend.
+
+### Decision
+
+Extend `RenderingServer` with:
+
+- `draw_triangle(&mut self, a: Vec2, b: Vec2, c: Vec2, color: Color)`
+- `draw_circle_outline(&mut self, center: Vec2, radius: f32, thickness: f32, color: Color)`
+- `draw_rect_rotated(&mut self, rect: Rect, rotation_radians: f32, color: Color)`
+- `draw_text_with_font(&mut self, font: FontId, text: &str, pos: Vec2, size: f32, color: Color)`
+- `measure_text_with_font(&self, font: FontId, text: &str, size: f32) -> TextMetrics`
+- `set_default_font(&mut self, font: Option<FontId>)`
+- `create_font(&mut self, bytes: &[u8]) -> Result<FontId, ServerError>`
+
+Change:
+
+- `create_texture(&mut self, image: &Image) -> Result<TextureId, ServerError>` (was infallible)
+
+Extend `AudioServer` with:
+
+- `load_clip(&mut self, bytes: &[u8]) -> Result<AudioClipId, ServerError>`
+- `destroy_clip(&mut self, clip: AudioClipId)`
+
+### Alternatives
+
+- **Keep infallible `create_texture`, panic on backend failure.**
+  Rejected: I4 forbids panics in engine crates on user inputs; texture
+  creation is a user input (game loads a sprite).
+- **Expose macroquad's `draw_circle_lines` under the same name.**
+  Rejected: `draw_circle` and `draw_circle_lines` in macroquad use
+  inconsistent tessellation, producing the visible seam Pagoda's
+  `circle_button.rs` documents. A single `draw_circle_outline` method
+  is a smaller surface than "fix macroquad's tessellation upstream."
+- **Defer font methods to v0.2.** Rejected: Pagoda already ships the
+  CJK subset today; dropping it in v0.1 would be a regression.
+- **Make `create_texture` optionally fallible via a `try_create_texture`
+  variant.** Rejected: two ways to do the same thing, `try_*` should
+  mean "checks user input", not "may fail at OS layer."
+
+### Consequences
+
+- Backends are allowed to fail allocation. `create_texture().unwrap()`
+  is a bug the compiler catches when the signature changes — good.
+- `ember_render_macroquad` gets seven new method bodies in Phase 5;
+  none of them complex (all are direct macroquad calls or one-liners).
+- `draw_triangle` and `draw_circle_outline` can be added to future
+  backends (wgpu) as primitive batch types without changing game code.
+- The `12-servers.md §4.1` and `§5.1` code blocks need updating to
+  match the actual trait. Tracked below.
+
+## ADR-017: PhysicsServer uses opaque u64 handles, not NodeId
+
+**Status:** accepted (v0.1)
+
+### Context
+
+`12-servers.md §6.1` sketches `PhysicsServer::register(&mut self, id: NodeId, shape: Shape, mask: CollisionMask)` — taking a `NodeId` as a parameter. `NodeId` lives in `ember_scene` (L3); `PhysicsServer` lives in `ember_servers` (L2). This would require `ember-servers` to import from `ember-scene`, violating I1 (strict downward dependency).
+
+### Decision
+
+`PhysicsServer` uses opaque `u64` handles:
+
+~~~rust
+pub trait PhysicsServer {
+    fn register(&mut self, shape: Shape, mask: CollisionMask) -> u64;
+    fn unregister(&mut self, handle: u64);
+    fn query_overlaps(&self, shape: &Shape, mask: CollisionMask) -> Vec<u64>;
+    fn raycast(&self, from: Vec2, to: Vec2, mask: CollisionMask) -> Option<RayHit>;
+    fn rebuild(&mut self);
+}
+~~~
+
+The mapping from `NodeId` to `u64` (if any) is `ember_scene`'s concern in v0.2+, when a real physics implementation lands. For v0.1 the trait has no implementation; `ember_stdlib::collider` continues to be what games actually use.
+
+### Alternatives
+
+- **Move `NodeId` into `ember-core`.** Rejected: `NodeId` is a slotmap key — its invariants (generational arena, parent tracking) live in `ember_scene`. Hoisting it means either duplicating slotmap in `ember-core` or exposing a bare `u64` newtype in `ember-core` that `ember_scene` wraps — cosmetic indirection.
+- **Define `PhysicsServer` in `ember-scene`.** Rejected: it's a server trait (L2 concern). Putting it in `ember_scene` means `ember_servers` can't define it — inconsistent with the other two servers.
+- **Generic `PhysicsServer<K>` with `K: Copy` for keys.** Rejected: overengineering for a trait with zero implementations in v0.1.
+
+### Consequences
+
+- I1 holds at the PhysicsServer boundary.
+- When a v0.2 physics backend lands, the scene layer needs to keep a `HashMap<NodeId, u64>` (or equivalent). This is small, local, and easy to test.
+- Games that want to use the raw trait directly (rare — most will use `NodeContext::physics()`) never deal with `NodeId`.
+
+## ADR-018: `Input` is not `#[non_exhaustive]`
+
+**Status:** accepted (v0.1)
+
+### Context
+
+`02-principles.md §2.6` (I6) requires all public types that are expected to grow to be `#[non_exhaustive]`. This is a good default — it prevents breaking changes when a variant is added to an enum or a field to a struct.
+
+`Input` (`ember-input`) is a struct games need to construct as test fixtures:
+
+~~~rust
+let input = Input {
+    mouse_pos: Vec2::new(100.0, 50.0),
+    mouse_left_pressed: true,
+    ..Default::default()
+};
+~~~
+
+If `Input` were `#[non_exhaustive]`, that struct-update syntax would not compile outside `ember-input` — every game's `game_scenarios.rs` test file would break.
+
+### Decision
+
+`Input` is **not** `#[non_exhaustive]`. Adding a field is a breaking change; it happens once per minor version at most, and the migration is mechanical (`..Default::default()` still works with the struct-update syntax if the new field has a default).
+
+The enums in `ember-input` (`Key`, `MouseButton`, `GamepadButton`, `TouchPhase`) **are** `#[non_exhaustive]` — matching on them is fine because games already use `_ => {}` in the rare case they match.
+
+### Alternatives
+
+- **`#[non_exhaustive]` + a `Input::builder()` API.** Rejected: three lines of builder boilerplate per field for a fixture struct. Tests would become `Input::builder().mouse_left_pressed(true).build()`.
+- **`#[non_exhaustive]` + a `Input::with_*` chain.** Rejected: same boilerplate problem.
+- **Make `Input` grow-only via interior optional fields.** Rejected: adds a field per future concept (`left_stick: Option<Vec2>`, `right_stick: Option<Vec2>`, …) even when most games never touch them.
+
+### Consequences
+
+- I6 has a documented exception: `Input`.
+- Adding a field to `Input` in v0.2 is a minor-version breaking change. Acceptable — the fix at every game's test file is `..Default::default()` still working, or a mechanical `foo: false,` insertion.
+- The `#[non_exhaustive]` policy in `02-principles.md §2.6` gets a one-line note: "Exception: fixture structs that games construct — see ADR-018."
+
 ## How to add an ADR
 
 1. Copy the template:
