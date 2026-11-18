@@ -711,6 +711,191 @@ The enums in `ember-input` (`Key`, `MouseButton`, `GamepadButton`, `TouchPhase`)
 - Adding a field to `Input` in v0.2 is a minor-version breaking change. Acceptable — the fix at every game's test file is `..Default::default()` still working, or a mechanical `foo: false,` insertion.
 - The `#[non_exhaustive]` policy in `02-principles.md §2.6` gets a one-line note: "Exception: fixture structs that games construct — see ADR-018."
 
+## ADR-019: `#[derive(Node)]` scope in v0.1
+
+**Status:** accepted (v0.1)
+
+### Context
+
+`10-nodes-and-scenes.md §4.1` sketches `#[derive(Node)]` as generating
+an implicit `name: String` field, a `new()` constructor, and
+serialization for `#[export]` fields. Three of those are not
+implementable as a derive macro in Rust:
+
+1. **Derive macros cannot add fields** to the input struct. An implicit
+   `name` would require an attribute macro (`#[node]`) instead of
+   `#[derive(Node)]`, changing the syntax users expect from the spec.
+2. **A generated `new()` cannot know how to construct the struct.**
+   Even for `Default`-able structs, generating `new()` collides with
+   user-defined `new()` and hides construction semantics.
+3. **Serialization depends on `.escene` format details** that
+   `30-escene-format.md` has not frozen. Emitting a serialize body now
+   would pin the format early or be discarded in Phase 11.
+
+### Decision
+
+For v0.1, `#[derive(Node)]`:
+
+- **Requires** the struct to have a field `name: String`. The derive
+  emits `name()` / `set_name()` against that field.
+- **Requires** the `#[class_name = "..."]` attribute. Missing →
+  compile error.
+- **Does NOT generate** a `new()` constructor. Users write their own.
+- **Does NOT generate** a `serialize()` body. The trait default (no-op)
+  is used until Phase 11.
+
+The derive emits exactly:
+
+- `impl Object for T` — `class_name()`, `as_any()`, `as_any_mut()`
+- `impl Node for T` — `name()`, `set_name()`
+
+### Alternatives
+
+- **Attribute macro `#[node]` that rewrites the struct.** Rejected:
+  changes the user-facing syntax, and attribute macros are strictly
+  harder to write and debug than derives.
+- **Implicit `name` via a wrapper type** (`NodeName { inner: String }`).
+  Rejected: adds a `.name` indirection to every field access,
+  breaking `self.name == "..."`.
+- **Generated `new()` via `Default`.** Rejected: `Default::default()`
+  for a `Node` with a required `NodeId` child would be nonsense.
+- **Emit `serialize()` with a fixed RON schema.** Rejected: schema is
+  not frozen; churn in Phase 11.
+
+### Consequences
+
+- Every `#[derive(Node)]` struct has a visible `name: String` field.
+  More verbose, but the field is honest — it exists, it is initialized
+  by the user, it is accessible as `self.name`.
+- `T::new()` is written by the user. The compile error on a missing
+  `name` field points at the struct, not at a mysterious "no `new`".
+- The derive is ~80 lines and can be extended in Phase 11 to serialize
+  `#[export]` fields without a breaking change to existing deriving
+  structs. The `#[export]` attribute is declared in the derive's
+  `attributes(...)` list now, so adding the serialization behavior is
+  purely additive.
+
+## ADR-020: Wasm font/audio loading strategy
+
+**Status:** accepted (v0.1)
+
+### Context
+
+`RenderingServer::create_font` and `AudioServer::load_clip` take
+`&[u8]` and return a resource handle. On native, macroquad's
+`load_ttf_font_from_bytes` and `load_sound_from_bytes` are `async` but
+resolve immediately — the filesystem read is synchronous under the
+hood, the `async` is for API uniformity with the web path. On wasm,
+the same calls perform an HTTP fetch: genuinely async, and blocking
+the executor on wasm deadlocks the JS event loop.
+
+The trait signatures are synchronous because `&mut dyn RenderingServer`
+cannot hold a borrowed future. Making the traits async (or returning
+`Pin<Box<dyn Future>>`) would cascade through `NodeContext`,
+`AssetServer`, `MainLoop`, and every game — the whole engine becomes
+async.
+
+### Decision
+
+For v0.1:
+
+- **Native**: `create_font` and `load_clip` block on the async
+  macroquad call via `futures::executor::block_on`. The cost is
+  negligible — these are called once at startup, not per frame.
+- **Wasm**: `create_font` and `load_clip` return
+  `Err(ServerError::NotSupported)`. Games on wasm load fonts and audio
+  **before entering the loop** (directly via
+  `macroquad::text::load_ttf_font` / `macroquad::audio::load_sound`),
+  then pass the loaded resources into the engine through backend
+  "adoption" methods:
+  - `MacroquadRenderer::adopt_font(Font) -> FontId`
+  - `MacroquadAudio::adopt_clip(Sound) -> AudioClipId`
+
+Pagoda's current `main.rs` already follows this pattern (fonts and
+`SoundBank` are awaited before `loop { ... }`). ADR-020 documents the
+existing practice; it does not change it.
+
+### Alternatives
+
+- **Make the traits `async fn`.** Rejected: `async fn` in traits has
+  object-safety limitations that would prevent `Box<dyn
+  RenderingServer>`, which the whole design depends on.
+- **Return `Pin<Box<dyn Future<Output = Result<...>>>>` from the sync
+  methods.** Rejected: every caller must decide whether to `.await`,
+  and the sync/async split leaks into game code.
+- **Load all assets before the loop, everywhere (including native).**
+  Rejected: `AssetServer` hot-reload needs to call `load_clip` at
+  runtime on native. Forcing pre-load means no hot-reload.
+- **Use `wasm_bindgen_futures::spawn_local`.** Rejected: introduces
+  `wasm-bindgen` as a dependency, which the spec excludes (Pagoda's
+  `DESIGN.md §7.1`: "No `wasm-bindgen`").
+
+### Consequences
+
+- Native games can call `ctx.assets().load_font("...")` or
+  `ctx.assets().load_audio("...")` from anywhere — the asset server
+  hides the sync-blocking detail.
+- Wasm games must load fonts and audio in `main.rs` before the loop.
+  This is a constraint, not a bug — Pagoda works this way today.
+- The two backend structs grow one small `adopt_*` method each (~10
+  lines total).
+- v0.2 may revisit if macroquad adds a sync load-from-memory path or
+  if the engine moves to a fully async asset pipeline.
+
+## ADR-021: Nested folder organization for backend families
+
+**Status:** accepted (v0.1)
+
+### Context
+
+`01-architecture.md §3.1` sketches a flat crate tree. Every backend
+crate lives at `crates/<feature>-<backend>/`. As v0.2 adds
+`ember-render-wgpu`, `ember-audio-cpal`, and potentially
+`ember-render-metal`, `crates/` accumulates one entry per backend,
+with no structural grouping.
+
+### Decision
+
+Adopt `crates/<feature>/<backend>/` for backend families:
+
+~~~
+crates/
+├── ember-render/
+│   └── macroquad/      (package: ember-render-macroquad)
+├── ember-audio/
+│   └── macroquad/      (package: ember-audio-macroquad)
+~~~
+
+Package names remain `<feature>-<backend>` (unchanged). Folder layout
+changes only. `ember-render/` and `ember-audio/` are grouping
+directories — no `Cargo.toml`, no `src/`.
+
+### Alternatives
+
+- **Flat structure** (Bevy, tokio convention). Rejected: with 4+
+  backend crates expected by v0.3, `ls crates/` becomes a scan rather
+  than a categorization.
+- **Feature flags on a single crate** (e.g., `ember-render` with
+  `features = ["macroquad", "wgpu"]`). Rejected in ADR-006; feature
+  flags multiply CI jobs and force the backend into the crate that
+  games depend on.
+- **Reorganize every crate into families** (e.g., `ember-core/` inside
+  `crates/ember-core/ember-core/` → overkill). Rejected: only backend
+  crates have multiple implementations; everything else is one crate
+  per name.
+
+### Consequences
+
+- `ls crates/` remains scannable; `ls crates/ember-render/` reveals
+  the backend inventory.
+- `[workspace] members` lists nested paths; `[workspace.dependencies]`
+  paths match.
+- `xtask/check-macroquad` skips backend paths by prefix; that constant
+  grows by one entry per backend crate.
+- `check-layers` (name-based via `cargo metadata`) is unaffected.
+- Games' `use ember_render_macroquad::...` statements are unaffected —
+  package names do not change.
+
 ## How to add an ADR
 
 1. Copy the template:
@@ -733,7 +918,7 @@ The enums in `ember-input` (`Key`, `MouseButton`, `GamepadButton`, `TouchPhase`)
 <what it enables and what it costs>
 ```
 
-2. Number sequentially (`ADR-016`, etc.).
+2. Number sequentially (`ADR-022`, etc.).
 3. Update `docs/engine/v0.1/README.md` if the ADR is referenced by a
    doc.
 4. Do not delete old ADRs — supersede them.
@@ -742,5 +927,7 @@ The enums in `ember-input` (`Key`, `MouseButton`, `GamepadButton`, `TouchPhase`)
 
 - Architecture → [01-architecture.md](01-architecture.md)
 - Invariants → [02-principles.md](02-principles.md)
+- Server trait contracts → [12-servers.md](12-servers.md)
+- Node/scene concepts → [10-nodes-and-scenes.md](10-nodes-and-scenes.md)
 - Roadmap phases → [40-roadmap.md](40-roadmap.md)
 - Glossary → [51-glossary.md](51-glossary.md)

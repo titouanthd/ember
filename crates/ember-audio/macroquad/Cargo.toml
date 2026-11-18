@@ -6,3 +6,5 @@ edition.workspace = true
 [dependencies]
 ember-core.workspace = true
 ember-servers.workspace = true
+macroquad.workspace = true
+futures.workspace = true

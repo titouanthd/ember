@@ -81,11 +81,13 @@ whole point of the POC is to make the Scene layer worth using.
 ```
 ember_workspace/
 ├── crates/
-│   ├── ember_core                 (L1)
-│   ├── ember_macros               (L1, proc-macro)
-│   ├── ember_servers              (L2, traits only)
-│   ├── ember_render_macroquad     (L2, impl)
-│   ├── ember_audio_macroquad      (L2, impl)
+│   ├── ember-core/                (L1)
+│   ├── ember-macros/              (L1, proc-macro)
+│   ├── ember-servers/             (L2, traits only)
+│   ├── ember-render/
+│   │   └── macroquad/             (L2, impl — package: ember-render-macroquad)
+│   ├── ember-audio/
+│   │   └── macroquad/             (L2, impl — package: ember-audio-macroquad)
 │   ├── ember_input                (L2)
 │   ├── ember_scene                (L3)
 │   ├── ember_ui                   (L3)

@@ -9,8 +9,8 @@ use std::path::Path;
 const ALLOWLIST_PATH: &str = "xtask/macroquad-allowlist.txt";
 
 const PERMANENT_BACKENDS: &[&str] = &[
-    "crates/ember-render-macroquad",
-    "crates/ember-audio-macroquad",
+    "crates/ember-render/macroquad",
+    "crates/ember-audio/macroquad",
 ];
 
 pub fn run() -> Result<(), String> {
