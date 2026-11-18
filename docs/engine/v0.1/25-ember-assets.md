@@ -1,6 +1,6 @@
 # 25 — `ember_assets`
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — see ADR-026 (no loader registry, no hot-reload watcher, no async)
 > **Audience:** implementers
 > **Prerequisites:** [13-assets.md](13-assets.md), [22-ember-servers.md](22-ember-servers.md)
 

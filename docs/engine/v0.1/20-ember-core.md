@@ -1,6 +1,6 @@
 # 20 — `ember_core`
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — `Variant`, `ClassDB` implemented (ADR-024, ADR-025)
 > **Audience:** implementers
 > **Prerequisites:** [01-architecture.md](01-architecture.md), [02-principles.md](02-principles.md)
 

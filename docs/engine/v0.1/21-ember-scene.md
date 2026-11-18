@@ -1,6 +1,6 @@
 # 21 — `ember_scene`
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — tree, signals, `PackedScene` implemented (ADR-022 to 025)
 > **Audience:** implementers
 > **Prerequisites:** [10-nodes-and-scenes.md](10-nodes-and-scenes.md), [20-ember-core.md](20-ember-core.md)
 
