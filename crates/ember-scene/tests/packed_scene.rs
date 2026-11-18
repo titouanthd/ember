@@ -137,3 +137,14 @@ fn instantiate_into_attaches() {
     let sub = scene.instantiate_into(&db, &mut tree, host).unwrap();
     assert_eq!(tree.parent(sub), Some(host));
 }
+
+#[test]
+fn scene_loads_through_the_asset_server() {
+    let dir = std::env::temp_dir().join(format!("ember-scene-assets-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("player.escene"), FIXTURE).unwrap();
+    let server = ember_assets::AssetServer::new(&dir).unwrap();
+    let handle = server.scene("player.escene").unwrap();
+    assert_eq!(handle.get().root_template_class(), "Player");
+    assert!(server.uid_of("player.escene").is_some());
+}

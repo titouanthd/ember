@@ -43,6 +43,7 @@ proc-macro2 = "1"
 glam   = "0.27"
 serde  = { version = "1", features = ["derive"] }
 ron    = "0.8"
+png    = "0.17"
 
 macroquad = { version = "0.4", features = ["audio"] }
 dotenvy   = "0.15"
