@@ -1,6 +1,7 @@
 pub mod app;
 pub mod class_db;
 pub mod color;
+pub mod error;
 pub mod hash;
 pub mod image;
 pub mod io;
@@ -9,10 +10,12 @@ pub mod math;
 pub mod object;
 pub mod rng;
 pub mod time;
+pub mod variant;
 
 pub use app::GameState;
 pub use class_db::ClassDB;
 pub use color::Color;
+pub use error::CoreError;
 pub use hash::{hash_u32, hash_u32_2, hash_u32_3};
 pub use image::Image;
 pub use main_loop::MainLoop;
@@ -20,3 +23,4 @@ pub use math::{Aabb, Circle, reflect};
 pub use object::Object;
 pub use rng::Rng;
 pub use time::{Cooldown, TickTimer};
+pub use variant::Variant;

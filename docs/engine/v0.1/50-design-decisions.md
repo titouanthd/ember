@@ -1006,6 +1006,47 @@ a `Box<dyn Node>`.
 - `#[derive(Node)]` does not generate `Default`; classes need
   `#[derive(Default)]` or `register_node_with`.
 
+## ADR-025: `.escene` loading takes a `ClassDB` and a tree; properties go through `Node::set_property`
+
+**Status:** accepted (v0.1)
+
+### Context
+
+`21-ember-scene.md §8` has `instantiate(ctx)`, nodes with
+`post_deserialize`, and connections dispatched through
+`SignalReceiver::call_method`. `#[export]` is not implemented, `ctx`
+spawns are deferred (ADR-022), and ADR-023 dropped per-node signal
+tables. `AssetServer` (needed for `instance:`) does not exist yet.
+
+### Decision
+
+- `PackedScene::instantiate(&ClassDB, &mut NodeTree) -> NodeId` builds
+  the nodes immediately and returns the root detached;
+  `instantiate_into(.., parent)` attaches it. Classes are all checked
+  before anything is built, so `ClassNotRegistered` leaves the tree
+  untouched.
+- `Node::set_property(&mut self, key, &Variant) -> bool` (default
+  `false`) applies each property. Unknown or mistyped keys warn and are
+  skipped but stay in the template, so `to_ron` round-trips them.
+  `visible: false` and `z != 0` are applied as `"visible"` / `"z"`.
+- The file model is private serde structs; `PackedScene` keeps it, so
+  `to_ron` is lossless. `parent` and `instance` are plain strings
+  (empty = absent), which keeps the spec's `parent: "."` syntax.
+- `Variant` lives in `ember-core` with RON tuple syntax
+  (`Vec2(1.0, 2.0)`).
+
+### Deferred
+
+- `instance:` nodes error until `AssetServer` (5c); no cycle check yet.
+- Connections are parsed, validated and kept, but not wired: no
+  method-name dispatch exists. They are applied when scenes can name
+  handlers.
+
+### Consequences
+
+- Every scene-loadable class implements `set_property` by hand until
+  `#[export]` lands.
+
 ## How to add an ADR
 
 1. Copy the template:

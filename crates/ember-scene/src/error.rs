@@ -17,6 +17,16 @@ pub enum SceneError {
     NotAttached(NodeId),
     /// The new parent is a descendant of the child.
     Cycle { child: NodeId, parent: NodeId },
+    /// Malformed `.escene` text or structure.
+    Parse(String),
+    /// `.escene` `format` newer than this engine understands.
+    UnsupportedFormat(u32),
+    /// A node's `class` is not in the `ClassDB`.
+    ClassNotRegistered(String),
+    /// A node name is empty, contains `/`, or is `..`.
+    InvalidName(String),
+    /// Reading a scene file failed.
+    Io(String),
 }
 
 impl fmt::Display for SceneError {
@@ -27,6 +37,11 @@ impl fmt::Display for SceneError {
             Self::IsRoot(id) => write!(f, "node {id:?} is the root and cannot be attached"),
             Self::AlreadyAttached(id) => write!(f, "node {id:?} already has a parent"),
             Self::NotAttached(id) => write!(f, "node {id:?} has no parent"),
+            Self::Parse(m) => write!(f, "scene parse error: {m}"),
+            Self::UnsupportedFormat(v) => write!(f, "unsupported .escene format {v}"),
+            Self::ClassNotRegistered(c) => write!(f, "class `{c}` is not registered"),
+            Self::InvalidName(n) => write!(f, "invalid node name `{n}`"),
+            Self::Io(m) => write!(f, "scene io error: {m}"),
             Self::Cycle { child, parent } => {
                 write!(
                     f,

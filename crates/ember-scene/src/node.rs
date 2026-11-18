@@ -2,6 +2,7 @@
 
 use crate::{DrawContext, NodeContext, SceneWriter};
 use ember_core::Object;
+use ember_core::Variant;
 
 slotmap::new_key_type! {
     /// Generational handle to a node in a `NodeTree`. `Copy`, hashable,
@@ -43,6 +44,12 @@ pub trait Node: Object {
     fn physics_process(&mut self, _fixed_dt: f32, _ctx: &mut NodeContext) {}
     fn draw(&self, _ctx: &mut DrawContext) {}
     fn finalize(&mut self) {}
+
+    /// Sets an exported property from a scene file. Returns `false`
+    /// for an unknown key or a wrongly typed value (see ADR-025).
+    fn set_property(&mut self, _key: &str, _value: &Variant) -> bool {
+        false
+    }
 
     /// Serialize `#[export]` fields. Stub in v0.1 — Phase 11 fills in
     /// the `.escene` writer.

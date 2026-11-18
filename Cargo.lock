@@ -310,6 +310,8 @@ dependencies = [
  "ember-macros",
  "ember-servers",
  "glam",
+ "ron",
+ "serde",
  "slotmap",
 ]
 
