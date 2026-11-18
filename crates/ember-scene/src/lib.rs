@@ -5,7 +5,8 @@
 //! `SceneLoop` adapter exist. `PackedScene`, the signals machinery and
 //! `ClassDB` land later.
 
-pub mod context;
+pub mod class_db;
+mod context;
 pub mod error;
 pub mod node;
 pub mod scene;
@@ -22,6 +23,7 @@ mod test_support;
 // standard self-alias pattern (tokio, bytemuck, serde use it).
 pub use crate as ember_scene;
 
+pub use class_db::ClassDbNodes;
 pub use context::{DrawContext, NodeContext, Servers};
 pub use error::SceneError;
 pub use node::{Node, NodeId};
@@ -31,6 +33,7 @@ pub use signal::{Handler, ScopedConnection, Signal, SignalTable};
 pub use tree::NodeTree;
 
 pub mod prelude {
+    pub use crate::class_db::ClassDbNodes;
     pub use crate::context::{DrawContext, NodeContext, Servers};
     pub use crate::error::SceneError;
     pub use crate::node::{Node, NodeId};
