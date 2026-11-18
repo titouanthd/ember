@@ -91,8 +91,10 @@ editor is finished.
 ## 4. Phase 1 — Scene core
 
 > **Progress:** 🟡 `NodeTree`, `NodeId`, contexts, `SceneLoop` and the
-> ordering/stale-id tests are in. `examples/hello_scene.rs` is still
-> open. Deviations: ADR-022.
+> ordering/stale-id tests are in. `crates/ember/examples/hello_scene.rs`
+> runs the tree on macroquad via `ember::run_window` (runner and input
+> poller live in `ember-render-macroquad`; `InputSink` in `ember-input`).
+> Build-verified only; not run headlessly. Deviations: ADR-022.
 
 ### 4.1 Scope
 

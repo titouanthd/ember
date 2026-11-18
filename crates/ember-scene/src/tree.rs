@@ -34,6 +34,7 @@ pub struct NodeTree {
     pending: Vec<DeferredCmd>,
     frame: u64,
     needs_ready: bool,
+    quit: bool,
 }
 
 impl NodeTree {
@@ -267,6 +268,15 @@ impl NodeTree {
             .iter()
             .filter(|(_, s)| !s.pending)
             .filter_map(|(id, s)| s.node.as_deref().map(|n| (id, n)))
+    }
+
+    /// Ask the loop to stop after the current frame.
+    pub fn request_quit(&mut self) {
+        self.quit = true;
+    }
+
+    pub fn quit_requested(&self) -> bool {
+        self.quit
     }
 
     pub fn frame(&self) -> u64 {

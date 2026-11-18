@@ -86,6 +86,11 @@ impl<'a> NodeContext<'a> {
         self.tree.find(self.current, path)
     }
 
+    /// End the game after the current frame.
+    pub fn quit(&mut self) {
+        self.tree.request_quit();
+    }
+
     // --- Deferred structure changes ---
 
     /// Queue `node` for insertion. The id is valid immediately, but the

@@ -232,10 +232,12 @@ dependencies = [
  "ember-audio-macroquad",
  "ember-core",
  "ember-input",
+ "ember-macros",
  "ember-render-macroquad",
  "ember-scene",
  "ember-servers",
  "ember-ui",
+ "glam",
 ]
 
 [[package]]
@@ -291,6 +293,7 @@ name = "ember-render-macroquad"
 version = "0.1.0"
 dependencies = [
  "ember-core",
+ "ember-input",
  "ember-servers",
  "futures",
  "glam",

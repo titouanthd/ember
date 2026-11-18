@@ -172,3 +172,9 @@ impl Input {
             || self.is_gamepad_pressed(GamepadButton::East)
     }
 }
+
+/// Implemented by anything a runner feeds a fresh `Input` snapshot to
+/// once per frame, before `process`.
+pub trait InputSink {
+    fn set_input(&mut self, input: Input);
+}
