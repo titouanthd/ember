@@ -233,6 +233,9 @@ editor is finished.
 
 ## 7. Phase 4 — Servers
 
+> **Progress:** ✅ `LinearPhysics` (ADR-028) is in `ember-servers` and
+> reachable as `ctx.physics()`.
+
 ### 7.1 Scope
 
 - Add `crates/ember_servers` (traits only).

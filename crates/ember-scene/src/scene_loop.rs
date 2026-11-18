@@ -4,7 +4,7 @@ use crate::{DrawContext, NodeTree, Servers};
 use ember_core::MainLoop;
 use ember_core::math::Rect;
 use ember_input::{Input, InputSink};
-use ember_servers::{AudioServer, RenderingServer};
+use ember_servers::{AudioServer, LinearPhysics, RenderingServer};
 
 /// Owns a tree plus the backends it runs against. The runner updates
 /// `input_mut()` once per frame before calling `process`.
@@ -12,6 +12,7 @@ pub struct SceneLoop<R: RenderingServer, A: AudioServer> {
     pub tree: NodeTree,
     rendering: R,
     audio: A,
+    physics: LinearPhysics,
     input: Input,
     viewport: Rect,
     quit: bool,
@@ -23,6 +24,7 @@ impl<R: RenderingServer, A: AudioServer> SceneLoop<R, A> {
             tree,
             rendering,
             audio,
+            physics: LinearPhysics::new(),
             input: Input::default(),
             viewport,
             quit: false,
@@ -45,6 +47,10 @@ impl<R: RenderingServer, A: AudioServer> SceneLoop<R, A> {
         &mut self.rendering
     }
 
+    pub fn physics_mut(&mut self) -> &mut LinearPhysics {
+        &mut self.physics
+    }
+
     pub fn audio(&self) -> &A {
         &self.audio
     }
@@ -60,6 +66,7 @@ impl<R: RenderingServer, A: AudioServer> MainLoop for SceneLoop<R, A> {
         let mut servers = Servers {
             rendering: &mut self.rendering,
             audio: &mut self.audio,
+            physics: &mut self.physics,
             input: &self.input,
         };
         self.tree.flush(&mut servers);
@@ -70,6 +77,7 @@ impl<R: RenderingServer, A: AudioServer> MainLoop for SceneLoop<R, A> {
         let mut servers = Servers {
             rendering: &mut self.rendering,
             audio: &mut self.audio,
+            physics: &mut self.physics,
             input: &self.input,
         };
         self.tree.process(&mut servers, dt);
@@ -80,6 +88,7 @@ impl<R: RenderingServer, A: AudioServer> MainLoop for SceneLoop<R, A> {
         let mut servers = Servers {
             rendering: &mut self.rendering,
             audio: &mut self.audio,
+            physics: &mut self.physics,
             input: &self.input,
         };
         self.tree.physics_process(&mut servers, fixed_dt);
