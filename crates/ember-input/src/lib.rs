@@ -22,7 +22,7 @@ pub mod prelude;
 pub mod touch;
 
 pub use gamepad::GamepadButton;
-pub use input::Input;
+pub use input::{Input, InputSink};
 pub use key::Key;
 pub use mouse::MouseButton;
 pub use touch::{TouchPhase, TouchPoint};

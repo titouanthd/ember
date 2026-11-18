@@ -16,6 +16,7 @@ const ALLOWED: &[(&str, &[&str])] = &[
             "ember-core",
             "ember-render-macroquad",
             "ember-audio-macroquad",
+            "ember-macros",
         ],
     ),
     (
@@ -35,7 +36,10 @@ const ALLOWED: &[(&str, &[&str])] = &[
     ("ember-ui", &["ember-scene", "ember-servers"]),
     ("ember-assets", &["ember-core", "ember-servers"]),
     ("ember-input", &["ember-core"]),
-    ("ember-render-macroquad", &["ember-servers", "ember-core"]),
+    (
+        "ember-render-macroquad",
+        &["ember-servers", "ember-core", "ember-input"],
+    ),
     ("ember-audio-macroquad", &["ember-servers", "ember-core"]),
     ("ember-servers", &["ember-core"]),
     ("ember-macros", &[]), // ADR-016 (Phase 4): proc-macro hygiene

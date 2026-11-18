@@ -12,3 +12,5 @@ ember-servers.workspace = true
 ember-input.workspace = true
 ember-render-macroquad.workspace = true
 ember-audio-macroquad.workspace = true
+ember-macros.workspace = true
+glam.workspace = true

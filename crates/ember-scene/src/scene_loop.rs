@@ -3,7 +3,7 @@
 use crate::{DrawContext, NodeTree, Servers};
 use ember_core::MainLoop;
 use ember_core::math::Rect;
-use ember_input::Input;
+use ember_input::{Input, InputSink};
 use ember_servers::{AudioServer, RenderingServer};
 
 /// Owns a tree plus the backends it runs against. The runner updates
@@ -73,7 +73,7 @@ impl<R: RenderingServer, A: AudioServer> MainLoop for SceneLoop<R, A> {
             input: &self.input,
         };
         self.tree.process(&mut servers, dt);
-        !self.quit
+        !(self.quit || self.tree.quit_requested())
     }
 
     fn physics_process(&mut self, fixed_dt: f32) {
@@ -94,5 +94,11 @@ impl<R: RenderingServer, A: AudioServer> MainLoop for SceneLoop<R, A> {
 
     fn finalize(&mut self) {
         self.tree.clear();
+    }
+}
+
+impl<R: RenderingServer, A: AudioServer> InputSink for SceneLoop<R, A> {
+    fn set_input(&mut self, input: Input) {
+        self.input = input;
     }
 }
