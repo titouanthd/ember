@@ -970,6 +970,42 @@ borrows the tree, so the table cannot be borrowed while a handler runs.
 - Scene-declared connections wait for `.escene` / `PackedScene`.
 - `Node::signals` / `signals_mut` (spec §4.2) are not needed.
 
+## ADR-024: `ClassDB` is generic over `Object`; node construction is an extension
+
+**Status:** accepted (v0.1)
+
+### Context
+
+`20-ember-core.md §9.2` has `ClassDB::instantiate -> Box<dyn Object>`,
+but `.escene` instantiation needs `Box<dyn Node>`, and `ember-core`
+(L1) cannot name `Node` (L3). A `Box<dyn Object>` cannot be turned into
+a `Box<dyn Node>`.
+
+### Decision
+
+- `ember_core::ClassDB` stores a boxed constructor per class name, plus
+  a small per-class extension map keyed by `TypeId`
+  (`set_extension` / `extension`).
+- `ember_scene::ClassDbNodes` (extension trait on `ClassDB`) adds
+  `register_node`, `register_node_with` and `instantiate_node`. It
+  registers the class as an `Object` and stores the node constructor as
+  an extension.
+- `instantiate` and `names` take `&self`; there is no global registry.
+  The first registration of a name wins.
+
+### Alternatives
+
+- `Object::into_node(self: Box<Self>)`: makes core depend on scene.
+- A second registry in `ember-scene`: two places to register every class.
+
+### Consequences
+
+- Games register nodes with `db.register_node::<T>()`, not
+  `db.register::<T>()`; the latter yields a class that `instantiate_node`
+  refuses.
+- `#[derive(Node)]` does not generate `Default`; classes need
+  `#[derive(Default)]` or `register_node_with`.
+
 ## How to add an ADR
 
 1. Copy the template:

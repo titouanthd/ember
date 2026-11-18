@@ -136,6 +136,9 @@ editor is finished.
 
 ## 5. Phase 2 — Serialization
 
+> **Progress:** 🟡 `ClassDB` and node registration are in (ADR-024).
+> Open: `Variant`, `PackedScene` / `.escene`, `AssetServer`.
+
 ### 5.1 Scope
 
 - Add `crates/ember_macros` with `#[derive(Node)]`, `#[signal]`,
