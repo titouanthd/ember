@@ -90,6 +90,10 @@ editor is finished.
 
 ## 4. Phase 1 — Scene core
 
+> **Progress:** 🟡 `NodeTree`, `NodeId`, contexts, `SceneLoop` and the
+> ordering/stale-id tests are in. `examples/hello_scene.rs` is still
+> open. Deviations: ADR-022.
+
 ### 4.1 Scope
 
 - Add `crates/ember_scene`.

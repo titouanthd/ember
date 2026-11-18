@@ -1,14 +1,20 @@
 //! Node, NodeId, NodeTree, NodeContext, PackedScene. The tree the game
 //! lives in.
 //!
-//! Phase 4 status: only the trait skeletons and the two context stubs
-//! exist. `NodeTree`, `NodeId`, `PackedScene`, signals machinery, and
-//! the full contexts land in Phases 6–7.
+//! Phase 6 status: `NodeTree`, `NodeId`, the contexts and the
+//! `SceneLoop` adapter exist. `PackedScene`, the signals machinery and
+//! `ClassDB` land later.
 
 pub mod context;
+pub mod error;
 pub mod node;
 pub mod scene;
+pub mod scene_loop;
 pub mod signal;
+pub mod tree;
+
+#[cfg(test)]
+mod test_support;
 
 // Re-export the crate under its own extern name so that
 // `#[derive(Node)]`'s expansion (`::ember_scene::Node`) resolves even
@@ -16,15 +22,21 @@ pub mod signal;
 // standard self-alias pattern (tokio, bytemuck, serde use it).
 pub use crate as ember_scene;
 
-pub use context::{DrawContext, NodeContext};
-pub use node::Node;
+pub use context::{DrawContext, NodeContext, Servers};
+pub use error::SceneError;
+pub use node::{Node, NodeId};
 pub use scene::SceneWriter;
+pub use scene_loop::SceneLoop;
 pub use signal::Signal;
+pub use tree::NodeTree;
 
 pub mod prelude {
-    pub use crate::context::{DrawContext, NodeContext};
-    pub use crate::node::Node;
+    pub use crate::context::{DrawContext, NodeContext, Servers};
+    pub use crate::error::SceneError;
+    pub use crate::node::{Node, NodeId};
     pub use crate::scene::SceneWriter;
+    pub use crate::scene_loop::SceneLoop;
     pub use crate::signal::Signal;
+    pub use crate::tree::NodeTree;
     pub use ember_core::Object;
 }
