@@ -203,7 +203,7 @@ impl BuildingInstance {
             id,
             count: 0,
             cooldown: if def.production.is_some() {
-                Cooldown::new(def.cooldown)
+                Cooldown::running(def.cooldown)
             } else {
                 Cooldown::default()
             },

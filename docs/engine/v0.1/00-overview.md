@@ -45,22 +45,23 @@ per game, all sharing the same code path.
 ### 3.2 The `juice.rs` duplication
 
 Six games (`accretion`, `ember-wars`, `jade-garden`, `pagoda`, `air-hockey`,
-`asteroids`) were audited as shipping a `juice.rs` (3 copies remain today:
-`ember-wars`, `pagoda`, `jade-garden`), implementing floating text, particles,
+`asteroids`) were audited as shipping a `juice.rs` (all now removed in
+favour of `ember_stdlib::juice`), implementing floating text, particles,
 screen shake, shockwave, and hit flash. They are near-identical copies.
-Extracting `ember_stdlib::juice` deletes ~600 lines of duplicated code
-today and prevents the six copies from silently diverging tomorrow.
+Extracting `ember_stdlib::juice` deleted ~600 lines of duplicated code
+and prevents the copies from silently diverging.
 
 ### 3.3 The `Cooldown::new` bug class
 
 `Cooldown::new(d)` builds a cooldown that *starts running*; the intended
-"ready now, re-arms after `d`" constructor is `Cooldown::with_duration(d)`.
+"ready now, re-arms after `d`" constructor was `Cooldown::with_duration(d)`
+(now `Cooldown::ready(d)`).
 Four call sites used the wrong one, and 31 tests failed in `ember-wars` as
 a direct consequence (catapults spawned dead, units spawned on cooldown,
 bombers never detonated). Renaming the constructors to
 `Cooldown::running(d)` / `Cooldown::ready(d)` and deprecating `new` removes
-the footgun structurally (planned; not yet in code — only a no-arg
-`Cooldown::ready()` exists). This is the kind of API sharpening a real engine
+the footgun structurally (done: `new` / `with_duration` remain as
+`#[deprecated]` aliases). This is the kind of API sharpening a real engine
 does on purpose.
 
 **Every design decision in this document set traces back to one of these
@@ -148,7 +149,7 @@ The POC is done when **all** of the following are true:
 | 9 | Workspace green under clippy `-D warnings` | CI |
 | 10 | All Wave 3 files marked ✅ | Review log |
 
-Status today: criteria 4–6 and 8 are unmet (3 `juice.rs`, 4 `audio.rs` remain);
+Status today: criteria 4, 6 and 8 are unmet (4 `audio.rs` remain); criterion 5 is met;
 7 is met by `PackedScene` round-trip tests.
 
 Criterion 4 is the crucial one for future-proofing: as long as exactly one

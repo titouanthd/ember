@@ -133,8 +133,8 @@ mod tests {
             hp: stats.hp,
             max_hp: stats.hp,
             damage: stats.damage,
-            attack_cd: Cooldown::new(stats.attack_cooldown),
-            heal_cd: Cooldown::new(stats.heal_cooldown.unwrap_or(0.0)),
+            attack_cd: Cooldown::running(stats.attack_cooldown),
+            heal_cd: Cooldown::running(stats.heal_cooldown.unwrap_or(0.0)),
             hit_flash: Cooldown::default(),
             pose_phase: 0.0,
             target: None,
@@ -216,8 +216,8 @@ mod tests {
     #[test]
     fn skips_kind_with_running_cooldown() {
         let mut cds = HashMap::new();
-        cds.insert("hero".to_string(), Cooldown::new(10.0));
-        cds.insert("brute".to_string(), Cooldown::new(5.0));
+        cds.insert("hero".to_string(), Cooldown::running(10.0));
+        cds.insert("brute".to_string(), Cooldown::running(5.0));
         let mana = ManaPool::new(100.0, 100.0, 10.0);
         let c = decide_spawn(&mana, &[], &[], &ai_simple(), 0.0, &cds);
         assert_eq!(c.as_deref(), Some("archer"));

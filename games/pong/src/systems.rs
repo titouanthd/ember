@@ -43,7 +43,7 @@ impl MatchState {
             score_player: 0,
             score_ai: 0,
             state: GameState::Start,
-            ai_reaction: Cooldown::new(ctx.ai_reaction_time),
+            ai_reaction: Cooldown::running(ctx.ai_reaction_time),
             ai_target_y: ctx.screen_h / 2.0,
             rng: Rng::new(seed),
         }

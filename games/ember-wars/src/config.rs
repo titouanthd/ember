@@ -5,8 +5,27 @@ use std::sync::OnceLock;
 
 use ember_core::io::load_from_file;
 use ember_stdlib::config::{env_color, env_f32, load_dotenv_once};
+use ember_stdlib::juice::JuiceConfig;
 use macroquad::prelude::Color;
 use serde::Deserialize;
+
+/// Durée du flash blanc sur une unité touchée.
+pub const HIT_FLASH_DURATION: f32 = 0.08;
+
+/// Durée de vie des particles de mort.
+pub const DEATH_PARTICLE_LIFE: f32 = 0.55;
+
+/// Taille de police des textes flottants.
+pub const FLOATING_TEXT_SIZE: f32 = 16.0;
+
+/// Réglages du juice partagé (`ember_stdlib::juice`).
+pub const JUICE_CONFIG: JuiceConfig = JuiceConfig {
+    particle_gravity: 280.0,
+    particle_drag: 2.0,
+    particle_life: DEATH_PARTICLE_LIFE,
+    text_rise_speed: 40.0,
+    text_life: 0.9,
+};
 
 #[derive(Debug, Clone)]
 pub struct GameContext {

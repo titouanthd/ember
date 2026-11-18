@@ -1,6 +1,6 @@
 # 51 — Glossary
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; terms are defined, but Cooldown::running, Progress, Plugin, Control and hot-reload are not implemented (flagged inline)
+> **Status:** 🟡 partial — reviewed 2026-11-19; terms are defined, but Progress, Plugin, Control and hot-reload are not implemented (flagged inline)
 > **Audience:** all
 > **Prerequisites:** none
 
@@ -36,9 +36,8 @@ type map in every game. Godot-parity concept; documented in
 
 **Cooldown** — a timer utility in `ember_core::time`. Two constructors:
 `ready(d)` (ready now, re-arms to `d` after `trigger`) and `running(d)`
-(already running, ready after `d`). The `new` constructor is to be deprecated
-because it is the root of the `ember-wars` 31-test bug. **Not yet in code:**
-only `new(d)`, `with_duration(d)` and a no-arg `ready()` exist. See
+(already running, ready after `d`). The old `new` / `with_duration` constructors are
+`#[deprecated]` aliases (`new` was the root of the `ember-wars` 31-test bug). See
 [20-ember-core.md](20-ember-core.md).
 
 ## D

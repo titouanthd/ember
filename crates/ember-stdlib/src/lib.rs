@@ -29,6 +29,8 @@ pub use grid::Grid;
 pub mod input;
 pub use input::Input;
 
+pub mod juice;
+
 pub mod ui;
 
 pub mod persistence;

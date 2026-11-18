@@ -6,10 +6,10 @@ use macroquad::prelude::*;
 use crate::catapult::Catapult;
 use crate::components::{Team, Tower, Unit};
 use crate::config::GameContext;
-use crate::juice;
 use crate::systems::{Game, Phase};
 use crate::textures;
 use crate::units::unit_stats;
+use ember_stdlib::juice;
 
 pub fn draw_game(ctx: &GameContext, game: &Game, shake: Vec2) {
     draw_world(ctx, game, shake);
@@ -53,8 +53,9 @@ fn draw_world(ctx: &GameContext, game: &Game, shake: Vec2) {
         draw_circle(sx, sy, p.radius, p.color);
     }
 
-    juice::draw_particles(&game.juice, cam_x, shake);
-    juice::draw_floating_texts(&game.juice, cam_x, shake);
+    let offset = shake - Vec2::new(cam_x, 0.0);
+    juice::draw_particles(&game.juice, offset);
+    juice::draw_floating_texts(&game.juice, offset);
 }
 
 fn draw_local_hp_bar(ctx: &GameContext, tower: &Tower, cam_x: f32, gy: f32, shake: Vec2) {

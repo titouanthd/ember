@@ -105,10 +105,9 @@ pub fn spawn_unit(
     // Cooldowns initialisés "ready" avec leur durée enregistrée.
     // attack_cd : la durée effective est appliquée à chaque trigger
     // (elle dépend de max(stats.attack_cooldown, ATTACK_DURATION)).
-    let attack_cd =
-        Cooldown::with_duration(stats.attack_cooldown.max(crate::stickman::ATTACK_DURATION));
-    let heal_cd = Cooldown::with_duration(stats.heal_cooldown.unwrap_or(0.0));
-    let hit_flash = Cooldown::with_duration(crate::juice::HIT_FLASH_DURATION);
+    let attack_cd = Cooldown::ready(stats.attack_cooldown.max(crate::stickman::ATTACK_DURATION));
+    let heal_cd = Cooldown::ready(stats.heal_cooldown.unwrap_or(0.0));
+    let hit_flash = Cooldown::ready(crate::config::HIT_FLASH_DURATION);
 
     Some(Unit {
         id: id_gen.next_id(),

@@ -14,7 +14,7 @@ registry. Every other crate depends on `ember_core`; nothing in
 > **Reading note.** The signatures below were reconciled with the code on
 > 2026-11-19. Anything marked *Not yet implemented* is still planned; the
 > shipped API is smaller and in places differs (e.g. `Aabb` is min/max,
-> `Rng` is xorshift32, `Cooldown::new` starts running).
+> `Rng` is xorshift32).
 
 ## 2. Module layout
 
@@ -194,11 +194,11 @@ pub struct Cooldown { remaining: f32, duration: f32 }
 
 impl Cooldown {
     /// Running: `remaining == duration`.
-    pub fn new(duration: f32) -> Self;
+    pub fn running(duration: f32) -> Self;
     /// Ready now, remembers `duration` for `reset()`.
-    pub fn with_duration(duration: f32) -> Self;
-    /// Ready, zero duration (same as `Default`).
-    pub fn ready() -> Self;
+    pub fn ready(duration: f32) -> Self;
+    #[deprecated] pub fn new(duration: f32) -> Self;           // = running
+    #[deprecated] pub fn with_duration(duration: f32) -> Self; // = ready
     /// Running with `remaining` left; duration is extended if smaller.
     pub fn from_remaining(remaining: f32, duration: f32) -> Self;
 
@@ -217,18 +217,17 @@ impl Cooldown {
 }
 ```
 
-> **Divergence from the original spec.** The planned rename
-> (`Cooldown::ready(d)` / `running(d)` / `immediate()`, with `new` and
-> `with_duration` deprecated) is **not implemented**. In v0.1:
-> `Cooldown::new(d)` is *running*, `with_duration(d)` is *ready*, and
-> `ready()` takes no argument. `from_remaining` takes `(remaining,
-> duration)`. `Cooldown` derives `Copy` and serde.
+> **Implemented (ADR-011).** `running(d)` / `ready(d)` are the constructors;
+> `new` and `with_duration` are `#[deprecated]` aliases to be removed in
+> v0.2. The no-arg `ready()` is gone (use `Cooldown::default()`).
+> `from_remaining` takes `(remaining, duration)`. `Cooldown` derives `Copy`
+> and serde.
 
 | Constructor | Initial `is_ready()` |
 |---|---|
-| `new(d)` | `d <= 0.0` |
-| `with_duration(d)` | `true` |
-| `ready()` | `true` |
+| `running(d)` | `d <= 0.0` |
+| `ready(d)` | `true` |
+| `default()` | `true` |
 
 **Negative dt:** `tick(-1.0)` is a no-op.
 
@@ -486,9 +485,9 @@ Every game already uses `glam::Vec2` extensively. A newtype would require
 `ember_core` does not re-export it yet, so a future swap is not a
 one-line change.
 
-### 13.2 Why `Cooldown` is to be renamed, not patched (rename pending)
+### 13.2 Why `Cooldown` was renamed, not patched
 
-The current `Cooldown::new` semantics (starts active) are *correct* for
+The former `Cooldown::new` semantics (starts active) were *correct* for
 what the function does — it's the *name* that's wrong. A programmer
 who reads `Cooldown::new(0.5)` thinks "a fresh cooldown of 0.5s" and
 expects `is_ready() == true`. Renaming to `running` / `ready` makes the

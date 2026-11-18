@@ -169,7 +169,7 @@ impl Game {
                         player: self.dealer,
                     };
                     if self.dealer == HUMAN_SEAT {
-                        self.turn_timer = Cooldown::new(ctx.layout.turn_window);
+                        self.turn_timer = Cooldown::running(ctx.layout.turn_window);
                     }
                     events.push(GameEvent::DealComplete);
                 } else {
@@ -196,11 +196,11 @@ impl Game {
                 if new_t >= ctx.layout.draw_duration {
                     if player == HUMAN_SEAT {
                         self.phase = Phase::AwaitingDiscard { player };
-                        self.turn_timer = Cooldown::new(ctx.layout.turn_window);
+                        self.turn_timer = Cooldown::running(ctx.layout.turn_window);
                     } else {
                         self.phase = Phase::AiThinking {
                             player,
-                            timer: Cooldown::new(ctx.layout.ai_think_duration),
+                            timer: Cooldown::running(ctx.layout.ai_think_duration),
                         };
                     }
                 } else {
@@ -286,7 +286,7 @@ impl Game {
                     self.turn = claimer;
                     self.phase = Phase::AwaitingDiscard { player: claimer };
                     if claimer == HUMAN_SEAT {
-                        self.turn_timer = Cooldown::new(ctx.layout.turn_window);
+                        self.turn_timer = Cooldown::running(ctx.layout.turn_window);
                     }
                     let _ = meld;
                 } else {
@@ -449,7 +449,7 @@ impl Game {
             self.phase = Phase::AwaitingClaims {
                 discard: tile,
                 from: player,
-                timer: Cooldown::new(ctx.layout.claim_window),
+                timer: Cooldown::running(ctx.layout.claim_window),
             };
         } else {
             self.advance_turn();
@@ -500,7 +500,7 @@ impl Game {
                 self.phase = Phase::ClaimAnim {
                     claimer: player,
                     meld,
-                    timer: Cooldown::new(ctx.layout.claim_duration),
+                    timer: Cooldown::running(ctx.layout.claim_duration),
                 };
                 events.push(GameEvent::Claimed {
                     player,
@@ -1025,7 +1025,7 @@ mod tests {
         let c = ctx();
         let mut g = Game::new(1);
         drive_to_discard(&mut g, &c, 600);
-        g.turn_timer = Cooldown::new(0.001);
+        g.turn_timer = Cooldown::running(0.001);
         g.update(&empty_input(), &c, 1.0);
         assert_eq!(g.players[0].discards.len(), 1);
     }
@@ -1046,7 +1046,7 @@ mod tests {
         g.phase = Phase::AwaitingClaims {
             discard,
             from: 1,
-            timer: Cooldown::new(c.layout.claim_window),
+            timer: Cooldown::running(c.layout.claim_window),
         };
         assert!(g.human_pass(&c));
         assert!(!matches!(g.phase, Phase::AwaitingClaims { .. }));

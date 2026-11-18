@@ -412,9 +412,9 @@ cause of the 31-test `ember-wars` bug.
 Deprecate `new` → `running`, `with_duration` → `ready` (removed in
 v0.2).
 
-> **Not implemented:** `ember_core::time::Cooldown` still has `new(d)`
-> and `with_duration(d)`, and only a no-arg `ready()` (already ready);
-> `running` does not exist and nothing is deprecated.
+> **Implemented:** `running(d)` / `ready(d)` exist; `new` and
+> `with_duration` are `#[deprecated]` aliases and all workspace call
+> sites are migrated.
 
 ### Alternatives
 
@@ -1147,6 +1147,34 @@ on `ember-assets` (L3 -> L3), so assets cannot name `PackedScene`.
 
 - Queries are O(n); fine below ~300 shapes. Spatial indexing is v0.2.
 - Collision response and swept tests stay in game code for now.
+
+## ADR-029: Shared `ember_stdlib::juice`; game-specific effects wrap it
+
+**Status:** accepted
+
+### Context
+
+Three games still shipped diverged copies of `juice.rs` (particles,
+floating text, shockwaves, flashes, screen shake). Their APIs differed
+(`spawn_hit_spark` vs `spark`, per-game gravity/drag, extra effects such as
+Pagoda's falling slices and Jade Garden's radial rays).
+
+### Decision
+
+- `ember_stdlib::juice` owns the common effects. Per-game tuning goes
+  through `JuiceConfig` (gravity, drag, particle life, text rise/life);
+  draw functions take an explicit offset (`draw_particles(juice, offset)`)
+  or size (`draw_flashes_sized`) so they work with cameras and virtual
+  canvases.
+- Games with extra effects keep a local `effects.rs` with an `Effects`
+  struct that holds a `Juice` and `Deref`s to it. Inherent methods
+  (e.g. `Effects::tick`) shadow the stdlib ones and tick both layers.
+
+### Consequences
+
+- `find games -name juice.rs` is empty; ~600 duplicated lines are gone.
+- `Deref` means `self.juice.spawn_*(self.method())` can hit E0502;
+  hoist arguments into locals.
 
 ## How to add an ADR
 

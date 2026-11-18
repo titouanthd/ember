@@ -55,10 +55,12 @@ editor is finished.
 > **Progress:** 🟡 The `MainLoop` trait (`ember-core::main_loop`; no
 > `run<L>()` helper yet) and `Input::primary_action` (`ember-input`, not
 > `ember_stdlib::input`) are in. **Open:**
-> `ember_stdlib::juice` does not exist yet (`juice.rs` copies remain in
-> `ember-wars`, `pagoda`, `jade-garden`); `Cooldown::running` is not
-> added (only a no-arg `ember_core::time::Cooldown::ready()` exists, no
-> deprecation of `new`); `audio.rs` copies remain in `air-hockey`,
+> `ember_stdlib::juice` is shipped (with unit tests); the `juice.rs` copies
+> in `ember-wars`, `pagoda` and `jade-garden` are gone (the last two keep a
+> thin local `effects.rs` wrapper that `Deref`s to `Juice`, see ADR-029).
+> `Cooldown::running` / `Cooldown::ready(d)` exist, `new` / `with_duration`
+> are `#[deprecated]` aliases and every call site is migrated. **Open:**
+> `MainLoop::run<L>()` helper, and the `audio.rs` copies in `air-hockey`,
 > `bore-inc`, `jade-garden`, `pagoda`. The workspace has 17 games, not 18.
 
 ### 3.1 Scope
@@ -90,7 +92,7 @@ editor is finished.
 - `crates/ember_core/src/main_loop.rs` (+ tests)
 - `crates/ember_core/src/time/cooldown.rs` updated with deprecations
 - `crates/ember_stdlib/src/input.rs` updated with `primary_action`
-- All `juice.rs` files in games (3 remain) replaced with `use ember_stdlib::juice::*;`
+- All `juice.rs` files in games replaced with `ember_stdlib::juice` (done)
 - Workspace green
 
 ### 3.5 Estimated effort

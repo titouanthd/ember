@@ -93,9 +93,8 @@ An API is marked `#[deprecated(note = "…")]` for one minor version
 (e.g. all of v0.1), then removed in the next (v0.2). Deprecation without
 a note explaining the replacement is rejected in review.
 
-**Example (planned, *not yet applied*):** `Cooldown::new` → `Cooldown::running`
-as a v0.1 deprecation. `Cooldown` currently has no `running` constructor and
-no `#[deprecated]` attributes.
+**Example (applied):** `Cooldown::new` → `Cooldown::running` is a v0.1
+deprecation; `new` and `with_duration` carry `#[deprecated]` attributes.
 
 ### I8 — Tests are colocated and always run
 
@@ -128,7 +127,7 @@ no `#[deprecated]` attributes.
 
 | Pattern | Rule | Example |
 |---|---|---|
-| Constructor | `new` / `with_*` | `Cooldown::new`, `Cooldown::ready` |
+| Constructor | `new` / `with_*` | `Cooldown::running`, `Cooldown::ready` |
 | Fallible | `try_*` | `try_spawn`, `try_fire` |
 | Query | `is_*` / `has_*` | `is_ready`, `has_child` |
 | Conversion | `as_*` (cheap) / `to_*` (allocating) | `as_str`, `to_owned` |
@@ -296,7 +295,7 @@ These surface at the boundary, not inside the game loop.
 
 ### 7.1 How to deprecate
 
-*(Policy only: no `#[deprecated]` items exist in the workspace yet.)*
+*(Applied to `Cooldown::new` / `with_duration` in `ember-core`.)*
 
 ```rust
 #[deprecated(

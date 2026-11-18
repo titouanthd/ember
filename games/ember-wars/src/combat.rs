@@ -7,8 +7,9 @@ use crate::catapult::{CATAPULT_HITBOX_H, Catapult};
 use crate::components::{
     AttackTarget, PendingAttack, Projectile, ProjectileKind, Team, Tower, Unit, UnitId, rgba,
 };
-use crate::juice::{HIT_FLASH_DURATION, Juice};
+use crate::config::{DEATH_PARTICLE_LIFE, FLOATING_TEXT_SIZE, HIT_FLASH_DURATION};
 use crate::units::{UnitStats, unit_stats};
+use ember_stdlib::juice::Juice;
 
 pub const MAX_PROJECTILES: usize = 200;
 pub const HEALER_MIDLINE_MARGIN: f32 = 300.0;
@@ -149,7 +150,7 @@ fn apply_damage_to_unit(unit: &mut Unit, amount: f32, source_team: Team, juice: 
     unit.hit_flash.trigger(HIT_FLASH_DURATION);
 
     let color = team_juice_color(unit.team);
-    juice.spawn_hit_spark(unit.pos, color);
+    juice.spark(unit.pos, color);
 
     let dmg_color = if source_team == Team::Player {
         DMG_COLOR_PLAYER
@@ -157,10 +158,15 @@ fn apply_damage_to_unit(unit: &mut Unit, amount: f32, source_team: Team, juice: 
         DMG_COLOR_ENEMY
     };
     let text_pos = unit.pos + Vec2::new(0.0, -25.0);
-    juice.spawn_floating_text(text_pos, format!("-{:.0}", amount), dmg_color);
+    juice.spawn_floating_text(
+        text_pos,
+        format!("-{:.0}", amount),
+        dmg_color,
+        FLOATING_TEXT_SIZE,
+    );
 
     if was_alive && !unit.is_alive() {
-        juice.spawn_death_burst(unit.pos, color, 6);
+        juice.ring_burst(unit.pos, color, 6, DEATH_PARTICLE_LIFE);
     }
 }
 
@@ -173,7 +179,7 @@ fn apply_damage_to_tower(tower: &mut Tower, amount: f32, ground_y: f32, juice: &
     };
     juice.shake(4.0 + frac * 30.0, 0.12);
     let color = team_juice_color(tower.team);
-    juice.spawn_hit_spark(Vec2::new(tower.x, ground_y - 120.0), color);
+    juice.spark(Vec2::new(tower.x, ground_y - 120.0), color);
 
     let dmg_color = if tower.team == Team::Enemy {
         DMG_COLOR_PLAYER
@@ -184,6 +190,7 @@ fn apply_damage_to_tower(tower: &mut Tower, amount: f32, ground_y: f32, juice: &
         Vec2::new(tower.x, ground_y - 200.0),
         format!("-{:.0}", amount),
         dmg_color,
+        FLOATING_TEXT_SIZE,
     );
 }
 
@@ -191,17 +198,18 @@ fn apply_damage_to_catapult(catapult: &mut Catapult, amount: f32, juice: &mut Ju
     let was_alive = catapult.is_alive();
     catapult.take_damage(amount);
     let pos = catapult.pos;
-    juice.spawn_hit_spark(pos, Color::new(1.0, 0.6, 0.3, 1.0));
+    juice.spark(pos, Color::new(1.0, 0.6, 0.3, 1.0));
     juice.shake(3.0, 0.1);
 
     juice.spawn_floating_text(
         pos + Vec2::new(0.0, -CATAPULT_HITBOX_H - 12.0),
         format!("-{:.0}", amount),
         DMG_COLOR_ENEMY,
+        FLOATING_TEXT_SIZE,
     );
 
     if was_alive && !catapult.is_alive() {
-        juice.spawn_death_burst(pos, Color::new(1.0, 0.5, 0.2, 1.0), 12);
+        juice.ring_burst(pos, Color::new(1.0, 0.5, 0.2, 1.0), 12, DEATH_PARTICLE_LIFE);
         juice.shake(10.0, 0.4);
     }
 }
@@ -225,7 +233,7 @@ fn detonate_bomber(
         }
     }
     units[bomber_idx].hp = 0.0;
-    juice.spawn_death_burst(pos, team_juice_color(team), 10);
+    juice.ring_burst(pos, team_juice_color(team), 10, DEATH_PARTICLE_LIFE);
     juice.shake(10.0, 0.2);
 }
 
@@ -499,7 +507,12 @@ fn resolve_healer(units: &mut [Unit], i: usize, stats: &UnitStats, juice: &mut J
             units[j].hp = (units[j].hp + heal_amount).min(units[j].max_hp);
             units[i].heal_cd.trigger(heal_cooldown);
             let text_pos = units[j].pos + Vec2::new(0.0, -25.0);
-            juice.spawn_floating_text(text_pos, format!("+{:.0}", actual), HEAL_COLOR);
+            juice.spawn_floating_text(
+                text_pos,
+                format!("+{:.0}", actual),
+                HEAL_COLOR,
+                FLOATING_TEXT_SIZE,
+            );
         }
         true
     } else {
@@ -660,8 +673,8 @@ mod tests {
             hp: stats.hp,
             max_hp: stats.hp,
             damage: stats.damage,
-            attack_cd: Cooldown::with_duration(stats.attack_cooldown),
-            heal_cd: Cooldown::with_duration(stats.heal_cooldown.unwrap_or(0.0)),
+            attack_cd: Cooldown::ready(stats.attack_cooldown),
+            heal_cd: Cooldown::ready(stats.heal_cooldown.unwrap_or(0.0)),
             hit_flash: Cooldown::default(),
             pose_phase: 0.0,
             target: None,
@@ -820,8 +833,8 @@ mod tests {
     #[test]
     fn resolve_attacks_decrements_cooldowns() {
         let mut u = mk_unit(0, "grunt", Team::Player, 0.0);
-        u.attack_cd = Cooldown::new(0.5);
-        u.heal_cd = Cooldown::new(0.3);
+        u.attack_cd = Cooldown::running(0.5);
+        u.heal_cd = Cooldown::running(0.3);
         let mut units = vec![u];
         let mut pt = mk_tower(Team::Player, -100.0);
         let mut et = mk_tower(Team::Enemy, 1000.0);
@@ -986,7 +999,7 @@ mod tests {
     #[test]
     fn resolve_attacks_respects_attack_cooldown() {
         let mut p = mk_unit(0, "grunt", Team::Player, 0.0);
-        p.attack_cd = Cooldown::new(0.5);
+        p.attack_cd = Cooldown::running(0.5);
         let e = mk_unit(1, "grunt", Team::Enemy, 10.0);
         let mut units = vec![p, e];
         let mut pt = mk_tower(Team::Player, -100.0);
@@ -1131,7 +1144,7 @@ mod tests {
     #[test]
     fn healer_respects_cooldown() {
         let mut h = mk_unit(0, "healer", Team::Player, 0.0);
-        h.heal_cd = Cooldown::new(2.0);
+        h.heal_cd = Cooldown::running(2.0);
         let mut wounded = mk_unit(1, "grunt", Team::Player, 50.0);
         wounded.hp = 10.0;
         let mut units = vec![h, wounded];

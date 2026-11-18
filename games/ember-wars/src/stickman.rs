@@ -303,7 +303,7 @@ mod tests {
             hp,
             max_hp: 30.0,
             damage: 5.0,
-            attack_cd: Cooldown::new(0.8),
+            attack_cd: Cooldown::running(0.8),
             heal_cd: Cooldown::default(),
             hit_flash: Cooldown::default(),
             pose_phase: 0.0,
