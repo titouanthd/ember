@@ -9,3 +9,8 @@ ember-stdlib.workspace = true
 macroquad.workspace = true
 dotenvy.workspace = true
 glam.workspace = true
+ember.workspace = true
+
+[dev-dependencies]
+ember-servers.workspace = true
+ember-input.workspace = true
