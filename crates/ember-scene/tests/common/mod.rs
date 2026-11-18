@@ -128,3 +128,58 @@ pub fn sample_tree(log: &Log) -> (NodeTree, [NodeId; 5]) {
     t.set_root(root);
     (t, [root, a, a1, a2, b])
 }
+
+/// Runs `f` on every `process`; lets a test act through a `NodeContext`.
+pub struct Script {
+    name: String,
+    f: Box<dyn FnMut(&mut NodeContext) + Send + Sync>,
+}
+
+impl Script {
+    pub fn new(name: &str, f: impl FnMut(&mut NodeContext) + Send + Sync + 'static) -> Self {
+        Self {
+            name: name.into(),
+            f: Box::new(f),
+        }
+    }
+}
+
+impl Object for Script {
+    fn class_name() -> &'static str {
+        "Script"
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+impl Node for Script {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+    fn process(&mut self, _dt: f32, ctx: &mut NodeContext) {
+        (self.f)(ctx);
+    }
+}
+
+/// A tree whose root is a `Script`, plus three Recorder children
+/// `a`, `b`, `c` to use as signal targets.
+pub fn script_tree(
+    log: &Log,
+    f: impl FnMut(&mut NodeContext) + Send + Sync + 'static,
+) -> (NodeTree, [NodeId; 3]) {
+    let mut t = NodeTree::with_root(Script::new("script", f));
+    let root = t.root().unwrap();
+    let ids = ["a", "b", "c"].map(|n| {
+        let id = t.insert(Recorder::new(n, log));
+        t.attach(id, root).unwrap();
+        id
+    });
+    (t, ids)
+}

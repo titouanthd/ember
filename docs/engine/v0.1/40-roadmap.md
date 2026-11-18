@@ -183,6 +183,12 @@ editor is finished.
 
 ## 6. Phase 3 — Signals
 
+> **Progress:** 🟡 `SignalTable`, `ScopedConnection`, typed
+> `emit`/`emit_deferred`/`connect`/`disconnect` and the dispatch-order,
+> stale-target, cycle and scoped-connection tests are in (landed ahead
+> of Phase 2). Open: scene-declared connections (needs `.escene`) and
+> the pong migration. Deviations: ADR-023.
+
 ### 6.1 Scope
 
 - Add `SignalTable` to `ember_scene`.

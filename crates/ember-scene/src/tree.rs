@@ -4,7 +4,8 @@
 //! are queued and applied by `flush`, so a pass never iterates a tree
 //! that changes under it. See `21-ember-scene.md §5`.
 
-use crate::{DrawContext, Node, NodeContext, NodeId, SceneError, Servers};
+use crate::signal::{ScopedConnection, SignalTable};
+use crate::{DrawContext, Node, NodeContext, NodeId, SceneError, Servers, Signal};
 use slotmap::SlotMap;
 
 struct NodeSlot {
@@ -35,7 +36,11 @@ pub struct NodeTree {
     frame: u64,
     needs_ready: bool,
     quit: bool,
+    signals: SignalTable,
+    deferred_emits: Vec<DeferredEmit>,
 }
+
+type DeferredEmit = Box<dyn FnOnce(&mut NodeContext<'_>) + Send>;
 
 impl NodeTree {
     pub fn new() -> Self {
@@ -88,6 +93,7 @@ impl NodeTree {
             let Some(slot) = self.nodes.remove(nid) else {
                 continue;
             };
+            self.signals.remove_target(nid);
             if let Some(mut node) = slot.node {
                 node.finalize();
                 if nid == id {
@@ -105,6 +111,7 @@ impl NodeTree {
             self.remove(id);
         }
         self.pending.clear();
+        self.deferred_emits.clear();
         self.root = None;
     }
 
@@ -283,6 +290,49 @@ impl NodeTree {
         self.frame
     }
 
+    // --- Signals ---
+
+    /// Connect `handler` to signals of type `T`, run on behalf of
+    /// `target`. Handlers run in connection order.
+    pub fn connect<T: Signal>(
+        &mut self,
+        target: NodeId,
+        handler: impl Fn(&mut NodeContext<'_>, &T) + Send + Sync + 'static,
+    ) {
+        self.signals.connect(target, handler);
+    }
+
+    /// Like `connect`; dropping the returned handle disconnects.
+    pub fn connect_scoped<T: Signal>(
+        &mut self,
+        target: NodeId,
+        handler: impl Fn(&mut NodeContext<'_>, &T) + Send + Sync + 'static,
+    ) -> ScopedConnection {
+        self.signals.connect_scoped(target, handler)
+    }
+
+    /// Remove every `T` handler targeting `target`.
+    pub fn disconnect<T: Signal>(&mut self, target: NodeId) {
+        self.signals.disconnect_type_target::<T>(target);
+    }
+
+    pub fn signals(&self) -> &SignalTable {
+        &self.signals
+    }
+
+    pub(crate) fn signals_mut(&mut self) -> &mut SignalTable {
+        &mut self.signals
+    }
+
+    pub(crate) fn queue_emit(&mut self, emit: DeferredEmit) {
+        self.deferred_emits.push(emit);
+    }
+
+    /// True while `id` has a slot, even one still queued by `spawn`.
+    pub(crate) fn is_allocated(&self, id: NodeId) -> bool {
+        self.nodes.contains_key(id)
+    }
+
     // --- Frame loop ---
 
     /// Variable-step pass: top-down, child insertion order.
@@ -315,11 +365,15 @@ impl NodeTree {
         let mut rounds = 0;
         loop {
             self.apply_pending();
-            if !self.needs_ready {
+            self.signals.tick();
+            if !self.deferred_emits.is_empty() {
+                self.run_deferred_emits(servers);
+            } else if self.needs_ready {
+                self.needs_ready = false;
+                self.ready_pass(servers);
+            } else {
                 break;
             }
-            self.needs_ready = false;
-            self.ready_pass(servers);
             rounds += 1;
             assert!(
                 rounds < MAX_FLUSH_ROUNDS,
@@ -369,6 +423,15 @@ impl NodeTree {
                     self.remove(id);
                 }
             }
+        }
+    }
+
+    /// FIFO. Emits queued by these emits wait for the next round.
+    fn run_deferred_emits(&mut self, servers: &mut Servers) {
+        let emits = std::mem::take(&mut self.deferred_emits);
+        let mut ctx = NodeContext::new(self, servers, NodeId::default(), 0.0);
+        for emit in emits {
+            emit(&mut ctx);
         }
     }
 
