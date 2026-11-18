@@ -1,6 +1,6 @@
 # 30 — The `.escene` Format (v1)
 
-> **Status:** 🟡 partial — see ADR-025 (no `instance:`, connections parsed but not wired)
+> **Status:** 🟡 partial — see ADR-025, ADR-027 (connections parsed but not wired)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [21-ember-scene.md](21-ember-scene.md), [26-ember-macros.md](26-ember-macros.md)
 

@@ -1091,6 +1091,28 @@ on `ember-assets` (L3 -> L3), so assets cannot name `PackedScene`.
 
 - Loading a GPU asset requires passing the renderer at the call site.
 
+## ADR-027: Nested `instance:` is resolved by `instantiate_with`
+
+**Status:** accepted
+
+### Decision
+
+- An entry has exactly one of `class` or `instance` (`class` is now
+  optional in the file; both or neither is a `Parse` error).
+- `PackedScene::instantiate_with(&ClassDB, &AssetServer, &mut NodeTree)`
+  loads each `instance:` path through `SceneAssets` and builds it
+  recursively. The nested root takes the entry's `name`, `properties`,
+  `visible` and `z` as overrides.
+- `instantiate` (no `AssetServer`) fails on `instance:` with `Asset`.
+- Cycles are detected by scene `uid` along the current chain and fail
+  with `InstanceCycle("a -> b -> a")`.
+- Any failure removes everything built so far; the tree is untouched.
+
+### Consequences
+
+- Overrides reach only the nested root, not its descendants.
+- Connection wiring and hot-reload remain open.
+
 ## How to add an ADR
 
 1. Copy the template:

@@ -43,11 +43,12 @@ struct SubResource {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 struct NodeEntry {
     name: String,
+    #[serde(default, skip_serializing_if = "is_empty")]
     class: String,
     /// Empty for the root; otherwise `"."`, or a path below the root.
     #[serde(default, skip_serializing_if = "is_empty")]
     parent: String,
-    /// Nested scene path. Needs `AssetServer` (phase 5c).
+    /// Nested scene path, mutually exclusive with `class`.
     #[serde(default, skip_serializing_if = "is_empty")]
     instance: String,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -164,6 +165,12 @@ impl PackedScene {
             if !valid_name(&n.name) {
                 return Err(SceneError::InvalidName(n.name.clone()));
             }
+            if n.class.is_empty() == n.instance.is_empty() {
+                return Err(SceneError::Parse(format!(
+                    "node `{}` needs exactly one of `class` and `instance`",
+                    n.name
+                )));
+            }
             if i == 0 {
                 paths.push(n.name.clone());
                 continue;
@@ -213,28 +220,101 @@ impl PackedScene {
     ///
     /// Unknown or mistyped properties are skipped with a warning (they
     /// stay in the template). Connections are validated but not wired:
-    /// see ADR-025.
+    /// see ADR-025. Nodes with `instance:` fail with `Asset`; use
+    /// [`Self::instantiate_with`] for those.
     pub fn instantiate(
         &self,
         classes: &ClassDB,
         tree: &mut NodeTree,
     ) -> Result<NodeId, SceneError> {
+        self.build(classes, None, tree, &mut Vec::new())
+    }
+
+    /// Like [`Self::instantiate`], resolving `instance:` entries through
+    /// `assets`. Cycles are rejected with `InstanceCycle`.
+    pub fn instantiate_with(
+        &self,
+        classes: &ClassDB,
+        assets: &AssetServer,
+        tree: &mut NodeTree,
+    ) -> Result<NodeId, SceneError> {
+        self.build(classes, Some(assets), tree, &mut Vec::new())
+    }
+
+    fn build(
+        &self,
+        classes: &ClassDB,
+        assets: Option<&AssetServer>,
+        tree: &mut NodeTree,
+        chain: &mut Vec<String>,
+    ) -> Result<NodeId, SceneError> {
+        if chain.contains(&self.file.uid) {
+            chain.push(self.file.uid.clone());
+            return Err(SceneError::InstanceCycle(chain.join(" -> ")));
+        }
         for n in &self.file.nodes {
-            if !n.instance.is_empty() {
-                return Err(SceneError::Parse(format!(
-                    "node `{}`: nested instancing needs the AssetServer",
-                    n.name
-                )));
-            }
-            if !classes.is_registered(&n.class) {
+            if n.instance.is_empty() && !classes.is_registered(&n.class) {
                 return Err(SceneError::ClassNotRegistered(n.class.clone()));
             }
         }
+        chain.push(self.file.uid.clone());
+        let root_path = self.paths[0].as_str();
         let mut ids: HashMap<&str, NodeId> = HashMap::new();
+        let mut result = Ok(());
         for (n, path) in self.file.nodes.iter().zip(&self.paths) {
-            let mut node = classes
+            match self.build_node(n, path, classes, assets, tree, chain, &ids) {
+                Ok(id) => {
+                    ids.insert(path, id);
+                }
+                Err(e) => {
+                    result = Err(e);
+                    break;
+                }
+            }
+        }
+        chain.pop();
+        match result {
+            Ok(()) => Ok(ids[root_path]),
+            Err(e) => {
+                if let Some(&root) = ids.get(root_path) {
+                    tree.remove(root);
+                }
+                Err(e)
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_node(
+        &self,
+        n: &NodeEntry,
+        path: &str,
+        classes: &ClassDB,
+        assets: Option<&AssetServer>,
+        tree: &mut NodeTree,
+        chain: &mut Vec<String>,
+        ids: &HashMap<&str, NodeId>,
+    ) -> Result<NodeId, SceneError> {
+        let id = if n.instance.is_empty() {
+            let node = classes
                 .instantiate_node(&n.class)
                 .ok_or_else(|| SceneError::ClassNotRegistered(n.class.clone()))?;
+            tree.insert_boxed(node)
+        } else {
+            let assets = assets.ok_or_else(|| {
+                SceneError::Asset(format!(
+                    "node `{}` instances `{}` but no AssetServer was given",
+                    n.name, n.instance
+                ))
+            })?;
+            let handle = assets
+                .load::<PackedScene>(&n.instance)
+                .map_err(|e| SceneError::Asset(format!("{}: {e}", n.instance)))?;
+            let nested = handle.get();
+            nested.build(classes, Some(assets), tree, chain)?
+        };
+        let finish = |tree: &mut NodeTree| -> Result<(), SceneError> {
+            let node = tree.get_mut(id).ok_or(SceneError::NotFound(id))?;
             node.set_name(n.name.clone());
             for (key, value) in &n.properties {
                 if !node.set_property(key, value) {
@@ -250,17 +330,16 @@ impl PackedScene {
             if n.z != 0.0 {
                 node.set_property("z", &Variant::Float(f64::from(n.z)));
             }
-            let id = tree.insert_boxed(node);
             if let Some((parent, _)) = path.rsplit_once('/') {
-                let attached = tree.attach(id, ids[parent]);
-                if let Err(e) = attached {
-                    tree.remove(ids[self.paths[0].as_str()]);
-                    return Err(e);
-                }
+                tree.attach(id, ids[parent])?;
             }
-            ids.insert(path, id);
+            Ok(())
+        };
+        if let Err(e) = finish(tree) {
+            tree.remove(id);
+            return Err(e);
         }
-        Ok(ids[self.paths[0].as_str()])
+        Ok(id)
     }
 
     pub fn instantiate_into(
