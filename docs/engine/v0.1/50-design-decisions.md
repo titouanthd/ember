@@ -935,6 +935,41 @@ receive a context that already mutably borrows it, and a node cannot be
   an id snapshot and skip ids that are no longer live.
 - `PhysicsServer` joins `Servers` when `LinearPhysics` lands.
 
+## ADR-023: One tree-level `SignalTable`; handlers are `Arc`, dispatch lives on `NodeContext`
+
+**Status:** accepted (v0.1)
+
+### Context
+
+`21-ember-scene.md §10` has `SignalTable::emit(payload, ctx)` and a
+table per node slot, with `Box` handlers and a `ScopedConnection` that
+disconnects on the next `flush`. Handlers take `&mut NodeContext`, which
+borrows the tree, so the table cannot be borrowed while a handler runs.
+
+### Decision
+
+- A single `SignalTable` on `NodeTree` (handlers already carry their
+  target `NodeId`; `11-signals.md §7.1`). `tree.remove` drops the removed
+  nodes' handlers.
+- Handlers are stored as `Arc`. `NodeContext::emit` snapshots the `T`
+  handlers in connection order, releases the table, then calls each one
+  with `current_id()` set to its target. Targets that are queued but not
+  yet live are skipped; targets that no longer exist are disconnected.
+- `emit_deferred` queues on the tree; `flush` runs the queue FIFO, one
+  round at a time, alongside the ready cascade (same 1000-round cap).
+- `ScopedConnection::drop` pushes its id on a shared queue. The table
+  applies it at `flush` and at the start of every `emit` (earlier than
+  the spec, never later). `forget()` keeps the handler connected.
+- `connect`, `connect_scoped` and `disconnect` exist on both `NodeTree`
+  (for setup code) and `NodeContext`.
+
+### Consequences
+
+- A handler targeting the node whose callback is running cannot reach
+  that node through `ctx.tree()` (ADR-022: it is checked out).
+- Scene-declared connections wait for `.escene` / `PackedScene`.
+- `Node::signals` / `signals_mut` (spec §4.2) are not needed.
+
 ## How to add an ADR
 
 1. Copy the template:

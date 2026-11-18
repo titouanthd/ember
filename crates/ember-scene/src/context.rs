@@ -1,7 +1,8 @@
 //! `NodeContext` and `DrawContext`, plus the `Servers` bundle the tree
 //! hands to every callback.
 
-use crate::{Node, NodeId, NodeTree};
+use crate::signal::ScopedConnection;
+use crate::{Node, NodeId, NodeTree, Signal};
 use ember_core::math::Rect;
 use ember_input::Input;
 use ember_servers::{AudioServer, RenderingServer};
@@ -89,6 +90,59 @@ impl<'a> NodeContext<'a> {
     /// End the game after the current frame.
     pub fn quit(&mut self) {
         self.tree.request_quit();
+    }
+
+    // --- Signals ---
+
+    /// Call every `T` handler now, in connection order. Inside a handler
+    /// `current_id()` is the handler's target. Handlers may emit again;
+    /// the inner dispatch finishes first. A target that is not live is
+    /// skipped (and, if gone for good, disconnected).
+    pub fn emit<T: Signal>(&mut self, payload: T) {
+        let listeners = self.tree.signals_mut().snapshot::<T>();
+        let mut stale = Vec::new();
+        let outer = self.current;
+        for (id, target, handler) in listeners {
+            if !self.tree.contains(target) {
+                if !self.tree.is_allocated(target) {
+                    stale.push(id);
+                }
+                continue;
+            }
+            if !self.tree.signals().is_connected(id) {
+                continue;
+            }
+            self.current = target;
+            (**handler)(self, &payload);
+        }
+        self.current = outer;
+        self.tree.signals_mut().disconnect_ids(&stale);
+    }
+
+    /// Queue an emit for the end of the pass (FIFO). Use it where an
+    /// immediate emit could recurse.
+    pub fn emit_deferred<T: Signal>(&mut self, payload: T) {
+        self.tree.queue_emit(Box::new(move |ctx| ctx.emit(payload)));
+    }
+
+    pub fn connect<T: Signal>(
+        &mut self,
+        target: NodeId,
+        handler: impl Fn(&mut NodeContext<'_>, &T) + Send + Sync + 'static,
+    ) {
+        self.tree.connect(target, handler);
+    }
+
+    pub fn connect_scoped<T: Signal>(
+        &mut self,
+        target: NodeId,
+        handler: impl Fn(&mut NodeContext<'_>, &T) + Send + Sync + 'static,
+    ) -> ScopedConnection {
+        self.tree.connect_scoped(target, handler)
+    }
+
+    pub fn disconnect<T: Signal>(&mut self, target: NodeId) {
+        self.tree.disconnect::<T>(target);
     }
 
     // --- Deferred structure changes ---
