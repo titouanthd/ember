@@ -2,6 +2,7 @@
 pub mod components;
 pub mod config;
 pub mod render;
+pub mod scene;
 pub mod systems;
 
 pub use components::{Ball, Paddle};
