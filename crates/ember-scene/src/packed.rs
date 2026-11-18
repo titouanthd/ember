@@ -2,6 +2,7 @@
 //! `NodeTree` (ADR-025).
 
 use crate::{ClassDbNodes, NodeId, NodeTree, SceneError};
+use ember_assets::{Asset, AssetError, AssetLoadContext, AssetServer, Handle};
 use ember_core::{ClassDB, Variant};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -83,6 +84,28 @@ pub struct PackedScene {
     file: SceneFile,
     /// Full path of each node (`Root/Child`), parallel to `file.nodes`.
     paths: Vec<String>,
+}
+
+impl Asset for PackedScene {
+    fn extensions() -> &'static [&'static str] {
+        &["escene"]
+    }
+
+    fn load(bytes: &[u8], _ctx: &mut AssetLoadContext) -> Result<Self, AssetError> {
+        let text = std::str::from_utf8(bytes).map_err(|e| AssetError::Parse(e.to_string()))?;
+        Self::from_ron(text).map_err(|e| AssetError::Parse(e.to_string()))
+    }
+}
+
+/// `assets.scene("player.escene")`.
+pub trait SceneAssets {
+    fn scene(&self, path: &str) -> Result<Handle<PackedScene>, AssetError>;
+}
+
+impl SceneAssets for AssetServer {
+    fn scene(&self, path: &str) -> Result<Handle<PackedScene>, AssetError> {
+        self.load(path)
+    }
 }
 
 fn valid_name(name: &str) -> bool {

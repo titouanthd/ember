@@ -136,9 +136,11 @@ editor is finished.
 
 ## 5. Phase 2 — Serialization
 
-> **Progress:** 🟡 `ClassDB` (ADR-024), `Variant` and `PackedScene` /
-> `.escene` (ADR-025) are in. Open: `AssetServer`, nested `instance:`
-> and scene-declared connection wiring.
+> **Progress:** 🟡 `ClassDB` (ADR-024), `Variant`, `PackedScene` /
+> `.escene` (ADR-025) and `AssetServer` with UID registry, PNG
+> textures and RON/scene assets (ADR-026) are in. Open: nested
+> `instance:`, scene-declared connection wiring, hot-reload watching,
+> audio/font loaders.
 
 ### 5.1 Scope
 

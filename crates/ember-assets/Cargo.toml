@@ -6,3 +6,6 @@ edition.workspace = true
 [dependencies]
 ember-core.workspace = true
 ember-servers.workspace = true
+serde.workspace = true
+ron.workspace = true
+png.workspace = true

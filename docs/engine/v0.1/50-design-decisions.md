@@ -1047,6 +1047,50 @@ tables. `AssetServer` (needed for `instance:`) does not exist yet.
 - Every scene-loadable class implements `set_property` by hand until
   `#[export]` lands.
 
+## ADR-026: `AssetServer` is type-driven and synchronous; GPU loads take a renderer
+
+**Status:** accepted (v0.1)
+
+### Context
+
+`25-ember-assets.md` specifies `AssetLoader` objects in a
+`LoaderRegistry`, async loading, a `notify` hot-reload watcher, and
+`SceneLoader`/`PackedScene` inside `ember-assets`. `ember-scene` depends
+on `ember-assets` (L3 -> L3), so assets cannot name `PackedScene`.
+`load(&self, path)` also cannot create a texture without a
+`RenderingServer`.
+
+### Decision
+
+- The `Asset` trait carries `extensions()`, `load(bytes, ctx)` and
+  `reload`. There is no loader registry: the extension must be in
+  `T::extensions()` (else `WrongType`), and a custom asset is a type
+  implementing `Asset`. `ember-scene` implements `Asset` for
+  `PackedScene` and adds `SceneAssets::scene`.
+- `load` passes no renderer; `load_with` / `texture` pass
+  `&mut dyn RenderingServer` in `AssetLoadContext::rendering`.
+  `Texture` without one fails with `NeedsRenderer`.
+- `Handle<T>` is `Arc<RwLock<T>>` plus `AssetId` and `Uid`; the server
+  caches a `Weak` per path. `poll()` prunes dead entries; there is no
+  drop hook.
+- `uid_registry.ron` lives in the asset root and is saved on the first
+  load of a path. UIDs are `uid://<stem>_<5 hex of content hash>` and
+  never change.
+- Built-ins: `Texture` (PNG via the `png` crate) and `RonAsset<T>`.
+
+### Deferred
+
+- Hot-reload watching (`reload` exists and is manual), async loads,
+  audio/font loaders, JPEG.
+- Unloading a `Texture` does not call `destroy_texture`; only `reload`
+  does.
+- Nested `instance:` in `.escene` (ADR-025) can now be built on
+  `SceneAssets`.
+
+### Consequences
+
+- Loading a GPU asset requires passing the renderer at the call site.
+
 ## How to add an ADR
 
 1. Copy the template:
