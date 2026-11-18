@@ -28,6 +28,7 @@ const ALLOWED: &[(&str, &[&str])] = &[
             "ember-servers",
             "ember-assets",
             "ember-core",
+            "ember-input",
             "ember-macros",
         ],
     ),

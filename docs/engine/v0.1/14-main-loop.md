@@ -29,7 +29,7 @@ pub trait MainLoop {
     fn physics_process(&mut self, fixed_dt: f32) {}
 
     /// Called once per frame after process.
-    fn draw(&self) {}
+    fn draw(&mut self) {}
 
     /// Called once before shutdown. Best-effort.
     fn finalize(&mut self) {}
@@ -350,7 +350,7 @@ impl MainLoop for PhysicsGame {
         true
     }
 
-    fn draw(&self) {
+    fn draw(&mut self) {
         self.renderer.draw();
     }
 }
@@ -381,7 +381,7 @@ impl MainLoop for Pausable {
         }
     }
 
-    fn draw(&self) {
+    fn draw(&mut self) {
         self.world.draw(&self.state);
     }
 }

@@ -3,6 +3,19 @@
 use crate::{DrawContext, NodeContext, SceneWriter};
 use ember_core::Object;
 
+slotmap::new_key_type! {
+    /// Generational handle to a node in a `NodeTree`. `Copy`, hashable,
+    /// and stale-safe: after the node is removed, `tree.get(id)` is
+    /// `None`. `NodeId::default()` is the null id; it is never issued.
+    pub struct NodeId;
+}
+
+impl NodeId {
+    pub fn is_null(self) -> bool {
+        self == Self::default()
+    }
+}
+
 pub trait Node: Object {
     /// The instance's name, used by `NodeTree::find` and `.escene`
     /// serialization.
@@ -11,6 +24,17 @@ pub trait Node: Object {
     /// Set the instance's name. Called by `NodeTree::attach` and by the
     /// scene loader.
     fn set_name(&mut self, name: String);
+
+    /// Draw layer, forwarded to `RenderingServer::set_z` before `draw`.
+    fn z(&self) -> f32 {
+        0.0
+    }
+
+    /// `false` hides this node and its whole subtree from `draw`;
+    /// `process` still runs.
+    fn visible(&self) -> bool {
+        true
+    }
 
     // --- Lifecycle: all defaulted ---
 

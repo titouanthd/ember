@@ -1,0 +1,40 @@
+//! `SceneError`: everything a structural `NodeTree` operation can reject.
+
+use crate::NodeId;
+use std::fmt;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SceneError {
+    /// The id is stale, null, or refers to a node that is not live yet.
+    NotFound(NodeId),
+    /// `attach(child, parent)` with `child == parent`.
+    SelfParent(NodeId),
+    /// The root cannot be attached under another node.
+    IsRoot(NodeId),
+    /// The child already has a parent; `detach` it first.
+    AlreadyAttached(NodeId),
+    /// `detach` on a node that has no parent.
+    NotAttached(NodeId),
+    /// The new parent is a descendant of the child.
+    Cycle { child: NodeId, parent: NodeId },
+}
+
+impl fmt::Display for SceneError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotFound(id) => write!(f, "node {id:?} not found"),
+            Self::SelfParent(id) => write!(f, "node {id:?} cannot be its own parent"),
+            Self::IsRoot(id) => write!(f, "node {id:?} is the root and cannot be attached"),
+            Self::AlreadyAttached(id) => write!(f, "node {id:?} already has a parent"),
+            Self::NotAttached(id) => write!(f, "node {id:?} has no parent"),
+            Self::Cycle { child, parent } => {
+                write!(
+                    f,
+                    "attaching {child:?} under {parent:?} would create a cycle"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for SceneError {}

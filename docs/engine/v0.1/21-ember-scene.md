@@ -180,13 +180,13 @@ impl NodeTree {
     pub fn iter(&self) -> impl Iterator<Item = (NodeId, &dyn Node)> + '_;
 
     // === Frame loop ===
-    pub fn process(&mut self, ctx: &mut NodeContext, dt: f32);
-    pub fn physics_process(&mut self, ctx: &mut NodeContext, fixed_dt: f32);
+    pub fn process(&mut self, servers: &mut Servers, dt: f32);       // ADR-022
+    pub fn physics_process(&mut self, servers: &mut Servers, fixed_dt: f32);
     pub fn draw(&self, ctx: &mut DrawContext);
 
     /// Flush deferred commands (insertions, removals, signal connects).
     /// Called automatically at the end of process/physics_process.
-    pub fn flush(&mut self);
+    pub fn flush(&mut self, servers: &mut Servers);
 
     pub fn frame(&self) -> u64;
 }

@@ -896,6 +896,45 @@ directories — no `Cargo.toml`, no `src/`.
 - Games' `use ember_render_macroquad::...` statements are unaffected —
   package names do not change.
 
+## ADR-022: Tree passes take `Servers`; nodes are checked out while they run
+
+**Status:** accepted (v0.1)
+
+### Context
+
+`21-ember-scene.md §5.2` sketches `tree.process(&mut NodeContext, dt)`,
+but `NodeContext` holds `&mut NodeTree` (§6). A tree method cannot
+receive a context that already mutably borrows it, and a node cannot be
+`&mut` borrowed from the tree while the context also borrows the tree.
+
+### Decision
+
+- `NodeTree::process`, `physics_process` and `flush` take
+  `&mut Servers` (rendering, audio, input). The tree builds one
+  `NodeContext` per callback.
+- A node is taken out of its slot for the duration of its callback and
+  put back afterwards. During that time `tree.get(current)` is `None`.
+- `ember_scene` depends on `ember-input` (added to `check-layers`).
+- `MainLoop` lives in `ember_core::main_loop`; `draw` takes `&mut self`
+  because rendering backends are stateful. `ember_scene::SceneLoop`
+  adapts a tree to it.
+- A node with `visible() == false` hides its whole subtree from `draw`.
+
+### Alternatives
+
+- `Option<Box<dyn Node>>` with `RefCell` slots: runtime borrow panics,
+  the failure mode ADR-007 avoids.
+- Context holds only a command queue, no tree: no `ctx.tree().get_mut`,
+  which `10-nodes-and-scenes.md §5.3` relies on.
+
+### Consequences
+
+- Looking up the running node by id from inside its own callback fails;
+  `ctx.find("../Self")` does too.
+- Direct `ctx.tree().attach/remove` is immediate and safe: passes walk
+  an id snapshot and skip ids that are no longer live.
+- `PhysicsServer` joins `Servers` when `LinearPhysics` lands.
+
 ## How to add an ADR
 
 1. Copy the template:
