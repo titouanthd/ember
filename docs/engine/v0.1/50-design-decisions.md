@@ -933,7 +933,7 @@ receive a context that already mutably borrows it, and a node cannot be
   `ctx.find("../Self")` does too.
 - Direct `ctx.tree().attach/remove` is immediate and safe: passes walk
   an id snapshot and skip ids that are no longer live.
-- `PhysicsServer` joins `Servers` when `LinearPhysics` lands.
+- `PhysicsServer` joins `Servers` with `LinearPhysics` (ADR-028).
 
 ## ADR-023: One tree-level `SignalTable`; handlers are `Arc`, dispatch lives on `NodeContext`
 
@@ -1112,6 +1112,33 @@ on `ember-assets` (L3 -> L3), so assets cannot name `PackedScene`.
 
 - Overrides reach only the nested root, not its descendants.
 - Connection wiring and hot-reload remain open.
+
+## ADR-028: `LinearPhysics` lives in `ember-servers` and joins `Servers`
+
+**Status:** accepted
+
+### Decision
+
+- `LinearPhysics` is the v0.1 `PhysicsServer` backend, in
+  `ember-servers/src/physics/linear.rs` (the layer rules forbid
+  `ember-servers` from depending on `ember-stdlib`). The old
+  `ember-stdlib::collider` is not migrated; the backend is written
+  against `ember_core::math::{Aabb, Circle}`.
+- Handles are monotonically increasing `u64` from 1 (ADR-017).
+- A shape's mask is the layers it belongs to; a query matches when
+  the masks share a bit (`CollisionMask::overlaps`).
+- `PhysicsServer::update(handle, shape)` was added so moving bodies
+  need no unregister/register churn.
+- `raycast` returns the nearest hit (`t` in `[0, 1]` along the
+  segment). A ray starting inside a shape hits at distance 0 with the
+  normal opposite the ray.
+- `Servers` and `NodeContext` expose `physics`. `SceneLoop` owns a
+  `LinearPhysics` (`physics_mut()`), so its generics are unchanged.
+
+### Consequences
+
+- Queries are O(n); fine below ~300 shapes. Spatial indexing is v0.2.
+- Collision response and swept tests stay in game code for now.
 
 ## How to add an ADR
 

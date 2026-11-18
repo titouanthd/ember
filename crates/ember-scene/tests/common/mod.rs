@@ -4,7 +4,7 @@ use ember_core::Object;
 use ember_core::math::Rect;
 use ember_input::Input;
 use ember_scene::prelude::*;
-use ember_servers::{MockAudio, MockRenderer, RenderingServer};
+use ember_servers::{LinearPhysics, MockAudio, MockRenderer, RenderingServer};
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 
@@ -90,6 +90,7 @@ impl Node for Recorder {
 pub struct Harness {
     pub render: MockRenderer,
     pub audio: MockAudio,
+    pub physics: LinearPhysics,
     pub input: Input,
 }
 
@@ -100,6 +101,7 @@ impl Harness {
         Self {
             render,
             audio: MockAudio::new(),
+            physics: LinearPhysics::new(),
             input: Input::default(),
         }
     }
@@ -108,6 +110,7 @@ impl Harness {
         Servers {
             rendering: &mut self.render,
             audio: &mut self.audio,
+            physics: &mut self.physics,
             input: &self.input,
         }
     }

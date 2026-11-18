@@ -5,13 +5,14 @@ use crate::signal::ScopedConnection;
 use crate::{Node, NodeId, NodeTree, Signal};
 use ember_core::math::Rect;
 use ember_input::Input;
-use ember_servers::{AudioServer, RenderingServer};
+use ember_servers::{AudioServer, PhysicsServer, RenderingServer};
 use glam::Vec2;
 
 /// The backends a frame runs against. Borrowed from the `MainLoop`.
 pub struct Servers<'a> {
     pub rendering: &'a mut dyn RenderingServer,
     pub audio: &'a mut dyn AudioServer,
+    pub physics: &'a mut dyn PhysicsServer,
     pub input: &'a Input,
 }
 
@@ -24,6 +25,7 @@ pub struct NodeContext<'a> {
     tree: &'a mut NodeTree,
     rendering: &'a mut dyn RenderingServer,
     audio: &'a mut dyn AudioServer,
+    physics: &'a mut dyn PhysicsServer,
     input: &'a Input,
     current: NodeId,
     delta: f32,
@@ -40,6 +42,7 @@ impl<'a> NodeContext<'a> {
             tree,
             rendering: &mut *servers.rendering,
             audio: &mut *servers.audio,
+            physics: &mut *servers.physics,
             input: servers.input,
             current,
             delta,
@@ -70,6 +73,10 @@ impl<'a> NodeContext<'a> {
 
     pub fn audio(&mut self) -> &mut dyn AudioServer {
         &mut *self.audio
+    }
+
+    pub fn physics(&mut self) -> &mut dyn PhysicsServer {
+        &mut *self.physics
     }
 
     pub fn input(&self) -> &Input {
