@@ -15,7 +15,7 @@
 use macroquad::prelude::*;
 
 use bore_inc::atlas::AtlasBuilder;
-use bore_inc::audio::{DEFAULT_TRACKS, MusicPlayer};
+use bore_inc::audio;
 use bore_inc::background::BackgroundData;
 use bore_inc::config::GameContext;
 use bore_inc::fonts;
@@ -55,8 +55,8 @@ async fn main() {
     fonts::load_default_font().await;
 
     // 2. Audio.
-    let mut audio = MusicPlayer::new();
-    audio.preload(DEFAULT_TRACKS).await;
+    let mut audio = audio::new_player();
+    audio.preload().await;
 
     #[cfg(not(target_arch = "wasm32"))]
     audio.start();

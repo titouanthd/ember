@@ -37,3 +37,5 @@ pub mod persistence;
 
 pub mod audio;
 pub use audio::AudioClip;
+
+pub mod music;

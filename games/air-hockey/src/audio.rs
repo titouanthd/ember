@@ -5,7 +5,7 @@
 //! the repo does not ship binary assets in git, and the game must be
 //! playable from a fresh checkout.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use ember_stdlib::audio::AudioClip;
 
@@ -29,8 +29,7 @@ impl SoundBank {
     pub async fn load(manifest_dir: &Path) -> Self {
         let dir = manifest_dir.join("assets");
         async fn try_load(dir: &Path, name: &str) -> Option<AudioClip> {
-            let p: PathBuf = dir.join(name);
-            AudioClip::load(&p).await.ok()
+            AudioClip::load_optional(&dir.join(name)).await
         }
         Self {
             wall: try_load(&dir, "wall.wav").await,

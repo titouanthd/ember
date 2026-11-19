@@ -54,14 +54,19 @@ editor is finished.
 
 > **Progress:** 🟡 The `MainLoop` trait (`ember-core::main_loop`; no
 > `run<L>()` helper yet) and `Input::primary_action` (`ember-input`, not
-> `ember_stdlib::input`) are in. **Open:**
+> `ember_stdlib::input`) are in. **Done:**
 > `ember_stdlib::juice` is shipped (with unit tests); the `juice.rs` copies
 > in `ember-wars`, `pagoda` and `jade-garden` are gone (the last two keep a
 > thin local `effects.rs` wrapper that `Deref`s to `Juice`, see ADR-029).
 > `Cooldown::running` / `Cooldown::ready(d)` exist, `new` / `with_duration`
 > are `#[deprecated]` aliases and every call site is migrated. **Open:**
-> `MainLoop::run<L>()` helper, and the `audio.rs` copies in `air-hockey`,
-> `bore-inc`, `jade-garden`, `pagoda`. The workspace has 17 games, not 18.
+> `MainLoop::run<L>()` helper. The playlist/music logic is shared in
+> `ember_stdlib::music` (`MusicPlayer<B: MusicBackend>`, `MacroquadMusic`;
+> `AudioClip::load_optional`); the remaining `audio.rs` files in
+> `air-hockey`, `bore-inc`, `jade-garden`, `pagoda` are thin
+> game-specific layers (event→sound map, jade's soloud/subprocess backend)
+> that go away with `AudioPlayer` nodes (Phase 4+).
+> The workspace has 17 games, not 18.
 
 ### 3.1 Scope
 

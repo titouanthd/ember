@@ -5,7 +5,7 @@ use macroquad::prelude::*;
 
 use ember_stdlib::juice;
 use jade_garden::Easing;
-use jade_garden::audio::{MusicPlayer, default_playlist};
+use jade_garden::audio::{MusicPlayer, default_playlist, new_player};
 use jade_garden::components::{GRID_H, GRID_W};
 use jade_garden::config::GameContext;
 use jade_garden::effects;
@@ -368,7 +368,7 @@ async fn main() {
     println!("DONE: poem font");
 
     println!("START: audio load");
-    let mut audio = MusicPlayer::load(default_playlist());
+    let mut audio = new_player(default_playlist());
     println!("DONE: audio load");
 
     println!("START: audio preload");

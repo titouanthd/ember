@@ -149,7 +149,9 @@ The POC is done when **all** of the following are true:
 | 9 | Workspace green under clippy `-D warnings` | CI |
 | 10 | All Wave 3 files marked ✅ | Review log |
 
-Status today: criteria 4, 6 and 8 are unmet (4 `audio.rs` remain); criterion 5 is met;
+Status today: criteria 4, 6 and 8 are unmet (4 `audio.rs` remain, now thin: music backend /
+event→sound maps on top of `ember_stdlib::music` and `AudioClip`; they go away
+with `AudioPlayer` nodes); criterion 5 is met;
 7 is met by `PackedScene` round-trip tests.
 
 Criterion 4 is the crucial one for future-proofing: as long as exactly one
