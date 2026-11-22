@@ -21,7 +21,9 @@ use std::collections::HashMap;
 
 use ember_core::math::Rect;
 use ember_core::{Color, Image};
-use ember_servers::{FontId, RenderFeature, RenderingServer, ServerError, TextMetrics, TextureId};
+use ember_servers::{
+    ClipStack, FontId, RenderFeature, RenderingServer, ServerError, TextMetrics, TextureId,
+};
 use glam::Vec2;
 use macroquad::prelude::*;
 
@@ -37,6 +39,7 @@ pub struct MacroquadRenderer {
     next_font: u64,
     default_font: Option<FontId>,
     capabilities: Vec<RenderFeature>,
+    clip: ClipStack,
 }
 
 impl MacroquadRenderer {
@@ -51,6 +54,7 @@ impl MacroquadRenderer {
             next_font: 0,
             default_font: None,
             capabilities: vec![RenderFeature::AlphaBlending, RenderFeature::CustomShaders],
+            clip: ClipStack::new(),
         }
     }
 
@@ -70,6 +74,23 @@ impl MacroquadRenderer {
     fn font(&self, id: FontId) -> Result<&Font, ServerError> {
         self.fonts.get(&id).ok_or(ServerError::UnknownHandle)
     }
+
+    /// Apply `clip` (screen pixels, top-left origin) as the GL scissor;
+    /// `None` disables it. Same call as jade-garden's help modal.
+    fn apply_scissor(clip: Option<Rect>) {
+        let scissor = clip.map(|r| {
+            let x0 = r.x.floor();
+            let y0 = r.y.floor();
+            let x1 = (r.x + r.w).ceil();
+            let y1 = (r.y + r.h).ceil();
+            (x0 as i32, y0 as i32, (x1 - x0) as i32, (y1 - y0) as i32)
+        });
+        // SAFETY: `get_internal_gl` is unsafe because it exposes macroquad's
+        // internal GL state. We only set the scissor between draw calls, on
+        // the main thread, and never hold the reference past this call.
+        let gl = unsafe { get_internal_gl() };
+        gl.quad_gl.scissor(scissor);
+    }
 }
 
 impl Default for MacroquadRenderer {
@@ -81,10 +102,17 @@ impl Default for MacroquadRenderer {
 impl RenderingServer for MacroquadRenderer {
     fn begin_frame(&mut self, viewport: Rect) {
         self.viewport = viewport;
+        self.clip.clear();
+        Self::apply_scissor(None);
     }
 
     fn end_frame(&mut self) {
-        // Marker only. The MainLoop calls next_frame().await.
+        // The MainLoop calls next_frame().await. An unbalanced push must
+        // not leak into the next frame or into macroquad's own drawing.
+        if self.clip.depth() > 0 {
+            self.clip.clear();
+            Self::apply_scissor(None);
+        }
     }
 
     fn set_clear_color(&mut self, color: Color) {
@@ -109,6 +137,20 @@ impl RenderingServer for MacroquadRenderer {
 
     fn current_z(&self) -> f32 {
         self.current_z
+    }
+
+    fn push_clip_rect(&mut self, rect: Rect) {
+        let effective = self.clip.push(rect);
+        Self::apply_scissor(Some(effective));
+    }
+
+    fn pop_clip_rect(&mut self) {
+        let current = self.clip.pop();
+        Self::apply_scissor(current);
+    }
+
+    fn clip_rect(&self) -> Option<Rect> {
+        self.clip.current()
     }
 
     fn draw_rect(&mut self, rect: Rect, color: Color) {

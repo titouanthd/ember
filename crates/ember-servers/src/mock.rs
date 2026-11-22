@@ -18,6 +18,12 @@ pub enum RecordedCall {
     SetCamera(Vec2),
     SetZ(f32),
     SetDefaultFont(Option<FontId>),
+    /// `rect` as requested; `effective` after intersecting with the parent.
+    PushClipRect {
+        rect: Rect,
+        effective: Rect,
+    },
+    PopClipRect,
     DrawRect {
         rect: Rect,
         color: Color,
@@ -101,6 +107,7 @@ pub struct MockRenderer {
     next_font: u64,
     capabilities: HashSet<RenderFeature>,
     in_frame: bool,
+    clip: ClipStack,
     /// Fixed text width returned by `measure_text`, scaled by `size`.
     pub text_width_per_size: f32,
     /// Fixed text height returned by `measure_text`, scaled by `size`.
@@ -142,6 +149,7 @@ impl RenderingServer for MockRenderer {
         assert!(!self.in_frame, "begin_frame called twice without end_frame");
         self.viewport = viewport;
         self.in_frame = true;
+        self.clip.clear();
     }
 
     fn end_frame(&mut self) {
@@ -173,6 +181,21 @@ impl RenderingServer for MockRenderer {
 
     fn current_z(&self) -> f32 {
         self.current_z
+    }
+
+    fn push_clip_rect(&mut self, rect: Rect) {
+        let effective = self.clip.push(rect);
+        self.calls
+            .push(RecordedCall::PushClipRect { rect, effective });
+    }
+
+    fn pop_clip_rect(&mut self) {
+        self.clip.pop();
+        self.calls.push(RecordedCall::PopClipRect);
+    }
+
+    fn clip_rect(&self) -> Option<Rect> {
+        self.clip.current()
     }
 
     fn draw_rect(&mut self, rect: Rect, color: Color) {

@@ -12,6 +12,7 @@
 //! uses them. See `tests/contract.rs` for the trait-shape verification.
 
 pub mod audio;
+pub mod clip;
 pub mod error;
 pub mod mock;
 pub mod physics;
@@ -19,6 +20,7 @@ pub mod rendering;
 pub mod types;
 
 pub use audio::AudioServer;
+pub use clip::ClipStack;
 pub use error::ServerError;
 pub use mock::{MockAudio, MockRenderer, RecordedAudioCall, RecordedCall};
 pub use physics::{CollisionMask, LinearPhysics, PhysicsServer, RayHit, Shape as PhysicsShape};

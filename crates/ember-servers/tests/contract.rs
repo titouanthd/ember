@@ -137,6 +137,73 @@ fn double_begin_frame_panics() {
     r.begin_frame(Rect::new(0.0, 0.0, 800.0, 600.0));
 }
 
+// --- Clipping (ADR-031) ---
+
+#[test]
+fn clip_push_and_pop_are_recorded_with_the_effective_rect() {
+    let mut r = MockRenderer::new();
+    frame(&mut r, |r| {
+        r.push_clip_rect(Rect::new(0.0, 0.0, 100.0, 100.0));
+        r.push_clip_rect(Rect::new(50.0, 50.0, 100.0, 100.0));
+        r.draw_rect(Rect::new(0.0, 0.0, 10.0, 10.0), Color::RED);
+        r.pop_clip_rect();
+        r.pop_clip_rect();
+    });
+    assert_eq!(
+        r.calls(),
+        &[
+            RecordedCall::PushClipRect {
+                rect: Rect::new(0.0, 0.0, 100.0, 100.0),
+                effective: Rect::new(0.0, 0.0, 100.0, 100.0),
+            },
+            RecordedCall::PushClipRect {
+                rect: Rect::new(50.0, 50.0, 100.0, 100.0),
+                effective: Rect::new(50.0, 50.0, 50.0, 50.0),
+            },
+            RecordedCall::DrawRect {
+                rect: Rect::new(0.0, 0.0, 10.0, 10.0),
+                color: Color::RED,
+                z: 0.0,
+            },
+            RecordedCall::PopClipRect,
+            RecordedCall::PopClipRect,
+        ]
+    );
+}
+
+#[test]
+fn clip_rect_reports_the_active_clip() {
+    let mut r = MockRenderer::new();
+    r.begin_frame(Rect::new(0.0, 0.0, 800.0, 600.0));
+    assert_eq!(r.clip_rect(), None);
+    r.push_clip_rect(Rect::new(10.0, 10.0, 20.0, 20.0));
+    assert_eq!(r.clip_rect(), Some(Rect::new(10.0, 10.0, 20.0, 20.0)));
+    r.pop_clip_rect();
+    assert_eq!(r.clip_rect(), None);
+    r.pop_clip_rect(); // extra pop is ignored
+    assert_eq!(r.clip_rect(), None);
+    r.end_frame();
+}
+
+#[test]
+fn clip_is_not_moved_by_the_camera() {
+    let mut r = MockRenderer::new();
+    r.begin_frame(Rect::new(0.0, 0.0, 800.0, 600.0));
+    r.set_camera(Vec2::new(300.0, 200.0));
+    r.push_clip_rect(Rect::new(10.0, 10.0, 20.0, 20.0));
+    assert_eq!(r.clip_rect(), Some(Rect::new(10.0, 10.0, 20.0, 20.0)));
+    r.end_frame();
+}
+
+#[test]
+fn begin_frame_resets_an_unbalanced_clip() {
+    let mut r = MockRenderer::new();
+    frame(&mut r, |r| r.push_clip_rect(Rect::new(0.0, 0.0, 5.0, 5.0)));
+    r.begin_frame(Rect::new(0.0, 0.0, 800.0, 600.0));
+    assert_eq!(r.clip_rect(), None);
+    r.end_frame();
+}
+
 #[test]
 fn audio_play_returns_unique_sounds() {
     let mut a = MockAudio::new();
@@ -259,6 +326,11 @@ fn every_recorded_variant_is_constructible() {
     let _ = RecordedCall::DestroyTexture(TextureId::new(0));
     let _ = RecordedCall::CreateFont(FontId::new(0));
     let _ = RecordedCall::DestroyFont(FontId::new(0));
+    let _ = RecordedCall::PushClipRect {
+        rect: Rect::default(),
+        effective: Rect::default(),
+    };
+    let _ = RecordedCall::PopClipRect;
 
     let _ = RecordedAudioCall::Play {
         clip: AudioClipId::new(0),

@@ -53,6 +53,22 @@ pub trait RenderingServer {
     fn set_z(&mut self, z: f32);
     fn current_z(&self) -> f32;
 
+    // --- Clipping (ADR-031) ---
+
+    /// Restrict drawing to `rect` until the matching
+    /// [`pop_clip_rect`](Self::pop_clip_rect). `rect` is in **screen
+    /// pixels** (top-left origin) and is not moved by the camera. Nested
+    /// pushes intersect with the current clip; a push outside it clips
+    /// everything. `begin_frame` clears the stack. Rules: [`crate::ClipStack`].
+    fn push_clip_rect(&mut self, rect: Rect);
+
+    /// Restore the clip that was active before the matching push.
+    /// Popping an empty stack is ignored.
+    fn pop_clip_rect(&mut self);
+
+    /// The clip in effect, `None` when drawing is unclipped.
+    fn clip_rect(&self) -> Option<Rect>;
+
     // --- Primitives ---
 
     fn draw_rect(&mut self, rect: Rect, color: Color);
