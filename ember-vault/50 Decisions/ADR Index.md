@@ -45,5 +45,6 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 032 | [[50-design-decisions#ADR-032: Typed text, mouse wheel and editing keys in `Input`\|Typed text, mouse wheel, editing keys]] | ✅ `7bde4b0` |
 | 033 | [[50-design-decisions#ADR-033: Phase 4's macroquad-isolation exit moves to Phase 7\|Phase 4 isolation exit moves to Phase 7]] | ✅ `c0fde0c` |
 | 034 | [[50-design-decisions#ADR-034: How `ember_ui` controls live in the scene tree\|How ember_ui controls live in the scene tree]] | ✅ `cdbc078` |
+| 036 | [[50-design-decisions#ADR-036: `UiRoot` routes input and emits control signals\|UiRoot routes input and emits control signals]] | ✅ `45e44da` |
 
 New ADRs: copy [[ADR Template]].

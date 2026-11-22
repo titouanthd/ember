@@ -1397,7 +1397,7 @@ rule forbids `impl<T: Control> Node for T` in `ember-ui`.
 - Controls draw through the normal tree pass, so z, visibility and
   draw order behave like any node.
 - Open for 5.3/5.4: event handlers have no `NodeContext`, so signals are
-  emitted by `UiRoot` after routing (ADR-036, planned); a scroll clip
+  emitted by `UiRoot` after routing (ADR-036); a scroll clip
   must close after the children draw, which needs a post-children draw
   hook in `ember-scene` (ADR-035, planned).
 
@@ -1415,6 +1415,65 @@ rule forbids `impl<T: Control> Node for T` in `ember-ui`.
   `ember-ui` does not depend on `ember-assets` (same layer).
 - `UiRoot::new` registers every built-in control; the `ember` facade
   re-exports `ember_ui` and its prelude.
+
+## ADR-036: `UiRoot` routes input and emits control signals
+
+**Status:** accepted (2026-11-22) — refines [[24-ember-ui]] §5.2, §6, §9
+
+### Context
+
+Session 5.3 adds `Button`, focus and mouse routing. The spec has a
+button call `self.emit_clicked()` from `on_mouse_up`, but control input
+handlers (`on_mouse_up(&mut self, …)`) receive no `NodeContext`, and a
+control does not know its own `NodeId`. Spec §6.1 also gives
+`FocusManager::tick(&NodeTree, &Input)`, which cannot call `on_focus` /
+`on_blur` (they need `&mut`).
+
+### Decision
+
+- **Signal outbox on `ControlBase`.** `base.emit(|id| ButtonClicked {
+  button: id })` queues a closure; `UiRoot` drains every control's
+  outbox after routing and calls each with `(ctx, control_id)`, i.e.
+  a normal `ctx.emit`. Handlers therefore run in the same frame, in tree
+  order.
+- **Signals carry the sender.** Signals are broadcast by type, so
+  `ButtonClicked { button: NodeId }` and `FocusChanged { from, to }`
+  name the control; handlers compare ids. (Spec §5.2 shows a unit
+  `ButtonClicked`.)
+- **`UiRoot` owns a `FocusManager`** and routes in `process`, after
+  layout, in this order: hover (enter/leave) → mouse buttons → wheel →
+  focus (`request_focus`, then left click, then Tab / Down / D-pad down
+  = next, Up / D-pad up = previous, wrapping) → activation (Enter,
+  Space or gamepad South call `Control::on_activate`) → other pressed
+  keys to the focused control's `on_key_press`. Mouse comes before
+  focus so a click can focus (spec §9.1 lists focus first).
+- **No consumption in v0.1:** every visible control under the pointer
+  gets mouse events (spec §9.1 item 4 already defers consumption).
+- **Press tracking.** `ControlBase::pressed` is set by a left press on
+  the control and cleared after the left release, which is delivered to
+  the pressed control even if the pointer left it. `Button` clicks only
+  on release inside *and* `pressed`.
+- **Left / Right stay free** for the `TextInput` caret (5.4).
+  `primary_action()` is not used for activation: it includes the mouse.
+- `FocusManager::validate` drops focus when the focused control is
+  hidden, disabled or removed.
+
+### Alternatives
+
+- **Give handlers a `NodeContext`:** the control is borrowed out of the
+  tree while `UiRoot` walks it; a context would alias the tree.
+  Rejected.
+- **Per-control `pressed()` / `take_clicked()` polling by `UiRoot`:**
+  hard-codes every widget's signals into the root. Rejected.
+- **`emit_deferred`:** delays handlers to the end of the pass for no
+  gain. Rejected.
+
+### Consequences
+
+- Custom controls emit any signal type with `base.emit`, no root change.
+- No Shift+Tab until `Key` has Shift; Up is the backwards key.
+- Handlers targeting `UiRoot` itself are skipped (it is checked out of
+  the tree during `process`, ADR-022); connect to another node.
 
 ## How to add an ADR
 
