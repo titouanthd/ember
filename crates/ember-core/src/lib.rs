@@ -18,7 +18,7 @@ pub use color::Color;
 pub use error::CoreError;
 pub use hash::{hash_u32, hash_u32_2, hash_u32_3};
 pub use image::Image;
-pub use main_loop::MainLoop;
+pub use main_loop::{FrameStepper, MainLoop};
 pub use math::{Aabb, Circle, reflect};
 pub use object::Object;
 pub use rng::Rng;
