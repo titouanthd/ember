@@ -4,5 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+ember-core.workspace = true
+ember-input.workspace = true
 ember-scene.workspace = true
 ember-servers.workspace = true
+glam.workspace = true
