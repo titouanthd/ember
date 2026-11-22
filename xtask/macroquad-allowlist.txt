@@ -10,7 +10,9 @@ crates/ember-stdlib/src/config.rs
 crates/ember-stdlib/src/fonts.rs
 crates/ember-stdlib/src/graphics/
 crates/ember-stdlib/src/input.rs
+crates/ember-stdlib/src/juice.rs
 crates/ember-stdlib/src/layout.rs
+crates/ember-stdlib/src/music.rs
 crates/ember-stdlib/src/sprite.rs
 crates/ember-stdlib/src/ui/
 
