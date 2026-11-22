@@ -1,10 +1,13 @@
-# Files allowed to import macroquad/miniquad during the transition.
-# Each entry names the phase that removes it. Empty by end of Phase 13.
+# Files allowed to import macroquad/miniquad during the transition (ADR-033).
+# Phase numbers follow ember-vault/10 Engine Spec v0.1/40-roadmap.md.
 #
 # The two permanent backends (ember-render-macroquad, ember-audio-macroquad)
 # are skipped by path in check_macroquad.rs — not listed here.
+#
+# Rule: an entry is only ever removed. A game leaves the list when its
+# Phase 7 migration lands; ember-stdlib leaves it in Phase 8.
 
-# --- Phase 5: ember-stdlib transitional modules ---------------------
+# --- ember-stdlib (legacy utilities; retired in Phase 8) ------------
 crates/ember-stdlib/src/audio.rs
 crates/ember-stdlib/src/config.rs
 crates/ember-stdlib/src/fonts.rs
@@ -16,5 +19,22 @@ crates/ember-stdlib/src/music.rs
 crates/ember-stdlib/src/sprite.rs
 crates/ember-stdlib/src/ui/
 
-# --- Phase 13: games (narrowed per-game as each migrates) -----------
-games/
+# --- games (Phase 7: remove each line as the game migrates) ---------
+games/accretion/
+games/air-hockey/
+games/asteroids/
+games/bore-inc/
+games/breakout/
+games/bullet-hell/
+games/ember-wars/
+games/freecell/
+games/jade-garden/
+games/memory/
+games/minesweeper/
+games/pagoda/
+# pong: on NodeTree already; only macroquad::Color left (config, components, scene)
+games/pong/
+games/simon/
+games/snake/
+games/taiji/
+games/zhuo-ji/
