@@ -89,6 +89,13 @@ impl<'a> NodeContext<'a> {
         self.tree
     }
 
+    /// The tree and the renderer at once, for passes that walk the tree
+    /// and measure text in the same loop (`ember_ui` layout). Separate
+    /// `tree()` / `render()` calls cannot be held together.
+    pub fn tree_and_render(&mut self) -> (&mut NodeTree, &mut dyn RenderingServer) {
+        (self.tree, &mut *self.rendering)
+    }
+
     /// Resolve `path` relative to the current node (see `NodeTree::find`).
     pub fn find(&self, path: &str) -> Option<NodeId> {
         self.tree.find(self.current, path)
