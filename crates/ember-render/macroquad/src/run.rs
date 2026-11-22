@@ -1,8 +1,11 @@
 //! The runner: drives a `MainLoop` on macroquad. See `14-main-loop.md §3`.
+//!
+//! The frame algorithm itself lives in `ember_core::main_loop::FrameStepper`
+//! (tested headlessly there); this file only adds the window, the input
+//! snapshot and the frame pacing.
 
 use crate::input::poll_input;
-use ember_core::MainLoop;
-use ember_core::main_loop::{FIXED_DT, MAX_FRAME_DT};
+use ember_core::{FrameStepper, MainLoop};
 use ember_input::InputSink;
 use macroquad::Window;
 use macroquad::time::get_frame_time;
@@ -13,20 +16,13 @@ pub async fn run<L: MainLoop + InputSink>(mut game: L) {
     if !game.init() {
         return;
     }
-    let mut accumulator = 0.0;
+    let mut stepper = FrameStepper::new();
     loop {
-        let dt = get_frame_time().min(MAX_FRAME_DT);
+        let dt = get_frame_time();
         game.set_input(poll_input());
-
-        accumulator += dt;
-        while accumulator >= FIXED_DT {
-            game.physics_process(FIXED_DT);
-            accumulator -= FIXED_DT;
-        }
-        if !game.process(dt) {
+        if !stepper.frame(&mut game, dt) {
             break;
         }
-        game.draw();
         next_frame().await;
     }
     game.finalize();
