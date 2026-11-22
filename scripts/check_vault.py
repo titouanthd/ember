@@ -29,11 +29,15 @@ def check_links():
     errors, total = [], 0
     for p in notes.values():
         text = re.sub(r"```.*?```|~~~.*?~~~", "", p.read_text(encoding="utf-8"), flags=re.S)
+        for bad in re.finditer(r"\[\[[^\]\n]*\[[^\n]*?\]\]", text):
+            errors.append(f"{p.relative_to(ROOT)}: '[' inside a wikilink (Obsidian can't resolve): {bad.group(0)[:70]}")
         for m in re.finditer(r"(?<!!)\[\[([^\]]+)\]\]", text):
             total += 1
             target = re.split(r"\\?\|", m.group(1))[0]
             name, _, head = target.partition("#")
-            if name not in notes:
+            if re.search(r"[\[\]#^]", head):
+                errors.append(f"{p.relative_to(ROOT)}: heading link with [ ] # ^ (Obsidian can't resolve) [[{name}#{head}]]")
+            elif name not in notes:
                 errors.append(f"{p.relative_to(ROOT)}: missing note [[{name}]]")
             elif head and head not in headings(notes[name].read_text(encoding="utf-8")):
                 errors.append(f"{p.relative_to(ROOT)}: missing heading [[{name}#{head}]]")
