@@ -14,6 +14,7 @@ A 2D game engine in Rust (macroquad backend) built on top of **17 games**. **Thi
 
 ## Start here
 - [[Handover 2026-11-22]] — what changed today, how to push, what to do next
+- [[Roadmap Review 2026-11-22]] — latest phase-by-phase status and re-plan (≈ 37 %)
 - [[Baseline 2026-11-22]] — gate results after the Phase 0 merge (2,065 tests green)
 - [[Progress Evaluation 2026-11-22]] — status, scorecard, risks, next steps
 - [[Roadmap Tracker]] — every exit criterion as a checkbox

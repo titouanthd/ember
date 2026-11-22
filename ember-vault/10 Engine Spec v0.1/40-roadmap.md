@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 40 — Roadmap
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; phase progress notes match code, later-phase specs are still plans
+> **Status:** 🟡 partial — reviewed 2026-11-22 ([[Roadmap Review 2026-11-22]]); progress notes match code
 > **Audience:** all
 > **Prerequisites:** [[00-overview]], [[01-architecture]]
 
@@ -30,6 +30,16 @@ Every phase has:
 
 The phases are strictly sequential. Phase N+1 does not start until
 Phase N's exit criteria are met.
+
+> [!summary] Status at a glance (2026-11-22)
+> | P0 | P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8 |
+> |---|---|---|---|---|---|---|---|---|
+> | ✅ | 🟢 95 % | 🟡 65 % | 🟢 90 % | ✅ | 🟡 25 % | ⬜ | 🟡 1/17 | ⬜ 10 % |
+>
+> ≈ **38 %** of the POC effort done, ≈ 20 sessions left. In practice P5 and
+> P7 run in parallel (allowed after P4), and **P2's close-out (`#[export]`,
+> `SceneWriter`, scene connections) must land before P6**, because the
+> editor saves scenes. Detail and re-plan: [[Roadmap Review 2026-11-22]].
 
 ## 2. The nine phases at a glance
 
@@ -319,10 +329,12 @@ editor is finished.
 
 ## 8. Phase 5 — UI
 
-> **Progress:** 🟡 Entry gate done 2026-11-22: Phase 4 closed (ADR-033),
-> [[24-ember-ui]] ✅ frozen, engine support landed (derive + behaviour
-> ADR-030, clip stack ADR-031, typed text / wheel ADR-032). `ember-ui`
-> itself is still a stub — sessions 5.1–5.4 in
+> **Progress:** 🟡 Entry gate done 2026-11-22 (Phase 4 closed, ADR-033;
+> [[24-ember-ui]] ✅; ADR-030/031/032). **Session 5.1 done** (`cdbc078`):
+> `Control` + `ControlBase`, `Anchors`, `Theme::dark/light`,
+> `ControlRegistry`, `UiRoot` layout, `control_node!` (ADR-034). Next:
+> 5.2 containers + static widgets, 5.3 focus/buttons/mouse (ADR-036),
+> 5.4 scroll + text input + `ui_demo` (ADR-035). See
 > [[Next Phase Plan — Phase 5 UI]].
 
 ### 8.1 Scope
@@ -361,7 +373,9 @@ editor is finished.
 
 ## 9. Phase 6 — Editor POC
 
-> **Progress:** ⬜ Not started. `crates/ember-editor` is a stub (`lib.rs`, `main.rs`).
+> **Progress:** ⬜ Not started (`crates/ember-editor` is a stub). **Blocked by**
+> Phase 5 widgets *and* Phase 2's close-out: saving an edited scene needs
+> `SceneWriter` and `#[export]` serialization, neither of which exists.
 
 ### 8.6 Scope
 
@@ -397,10 +411,11 @@ editor is finished.
 
 ## 10. Phase 7 — Migration
 
-> **Progress:** 🟡 1 of 17 games migrated (`pong`: `NodeTree` +
-> `SceneLoop` + `PointScored` signal, 20-line `main.rs`). Other games
-> still use `macroquad` and `ember-stdlib` directly. `ember-ui`
-> (Phase 5) and `ember-editor` (Phase 6) are stubs.
+> **Progress:** 🟡 1 of 17 games on the engine loop (`pong`: `NodeTree` +
+> `SceneLoop` + `PointScored`), but not finished: 20-line `main.rs` and
+> `macroquad::Color` still imported. `xtask/macroquad-allowlist.txt` lists
+> all 17 games; each finished migration removes one line (ADR-033). The
+> games' macroquad isolation is now part of this phase's exit.
 
 ### 10.1 Scope
 
@@ -515,17 +530,17 @@ games can begin before the editor exists).
 
 ## 13. Milestones
 
-| Milestone | Phase | What the engine can do |
-|---|---|---|
-| M0 — Foundations | P0 | `Cooldown::ready()` is idiomatic; `MainLoop` exists; `juice` is shared |
-| M1 — Trees work | P1 | A hand-written node tree renders |
-| M2 — Scenes are files | P2 | A `.escene` file loads and runs |
-| M3 — Nodes talk | P3 | Signals connect nodes without shared refs |
-| M4 — Backends are swappable | P4 | `macroquad` is isolated to 2 crates |
-| M5 — UI works | P5 | A menu can be built with `Button`, `VBox`, `Label` |
-| M6 — Authoring works | P6 | A `.escene` can be edited outside code |
-| M7 — POC complete | P7 | All 17 games run on the engine |
-| M8 — v0.1 released | P8 | No deprecated APIs remain |
+| Milestone | Phase | What the engine can do | Status (2026-11-22) |
+|---|---|---|---|
+| M0 — Foundations | P0 | `Cooldown::ready()` is idiomatic; `MainLoop` exists; `juice` is shared | ✅ |
+| M1 — Trees work | P1 | A hand-written node tree renders | ✅ (`hello_scene`) |
+| M2 — Scenes are files | P2 | A `.escene` file loads and runs | 🟡 loads + instantiates; no writer |
+| M3 — Nodes talk | P3 | Signals connect nodes without shared refs | ✅ (pong) |
+| M4 — Backends are swappable | P4 | `macroquad` is isolated to 2 crates | ✅ engine crates (ADR-033) |
+| M5 — UI works | P5 | A menu can be built with `Button`, `VBox`, `Label` | 🟡 foundations only |
+| M6 — Authoring works | P6 | A `.escene` can be edited outside code | ⬜ |
+| M7 — POC complete | P7 | All 17 games run on the engine | 🟡 1/17 |
+| M8 — v0.1 released | P8 | No deprecated APIs remain | ⬜ |
 
 ## 14. Cross-references
 

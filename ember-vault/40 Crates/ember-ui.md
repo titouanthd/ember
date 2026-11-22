@@ -3,7 +3,7 @@ title: "ember-ui"
 tags: ["ember/crate"]
 layer: "L3 · Scene"
 path: "crates/ember-ui"
-loc: 4
+loc: ~900
 tests: 0
 generated: "2026-11-22"
 ---
@@ -22,7 +22,7 @@ ember-scene, ember-servers
 
 ## Implementation status
 
-⬜ **Stub** — 4-line `lib.rs`. Phase 5 not started.
+🟡 Session 5.1 (`cdbc078`): `Control` + `ControlBase`, `Anchors`, `Theme`, `ControlRegistry`, `UiRoot` (layout once per frame), `control_node!`, `UiDrawContext` (ADR-034). Widgets and containers next (5.2).
 
 ## Spec
 

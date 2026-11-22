@@ -35,7 +35,11 @@ What the implementation relies on, so the sections below can stay short:
 | Focus / activation | `Input::primary_action()` activates the focused control; Tab / Shift+Tab move focus | ADR-010 |
 | UI coordinates | screen space; `UiRoot` draws at `z = 100.0`, ignores the camera | §12 Q4 |
 
+| How controls sit in the tree (base struct, registry casting, `control_node!`, theme hand-down, `is_focused()`) | `ControlBase`, `ControlRegistry`, `UiRoot` | ADR-034 |
+
 The open questions in §12 are **decided** as their provisional answers.
+Where §3 and §7.2 differ from ADR-034 (`ctx.theme()`, `set_ui_theme`,
+`has_focus(id)`, `Theme::from_ron`), **ADR-034 wins**.
 
 ## 1. Purpose
 

@@ -138,6 +138,8 @@ flowchart LR
 
     ember_ui --> ember_scene
     ember_ui --> ember_servers
+    ember_ui --> ember_input
+    ember_ui --> ember_core
 
     ember_assets --> ember_core
     ember_assets --> ember_servers

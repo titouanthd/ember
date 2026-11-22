@@ -1347,6 +1347,60 @@ showed no progress either.
 - Phase 4 closes; Phase 5 can start.
 - The allowlist is the migration progress bar for Phase 7.
 
+## ADR-034: How `ember_ui` controls live in the scene tree
+
+**Status:** accepted (2026-11-22) — refines [[24-ember-ui]] §3
+
+### Context
+
+Implementing session 5.1 hit three constraints the frozen UI spec glosses
+over: (1) the tree stores `Box<dyn Node>` and Rust cannot cast `dyn Node`
+to `dyn Control`, yet a parent's layout must call `Control` methods on
+its children; (2) `DrawContext` has no tree access by design (ADR-022),
+so `draw` cannot reach a theme stored on the tree (spec §7.2's
+`ctx.tree().set_ui_theme` / `ctx.theme()` do not exist); (3) the orphan
+rule forbids `impl<T: Control> Node for T` in `ember-ui`.
+
+### Decision
+
+- **`ControlBase`** is embedded in every control (rect, anchors, offset,
+  min size, visible, focused, hovered, `Arc<Theme>`). `Control` requires
+  only `base`, `base_mut`, `draw_control`; `rect`, `set_rect`, `anchors`,
+  `min_size`, `measure`, `content_rect` default from it.
+- **`ControlRegistry`** maps a concrete `TypeId` to cast functions built
+  on `Object::as_any`. It lives in `UiRoot`; built-in widgets are
+  registered by `UiRoot::new`, custom ones with `register::<T>()`.
+- **Layout and theme hand-down run in `UiRoot::process`** (one pass,
+  `layout::layout_children`): parents arrange children through
+  `Control::arrange_children` (containers) or the child's anchors.
+- **`control_node!(T)`** writes the control's `impl Node`: `z = UI_Z`
+  (100), `visible` from the base, `draw` → `draw_control` with a
+  `UiDrawContext` built from the base's theme and focus/hover flags.
+- `UiDrawContext::is_focused()` replaces `has_focus(id)` (the drawing
+  control is the one asking). Clips pushed through it are popped on drop.
+- `Theme::from_ron` is deferred: `Color` has no serde support yet.
+- `ember-ui` may depend on `ember-core` and `ember-input` (lower layers).
+
+### Alternatives
+
+- **Add `as_control()` to `Node`:** puts a UI concept into `ember-scene`.
+  Rejected.
+- **UiRoot owns a private control tree (not scene nodes):** simplest, but
+  drops signals, `NodeId`s and `.escene` support for UI. Rejected.
+- **Theme lookup at draw time through the tree:** impossible without
+  giving `DrawContext` tree access (ADR-022). Rejected.
+
+### Consequences
+
+- An unregistered control is invisible to layout (and its subtree is
+  skipped); `UiRoot::new` registering built-ins keeps that rare.
+- Controls draw through the normal tree pass, so z, visibility and
+  draw order behave like any node.
+- Open for 5.3/5.4: event handlers have no `NodeContext`, so signals are
+  emitted by `UiRoot` after routing (ADR-036, planned); a scroll clip
+  must close after the children draw, which needs a post-children draw
+  hook in `ember-scene` (ADR-035, planned).
+
 ## How to add an ADR
 
 1. Copy the template:

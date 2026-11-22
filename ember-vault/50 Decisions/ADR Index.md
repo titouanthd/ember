@@ -44,5 +44,6 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 031 | [[50-design-decisions#ADR-031: Clip-rect stack on `RenderingServer`\|Clip-rect stack on RenderingServer]] | ✅ `a1072f5` (+ camera sign fix `e190c21`) |
 | 032 | [[50-design-decisions#ADR-032: Typed text, mouse wheel and editing keys in `Input`\|Typed text, mouse wheel, editing keys]] | ✅ `7bde4b0` |
 | 033 | [[50-design-decisions#ADR-033: Phase 4's macroquad-isolation exit moves to Phase 7\|Phase 4 isolation exit moves to Phase 7]] | ✅ `c0fde0c` |
+| 034 | [[50-design-decisions#ADR-034: How `ember_ui` controls live in the scene tree\|How ember_ui controls live in the scene tree]] | ✅ `cdbc078` |
 
 New ADRs: copy [[ADR Template]].
