@@ -41,7 +41,8 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 
 | 029 | [[50-design-decisions#ADR-029: Shared `ember_stdlib::juice`; game-specific effects wrap it\|Shared juice; game effects wrap it]] | ✅ merged 2026-11-22 |
 | 030 | [[50-design-decisions\|Derive generates `NodeName`; users own `impl Node`]] (ADR-030) | ✅ `8cc3112` |
-
-Planned next: ADR-031 (render clip stack), ADR-032 (text & wheel input), ADR-033 (Phase 4 exit re-scope) — see [[Next Phase Plan — Phase 5 UI]].
+| 031 | [[50-design-decisions#ADR-031: Clip-rect stack on `RenderingServer`\|Clip-rect stack on RenderingServer]] | ✅ `a1072f5` (+ camera sign fix `e190c21`) |
+| 032 | [[50-design-decisions#ADR-032: Typed text, mouse wheel and editing keys in `Input`\|Typed text, mouse wheel, editing keys]] | ✅ `7bde4b0` |
+| 033 | [[50-design-decisions#ADR-033: Phase 4's macroquad-isolation exit moves to Phase 7\|Phase 4 isolation exit moves to Phase 7]] | ✅ `c0fde0c` |
 
 New ADRs: copy [[ADR Template]].

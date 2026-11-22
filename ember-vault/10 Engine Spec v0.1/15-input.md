@@ -131,7 +131,11 @@ pub struct Input {
     pub gamepad_down: Vec<GamepadButton>,
     pub gamepad_released: Vec<GamepadButton>,
     pub touch_points: Vec<TouchPoint>,
+    pub chars_typed: Vec<char>,     // ADR-032: typed text, control chars excluded
+    pub mouse_wheel: Vec2,          // ADR-032: y > 0 = wheel up
 }
+// + typed_text() -> String, wheel_moved() -> bool
+// Key gained Delete, Home, End, PageUp, PageDown (ADR-032).
 ```
 
 There is no mouse wheel, no `ActionMap` and no analog gamepad state yet.

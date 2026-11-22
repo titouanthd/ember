@@ -266,14 +266,15 @@ editor is finished.
 
 ## 7. Phase 4 — Servers
 
-> **Progress:** 🟡 Server traits, mock backends, macroquad render/audio
-> backends, `LinearPhysics` (ADR-028, `ember-servers/src/physics/linear.rs`,
-> reachable as `ctx.physics()`) and `xtask check-layers` /
-> `check-macroquad` are in. **Open:** the `grep "use macroquad"` exit
-> criterion is unmet — `ember-stdlib` (transitional, see
-> `xtask/macroquad-allowlist.txt`) and all non-pong games still import
-> it. `MockRenderingServer` is in `ember-servers/src/mock.rs`, not
-> `tests/common/`; xtask lives in `xtask/src/`.
+> **Progress:** ✅ **Closed 2026-11-22 (re-scoped by ADR-033).** Server
+> traits (+ clip stack, ADR-031), mock backends, macroquad render/audio
+> backends, `LinearPhysics` (ADR-028, `ctx.physics()`), `xtask check-layers` /
+> `check-macroquad` all green. Engine crates other than legacy
+> `ember-stdlib` import no macroquad; the games half of the isolation
+> criterion moved to the Phase 7 exit and the `ember-stdlib` half to
+> Phase 8 (allowlist lines are removed one per migration).
+> `ember_stdlib::collider` stays in `ember-stdlib` (ADR-028).
+> `MockRenderer` is in `ember-servers/src/mock.rs`; xtask in `xtask/src/`.
 
 ### 7.1 Scope
 
@@ -318,7 +319,11 @@ editor is finished.
 
 ## 8. Phase 5 — UI
 
-> **Progress:** ⬜ Not started. `crates/ember-ui/src/lib.rs` is a 4-line stub.
+> **Progress:** 🟡 Entry gate done 2026-11-22: Phase 4 closed (ADR-033),
+> [[24-ember-ui]] ✅ frozen, engine support landed (derive + behaviour
+> ADR-030, clip stack ADR-031, typed text / wheel ADR-032). `ember-ui`
+> itself is still a stub — sessions 5.1–5.4 in
+> [[Next Phase Plan — Phase 5 UI]].
 
 ### 8.1 Scope
 

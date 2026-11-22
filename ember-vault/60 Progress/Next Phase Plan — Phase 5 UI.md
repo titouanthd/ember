@@ -21,7 +21,7 @@ estimate: "5–6 sessions (gate 1–2, UI 4)"
 | P1 Scene core | ✅ ~90 % | run `hello_scene` once headless |
 | P2 Serialization | 🟡 65 % | `#[export]`, `SceneWriter`, scene connections, font/audio loaders, hot-reload |
 | P3 Signals | ✅ ~85 % | scene-declared connections (needs P2) |
-| P4 Servers | 🟡 70 % | macroquad isolation (blocked by P7), `collider` → `LinearPhysics` |
+| P4 Servers | ✅ closed 2026-11-22 (ADR-033) | games' macroquad isolation → P7 exit |
 | **P5 UI** | ⬜ 0 % | **this plan** |
 
 Tracker: [[Roadmap Tracker]] · evaluation: [[Progress Evaluation 2026-11-22]].
@@ -35,12 +35,12 @@ Roadmap entry criteria for P5 are "Phase 4 complete" and "[[24-ember-ui]] ✅". 
 | G1 ✅ | Commit the pending merge and push; run `make hooks` | Phase 0 is staged but not committed | merge on `origin/main` | `chore(git): Merge Phase 0 branch into main` |
 | G2 ✅ | Baseline: `make test-count`, `make check`, `make gates` → [[Baseline 2026-11-22]] | No test/clippy run since the engine work started | numbers in a new dated evaluation note | `doc(vault-progress): Record post-merge baseline` |
 | G3 ✅ `8cc3112` | **ADR-030 — derive + behaviour.** Split naming into `trait NodeName { name, set_name }`; `Node: Object + NodeName`. `#[derive(Node)]` emits `Object` + `NodeName` only; the user writes `impl Node for T { … }` with just the lifecycle they need. Add `#[node(no_behavior)]` (or `#[derive(Node, DataNode)]`) to emit the empty `impl Node`. Migrate `hello_scene`, pong, tests | Every UI widget in the spec is a derived node with behaviour; acceptance item 8 needs it too | `ember-macros`, `ember-scene`, compile-fail tests (`trybuild`) | `feat(macros-derive): Derive Object and NodeName, leave Node lifecycle to the user` |
-| G4 | **ADR-031 — clip stack.** `RenderingServer::push_clip(Rect)` / `pop_clip()` (intersecting stack, scissor in screen space after camera); macroquad impl via the GL scissor; `MockRenderer` records it | `ScrollContainer`, text fields, panels | `ember-servers`, `ember-render-macroquad`, contract test | `feat(servers-render): Add push_clip and pop_clip scissor stack` |
-| G5 | **ADR-032 — text & wheel input.** `Input` gains `chars_typed: Vec<char>` and `mouse_wheel: Vec2`; poller fills them from macroquad. `Key` gains `Home`, `End`, `Delete` if missing. ADR-018 already allows adding fields | `TextInput`, `ScrollContainer` | `ember-input`, `render-mq/input.rs`, contract tests | `feat(input): Add chars_typed and mouse_wheel to Input` |
-| G6 | **ADR-033 — re-scope Phase 4's exit.** Engine crates (except legacy `ember-stdlib`, retired in P8) must not import macroquad; the *games* half of the criterion moves to the Phase 7 exit. Narrow `macroquad-allowlist.txt` from `games/` to the 16 unmigrated games | Makes "Phase 4 complete" true without waiting for 16 migrations | ADR + allowlist + roadmap edit | `chore(xtask): Allow-list unmigrated games individually` |
-| G7 | Review [[24-ember-ui]] against G3–G5 (remove the implicit `name` field from examples, add `push_clip`, `chars_typed`), resolve its open questions, mark it **✅ frozen** | The spec-first rule ([[Engine Spec Index]] §6) | updated spec | `doc(vault-spec): Freeze 24-ember-ui for Phase 5` |
+| G4 ✅ `a1072f5` | **ADR-031 — clip stack.** `RenderingServer::push_clip(Rect)` / `pop_clip()` (intersecting stack, scissor in screen space after camera); macroquad impl via the GL scissor; `MockRenderer` records it | `ScrollContainer`, text fields, panels | `ember-servers`, `ember-render-macroquad`, contract test | `feat(servers-render): Add push_clip and pop_clip scissor stack` |
+| G5 ✅ `7bde4b0` | **ADR-032 — text & wheel input.** `Input` gains `chars_typed: Vec<char>` and `mouse_wheel: Vec2`; poller fills them from macroquad. `Key` gains `Home`, `End`, `Delete` if missing. ADR-018 already allows adding fields | `TextInput`, `ScrollContainer` | `ember-input`, `render-mq/input.rs`, contract tests | `feat(input): Add chars_typed and mouse_wheel to Input` |
+| G6 ✅ `c0fde0c` | **ADR-033 — re-scope Phase 4's exit.** Engine crates (except legacy `ember-stdlib`, retired in P8) must not import macroquad; the *games* half of the criterion moves to the Phase 7 exit. Narrow `macroquad-allowlist.txt` from `games/` to the 16 unmigrated games | Makes "Phase 4 complete" true without waiting for 16 migrations | ADR + allowlist + roadmap edit | `chore(xtask): Allow-list unmigrated games individually` |
+| G7 ✅ this commit | Review [[24-ember-ui]] against G3–G5 (remove the implicit `name` field from examples, add `push_clip`, `chars_typed`), resolve its open questions, mark it **✅ frozen** | The spec-first rule ([[Engine Spec Index]] §6) | updated spec | `doc(vault-spec): Freeze 24-ember-ui for Phase 5` |
 
-**Gate exit:** `make pre-push` green; ADR-030…033 accepted in [[50-design-decisions]]; [[24-ember-ui]] ✅.
+**Gate exit (✅ 2026-11-22, pending your `make pre-push`):** `make pre-push` green; ADR-030…033 accepted in [[50-design-decisions]]; [[24-ember-ui]] ✅.
 
 ## 5.1–5.4 — UI sessions (~4)
 

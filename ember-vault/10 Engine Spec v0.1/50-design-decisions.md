@@ -1241,6 +1241,112 @@ acceptance item 8 ([[42-acceptance-tests]]) depend on that form.
   use as a node (`register_node`, `NodeTree::insert`), not at the derive.
 - Compile-fail tests for the derive (`trybuild`) are still open.
 
+## ADR-031: Clip-rect stack on `RenderingServer`
+
+**Status:** accepted (2026-11-22)
+
+### Context
+
+[[24-ember-ui]] needs real clipping (`ScrollContainer`, text fields,
+panels). `RenderingServer` had none; [[22-ember-servers]] listed
+`push_clip_rect` / `pop_clip_rect` as not implemented. jade-garden's help
+modal already clipped by calling macroquad's GL scissor directly.
+
+### Decision
+
+- `push_clip_rect(rect)`, `pop_clip_rect()`, `clip_rect() -> Option<Rect>`
+  on `RenderingServer` (required, no default: a backend that ignores
+  clipping would silently draw outside scroll areas).
+- Rects are **screen pixels**, top-left origin, **not** moved by the
+  camera (UI is screen-space; GPU scissors are screen-space).
+- `ember_servers::ClipStack` owns the rules for every backend: nested
+  pushes intersect; a push outside the current clip clips everything;
+  an extra pop is ignored; `begin_frame` clears the stack.
+- Macroquad: `quad_gl.scissor(...)`, reset on `begin_frame` and on an
+  unbalanced `end_frame`. `MockRenderer` records
+  `PushClipRect { rect, effective }` / `PopClipRect`.
+
+### Alternatives
+
+- **Render to texture per scroll area:** correct but costly, and wasm
+  render targets are fragile. Rejected.
+- **Clip in `ember_ui` by skipping/cropping draws:** cannot crop text or
+  sprites. Rejected.
+- **World-space clip rects:** would mix UI with the camera. Rejected.
+
+### Consequences
+
+- The scissor is integer pixels (rect rounded outward). High-DPI scaling
+  needs a visual check in the Phase 5 `ui_demo`.
+- Same commit series fixed the camera sign: draws land at
+  `world - camera_offset`, matching `DrawContext::world_to_screen`.
+
+## ADR-032: Typed text, mouse wheel and editing keys in `Input`
+
+**Status:** accepted (2026-11-22)
+
+### Context
+
+`TextInput` needs the characters the user typed, already resolved by the
+keyboard layout (AZERTY, accents, shift); key codes cannot give that.
+`ScrollContainer` needs the wheel. `Input` had neither, and `Key` had no
+Delete/Home/End/PageUp/PageDown.
+
+### Decision
+
+- `Input.chars_typed: Vec<char>` — typed characters this frame, in
+  order, control characters excluded (Backspace, Enter, Tab… stay in
+  `keys_pressed`). Helper `typed_text()`.
+- `Input.mouse_wheel: Vec2` — wheel movement this frame, `y > 0` = wheel
+  up / away from the user. Helper `wheel_moved()`.
+- `Key::{Delete, Home, End, PageUp, PageDown}`.
+- The macroquad poller drains `get_char_pressed()` and reads
+  `mouse_wheel()`.
+
+### Alternatives
+
+- **A separate `TextEvent` stream on `NodeContext`:** a second input
+  path to learn. Rejected; one snapshot per frame stays the rule.
+- **Raw IME composition support:** v0.2.
+
+### Consequences
+
+- Additive: fixtures use `..Default::default()` (ADR-018), so no game or
+  test changes.
+
+## ADR-033: Phase 4's macroquad-isolation exit moves to Phase 7
+
+**Status:** accepted (2026-11-22)
+
+### Context
+
+[[40-roadmap]] Phase 4's exit criterion “`grep -rn "use macroquad"
+crates/` returns only the backends” cannot hold until the games stop
+using `ember-stdlib`'s macroquad modules, which is Phase 7–8 work. That
+blocks Phase 5 (UI), whose entry criterion is “Phase 4 complete”.
+`xtask/macroquad-allowlist.txt` allowed `games/` wholesale, so the check
+showed no progress either.
+
+### Decision
+
+- Phase 4 is complete when **engine crates other than the legacy
+  `ember-stdlib`** import no macroquad (true today) and the gates pass.
+- The games half of the criterion is part of the **Phase 7** exit; the
+  `ember-stdlib` half is part of **Phase 8**.
+- The allowlist names the 17 games and 10 `ember-stdlib` modules
+  individually; lines are only ever removed (one per migrated game).
+
+### Alternatives
+
+- **Block Phase 5 until all games migrate:** serialises the whole plan.
+  Rejected.
+- **Drop the criterion:** loses the wgpu-readiness guarantee. Rejected.
+
+### Consequences
+
+- Phase 4 closes; Phase 5 can start.
+- The allowlist is the migration progress bar for Phase 7.
+
 ## How to add an ADR
 
 1. Copy the template:

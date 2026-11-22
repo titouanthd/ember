@@ -22,7 +22,7 @@ ember-core, glam
 
 ## Implementation status
 
-🟡 Snapshot + ADR-010 actions done. **Action map** (`action_pressed`, `action_axis`, RON action-map format from 15-input) not implemented.
+🟡 Snapshot + ADR-010 actions + typed text / mouse wheel / editing keys (ADR-032) done. **Action map** (`action_pressed`, `action_axis`, RON action-map format from 15-input) not implemented.
 
 ## Spec
 

@@ -83,6 +83,11 @@ pub trait RenderingServer {
     fn set_z(&mut self, z: f32);
     fn current_z(&self) -> f32;
 
+    // === Clipping (ADR-031) ===
+    fn push_clip_rect(&mut self, rect: Rect);   // screen pixels; intersects
+    fn pop_clip_rect(&mut self);                // extra pops ignored
+    fn clip_rect(&self) -> Option<Rect>;        // None = unclipped
+
     // === Primitives ===
     fn draw_rect(&mut self, rect: Rect, color: Color);
     fn draw_rect_outline(&mut self, rect: Rect, thickness: f32, color: Color);
@@ -114,7 +119,8 @@ pub trait RenderingServer {
 ```
 
 *Not yet implemented:* `texture_size`, `register_shader` / `use_shader`,
-`name`, `draw_call_count`, `push_clip_rect`/`pop_clip_rect`.
+`name`, `draw_call_count`. Clipping rules live in `ember_servers::ClipStack`
+(ADR-031); `set_camera(offset)` means draws land at `world - offset`.
 `Image` is `ember_core::Image`; `TextMetrics` is
 `{ width, height, offset_y }` (ADR-016).
 
@@ -465,8 +471,7 @@ check.
 ## 10. Open questions
 
 - **Q1:** Should `RenderingServer` expose a `push_clip_rect` / `pop_clip_rect`
-  pair? *Provisional:* yes, needed by `ember_ui`'s scroll containers.
-  Not in the trait yet.
+  pair? **Resolved:** yes, ADR-031 (2026-11-22).
 - **Q2:** Should `AudioServer` support 3D positional audio? *Provisional:*
   no. v0.2 feature, gated behind `AudioFeature::PositionalAudio`.
 - **Q3:** Should `PhysicsServer::rebuild` be automatic? *Provisional:*

@@ -290,7 +290,7 @@ v0.2 add a wgpu backend without a single game rewrite.
 | Rule | Status |
 |---|---|
 | §5.1 Layer order | ✅ `xtask check-layers` implemented |
-| §5.2 `macroquad` isolation | ⚠️ `xtask check-macroquad` implemented with an allowlist; `ember_stdlib` and games still import macroquad |
+| §5.2 `macroquad` isolation | ✅ for engine crates (ADR-033); ⚠️ legacy `ember_stdlib` modules and the 17 games are allow-listed one by one and leave the list in Phases 8 / 7 |
 | `ember_core` has no `ember_*` deps | ✅ true |
 | `ember_stdlib` depends only on `ember_core` (among `ember_*`) | ✅ true |
 

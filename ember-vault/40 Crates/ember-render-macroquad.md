@@ -22,7 +22,7 @@ ember-core, ember-servers, ember-input, macroquad, futures, glam
 
 ## Implementation status
 
-🟢 All trait methods implemented; runner does fixed-step accumulator. Runner order is *physics → process → draw* (architecture diagram shows *process → physics*). Re-exports `macroquad` for games.
+🟢 All trait methods implemented (clip via GL scissor, ADR-031; camera subtracts the offset since `e190c21`); runner does fixed-step accumulator. Runner order is *physics → process → draw* (architecture diagram shows *process → physics*). Re-exports `macroquad` for games.
 
 ## Spec
 

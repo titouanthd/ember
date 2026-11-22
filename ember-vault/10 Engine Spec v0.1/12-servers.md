@@ -134,6 +134,11 @@ pub trait RenderingServer {
     fn set_z(&mut self, z: f32);
     fn current_z(&self) -> f32;
 
+    // --- Clipping (ADR-031): screen pixels, not moved by the camera ---
+    fn push_clip_rect(&mut self, rect: Rect);
+    fn pop_clip_rect(&mut self);
+    fn clip_rect(&self) -> Option<Rect>;
+
     // --- Primitives ---
     fn draw_rect(&mut self, rect: Rect, color: Color);
     fn draw_rect_outline(&mut self, rect: Rect, thickness: f32, color: Color);

@@ -17,7 +17,7 @@ gantt
   P1 Scene core (90%)    :active, p1, 2026-11-16, 3d
   P2 Serialization (65%) :active, p2, 2026-11-18, 5d
   P3 Signals (85%)       :active, p3, 2026-11-18, 2d
-  P4 Servers (70%)       :active, p4, 2026-11-16, 3d
+  P4 Servers (done)      :done, p4, 2026-11-16, 3d
   section Tools
   P5 UI (0%)             :p5, after p4, 3d
   P6 Editor (0%)         :p6, after p5, 4d
@@ -57,12 +57,12 @@ gantt
 - [x] `ScopedConnection` drop disconnects — `tests/scoped_connection.rs`
 - [ ] scene-declared connections wired from `.escene`
 
-## Phase 4 — Servers
-- [ ] `grep -rn "use macroquad" crates/` only in backends *(ember-stdlib allow-listed)*
+## Phase 4 — Servers ✅ closed 2026-11-22 (ADR-033)
+- [x] engine crates (except legacy `ember-stdlib`) import no macroquad — games → Phase 7 exit, stdlib → Phase 8 (ADR-033)
 - [x] `xtask check-layers` exists *(pass/fail unverified)*
 - [x] `MockRenderer` drives a `NodeTree` and records calls
 - [x] `LinearPhysics` backend; `ctx.physics()`
-- [ ] `ember_stdlib::collider` migrated into `LinearPhysics`
+- [x] ~~`ember_stdlib::collider` migrated into `LinearPhysics`~~ — dropped: `LinearPhysics` written fresh in `ember-servers` (ADR-028)
 
 ## Phase 5 — UI
 - [ ] `VBox` with 3 `Button`s, Tab/Enter navigation

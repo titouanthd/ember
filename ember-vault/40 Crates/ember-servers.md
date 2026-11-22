@@ -22,7 +22,7 @@ ember-core, glam
 
 ## Implementation status
 
-🟢 Traits match ADR-016/017/028. Mocks are public in `src/mock.rs` (contradicts [[01-architecture]] §7 Q4 “no mocks”, and roadmap’s `tests/common/` location).
+🟢 Traits match ADR-016/017/028; clip stack (`push_clip_rect`, `ClipStack`, ADR-031). Mocks are public in `src/mock.rs` (contradicts [[01-architecture]] §7 Q4 “no mocks”, and roadmap’s `tests/common/` location).
 
 ## Spec
 

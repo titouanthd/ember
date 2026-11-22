@@ -2,7 +2,7 @@
 title: "24 — `ember_ui`"
 aliases: ["24 — `ember_ui`"]
 tags: ["ember/spec", "ember/wave-3"]
-doc-status: "draft"
+doc-status: "frozen"
 former-path: ".worktrees/titouanthd-potential-carnival/docs/engine/v0.1/24-ember-ui.md"
 imported: "2026-11-22"
 wave: "3 — Crate Specifications"
@@ -10,7 +10,7 @@ wave: "3 — Crate Specifications"
 
 # 24 — `ember_ui`
 
-> **Status:** ⬜ draft — reviewed 2026-11-19; not implemented yet (`crates/ember-ui` is an empty stub)
+> **Status:** ✅ frozen 2026-11-22 (Phase 5 entry gate G7) — changes need an ADR. Not implemented yet (`crates/ember-ui` is a stub).
 > **Audience:** game authors, implementers
 > **Prerequisites:** [[21-ember-scene]], [[23-ember-render-macroquad]]
 
@@ -21,6 +21,21 @@ wave: "3 — Crate Specifications"
 > needs `#[class_name]` and a user-declared `name: String`, and the derive
 > generates no `new()` or `#[export]` handling (ADR-019, [[26-ember-macros]]). Only pong's `Scoreboard`
 > (hand-drawn text via `DrawContext`) stands in for UI in games today.
+
+## 0. Engine contract for v0.1 (frozen 2026-11-22)
+
+What the implementation relies on, so the sections below can stay short:
+
+| Need | Engine API | ADR |
+|---|---|---|
+| Widgets are nodes with behaviour | `#[derive(Node)]` gives `Object` + `NodeName`; each widget writes `impl Node for T { … }` and `impl Control for T { … }`. **Every derived struct declares `name: String`** — the snippets below omit it for brevity. | ADR-019, ADR-030 |
+| `UiDrawContext::push_clip` / `pop_clip` | `RenderingServer::push_clip_rect` / `pop_clip_rect`, screen pixels, nested pushes intersect | ADR-031 |
+| `TextInput` characters | `Input::chars_typed` (layout-aware, no control chars); editing keys via `keys_pressed`: Backspace, Delete, Left, Right, Home, End, Enter | ADR-032 |
+| `ScrollContainer` wheel | `Input::mouse_wheel.y` (`> 0` = up → `scroll_y` decreases, as in §4.5) | ADR-032 |
+| Focus / activation | `Input::primary_action()` activates the focused control; Tab / Shift+Tab move focus | ADR-010 |
+| UI coordinates | screen space; `UiRoot` draws at `z = 100.0`, ignores the camera | §12 Q4 |
+
+The open questions in §12 are **decided** as their provisional answers.
 
 ## 1. Purpose
 
@@ -541,7 +556,7 @@ threshold, drag ghost, drop targets, `CanDrop` negotiation, cancellation).
 The 17 games don't need it; shipping it half-done would be worse than
 not shipping it.
 
-## 12. Open questions
+## 12. Open questions (decided 2026-11-22: provisional answers adopted)
 
 - **Q1:** Should `Control::on_mouse_up` return `bool` (consumed)?
   *Provisional:* v0.2. v0.1 propagates everywhere, and 17/17 games work.

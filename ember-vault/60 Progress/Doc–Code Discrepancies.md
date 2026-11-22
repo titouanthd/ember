@@ -29,3 +29,4 @@ Found while reading the specs against `main`. Most are fixed on the unmerged bra
 | 16 | [[Engine Spec Index]] §7 | — | stray `---S` before §8 (typo) | open |
 | 17 | [[41-migration-guide]] | per-PR migrations + `MIGRATION_LOG.md` | pong migrated in the scene-core branch; no `MIGRATION_LOG.md` | open |
 | 18 | `Makefile` | `CRATES := ember-core ember-stdlib ember-editor` | 12 crates exist | open |
+| 19 | `RenderingServer::set_camera` | `DrawContext::world_to_screen`: `world - offset` | macroquad renderer drew at `world + offset` | ✅ fixed `e190c21` |
