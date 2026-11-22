@@ -44,7 +44,7 @@ Second review of [[40-roadmap]] today, after closing Phase 0, Phase 4, the Phase
 2. **P6 has a hidden dependency on P2.** The editor must *save* scenes; there is no `SceneWriter` and `#[export]` is inert. P2's close-out has to come before P6, not just "P2 complete" at some point in the past.
 3. **P5 was under-estimated (2.5 → 4 sessions).** Session 5.1 showed the spec glosses over how controls live in the tree (ADR-034), and two more engine touches are needed:
    - **ADR-035 (planned, 5.4):** a *post-children draw hook* on `Node` (e.g. `draw_after_children`) so `ScrollContainer` can pop its clip after its children draw. Without it, scroll clipping can't work.
-   - **ADR-036 (planned, 5.3):** control event handlers have no `NodeContext`, so a `Button` can't emit `ButtonPressed` itself. `UiRoot` routes input and emits on the control's behalf (controls report "pressed/submitted" through `ControlBase`).
+   - **ADR-036 (✅ 5.3, `45e44da`):** control event handlers have no `NodeContext`, so a `Button` can't emit `ButtonPressed` itself. `UiRoot` routes input and emits on the control's behalf (controls report "pressed/submitted" through `ControlBase`).
 4. **Pong is "migrated" but not done** (20-line `main.rs`, `macroquad::Color`). It's the reference migration; finishing it is cheap and sets the pattern for the other 16.
 5. **Specs-first is only partly real.** One spec is frozen (24). Freeze 21 (scene), 22 (servers), 25 (assets), 30 (`.escene`) as their phases close.
 6. **Verification gap.** The analysis environment can't build the workspace (no crates.io); code is checked with real crates + stand-ins, and `make pre-push` on the Mac is the final gate. Keep that rule: never push without it.

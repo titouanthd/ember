@@ -50,7 +50,7 @@ Branch: `feat/ui` (or one branch per session), pushed after the first commit.
 |---|---|---|
 | **5.1 Foundations** ✅ `cdbc078` | `ember-ui` crate layout per spec §2. `Control` trait (rect, min_size, focusable, input hooks), `UiDrawContext` (wraps `DrawContext` + `Theme` + clip stack), `Anchors` + `compute_rect`, `Theme::dark()` / `light()`, `UiRoot` node that runs layout once per frame | `layout_anchors.rs`: anchors resolve for 4 corners + stretch; theme defaults |
 | **5.2 Layout & static widgets** ✅ `064e44c` | `VBox`, `HBox`, `Stretch` (one-pass layout, spec §11.1), `Label`, `Panel`, `Image` (`Handle<Texture>`) | `layout_vbox.rs` (3 children, spacing, stretch weights), `layout_hbox.rs`; draw-call snapshots |
-| **5.3 Interaction** | `FocusManager` (Tab / Shift+Tab, wrap-around, `set_focus`), `Button` emitting `ButtonPressed { id }` via signals, mouse routing top-down with consumption (spec §9), `primary_action` activates the focused button | `focus_navigation.rs` (Tab ×3 cycles, Enter emits), `mouse_routing.rs` (overlapping controls, consumption) |
+| **5.3 Interaction** ✅ `45e44da` | `FocusManager` (Tab / Shift+Tab, wrap-around, `set_focus`), `Button` emitting `ButtonPressed { id }` via signals, mouse routing top-down with consumption (spec §9), `primary_action` activates the focused button | `focus_navigation.rs` (Tab ×3 cycles, Enter emits), `mouse_routing.rs` (overlapping controls, consumption) |
 | **5.4 Scroll, text, demo** | `ScrollContainer` (wheel + clip + scrollbar), `TextInput` (caret, Backspace/Delete/Home/End, max length, `TextSubmitted` signal), `crates/ember/examples/ui_demo.rs` showing every widget | `scroll_clip.rs` (clip calls bracket children, offset), `text_input.rs` (typing, backspace, submit) |
 
 Every commit uses the format in [[Commit & Push]], e.g. `feat(ui-layout): Add VBox and HBox one-pass layout`.
@@ -59,7 +59,7 @@ Every commit uses the format in [[Commit & Push]], e.g. `feat(ui-layout): Add VB
 
 - Controls embed `ControlBase`; `UiRoot` owns a `ControlRegistry` and lays out in `process`; `control_node!` writes `impl Node` (ADR-034).
 - **5.2** must register built-in widgets in `UiRoot::new` and re-export `ember_ui` from the `ember` facade.
-- **5.3** needs ADR-036: handlers have no `NodeContext`; `UiRoot` emits `ButtonPressed` etc. after routing.
+- **5.3** ✅ ADR-036: handlers have no `NodeContext`; controls queue signals on `ControlBase`, `UiRoot` emits `ButtonClicked { button }` / `FocusChanged` after routing. Delivered as `tests/input.rs` (13 tests); no consumption and no Shift+Tab in v0.1.
 - **5.4** needs ADR-035: a post-children draw hook in `ember-scene` so `ScrollContainer` can pop its clip.
 - Estimate: 4 UI sessions (was 2.5).
 
