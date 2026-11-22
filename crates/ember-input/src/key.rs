@@ -17,6 +17,13 @@ pub enum Key {
     Escape,
     Tab,
     Backspace,
+    Delete,
+
+    // Text-field / list navigation
+    Home,
+    End,
+    PageUp,
+    PageDown,
 
     // Arrows (many games use these instead of WASD)
     Up,

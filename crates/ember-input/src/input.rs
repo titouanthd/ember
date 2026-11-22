@@ -50,6 +50,15 @@ pub struct Input {
     pub gamepad_down: Vec<GamepadButton>,
     pub gamepad_released: Vec<GamepadButton>,
     pub touch_points: Vec<TouchPoint>,
+    /// Text typed this frame, in order, as produced by the OS keyboard
+    /// layout (so `é`, `Q` on AZERTY, shifted symbols are already right).
+    /// Control characters (Backspace, Enter, Tab, Escape…) are excluded:
+    /// read those through `keys_pressed`. ADR-032.
+    pub chars_typed: Vec<char>,
+    /// Mouse-wheel movement this frame, in the backend's notches/lines.
+    /// `y > 0` means the wheel moved up (away from the user); `x` is
+    /// horizontal scrolling. `Vec2::ZERO` when the wheel did not move.
+    pub mouse_wheel: Vec2,
 }
 
 impl Input {
@@ -115,6 +124,18 @@ impl Input {
 
     pub fn is_gamepad_released(&self, button: GamepadButton) -> bool {
         self.gamepad_released.contains(&button)
+    }
+
+    // --- Text and wheel (ADR-032) ---
+
+    /// This frame's typed text as a `String` (empty when nothing was typed).
+    pub fn typed_text(&self) -> String {
+        self.chars_typed.iter().collect()
+    }
+
+    /// True if the mouse wheel moved this frame, on either axis.
+    pub fn wheel_moved(&self) -> bool {
+        self.mouse_wheel != Vec2::ZERO
     }
 
     // --- Touch queries ---

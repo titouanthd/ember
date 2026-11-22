@@ -4,8 +4,9 @@
 use ember_input::{Input, Key, TouchPhase, TouchPoint};
 use glam::Vec2;
 use macroquad::input::{
-    KeyCode, MouseButton, is_key_down, is_key_pressed, is_key_released, is_mouse_button_down,
-    is_mouse_button_pressed, is_mouse_button_released, mouse_position, touches,
+    KeyCode, MouseButton, get_char_pressed, is_key_down, is_key_pressed, is_key_released,
+    is_mouse_button_down, is_mouse_button_pressed, is_mouse_button_released, mouse_position,
+    mouse_wheel, touches,
 };
 
 const KEYS: &[(KeyCode, Key)] = &[
@@ -14,6 +15,11 @@ const KEYS: &[(KeyCode, Key)] = &[
     (KeyCode::Escape, Key::Escape),
     (KeyCode::Tab, Key::Tab),
     (KeyCode::Backspace, Key::Backspace),
+    (KeyCode::Delete, Key::Delete),
+    (KeyCode::Home, Key::Home),
+    (KeyCode::End, Key::End),
+    (KeyCode::PageUp, Key::PageUp),
+    (KeyCode::PageDown, Key::PageDown),
     (KeyCode::Up, Key::Up),
     (KeyCode::Down, Key::Down),
     (KeyCode::Left, Key::Left),
@@ -72,8 +78,10 @@ const KEYS: &[(KeyCode, Key)] = &[
 /// gamepad lists stay empty.
 pub fn poll_input() -> Input {
     let (mx, my) = mouse_position();
+    let (wx, wy) = mouse_wheel();
     let mut input = Input {
         mouse_pos: Vec2::new(mx, my),
+        mouse_wheel: Vec2::new(wx, wy),
         mouse_left_pressed: is_mouse_button_pressed(MouseButton::Left),
         mouse_left_down: is_mouse_button_down(MouseButton::Left),
         mouse_left_released: is_mouse_button_released(MouseButton::Left),
@@ -94,6 +102,12 @@ pub fn poll_input() -> Input {
         }
         if is_key_released(code) {
             input.keys_released.push(key);
+        }
+    }
+    // Drain macroquad's char queue: one call per typed char this frame.
+    while let Some(c) = get_char_pressed() {
+        if !c.is_control() {
+            input.chars_typed.push(c);
         }
     }
     input.touch_points = touches()

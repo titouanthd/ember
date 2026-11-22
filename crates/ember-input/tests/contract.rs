@@ -289,3 +289,62 @@ fn input_is_cloneable() {
     let j = i.clone();
     assert_eq!(j.mouse_pos, Vec2::new(1.0, 2.0));
 }
+
+// ---------------------------------------------------------------------------
+// Text and wheel (ADR-032)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn text_and_wheel_default_to_nothing() {
+    let i = Input::default();
+    assert!(i.chars_typed.is_empty());
+    assert_eq!(i.typed_text(), "");
+    assert_eq!(i.mouse_wheel, Vec2::ZERO);
+    assert!(!i.wheel_moved());
+}
+
+#[test]
+fn typed_text_keeps_order_and_unicode() {
+    let i = Input {
+        chars_typed: vec!['é', 't', 'é', ' ', '春'],
+        ..Default::default()
+    };
+    assert_eq!(i.typed_text(), "été 春");
+}
+
+#[test]
+fn wheel_moved_on_either_axis() {
+    let up = Input {
+        mouse_wheel: Vec2::new(0.0, 1.0),
+        ..Default::default()
+    };
+    let side = Input {
+        mouse_wheel: Vec2::new(-2.0, 0.0),
+        ..Default::default()
+    };
+    assert!(up.wheel_moved());
+    assert!(side.wheel_moved());
+}
+
+#[test]
+fn editing_keys_exist_and_differ() {
+    let keys = [
+        Key::Delete,
+        Key::Home,
+        Key::End,
+        Key::PageUp,
+        Key::PageDown,
+        Key::Backspace,
+    ];
+    for (n, a) in keys.iter().enumerate() {
+        for b in &keys[n + 1..] {
+            assert_ne!(a, b);
+        }
+    }
+    let i = Input {
+        keys_pressed: vec![Key::Home],
+        ..Default::default()
+    };
+    assert!(i.is_key_pressed(Key::Home));
+    assert!(!i.is_key_pressed(Key::End));
+}
