@@ -13,7 +13,7 @@ Inspired by *Sandustry* (rendering), *Motherload* (mining economy),
 (top-down map).
 
 **Restriction**: movement input only. No menus, no clicking, no mouse.
-See `DESIGN.md` §2.
+See `ember-vault/30 Games/Bore Inc/Bore Inc — Design.md` §2.
 
 ## Running
 
@@ -54,7 +54,7 @@ missing — no crash, just a warning.
 
 ## Structure
 
-See `DESIGN.md` for the design intent; the code has grown well beyond the
+See `ember-vault/30 Games/Bore Inc/Bore Inc — Design.md` for the design intent; the code has grown well beyond the
 Session 2 starter kit.
 
 ```
@@ -99,5 +99,9 @@ placeholder), and the full level-completion loop. The design doc's "get the
 truck to the finish line" objective is not yet a win condition.
 
 The game still compiles for wasm and remains a useful second reference port
-(see `BROWSER_BUILD.md`), so do not delete it while it is a workspace member
+(see `ember-vault/20 Workspace/Browser Build (WASM).md`), so do not delete it while it is a workspace member
 — but expect it to break first on macroquad/glam bumps.
+
+## Documentation
+
+Design notes, session logs and release notes live in the Obsidian vault: `ember-vault/30 Games/Bore Inc/` (hub note: `Bore Inc.md`).

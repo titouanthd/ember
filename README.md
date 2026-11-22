@@ -91,7 +91,7 @@ cargo run -p pagoda
 
 ## WASM
 
-`jade-garden`, `bore-inc`, `accretion`, and `pagoda` can be compiled for the web. See `BROWSER_BUILD.md` and each game's `tools/build-web.sh`.
+`jade-garden`, `bore-inc`, `accretion`, and `pagoda` can be compiled for the web. See `ember-vault/20 Workspace/Browser Build (WASM).md` and each game's `tools/build-web.sh`.
 
 - `jade-garden` — shipped; progress in memory only.
 - `bore-inc` — abandoned; kept as a WASM reference.
@@ -100,4 +100,12 @@ cargo run -p pagoda
 
 ## See also
 
-`version.txt` — the full project recap, phase-by-phase history, and known pitfalls.
+All documentation lives in the Obsidian vault **`ember-vault/`** (open the folder with Obsidian → *Open folder as vault*). Start at `00 Home.md`.
+
+- Engine spec v0.1 → `ember-vault/10 Engine Spec v0.1/`
+- Project recap (former `version.txt`) → `ember-vault/20 Workspace/Project Recap (version.txt).md`
+- WASM builds (former `BROWSER_BUILD.md`) → `ember-vault/20 Workspace/Browser Build (WASM).md`
+- Game design docs → `ember-vault/30 Games/<Game>/`
+- Progress, roadmap tracker, handover → `ember-vault/60 Progress/`
+
+Rule: only `README.md` files live outside the vault. Run `make help` for the workflow commands.

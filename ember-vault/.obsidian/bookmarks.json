@@ -1,0 +1,21 @@
+{
+  "items": [
+    {
+      "type": "file",
+      "path": "00 Home.md",
+      "title": "Home"
+    },
+    {
+      "type": "file",
+      "path": "60 Progress/Progress Evaluation 2026-11-22.md"
+    },
+    {
+      "type": "file",
+      "path": "60 Progress/Roadmap Tracker.md"
+    },
+    {
+      "type": "file",
+      "path": "10 Engine Spec v0.1/Engine Spec Index.md"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "showTags": false,
+  "showAttachments": false,
+  "showOrphans": true,
+  "colorGroups": [
+    {
+      "query": "path:\"10 Engine Spec v0.1\"",
+      "color": {
+        "a": 1,
+        "rgb": 15105570
+      }
+    },
+    {
+      "query": "path:\"40 Crates\"",
+      "color": {
+        "a": 1,
+        "rgb": 3447003
+      }
+    },
+    {
+      "query": "path:\"30 Games\"",
+      "color": {
+        "a": 1,
+        "rgb": 5763719
+      }
+    },
+    {
+      "query": "path:\"60 Progress\"",
+      "color": {
+        "a": 1,
+        "rgb": 15277667
+      }
+    },
+    {
+      "query": "path:\"50 Decisions\"",
+      "color": {
+        "a": 1,
+        "rgb": 10181046
+      }
+    }
+  ],
+  "search": "-path:\"90 Branch Snapshot\" -path:\"80 Templates\""
+}

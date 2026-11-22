@@ -8,7 +8,7 @@ Six paradigms, eight resources, twelve buildings, one prestige layer, two
 endings. Inspired by *Universal Paperclips*, *Factorio*, and *Cookie Clicker*.
 
 **Status:** implemented (V1.3), native + browser. 127 tests pass, 1 ignored.
-The design intent and the divergences are documented in `DESIGN.md`.
+The design intent and the divergences are documented in `ember-vault/30 Games/Accretion/Accretion — Design.md`.
 
 ## Running
 
@@ -96,7 +96,7 @@ not clean yet.
 
 ```text
 games/accretion/
-├── DESIGN.md              full design + implementation status
+├── (design doc → ember-vault)              full design + implementation status
 ├── src/
 │   ├── main.rs            loop, screens, UI drawing
 │   ├── systems.rs         Game state + pure tick/input
@@ -111,3 +111,7 @@ games/accretion/
 ├── tools/                 build-web.sh + localStorage_plugin.js
 └── dist/web/              committed browser bundle
 ```
+
+## Documentation
+
+Design notes, session logs and release notes live in the Obsidian vault: `ember-vault/30 Games/Accretion/` (hub note: `Accretion.md`).

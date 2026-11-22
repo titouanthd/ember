@@ -1,5 +1,5 @@
 //! Layer discipline: every ember-* crate may depend only on strictly
-//! lower layers, per `docs/engine/v0.1/01-architecture.md §3.2`.
+//! lower layers, per `ember-vault/10 Engine Spec v0.1/01-architecture.md §3.2`.
 //! Uses package names (hyphenated), matching `cargo metadata`.
 
 use std::process::Command;

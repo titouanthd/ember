@@ -27,3 +27,9 @@
 # Local build artifacts
 *.tmp
 /tmp/games/ember-wars/progress.ron
+
+# Obsidian vault — commit notes and shared config, not per-user UI state
+ember-vault/.obsidian/workspace.json
+ember-vault/.obsidian/workspace-mobile.json
+ember-vault/.obsidian/cache
+ember-vault/.trash/

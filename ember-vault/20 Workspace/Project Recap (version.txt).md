@@ -1,0 +1,810 @@
+---
+title: "Project Recap (version.txt)"
+tags: ["ember/workspace"]
+former-path: "version.txt"
+imported: "2026-11-22"
+---
+
+> [!note] Imported from `version.txt` (plain text recap). Last updated at *Session 17.9* — **predates the engine v0.1 work**; see [[Progress Evaluation 2026-11-22]].
+
+# Ember Engine — Complete Recap
+
+Document intended for the next agent taking over the project.
+
+Last updated: Session 17.9 (pagoda mobile/touch pass; accretion and taiji implemented).
+Workspace state: 17 game folders (16 playable, 1 abandoned jam project), 1941 tests
+executed: 1909 passing, 32 failing (31 in ember-wars, 1 balance test in jade-garden).
+Clippy gate is NOT green: 2 lints in accretion, 1 in taiji.
+Language: English.
+
+---
+
+## Project Overview
+
+Ember is a 2D game engine in Rust with a 3-layer architecture:
+
+1. **ember-core** — Pure primitives, no graphical dependencies.
+2. **ember-stdlib** — Reusable game bricks, depends on macroquad.
+3. **games/*** — Specific games, each in its own folder.
+
+**Technical Stack:**
+- **Language:** Rust, edition 2024 everywhere.
+- **Render / input / window:** macroquad 0.4 with the "audio" feature enabled.
+- **Math:** glam 0.27 (aligned with macroquad 0.4.16).
+- **Serialization:** serde + ron.
+- **Config:** dotenvy (.env files). **Native only** — cfg'd out on wasm.
+- **Structure:** Cargo workspace with `[workspace.package]` and `[workspace.dependencies]`.
+- **Resolver:** explicit `resolver = "3"` in the root workspace.
+- **Session 6 Convention:** All members use `edition.workspace = true`, `version.workspace = true`, and `dep.workspace = true`. `[workspace.dependencies]` is the single source of truth. Bumping a version = editing one file (the root). Verified by `cargo tree -i glam` → a single version resolved for the entire workspace.
+- **Secondary Target:** `wasm32-unknown-unknown` for games that must run in a browser (`jade-garden`, `bore-inc`, `accretion`, `pagoda`). Four ports now validate the pattern; `taiji` is native-only for now.
+
+**Key Conventions:**
+- `transform.position` = top-left by default, except:
+  - **Bullet Hell:** position = center (assumed deviation, documented in `bullet-hell/src/lib.rs`).
+- Games are data-driven via `.ron` files where possible.
+- Tests are mandatory (unit + integration).
+- Strategy is **"Rule of Three"**: only extract to the engine after seeing the pattern 3 times.
+- External crates: dashes in Cargo.toml, underscores in code.
+- `cargo clippy --workspace --all-targets -- -D warnings` is the quality gate. It must stay green.
+- **State structs:** each game exposes a single struct that owns all mutable state. `main.rs` holds a single variable of this type. This is a convention, not a shared type.
+- **Uniform Layout (Phase 14):** the state struct lives in `systems.rs`, `GameContext` lives in `config.rs`, `lib.rs` handles re-exports.
+- **UI Buttons:** `update()` and `draw()` must be called on the **SAME** instance. If the button is recreated during render, the click event is lost.
+- **.env colors:** `env_color("PREFIX", default)` reads four separate variables `PREFIX_R`, `PREFIX_G`, `PREFIX_B`, `PREFIX_A`, each a `f32` in `[0.0, 1.0]`.
+- **draw_text vs draw_centered vs Label::new:**
+  - `draw_text(format!(...), ...)` — macroquad accepts `impl AsRef<str>`, so **NO** `&`.
+  - `draw_centered(&format!(...), ...)` — signature takes `&str`, so `&` is required.
+  - `Label::new(format!(...), ...)` — takes `impl Into<String>`, so **NO** `&`.
+- **manual_range_contains:** write `(a..=b).contains(&x)` instead of `x >= a && x <= b`.
+- **Design docs:** every new game must have a `DESIGN.md` in its folder. Remaining retroactive: pong, breakout, snake, minesweeper, simon, air-hockey.
+- **AZERTY vs QWERTY Keyboard:** macroquad uses QWERTY scancodes. On AZERTY: `M` → `KeyCode::Semicolon`, `Z` → `KeyCode::W`, `A` ↔ `Q`, `W` ↔ `Z`.
+- **`clippy::collapsible_if`:** use let-chains (`if let Some(x) = ... && cond { }`).
+- **`clippy::doc_overindented_list_items`:** doc-comment sub-items aligned with 2 spaces after the `-`.
+- **`clippy::too_many_arguments`:** bundle into a tuple.
+- **`gen` is a reserved keyword in edition 2024:** never use it as an identifier.
+- **`clippy::should_implement_trait`:** on a custom `next()` method → rename to `next_id()`.
+- **`clippy::vec_init_then_push`:** prefer `vec![...]`.
+- **`clippy::manual_is_multiple_of`:** use `.is_multiple_of(n)`.
+- **`set_default_font` after `load_ttf_font`:** canonical Ember pattern for Unicode fonts.
+- **4-backtick Markdown Fence:** surround Markdown documents with a 4-backtick fence ` ```` ` if they contain triple-backtick fences inside.
+- **Mixed Timers:** distinguish countdowns (→ `Cooldown`), absolute timestamps (compare to `now`), accumulators, and progressions [0,1].
+- **`Cooldown` constructors:** `Cooldown::new(d)` starts **running** (`remaining == d`). `Cooldown::with_duration(d)` starts **ready** but remembers `d` for `reset()`. Use `Cooldown::default()` / `ready()` for a bare ready timer, and `from_remaining(rem, dur)` when deserializing.
+- **WASM without `wasm-bindgen`:** miniquad has its own WASM import system. `wasm-bindgen` generates an incompatible one.
+- **`Instant::now()` on `wasm32-unknown-unknown`:** unavailable. Use an `f32` accumulated from `dt`.
+- **Assets on wasm:** URLs are relative to the page.
+- **Progression on wasm:** `localStorage` inaccessible without a miniquad plugin. `accretion` now ships a working bridge (`tools/localStorage_plugin.js` + FFI wrapper); other web games still use `thread_local<RefCell<Option<String>>>` or fail silently.
+- **Async preload on wasm, sync on native:** `macroquad::audio::load_sound` and `load_ttf_font` fetch asynchronously. Preload before the loop.
+- **SVG → PNG with Chrome headless:** remove explicit `width`/`height` attributes (keep only `viewBox`) and use `--window-size` for exact pixel rendering.
+- **Pixel-perfect rendering (bore-inc):** logic is tile-based, but rendering is pixel-perfect at 320x180 virtual resolution with integer scaling. `next_frame().await` must be called exactly once per loop iteration.
+
+---
+
+## Workspace Structure
+
+```
+ember-workspace/
+├── Cargo.toml
+├── Cargo.lock
+├── Makefile
+├── version.txt
+├── README.md
+├── BROWSER_BUILD.md
+├── crates/
+│   ├── ember-core/
+│   │   └── src/{lib,io,rng,hash}.rs, math/{aabb,circle,vec}.rs,
+│   │       time/{tick,cooldown}.rs, app/
+│   ├── ember-stdlib/
+│   │   └── src/{lib,transform,sprite,collider,config,persistence,grid,
+│   │       input,audio,fonts,layout}.rs, graphics/, ui/
+│   └── ember-editor/
+└── games/
+    ├── pong/, breakout/, snake/, asteroids/, bullet-hell/
+    ├── minesweeper/, simon/, memory/, freecell/, air-hockey/, zhuo-ji/
+    ├── ember-wars/
+    │   ├── assets/ (chapters.ron, palettes.ron, balance.ron, units.ron,
+    │   │            upgrade_tree.ron, DejaVuSansMono.ttf)
+    │   ├── src/ (main, lib, config, components, units, stickman, weapons,
+    │   │        combat, mana, catapult, ai, upgrades, progress, camera,
+    │   │        layout, textures, juice, fonts, render, menu, systems,
+    │   │        ui/{mod,spawn_bar,upgrade_modal})
+    │   └── tests/game_scenarios.rs
+    ├── jade-garden/
+    │   ├── DESIGN.md, RELEASE.md, README.md, CREDITS.md
+    │   ├── assets/ (levels.ron, chapitres.ron, fonts, mp3, icon-256.png)
+    │   ├── web/, tools/ (build-icon.sh, build-web.sh, icon.svg, itch-media/)
+    │   ├── src/ (main, lib, config, components, grid, scoring, animation,
+    │   │        juice, scroll_painting, tile_render, paths, util, menu, hud,
+    │   │        help, fonts, level, poem, progress, systems, audio)
+    │   ├── subset_font.sh
+    │   └── tests/ (game_scenarios.rs, balance.rs, objectives.rs)
+    ├── bore-inc/               (abandoned jam project, documented)
+    │   ├── DESIGN.md, README.md, SESSION1.md, SESSION2.md
+    │   ├── src/ (pixel, atlas, levelgen, world, player, bag, truck, drop,
+    │   │        hq, upgrade, hud, background, sprites/, systems, ...)
+    │   └── tests/game_scenarios.rs
+    ├── accretion/
+    │   ├── DESIGN.md, README.md
+    │   ├── assets/fonts/DejaVuSansMono.ttf
+    │   ├── web/index.html
+    │   ├── tools/ (build-web.sh, localStorage_plugin.js)
+    │   ├── dist/web/          (committed bundle)
+    │   ├── src/ (main, lib, components, config, disk, economy, paradigm,
+    │   │        prestige, endgame, narrative, format, fonts, paths, save,
+    │   │        systems)
+    │   └── tests/ (balance.rs, save.rs)
+    ├── taiji/
+    │   ├── DESIGN.md, README.md
+    │   └── src/ (main, lib, app, components, config, ai, systems, render)
+    └── pagoda/
+        ├── DESIGN.md, README.md, CREDITS.md
+        ├── assets/ (DejaVuSansMono.ttf, NotoSansSC-Pagoda.otf, sfx/)
+        ├── web/index.html
+        ├── tools/ (build-web.sh, generate-sounds.py, subset-font.sh)
+        ├── dist/web/          (committed bundle)
+        └── src/ (main, lib, app, art, scene, ui, audio, components,
+                 controls, fonts, paths, systems, persistence, config,
+                 juice, render)
+```
+
+Total: 17 game folders (16 playable, 1 abandoned).
+
+---
+
+## Games — Recap (exact figures, `cargo test --workspace`)
+
+| Game | Unit | Integration | Total | Status |
+|---|---|---|---|---|
+| Pong | 20 | 13 | 33 | green |
+| Breakout | 17 | 1 | 18 | green |
+| Snake | 20 | 12 | 32 | green |
+| Asteroids | 19 | 10 | 29 | green |
+| Bullet Hell | 34 | 11 | 45 | green |
+| Minesweeper | 28 | 8 | 36 | green |
+| Simon | 21 | 8 | 29 | green |
+| Memory | 20 | 4 | 24 | green |
+| FreeCell | 78 | 8 | 86 | green |
+| Air Hockey | 58 | 10 | 68 | green |
+| Zhuo Ji | 187 | 10 | 197 | green |
+| **ember-wars** | **316** | **20** | **336** | **28 unit + 3 integration failing** |
+| **jade-garden** | **303** | **24** | **327** | **balance test failing** |
+| **bore-inc** (abandoned) | **202** | **21** | **223** | green |
+| **accretion** | **125** | **2** | **127** | green (+1 ignored) |
+| **taiji** | **2** | **0** | **2** | green (prototype) |
+| **pagoda** | **112** | **0** | **112** | green |
+
+Total games: **1724 tests** (1692 passing, 32 failing, plus 2 ignored).
+Note: `jade-garden`'s 24 integration tests = 22 `game_scenarios` + 1 `objectives`
+(+1 ignored seed scanner) + 1 `balance`.
+
+Framework:
+- `ember-core`: 100 unit + 1 integration = **101** (+ 3 doctests executed, 2 ignored)
+- `ember-stdlib`: **112** unit (+ 7 doctests ignored)
+- `ember-editor`: **1** unit
+
+Total framework: **217 tests** (214 + 3 doctests).
+
+**Total workspace: 1941 tests executed — 1909 passing, 32 failing.**
+Ignored: 11 total (2 game tests + 2 core doctests + 7 stdlib doctests).
+`ember-wars`: 288/316 unit and 17/20 integration pass. Cause: `Cooldown::new`
+now starts **running**; ember-wars still constructs units/catapults with it where
+a **ready** cooldown is required (`Cooldown::with_duration`).
+`jade-garden`: `tests/balance.rs` reports `l05` as IMPOSSIBLE
+(target 3100, greedy AI 2970).
+
+---
+
+## ember-core — Details
+
+Pure crate: no graphical dependencies.
+
+### `io.rs`
+Generic RON load/save.
+- `save_to_file<T: Serialize>(path: &Path, data: &T) -> Result<(), String>`
+- `load_from_file<T: DeserializeOwned>(path: &Path) -> Result<T, String>`
+
+### `rng.rs` (Phase 12)
+Unified xorshift32, extracted from 3 local copies.
+Methods: `new`, `from_state`, `state`, `set_state`, `next_u32`, `next_f32`, `next_range`, `next_f32_range`, `next_bool`. Free helpers: `rand01`, `rand_usize`.
+
+### `hash.rs` (Session 10)
+Deterministic 32-bit hash (MurmurHash3 finalizer).
+- `hash_u32(seed: u32, x: u32) -> u32`
+- `hash_u32_2(seed: u32, x: u32, y: u32) -> u32` — 2D deterministic noise.
+- `hash_u32_3(seed: u32, x: u32, y: u32, z: u32) -> u32` — 3D variant.
+Deterministic across runs and platforms, avalanche-tested (8 tests).
+
+### `math/aabb.rs`
+Struct: `{ min: Vec2, max: Vec2 }`. Tests: 15.
+
+### `math/circle.rs`
+Struct: `{ center: Vec2, radius: f32 }`. Tests: 9.
+
+### `math/vec.rs`
+- `reflect(v: Vec2, n: Vec2) -> Vec2` — reflection used by ball/bounce logic.
+Tests: 6.
+
+### `time/tick.rs` — `TickTimer`
+Accumulator for fixed-step simulations. Tests: 11.
+
+### `time/cooldown.rs` — `Cooldown` (Phase 26, semantics revised)
+Countdown timer — an `f32` that decrements toward 0.
+**Constructors:**
+- `new(duration)` — **running** (`remaining == duration`). The common "start a
+  cooldown after a shot" case.
+- `with_duration(duration)` — **ready** (`remaining == 0`) but remembers the
+  duration for `reset()`. Use this for units/catapults that must fire immediately.
+- `from_remaining(remaining, duration)` — reconstruct from a save.
+- `ready()` / `default()` — ready, no duration.
+
+**API:** `tick`, `tick_returning`, `trigger`, `reset`, `clear`, `is_ready`,
+`is_active`, `remaining`, `duration`, `fraction`, `remaining_fraction`.
+Tests: 34. 2 doctests executed.
+
+### `app/state.rs` — `GameState`
+- `enum GameState { Start, Playing, LevelCleared, GameOver, Win }`. Tests: 3.
+
+---
+
+## ember-stdlib — Details
+
+Re-exports `ember_core::*`.
+
+### `transform.rs` — `Transform`
+Struct: `{ position: Vec2, rotation: f32, scale: Vec2 }`. Top-left convention (except Bullet Hell).
+
+### `sprite.rs` — `Sprite`
+Misnamed: color + visibility, not an image. To be renamed `Tint`? (Pending.)
+
+### `collider.rs`
+- `Shape::Aabb { half_size }` or `Shape::Circle { radius }`
+- `Collider { shape, active }`
+- `Contact { normal, penetration }` (normal from B to A)
+Tests: 14.
+
+### `config.rs`
+`load_dotenv_from`, `load_dotenv_once`, `env_f32`, `env_i32`, `env_u32`, `env_color`.
+Format: `{prefix}_R`, `{prefix}_G`, `{prefix}_B`, `{prefix}_A`.
+
+### `persistence.rs` — `Persistence<T>` (Phase 15)
+Typed RON persistence. Plus `update_if_higher`, `update_if_lower`, `update_best_in_map<K: ToString>`.
+Tests: 20.
+
+### `grid.rs` — `Grid<T>` (Session 7)
+Generic 2D grid, indexed (col, row). Tests: 13.
+
+### `input.rs` — `Input`
+Snapshot input per frame. `from_macroquad()`, `from_macroquad_with_keys()`.
+
+### `audio.rs` — `AudioClip`
+Wraps macroquad audio.
+
+### `ui/` — Minimal UI
+Widgets: Button, CircleButton, Label, Panel, TimerDisplay, hit testing (`ui::hit`).
+**Trap:** A widget must be `update()`d and `draw()`n on the **SAME** instance.
+
+### `graphics/text.rs`
+`draw_centered`, `draw_centered_shadowed`, `draw_right`, `draw_left`.
+
+### `fonts.rs` (Session 10)
+Wrapper around macroquad font loading.
+- `load_and_set_default(path: &str).await -> Option<Font>` — the **path is resolved by the game**.
+- Helpers: `draw_text_regular`, `draw_text_bold`, `measure_regular`, `measure_bold`.
+
+### `layout.rs` (Session 10)
+- `centered_rect(vw, vh, w, h) -> Rect` — centers a rect in a viewport. Tests: 5.
+
+---
+
+## Game Deep-Dives
+
+### ember-wars (12th game)
+- **Concept:** Cartoon Wars-style hybrid Tower Defense / RTS. 5 chapters × 3 levels = 15 levels.
+- **Mechanics:** Spawning units, balistic catapult, 28-node upgrade tree, 6 unit types, mana/aggro AI.
+- **Current state:** 316 unit + 20 integration tests. **31 failing** after the
+  `Cooldown::new` semantics change (28 unit + 3 integration). Unit/catapult
+  constructors need `Cooldown::with_duration` instead of `Cooldown::new`.
+- **Tech debt:** Stick men ragdoll missing, Fortress upgrade effect not implemented, no sounds.
+
+### jade-garden (13th game)
+- **Concept:** Contemplative match-3. 12 levels, 4 chapters. Native + WASM (itch.io).
+- **Mechanics:** 8x8 grid, 6 jade types, cascade tiers (juice), 3 objective types, Tang poem reveal.
+- **Current state:** 303 unit + 24 integration = 327 tests. 326 pass; the
+  `balance` test fails on `l05` (target 3100, greedy AI 2970).
+- **Tech debt:** `localStorage` bridge not used (accretion now has a working
+  implementation to port), no SFX on web, Halloween teaser disabled on web.
+
+### Zhuo Ji (11th game)
+- **Concept:** Guiyang Mahjong (捉鸡麻将). 1 human vs 3 AI.
+- **Mechanics:** 108 tiles, 4-player turn-based, shanten calculation, claim window (Peng/Gang/Hu), Dou (Gang) and Ji (Chicken) scoring.
+- **Current state:** 187 unit + 10 integration = 197 tests. CJK tile rendering
+  now ships (`assets/NotoSansSC-ZhuoJi.ttf`, custom Mahjong faces in `tiles.rs`).
+- **Tech debt:** `hands_per_match` hardcoded in some places, Bu Gang /
+  Qiang Gang / Gang Shang Pao / Bao Ting not implemented.
+
+### FreeCell (9th game)
+- **Concept:** Terminal-themed solitaire.
+- **Mechanics:** Drag-and-drop state machine, super-moves, undo/redo, hint, seed-based best times.
+
+### Bullet Hell (5th game)
+- **Concept:** Vertical danmaku shoot 'em up.
+- **Mechanics:** Graze multiplier, focus mode, 6 waves, 4 emitters. 
+- **Note:** Does **not** have a structured `Juice` module (uses inline particles and shake).
+
+### bore-inc (14th game — ABANDONED)
+- **Concept:** Incremental mining game. Archie the cat drills a tunnel through a mountain with robot employees, so the Bore Inc. truck can cross. Intended for browser (WASM) via movement input only.
+- **State:** Abandoned jam project. More complete than the original README
+  claimed: mining, drops, bag, drivable truck, HQ selling/upgrades, procedural
+  level generation, pixel-perfect sprites, and a map screen shell all exist
+  (202 unit + 21 integration = 223 tests). The map is still a `TODO`
+  placeholder; robots and the full level loop were never finished.
+- **Architecture:**
+  - Custom pixel-perfect rendering (320x180 virtual, integer scale).
+  - Modular procedural sprites (`pixel.rs`, `atlas.rs`, `sprites/`).
+  - Level generation uses a local deterministic xorshift64 (`rng.rs`).
+  - Progression saved as a `delta` of tunnel changes (replayed over the seed).
+  - WASM build working via `tools/build-web.sh` (no `wasm-bindgen`).
+
+### accretion (15th game)
+- **Concept:** Cosmic incremental. The player is a consciousness in a
+  protoplanetary disk; growth is a fall through six paradigms.
+- **Mechanics:** 8 resources, 12 buildings, 6 paradigms, 2 endings, one
+  prestige layer (Gravitational Constant), offline-free real-time tick.
+- **Current state:** 125 unit + 2 integration = 127 tests (+1 ignored balance
+  scanner). `save.ron` native; `localStorage["accretion:save"]` on web via a
+  miniquad plugin. Committed `dist/web` bundle.
+- **Divergences from DESIGN.md:** tables are hardcoded in Rust (no
+  `assets/*.ron`), no `upgrades.rs` / `audio.rs` / `juice.rs` / `ui/` modules,
+  rendering lives in `main.rs` + `disk.rs`. Prestige unlocks at **Gas Giant**
+  (not Planets); endgame at **10,000 Light** (not 50,000).
+- **Tech debt:** 2 clippy lints (`skip_while_next`, `vec_init_then_push`), no
+  upgrade tree UI, no audio.
+
+### taiji (16th game — prototype)
+- **Concept:** Contemplative Pong built around Yin/Yang time control.
+- **Mechanics:** Hold Space = **Yin** (0.25× time scale, blue tint); release =
+  **Yang** burst (2× for 0.4 s). W/S/Up/Down move; first to 5 wins. 800×600
+  virtual canvas, letterboxed to the window.
+- **Current state:** 2 unit tests. Native-only; no audio, persistence, or web
+  build. `DESIGN.md` originally described a charge-and-release mechanic; the
+  implemented mechanic is time dilation.
+- **Tech debt:** 1 clippy lint (missing `Default for App`), minimal test
+  coverage. `README.md` was added in this documentation pass.
+
+### pagoda (17th game)
+- **Concept:** One-button tower stacker with a Chinese lacquer/ink-wash skin.
+- **Mechanics:** Sliding block, AABB slicing, speed-scaled perfect window,
+  combo ladder, camera pan + punch, persisted best score.
+- **Current state:** 112 unit tests, clippy-clean, committed `dist/web`
+  bundle. Procedural SFX bank (44.1 kHz mono 16-bit WAV), Noto Sans SC subset,
+  click/tap-only mute, mobile-friendly web shell.
+- **Tech debt:** music optional/not implemented; web best score is in-memory
+  only (`Persistence` fails silently on wasm).
+
+### Other Games
+- **Air Hockey** (10th): PvP / PvAI, goalkeeper AI.
+- **Memory** (8th): Grid-based pair matching.
+- **Simon** (7th): Audio sequence, circle buttons.
+- **Minesweeper** (6th): Grid<T>, flood fill, chord, best times.
+- **Asteroids**: Wrap-around, inertia, high score.
+- **Snake**: Grid logic, fixed step.
+- **Breakout**: RON levels, substepping.
+- **Pong**: AABB collisions, simple AI.
+
+---
+
+## Refactorings Performed (Session by Session)
+
+### Phase 12 — Engine Foundations
+`load_dotenv_once`, `Transform::center()`, `Rng`, `Input::from_macroquad_with_keys`.
+
+### Phase 15 — Generic Persistence
+`Persistence<T>` created. Simon, Minesweeper, Asteroids migrated.
+
+### Phase 22 — Refactor Rule of Three
+`ui::hit` module, `persistence::update_best_in_map`, `graphics::text::draw_right`/`left`.
+
+### Phase 26 — Refacto `Cooldown` + restoration
+Extracted `Cooldown`. Migrated ember-wars, Asteroids, Bullet Hell, Zhuo Ji. Restored 52 lost tests in ember-wars.
+
+### Session 9 — jade-garden (13th game) + first WASM port
+Match-3 game, WASM publication on itch.io, `paths.rs` runtime resolution.
+
+### Session 10 — Bug fixes + 3 Engine Extractions
+**Preliminary fixes in jade-garden:** `fmt_time` deduped 3x, `hash_u32` deduped 2x, clippy fix.
+**Extraction 1/3 — `ember_core::hash::hash_u32`:** 3+ occurrences deduped. Pure function.
+**Extraction 2/3 — `ember_stdlib::fonts`:** `load_and_set_default(path).await` + 4 helpers. 3 occurrences.
+**Extraction 3/3 — `ember_stdlib::layout::centered_rect`:** 6+ occurrences.
+**Fixes:** 1. `collide_contact` circle-circle normal direction corrected to B→A. 2. `Cooldown::tick_returning` guard. 3. `ButtonEvent::Pressed` added.
+
+### Session 11 — bore-inc (14th game, abandoned)
+- Added full starter kit for an incremental mining game.
+- Custom procedural pixel rendering (no external assets, `Canvas` + `Atlas`).
+- Tile-based world with procedural generation and delta-based persistence.
+- Successfully built and tested on native and WASM.
+- Abandoned mid-session to focus on future engine goals.
+
+### Session 12 — accretion (15th game)
+- Full incremental loop: 8 resources, 12 buildings, 6 paradigms, prestige.
+- `Cooldown` used for building ticks; `Game::tick` is headless-testable.
+- First working **localStorage** bridge for WASM (`localStorage_plugin.js` +
+  `ember_storage_*` FFI), resolving the old jade-garden limitation in a new game.
+- 125 unit + 2 integration tests; committed web bundle.
+
+### Session 15 — taiji (16th game, prototype)
+- Pong variant with a Yin/Yang time-dilation mechanic.
+- Virtual 800×600 render target + letterbox blit.
+- 2 unit tests; native-only; no audio/persistence yet.
+
+### Sessions 16–17 — pagoda (17th game)
+- One-button stacker with AABB slicing, speed-scaled perfect window, combo.
+- Procedural lacquer/ink-wash art, generated SFX bank, CJK subset.
+- Mobile/touch web shell, click-only mute, committed WASM bundle.
+- 112 unit tests; clippy-clean.
+
+### Post-Phase 26 — `Cooldown` semantics revision
+- `Cooldown::new(d)` changed to start **running**; `Cooldown::with_duration(d)`
+  added for ready-but-remembering-duration timers.
+- `ember-wars` was not migrated: 31 tests now fail where a unit/catapult is
+  expected to be ready immediately. Fix = use `with_duration` in constructors.
+- `hash_u32_2` / `hash_u32_3` and `math::reflect` added to `ember-core`.
+
+---
+
+## Decisions to Make
+
+1. `Sprite`: rename to `Tint` or assume textures will be added? (Postponed since Session 2.)
+2. `SnakeState::new(duration)`: vestigial parameter. Remove or document?
+3. `Shape::as_aabb` / `as_circle`: unused. Remove or use?
+4. Standardize `UpdateEvent`: Snake/Breakout have it, Pong/Bullet Hell don't.
+5. **Drag-and-drop:** extract to `ember_stdlib`? Rule of Three: 1st occurrence (FreeCell). Wait for Klondike.
+6. **Animation / tween / easing:** 1x (jade-garden) → wait for 2nd.
+7. **Turn-based state machine:** 1x (Zhuo Ji). Extract if a 2nd turn-based game appears.
+8. **Timed decision window:** 1x (Zhuo Ji).
+9. **AI with hidden information:** 1x (Zhuo Ji).
+10. **Contextual phase buttons:** 1x (Zhuo Ji).
+11. **Custom Mahjong tiles + CJK glyphs:** implemented in Zhuo Ji (`tiles.rs` + `TileFont`), no longer a decision.
+12. **`centered_rect`** : 6+ → **EXTRACTED** (Session 10).
+13. **`hash_u32`** : 3+ → **EXTRACTED** (Session 10).
+14. **Unicode font + subset** : 3x → **EXTRACTED** (Session 10, `ember_stdlib::fonts`).
+15. **Juice (particles + floating text + shake + flash + vignette)** : **2x only** (ember-wars, jade-garden). Bullet Hell has inline ad-hoc juice. **DO NOT EXTRACT** without unifying first.
+16. **Scrollable menu** : 2x (ember-wars, jade-garden). Zhuo Ji has a fixed 3-button menu (different pattern). Wait for 3rd.
+17. **CJK subset font wrapper** : now **3x** with divergent APIs (jade-garden `PoemFont`, zhuo-ji `TileFont::include_bytes`, pagoda `CjkFont::load`). Ready to extract; decide on a common trait.
+18. **Camera2D / scroll** : 1x (ember-wars).
+19. **Upgrade tree persistence** : 1x (ember-wars).
+20. **Auto-combat** : 1x (ember-wars).
+21. **Stickman / skeletal animation** : 1x (ember-wars).
+22. **Procedural weapons** : 1x (ember-wars).
+23. **PendingAttack / delayed strike** : 1x (ember-wars).
+24. **Catapult (balistic artillery)** : 1x (ember-wars).
+25. **Floating damage texts** : 1x (ember-wars).
+26. **WASM build without `wasm-bindgen`** : **4x** (jade-garden, bore-inc, accretion, pagoda) → Rule of Three satisfied; extract the shared build helper.
+27. **Async preload on wasm, sync on native** : **4x** (jade-garden audio+fonts, bore-inc audio+font, accretion font, pagoda audio+fonts) → extract candidate.
+28. **Scrollable modal with GPU clipping (`quad_gl.scissor`)** : 1x (jade-garden help.rs).
+29. **Palette per chapter/level/paradigm** : **4x** (jade-garden chapters, ember-wars chapters, pagoda tiers, accretion paradigms) → extract candidate.
+30. **Procedural SVG for marketing assets** : 1x (jade-garden).
+31. **Shape-matched hover ring** : 1x (jade-garden).
+32. **Procedural Pixel Rendering (Canvas/Atlas)** : 1x (bore-inc).
+33. **Delta-based level persistence** : 1x (bore-inc).
+34. **localStorage bridge (miniquad plugin)** : 1x (accretion). Wait for a 2nd game (jade-garden is the obvious port).
+35. **Incremental production chain / economy** : 1x (accretion).
+36. **Prestige layer** : 1x (accretion).
+37. **Paradigm shifts (mechanics replacing themselves)** : 1x (accretion).
+38. **Virtual-canvas + letterbox blit** : 2x (taiji, pagoda) → wait for 3rd.
+39. **One-button / tap-only control scheme** : 1x (pagoda).
+40. **Procedural SFX generation (Python → WAV)** : 1x (pagoda).
+41. **Mobile-first web shell (safe areas, no zoom/overscroll, touch)** : 1x (pagoda).
+
+---
+
+## Technical Debt
+
+1. `ember-editor`: empty placeholder.
+2. UI Button: no real frame-level `UiContext`.
+3. `tick_playback` in Simon: loops until `dt` is exhausted.
+4. Memory: no "pairs attempted" counter.
+5. FreeCell: no "auto-complete", no seed input, no click-click selection (V2).
+6. FreeCell: no test for `can_drop_at`.
+7. **FreeCell: `max_super_move` does not account for the destination.**
+8. Air Hockey: missing DESIGN.md (retroactive).
+9. Air Hockey: no integration tests for AI.
+10. Zhuo Ji: `hands_per_match` hardcoded to 4 in some places, while `Layout` reads `AH_HANDS_PER_MATCH`.
+11. Zhuo Ji: Bu Gang (爬坡豆) not implemented.
+12. Zhuo Ji: no integration tests for Ming Gang and An Gang in a game situation.
+13. Zhuo Ji: `Layout::from_env` only reads `AH_HANDS_PER_MATCH`.
+14. Zhuo Ji: claim window timer displayed (progress bar).
+15. ~~Zhuo Ji: no CJK rendering (V1).~~ **Resolved:** custom tiles + CJK subset ship.
+16. Zhuo Ji: Dou passport rule unenforced in V1.
+17. Zhuo Ji: Qiang Gang (抢杠) not implemented.
+18. Zhuo Ji: Gang Shang Pao (杠上炮) not implemented.
+19. Zhuo Ji: Bao Ting (报听) not implemented.
+20. Zhuo Ji: state chips under avatars not implemented.
+21. Zhuo Ji: permanent TENPAI + transient chips not implemented.
+22. ember-wars: stick men ragdoll — static death.
+23. ember-wars: Fortress — upgrade effect not implemented (2nd HP bar).
+24. ember-wars: no sounds.
+25. ember-wars: no persistent corpses.
+26. **Missing retroactive DESIGN.md:** Pong, Breakout, Snake, Minesweeper, Simon, Air Hockey.
+27. **jade-garden: no `localStorage` on web.** Progression is lost on tab close.
+    A working bridge now exists in `accretion/tools/localStorage_plugin.js` +
+    `accretion/src/save.rs`; port it.
+28. **jade-garden: no SFX on web.** `play_scare` / `play_scream` silent.
+29. **jade-garden: Halloween teaser disabled on web** (no reliable `SystemTime::now()` on `wasm32-unknown-unknown`).
+30. **jade-garden: no window icon on web** (moot point — no chrome in browser).
+31. **jade-garden: WASM bundle not optimized with `wasm-opt`.** `binaryen` not installed, potential gain ~20-30%.
+32. **bore-inc: Abandoned.** Do not attempt to finish. Mining, drops, bag, truck,
+    HQ, procedural levels and a map shell exist; robots and the full level loop
+    do not. Kept as a WASM/pixel-rendering reference.
+33. **ember-wars: 31 failing tests after the `Cooldown` semantics change.**
+    28 unit + 3 integration. Replace `Cooldown::new` with `with_duration` in
+    `Unit` / `Catapult` constructors and `HashMap` seeding.
+34. **jade-garden: `balance` test fails on `l05`** (target 3100, greedy AI 2970,
+    ratio 0.96). Either lower the target/raise moves or accept the level as a
+    deliberate difficulty spike and relax the invariant.
+35. **Clippy is red.** `accretion`: `skip_while_next` in
+    `components::Paradigm::next`, `vec_init_then_push` in `systems::Game::new`.
+    `taiji`: missing `Default for App`.
+36. **accretion: design/code divergence.** Tables are hardcoded (no
+    `assets/*.ron`), no upgrade tree UI, no audio/juice modules, no `ui/` split.
+37. **accretion: committed `dist/web` includes `save.ron`.** Strip local saves
+    from the bundle before publishing.
+38. **taiji: prototype-level coverage.** 2 tests, no audio/persistence/web
+    build, no `README.md` before this pass.
+39. **pagoda: music not implemented.** SFX bank is complete; the synthwave/lo-fi
+    loop is still a future idea.
+40. **pagoda: web best score is in-memory only.** `Persistence::save` fails
+    silently on wasm; port the accretion localStorage bridge when convenient.
+
+---
+
+## Strategy — Rule of Three
+
+Do not generalize before seeing the pattern 3 times.
+
+**Today:**
+- RON loading: 10x → extracted.
+- Env config: 12x → extracted.
+- `draw_centered`: 11x → extracted.
+- `GameState`: 10x (Zhuo Ji, ember-wars and jade-garden do not use).
+- State structs: 17x → convention.
+- Grid 2D: 2x → extracted.
+- Input snapshot: 15x → extracted.
+- UI widgets: 5x → extracted.
+- Audio: 4x → extracted.
+- xorshift32: 5x → extracted (Phase 12).
+- Best score persistence: 7x → extracted (Phase 15).
+- Rectangular hit testing: 7x → extracted (Phase 22).
+- Best-time map update: 3x → extracted (Phase 22).
+- Right-aligned text: 4x → extracted (Phase 22).
+- `Cooldown` : 5x → **EXTRACTED** (Phase 26); semantics revised later.
+- `hash_u32` : 3+ → **EXTRACTED** (Session 10, `ember_core::hash`).
+- Unicode font + subset : 3x → **EXTRACTED** (Session 10, `ember_stdlib::fonts`).
+- `centered_rect` : 6+ → **EXTRACTED** (Session 10, `ember_stdlib::layout`).
+- Juice (particles + floating text + shake + flash + vignette) : **2x only** (ember-wars, jade-garden). Bullet Hell has inline ad-hoc juice (no struct). **DO NOT EXTRACT** without unifying first.
+- Scrollable menu : 2x (ember-wars, jade-garden). Zhuo Ji has a fixed 3-button menu (different pattern). Wait for 3rd.
+- CJK subset font wrapper : **3x** (jade-garden, zhuo-ji, pagoda) with divergent API (`embed` vs `fetch`) → ready to extract after choosing a trait.
+- WASM build: **4x** (jade-garden, bore-inc, accretion, pagoda) → extract the shared `build-web.sh` resolver.
+- Async preload wasm: **4x** (jade-garden audio+fonts, bore-inc audio+font, accretion font, pagoda audio+fonts) → extract candidate.
+- Drag-and-drop: 1x (FreeCell) → local.
+- Undo/redo snapshots: 1x (FreeCell) → local.
+- Turn-based state machine: 1x (Zhuo Ji) → local.
+- Timed decision window: 1x (Zhuo Ji) → local.
+- Contextual phase buttons: 1x (Zhuo Ji) → local.
+- AI with hidden information: 1x (Zhuo Ji) → local.
+- Hand evaluation / backtracking: 1x (Zhuo Ji) → local.
+- Custom Mahjong tiles + CJK glyphs: 1x (Zhuo Ji) → local.
+- Multi-tab modals: 1x (Zhuo Ji) → local.
+- Tile halo: 1x (Zhuo Ji) → local.
+- Scrollable modal with scissor test: 1x (jade-garden) → local.
+- Camera2D: 1x (ember-wars) → local.
+- Auto-combat: 1x (ember-wars) → local.
+- Persistent upgrade tree: 1x (ember-wars) → local.
+- Scrollable campaign menu: 2x (ember-wars, jade-garden) → wait for 3rd.
+- Stickman / skeletal animation: 1x (ember-wars) → local.
+- Procedural weapons: 1x (ember-wars) → local.
+- PendingAttack / delayed strike: 1x (ember-wars) → local.
+- Catapult (balistic artillery): 1x (ember-wars) → local.
+- Floating damage texts: 1x (ember-wars) → local.
+- Palette per chapter/paradigm/tier: **4x** (ember-wars, jade-garden, accretion, pagoda) → extract candidate.
+- Procedural marketing SVG: 1x (jade-garden) → local.
+- Canvas / Atlas procedural pixel rendering: 1x (bore-inc) → local.
+- Delta-based level persistence: 1x (bore-inc) → local.
+- localStorage bridge: 1x (accretion) → port to jade-garden/pagoda before extracting.
+- Production chain / building ticks: 1x (accretion) → local.
+- Prestige / meta-progression: 1x (accretion) → local.
+- Paradigm shifts: 1x (accretion) → local.
+- Virtual canvas + letterbox: 2x (taiji, pagoda) → wait for 3rd.
+- One-button / tap-only input: 1x (pagoda) → local.
+- Procedural SFX generation: 1x (pagoda) → local.
+- Mobile-first web shell: 1x (pagoda) → local.
+
+---
+
+## Ideas for the 18th Game
+
+The engine now has: collisions, grid, mouse + keyboard input, UI, audio (native + web), typed persistence (native) / in-memory or localStorage (web), data-driven, state machines, 2-step selection, local drag-and-drop, local AI opponent, mode menu, design docs, turn-based, hand evaluation, AI with hidden information, 4-player state, timed decision windows, custom tiles, multi-tab modals, scrollable modal with GPU clipping, title screen, shared hit testing, scroll camera, auto-combat, spawner, persistent upgrade tree, procedural decor, Unicode fonts, heavy juice, responsive ground, chapter campaigns, animated stick men, procedural weapons, delayed strike, balistic artillery, floating damage texts, reusable `Cooldown`, Tween / Easing, WASM build (4 ports), procedural marketing SVG, palettes per chapter/paradigm, pixel-perfect rendering, procedural pixel sprites, incremental economy, prestige, paradigm shifts, time dilation, one-button play, procedural SFX, mobile web shell.
+
+**What is still MISSING:**
+- Drag-and-drop extraction into stdlib (waiting for 3rd occurrence).
+- Animation / tween / easing extraction into stdlib (2nd expected).
+- `ember_stdlib::juice` extraction (2x only, needs unification first).
+- CJK subset font wrapper extraction (3x, API divergence — decide the trait).
+- Shared WASM build helper extraction (4x — overdue).
+- Pathfinding (Tower Defense, roguelike).
+- Procedural gameplay (roguelike).
+- Ragdoll / death physics.
+- Networking / multiplayer.
+- Real web save (localStorage bridge) — **implemented in accretion**, still local to that game.
+- Shared WASM build helper (4 copies of `build-web.sh`).
+
+### Strong Recommendations
+1. **Tower Defense** — pathfinding, targeting, economy.
+2. **Platformer** — camera/scroll already there.
+3. **Minimal Roguelike** — procedural, FOV, turn-based, inventory.
+4. **Extract the shared WASM build helper** — 4 ports now (jade-garden, bore-inc, accretion, pagoda); overdue under the Rule of Three.
+
+### Medium Recommendations
+5. **Card Battler** — hand, deck, turn-based.
+6. **Klondike** — 2nd drag-and-drop.
+7. **Tetris** — rotation, lines, drop.
+8. **Extract `ember_stdlib::juice`** — pure refactor, not a new game (but requires unifying the 2 implementations first).
+
+---
+
+## Known Pitfalls (Recap)
+
+1. glam version mismatch: check `cargo tree -i glam` before adding an external crate.
+2. `Shape::AABB` vs `Shape::Aabb`: the variant is `Aabb`.
+3. `overlaps_strict`: rejects touching edges.
+4. `TickTimer` ≠ cooldown: use a decrementing `f32` (or `Cooldown`).
+5. `GameState` adding a variant: update ALL match statements.
+6. `SnakeState::new(duration)`: duration is overwritten on first update.
+7. `SnakeWorld::apply_level`: does NOT reset `self.score`.
+8. `env_color` format: `{PREFIX}_R/_G/_B/_A`, not `r,g,b,a`.
+9. `draw_arc` macroquad 0.4.16: `segments: u8` in 3rd position, `radius` in 6th.
+10. HP indicators: prefer darkening by `hp/max_hp`.
+11. UI Button: `update()` and `draw()` on the SAME instance.
+12. `TextDimensions`: `draw_text` returns `TextDimensions`.
+13. `field_reassign_with_default` (clippy).
+14. `Grid`: `neighbors_8` returns `&T` (borrow).
+15. Minesweeper flood fill: reveals the numbered frontier.
+16. `BoardState` vs `GameState`: two separate enums.
+17. `needless_borrows_for_generic_args` (clippy).
+18. `manual_range_contains` (clippy).
+19. macroquad audio feature: enable in root Cargo.toml.
+20. `CircleButton` custom tessellation.
+21. `tick_playback` in a loop.
+22. `load_dotenv_once`: `manifest_dir` of the calling crate.
+23. `from_macroquad*`: not unit testable.
+24. `GameContext` standardized in `config.rs`.
+25. `Persistence<T>` has `Clone` but **not** `Copy`.
+26. `.txt` → `.ron` migration (Asteroids).
+27. `env!("CARGO_MANIFEST_DIR")` in stdlib points to stdlib.
+28. Memory: ASCII symbols may not render.
+29. Memory: `NO_MATCH_DELAY` must leave time to see. 0.8s.
+30. `cargo new --lib games/<name>` adds to workspace.
+31. macroquad default font doesn't cover extended Unicode symbols.
+32. macroquad uses QWERTY scancodes (see AZERTY).
+33. Black foundations invisible on dark background.
+34. Super-move: destination counts as buffer (or not).
+35. Drag: contiguous run from the bottom only.
+36. Hardcoded timer position can overlap buttons.
+37. Do not call `step_world_substepped` when `dt_eff == 0.0`.
+38. Never animate `font_size`. Use `TextParams::font_scale`.
+39. A text overlay on a grid needs a scrim (alpha ≥ 0.55).
+40. AI chasing the puck in its own camp: vertical-only is safer.
+41. AZERTY vs QWERTY: key aliases needed.
+42. Zhuo Ji: `Tile` is `Copy` → `Vec::remove`, not `swap_remove`.
+43. Zhuo Ji: claim priority Hu > Gang = Peng.
+44. Zhuo Ji: no Chi.
+45. Zhuo Ji: Gang → re-draw.
+46. Zhuo Ji: Dou passport rule.
+47. Zhuo Ji: twin fixed Ji — 1 Tiao **and** 8 Tong.
+48. Zhuo Ji: Huangzhuang doesn't count Dou/Ji.
+49. Zhuo Ji: HashMap iter closures.
+50. Zhuo Ji: shanten formula edge cases.
+51. Runtime layout: `screen_width()` / `screen_height()`.
+52. Centered pendulum: don't count the arrow.
+53. Clippy 1.93+: new lints activated.
+54. Zhuo Ji: `first_discard` propagation.
+55. Zhuo Ji: `HandSnapshot` captured before `start_next_hand()`.
+56. Zhuo Ji: `measure_text` outside macroquad thread → computed offset.
+57. `assert!(CONSTANT > CONSTANT)` → `const _: () = assert!(...)`.
+58. Zhuo Ji "neutral" test.
+59. `f32::min` ambiguity: suffix `56.0_f32`.
+60. `clippy::needless_range_loop`.
+61. `clippy::collapsible_if` → let-chains.
+62. `clippy::doc_overindented_list_items`.
+63. `clippy::too_many_arguments` → tuple.
+64. Zhuo Ji: melds z-index (East) → 2 passes.
+65. Zhuo Ji: melds width (Peng = Gang).
+66. Zhuo Ji: Blue Tong vs Green Tiao → compile-time const assert.
+67. `Input::from_macroquad_with_keys` populates all 3 vectors.
+68. `ui::hit`: 4 variants, inclusive edges.
+69. `persistence::update_best_in_map<K: ToString>`.
+70. `draw_right` / `draw_left`: `font_size: u16`.
+71. Zhuo Ji "premium" panel: `draw_premium_panel`.
+72. `gen` reserved in edition 2024.
+73. `clippy::should_implement_trait` on custom `next()` → `next_id()`.
+74. `clippy::vec_init_then_push` → `vec![...]`.
+75. E0502 on `a[i].field = a[i].other * x`.
+76. ember-wars: catapult `launch_origin` ≠ `pos`.
+77. ember-wars: compare difficulties on deployed HP.
+78. ember-wars: dynamic viewport.
+79. ember-wars: responsive ground.
+80. `palettes.ron` must start with `[`.
+81. `clippy::manual_is_multiple_of`.
+82. ember-wars: upgrades in the menu.
+83. ember-wars: persistent gold.
+84. ember-wars: locked chapters.
+85. ember-wars: `PendingAttack` — NEVER clear in `tick_unit_timers`.
+86. ember-wars: `strike_delay()` — consistent with `stickman::WINDUP_END`.
+87. ember-wars: `REST_ARM_R` / `REST_ARM_L` — shared.
+88. ember-wars: `detonate_bomber` — takes the attacker's index.
+89. ember-wars: movement — cooldown doesn't stop advancing without a target.
+90. 4-backtick Markdown fence.
+91. ember-wars: `modal_rect_for` testable (panics outside macroquad context).
+92. ember-wars: menu draw order (header/footer opaque last).
+93. ember-wars: upgrade modal draw order.
+94. ember-wars: catapult can never reach the enemy tower.
+95. ember-wars: floating texts spawn in `apply_damage_*`.
+96. Mixed timers (Phase 26): distinguish countdowns / absolute timestamps / accumulators / progressions.
+97. `Cooldown::tick_returning`: the only safe way for the active → ready transition.
+98. `Cooldown::reset`: restarts with the **stored** duration.
+99. `Cooldown::clear`: forces ready without changing the stored duration.
+100. `Cooldown::from_remaining(rem, dur)`: reconstruct from serialization.
+101. Reborrow for `Catapults`: `(&mut *catapults.0, &mut *catapults.1)`.
+102. `HashMap<String, Cooldown>`: `.unwrap_or_default()`.
+103. ember-wars `attack_cd`: effective duration must be re-applied on each `trigger`.
+104. Test restoration post-refactor (Phase 26): refactors touching production code must also migrate `mod tests` blocks. **Adapt** assertions, don't simplify.
+105. `HashMap<String, Cooldown>`: `.unwrap_or_default()` is the correct pattern.
+106. `Cooldown` in tests: prefer `Cooldown::new(d)` to simulate active, `Cooldown::default()` for ready.
+107. `next_frame().await` duplicated → GPU flickering. One call per loop iteration.
+108. `get_screen_data()` on macOS/Metal → not implemented by miniquad, produces black PNG + errors.
+109. `Instant::now()` on `wasm32-unknown-unknown` → panic. Accumulate `f32` from `dt`.
+110. `wasm-bindgen` incompatible with miniquad → module missing. Don't pull `web-sys`.
+111. `macroquad::file::load_string` on native → requires a macroquad context, breaks headless tests.
+112. `macroquad::audio::load_sound` on web → async (fetch). Must preload before the loop.
+113. cairosvg + SVG with explicit `width`/`height` → guaranteed white padding. Use Chrome headless.
+114. itch.io WASM bundle: zip the **contents** of `dist/web/`.
+115. `Kind of project = HTML` on itch.io.
+116. Embed option itch.io: `Click to launch in fullscreen`.
+117. Chrome headless for SVG → PNG: exact rendering.
+118. `mq_js_bundle.js` from cargo registry: guarantees the exact version.
+119. jade-garden: scissor test for scrollable modal: `unsafe { gl.quad_gl.scissor(...) }`.
+120. jade-garden: `pollster::block_on` in tests for `load_levels`.
+121. **`collide_contact`: normal B→A everywhere.** Circle↔Circle was A→B until Session 10 — fixed. Regression test: `test_circle_vs_circle_normal_in_all_quadrants`.
+122. **`ButtonEvent`: `Pressed` added.** Before, pressing a button returned `Hovered` — impossible to distinguish "at rest" from "just pressed". `Pressed` = press frame, `Held` = down steady-state, `Clicked` = release frame.
+123. **`hash_u32`: MurmurHash3 finalizer.** Use `ember_core::hash::hash_u32(seed, x)` — DO NOT copy the function into games. Pure function, avalanche-tested.
+124. **`ember_stdlib::fonts::load_and_set_default`: the path is resolved by the game.** The function takes `path: &str` (already resolved via `paths::asset_str` or `CARGO_MANIFEST_DIR`). Do NOT pass a manifest_dir: each game has its own `assets/`.
+125. **`Juice` is NOT 3x.** Bullet Hell has inline ad-hoc juice (no floating text/shockwave/vignette). The `Juice` struct is 2x (ember-wars, jade-garden). `Particle` is 3x but with 3 incompatible shapes (`life`/`ttl`, `size`/`radius`). **DO NOT extract without unifying first.**
+126. **`ember_stdlib::layout::centered_rect(vw, vh, w, h)`.** Use it everywhere a centered modal/panel is needed. Do NOT recalculate `((vw - w) * 0.5, (vh - h) * 0.5)` by hand — 6+ duplications before Session 10.
+127. **Pixel-perfect rendering (bore-inc)** — Draw at virtual resolution (320x180), use `floor()` for integer camera and sprite positions, and scale the camera offset by an integer factor.
+128. **Canvas/Atlas approach (bore-inc)** — Sprites are generated procedurally into an RGBA buffer at startup, then baked into a single texture. Do not use external image files if aiming for 100% procedural.
+129. **Delta persistence (bore-inc)** — Do not serialize the entire map. Store the generation seed and a `Vec<DeltaEntry>` of cell mutations. Replay the delta on load.
+130. **`Cooldown::new(d)` starts RUNNING.** `with_duration(d)` starts READY while remembering `d`. This distinction caused 31 `ember-wars` failures after Phase 26: constructors that expected "ready to act" still call `new`. Use `with_duration` in constructors/`Default`-like paths; use `new` only when the action has just fired.
+131. **`Cooldown` mutators are not interchangeable.** `trigger(d)` replaces the stored duration; `reset()` restarts with the **stored** duration; `clear()` forces ready but preserves duration; `from_remaining(rem, dur)` reconstructs a save. Do not assume `reset()` takes an argument or that `clear()` forgets the duration.
+132. **localStorage on web needs a miniquad plugin.** `wasm-bindgen` is incompatible with miniquad's import system, so accretion uses `tools/localStorage_plugin.js` + `unsafe extern "C"` FFI. The plugin **must** load after `mq_js_bundle.js` (it extends `LibraryManager.library`).
+133. **Web save buffers are bounded and null-terminated.** `ember_storage_get` caps at `MAX_WEB_SAVE_BYTES` (100 KB) and writes a trailing `\0`; the Rust side truncates to the returned length. Key is prefixed (`accretion:save`) because multiple Ember games share one itch.io origin.
+134. **pagoda SFX must be 44.1 kHz mono 16-bit WAV.** `quad-snd` resamples anything else, which audibly detunes short slices. The test suite asserts the WAV header (`fmt ` chunk) for every clip.
+135. **pagoda is click/tap-only.** Space/Enter and the left mouse button are aliases; mobile browsers map touch to mouse, so no separate touch API is needed. The mute control must itself be tappable.
+136. **pagoda letterboxing:** convert window coordinates with `render::window_to_virtual`, which returns `None` inside the letterbox bars. Ignoring that check makes clicks outside the canvas trigger gameplay.
+137. **taiji time dilation:** keep `real_dt` for input/UI/animation and a separately scaled `dt` for physics. Smooth `time_scale` toward its target (0.25× Yin, 2× Yang) instead of snapping; never multiply `dt` twice.
+138. **taiji Yang burst uses real time.** `yang_burst_timer` must tick with `real_dt`, otherwise slow-motion stretches the 0.4 s burst and the "release" payoff changes with frame pacing.
+139. **Clippy is not green.** `accretion` warns on `skip_while_next` (`components::Paradigm::next`) and `vec_init_then_push` (`systems::Game::new`); `taiji` warns on missing `Default for App` and a collapsible `if` in `main.rs`. `pagoda` is clippy-clean.
+140. **The workspace is not "all tests green".** 32 tests fail: 31 in `ember-wars` (cooldown semantics) and 1 in `jade-garden` (`ai_balance_report`, level `l05`). Document failures honestly; do not repeat the old "~1661 tests green" claim.
+
+---
+
+## Suggested Next Steps
+
+1. **Fix the `ember-wars` cooldown migration** — replace `Cooldown::new` with `Cooldown::with_duration` wherever a constructor/test expects a ready cooldown (31 failures), then re-run the full suite.
+2. **Fix or re-tune `jade-garden` level `l05`** — `ai_balance_report` detects it as IMPOSSIBLE (target 3100 vs AI 2970). Either adjust the target/AI or accept and mark the scenario as a known outlier.
+3. **Green the clippy build** — `accretion` (2 lints), `taiji` (2 lints). `pagoda` can serve as the reference.
+4. **Extract the shared WASM build helper** (4 ports now: jade-garden, bore-inc, accretion, pagoda) — overdue under the Rule of Three.
+5. **Extract the localStorage bridge** into `ember-stdlib`/a shared plugin now that the pattern is proven (currently 1x in accretion; port pagoda's in-memory save first).
+6. **Extract the CJK subset font wrapper** — 3 implementations with divergent APIs (jade-garden embed, zhuo-ji custom `TileFont`, pagoda Noto Sans SC subset). Decide on the trait before extracting.
+7. **Extract `ember_stdlib::animation`** (Tween/Easing from jade-garden) at the 2nd occurrence.
+8. **Unify `Juice`** (ember-wars + jade-garden) and then extract it to `ember_stdlib`.
+9. **18th game** — Tower Defense (pathfinding), Platformer (scroll camera already present), or Minimal Roguelike (procedural gameplay, FOV, inventory).
+10. **Retroactive docs** for Pong, Breakout, Snake, Minesweeper, Simon, Air Hockey — these six games currently have **no** README or DESIGN.md at all.
+
+**Session 17.9 Bilan:** `accretion` (15th), `taiji` (16th) and `pagoda` (17th) are implemented and documented. The workspace now has 17 games (16 playable, 1 abandoned), 4 WASM ports, a revised `Cooldown` API, a proven localStorage bridge, procedural SFX, and a mobile web shell. The suite executes 1941 tests: 1909 pass, 32 fail (31 `ember-wars` cooldown semantics, 1 `jade-garden` balance), plus 11 ignored (2 game tests + 9 doctests). Clippy has 3 blocking errors (2 in `accretion`, 1 in `taiji`). The next session should restore green before adding an 18th game.

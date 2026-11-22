@@ -44,7 +44,7 @@ resized.
 
 ## Design
 
-See `DESIGN.md` for the time-dilation rules, the AI model, and the rejected
+See `ember-vault/30 Games/Taiji/Taiji — Design.md` for the time-dilation rules, the AI model, and the rejected
 charge/capture mechanic from the original pitch.
 
 ## Tests
@@ -60,7 +60,7 @@ collapsible `if` in `main.rs`.
 
 ```text
 games/taiji/
-├── DESIGN.md
+├── (design doc → ember-vault)
 ├── Cargo.toml
 └── src/
     ├── main.rs        loop, virtual canvas, scoring, tint
@@ -71,3 +71,7 @@ games/taiji/
     ├── config.rs      GameContext + constants
     └── render.rs      letterbox + coordinate mapping
 ```
+
+## Documentation
+
+Design notes, session logs and release notes live in the Obsidian vault: `ember-vault/30 Games/Taiji/` (hub note: `Taiji.md`).
