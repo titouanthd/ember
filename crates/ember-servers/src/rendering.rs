@@ -42,7 +42,9 @@ pub trait RenderingServer {
 
     // --- Camera ---
 
-    /// Offset applied to all subsequent draws until changed.
+    /// World position shown at the screen's top-left, for all subsequent
+    /// draws until changed: a shape at world `p` lands at `p - offset` on
+    /// screen (`DrawContext::world_to_screen`). Clip rects ignore it.
     fn set_camera(&mut self, offset: Vec2);
     fn camera_offset(&self) -> Vec2;
 

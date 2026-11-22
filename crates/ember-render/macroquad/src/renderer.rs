@@ -156,8 +156,8 @@ impl RenderingServer for MacroquadRenderer {
     fn draw_rect(&mut self, rect: Rect, color: Color) {
         let o = self.camera_offset;
         draw_rectangle(
-            rect.x + o.x,
-            rect.y + o.y,
+            rect.x - o.x,
+            rect.y - o.y,
             rect.w,
             rect.h,
             color_to_mq(color),
@@ -167,8 +167,8 @@ impl RenderingServer for MacroquadRenderer {
     fn draw_rect_outline(&mut self, rect: Rect, thickness: f32, color: Color) {
         let o = self.camera_offset;
         draw_rectangle_lines(
-            rect.x + o.x,
-            rect.y + o.y,
+            rect.x - o.x,
+            rect.y - o.y,
             rect.w,
             rect.h,
             thickness,
@@ -179,8 +179,8 @@ impl RenderingServer for MacroquadRenderer {
     fn draw_rect_rotated(&mut self, rect: Rect, rotation_radians: f32, color: Color) {
         let o = self.camera_offset;
         draw_rectangle_ex(
-            rect.x + o.x,
-            rect.y + o.y,
+            rect.x - o.x,
+            rect.y - o.y,
             rect.w,
             rect.h,
             DrawRectangleParams {
@@ -193,14 +193,14 @@ impl RenderingServer for MacroquadRenderer {
 
     fn draw_circle(&mut self, center: Vec2, radius: f32, color: Color) {
         let o = self.camera_offset;
-        draw_circle(center.x + o.x, center.y + o.y, radius, color_to_mq(color));
+        draw_circle(center.x - o.x, center.y - o.y, radius, color_to_mq(color));
     }
 
     fn draw_circle_outline(&mut self, center: Vec2, radius: f32, thickness: f32, color: Color) {
         let o = self.camera_offset;
         draw_circle_lines(
-            center.x + o.x,
-            center.y + o.y,
+            center.x - o.x,
+            center.y - o.y,
             radius,
             thickness,
             color_to_mq(color),
@@ -210,10 +210,10 @@ impl RenderingServer for MacroquadRenderer {
     fn draw_line(&mut self, a: Vec2, b: Vec2, thickness: f32, color: Color) {
         let o = self.camera_offset;
         draw_line(
-            a.x + o.x,
-            a.y + o.y,
-            b.x + o.x,
-            b.y + o.y,
+            a.x - o.x,
+            a.y - o.y,
+            b.x - o.x,
+            b.y - o.y,
             thickness,
             color_to_mq(color),
         );
@@ -222,9 +222,9 @@ impl RenderingServer for MacroquadRenderer {
     fn draw_triangle(&mut self, a: Vec2, b: Vec2, c: Vec2, color: Color) {
         let o = self.camera_offset;
         draw_triangle(
-            vec2(a.x + o.x, a.y + o.y),
-            vec2(b.x + o.x, b.y + o.y),
-            vec2(c.x + o.x, c.y + o.y),
+            vec2(a.x - o.x, a.y - o.y),
+            vec2(b.x - o.x, b.y - o.y),
+            vec2(c.x - o.x, c.y - o.y),
             color_to_mq(color),
         );
     }
@@ -234,7 +234,7 @@ impl RenderingServer for MacroquadRenderer {
             return;
         };
         let o = self.camera_offset;
-        let dst_mq = Rect::new(dst.x + o.x, dst.y + o.y, dst.w, dst.h);
+        let dst_mq = Rect::new(dst.x - o.x, dst.y - o.y, dst.w, dst.h);
         let src_mq = src.map(rect_to_mq);
         draw_texture_ex(
             tex,
@@ -256,8 +256,8 @@ impl RenderingServer for MacroquadRenderer {
         {
             draw_text_ex(
                 text,
-                pos.x + o.x,
-                pos.y + o.y,
+                pos.x - o.x,
+                pos.y - o.y,
                 TextParams {
                     font: Some(font),
                     font_size: size as u16,
@@ -267,7 +267,7 @@ impl RenderingServer for MacroquadRenderer {
             );
             return;
         }
-        draw_text(text, pos.x + o.x, pos.y + o.y, size, color_to_mq(color));
+        draw_text(text, pos.x - o.x, pos.y - o.y, size, color_to_mq(color));
     }
 
     fn draw_text_with_font(
@@ -284,8 +284,8 @@ impl RenderingServer for MacroquadRenderer {
         };
         draw_text_ex(
             text,
-            pos.x + o.x,
-            pos.y + o.y,
+            pos.x - o.x,
+            pos.y - o.y,
             TextParams {
                 font: Some(font_ref),
                 font_size: size as u16,
