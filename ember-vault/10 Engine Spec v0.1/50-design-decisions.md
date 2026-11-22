@@ -765,6 +765,9 @@ The derive emits exactly:
 - `impl Object for T` — `class_name()`, `as_any()`, `as_any_mut()`
 - `impl Node for T` — `name()`, `set_name()`
 
+> **Amended by ADR-030:** the derive now emits `impl NodeName` (name,
+> set_name) instead of `impl Node`; users write `impl Node for T { … }`.
+
 ### Alternatives
 
 - **Attribute macro `#[node]` that rewrites the struct.** Rejected:
@@ -1185,6 +1188,58 @@ Pagoda's falling slices and Jade Garden's radial rays).
 - `find games -name juice.rs` is empty; ~600 duplicated lines are gone.
 - `Deref` means `self.juice.spawn_*(self.method())` can hit E0502;
   hoist arguments into locals.
+
+## ADR-030: `#[derive(Node)]` generates `NodeName`; users own `impl Node`
+
+**Status:** accepted (2026-11-22) — amends ADR-019
+
+### Context
+
+ADR-019's derive emitted `impl Object` **and** a complete `impl Node`
+(`name`, `set_name`). Rust allows one `impl Node for T`, so a derived
+struct could not add `ready`/`process`/`draw`: `hello_scene.rs` had to
+hand-write `Player`, and every derived node in [[10-nodes-and-scenes]],
+[[24-ember-ui]] and [[26-ember-macros]] (`#[derive(Node)]` followed by
+`impl Node for T { fn process … }`) did not compile. Phase 5's widgets and
+acceptance item 8 ([[42-acceptance-tests]]) depend on that form.
+
+### Decision
+
+- Split identity out of `Node`: `pub trait NodeName { fn name(&self) -> &str;
+  fn set_name(&mut self, name: String); }` and `pub trait Node: Object +
+  NodeName { /* z, visible, lifecycle, set_property, serialize — all
+  defaulted */ }`.
+- `#[derive(Node)]` emits `impl Object` + `impl NodeName` (still from the
+  required `name: String` field and `#[class_name]`). It emits **no**
+  `impl Node`.
+- The user always writes `impl Node for T { … }` with only the methods
+  the node needs; a node without behaviour writes `impl Node for T {}`.
+- `NodeName` is exported at the `ember_scene` root and in both preludes.
+
+### Alternatives
+
+- **Derive delegates to a second trait** (`#[node(behavior)]` +
+  `impl NodeBehavior for T`): non-breaking, but two traits with the same
+  method names, and an attribute to remember. Rejected.
+- **Attribute macro on the `impl` block** (`#[node] impl Player { … }`):
+  hides the trait the spec documents; harder to read and debug. Rejected.
+- **Derive also emits an empty `impl Node` unless `#[node(custom)]`**:
+  saves one line for data nodes but makes the common case (behaviour)
+  need an opt-out. Rejected; may return as `#[node(data)]` if data nodes
+  become common.
+
+### Consequences
+
+- The spec's `#[derive(Node)]` + `impl Node for T { … }` form now compiles;
+  Phase 5 widgets can use it.
+- Breaking for hand-written nodes: `name`/`set_name` move into
+  `impl NodeName for T`. Migrated in the same commit: pong (2 nodes),
+  `hello_scene`, ember-scene tests (6 impls).
+- Calls through `dyn Node` (`tree.get(id)?.name()`) are unchanged:
+  supertrait methods are callable on the trait object.
+- Forgetting `impl Node` on a derived struct is a compile error at first
+  use as a node (`register_node`, `NodeTree::insert`), not at the derive.
+- Compile-fail tests for the derive (`trybuild`) are still open.
 
 ## How to add an ADR
 

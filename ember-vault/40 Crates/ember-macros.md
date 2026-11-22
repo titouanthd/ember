@@ -22,7 +22,7 @@ syn, quote, proc-macro2
 
 ## Implementation status
 
-🟡 Minimal. Derive emits a **complete** `impl Node`, so a node with lifecycle behaviour cannot use it (see `hello_scene.rs`: *“the derive generates an empty Node impl, so a node with behavior implements Object and Node itself”*). `#[export]` has no effect; no tests in-crate (covered by `ember-scene/tests/derive_works.rs`).
+🟡 Minimal. Since ADR-030 the derive emits `Object` + `NodeName`; the user writes `impl Node for T { … }` with only the lifecycle needed (empty for data nodes). `#[export]` has no effect; no tests in-crate (covered by `ember-scene/tests/derive_works.rs`).
 
 ## Spec
 

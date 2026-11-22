@@ -27,8 +27,8 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 015 | [[50-design-decisions#ADR-015: Hot-reload scope — assets only\|Hot-reload scope — assets only]] | 🟡 manual `reload`, no watcher |
 | 016 | [[50-design-decisions#ADR-016: RenderingServer / AudioServer extensions\|RenderingServer / AudioServer extensions]] | ✅ trait extended |
 | 017 | [[50-design-decisions#ADR-017: PhysicsServer uses opaque u64 handles, not NodeId\|PhysicsServer uses opaque u64 handles, not NodeId]] | ✅ u64 handles |
-| 018 | [[50-design-decisions#ADR-018: `Input` is not `#[non_exhaustive]`\|`Input` is not `#[non_exhaustive]`]] | ✅ |
-| 019 | [[50-design-decisions#ADR-019: `#[derive(Node)]` scope in v0.1\|`#[derive(Node)]` scope in v0.1]] | ✅ (but blocks behavioural nodes) |
+| 018 | [[50-design-decisions\|Input is not non_exhaustive]] (ADR-018) | ✅ |
+| 019 | [[50-design-decisions\|derive(Node) scope in v0.1]] (ADR-019) | ✅ amended by ADR-030 |
 | 020 | [[50-design-decisions#ADR-020: Wasm font/audio loading strategy\|Wasm font/audio loading strategy]] | ✅ `adopt_font`/`adopt_clip` |
 | 021 | [[50-design-decisions#ADR-021: Nested folder organization for backend families\|Nested folder organization for backend families]] | ✅ nested backend folders |
 | 022 | [[50-design-decisions#ADR-022: Tree passes take `Servers`; nodes are checked out while they run\|Tree passes take `Servers`; nodes are checked out while they run]] | ✅ |
@@ -40,7 +40,8 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 028 | [[50-design-decisions#ADR-028: `LinearPhysics` lives in `ember-servers` and joins `Servers`\|`LinearPhysics` lives in `ember-servers` and joins `Servers`]] | ✅ |
 
 | 029 | [[50-design-decisions#ADR-029: Shared `ember_stdlib::juice`; game-specific effects wrap it\|Shared juice; game effects wrap it]] | ✅ merged 2026-11-22 |
+| 030 | [[50-design-decisions\|Derive generates `NodeName`; users own `impl Node`]] (ADR-030) | ✅ `8cc3112` |
 
-Planned next: ADR-030 (derive + behaviour), ADR-031 (render clip stack), ADR-032 (text & wheel input), ADR-033 (Phase 4 exit re-scope) — see [[Next Phase Plan — Phase 5 UI]].
+Planned next: ADR-031 (render clip stack), ADR-032 (text & wheel input), ADR-033 (Phase 4 exit re-scope) — see [[Next Phase Plan — Phase 5 UI]].
 
 New ADRs: copy [[ADR Template]].

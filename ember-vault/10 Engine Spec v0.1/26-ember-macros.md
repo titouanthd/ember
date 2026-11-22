@@ -23,7 +23,8 @@ crate that turns a plain Rust struct into a scene node.
 > **Implementation status (ADR-019):** only a reduced subset exists.
 > `#[derive(Node)]` requires `#[class_name = "..."]` and a user-declared
 > `name: String` field, and emits just `impl Object` (`class_name`,
-> `as_any`, `as_any_mut`) and `impl Node` (`name`, `set_name`). It does
+> `as_any`, `as_any_mut`) and `impl NodeName` (`name`, `set_name`) — ADR-030.
+> The user writes `impl Node for T { … }` (empty for a node without behaviour). It does
 > **not** add fields, generate `new()`, `serialize()` or registration
 > functions. `#[signal]` is a no-op marker; `#[export]` is accepted by the
 > derive but ignored. Everything below describing more than that is
@@ -76,8 +77,8 @@ pub struct Player {
 ### 3.2 What it generates
 
 **Today** only `impl Object` (`class_name`, `as_any`, `as_any_mut`) and
-`impl Node` (`name`, `set_name`, against the user's `name` field) are
-emitted. The rest of this section is the *planned* expansion (not yet
+`impl NodeName` (`name`, `set_name`, against the user's `name` field) are
+emitted (ADR-030); `impl Node` is always the user's. The rest of this section is the *planned* expansion (not yet
 implemented; `SignalTable` was dropped from nodes by ADR-023):
 
 ```rust

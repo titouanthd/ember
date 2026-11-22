@@ -16,11 +16,10 @@ wave: "3 — Crate Specifications"
 
 > **Not yet implemented.** `crates/ember-ui/src/lib.rs` contains only a doc
 > comment; no module, type or trait in this document exists. It is still
-> a dependency of the `ember` facade crate. Note also that
-> `#[derive(Node)]` as used in the examples below is the *planned* form —
-> today it needs `#[class_name]` and a user-declared `name: String`, and
-> generates no `new()` or `#[export]` handling (see ADR-019 and
-> [[26-ember-macros]]). Only pong's `Scoreboard`
+> a dependency of the `ember` facade crate. `#[derive(Node)]` +
+> `impl Node for T { … }` as used below works since ADR-030; the struct still
+> needs `#[class_name]` and a user-declared `name: String`, and the derive
+> generates no `new()` or `#[export]` handling (ADR-019, [[26-ember-macros]]). Only pong's `Scoreboard`
 > (hand-drawn text via `DrawContext`) stands in for UI in games today.
 
 ## 1. Purpose
