@@ -252,7 +252,7 @@ sequenceDiagram
     Main->>Root: PackedScene::instantiate_with(ClassDB, AssetServer, tree)
     Tree->>Root: attach as child of root
     Tree->>Root: ready(ctx)
-    Main->>Main: ember::run(loop) · process · physics_process · draw
+    Main->>Main: ember::run(loop) · physics_process ×0..N · process · draw
 ```
 
 > Illustrative: `config` loading and exact constructor calls are up to the

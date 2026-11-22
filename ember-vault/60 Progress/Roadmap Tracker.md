@@ -13,7 +13,7 @@ gantt
   dateFormat YYYY-MM-DD
   title Ember v0.1 — estimated completion per phase
   section Engine core
-  P0 Foundations (90%)   :active, p0, 2026-11-18, 1d
+  P0 Foundations (done)  :done, p0, 2026-11-18, 1d
   P1 Scene core (90%)    :active, p1, 2026-11-16, 3d
   P2 Serialization (65%) :active, p2, 2026-11-18, 5d
   P3 Signals (85%)       :active, p3, 2026-11-18, 2d
@@ -26,12 +26,12 @@ gantt
   P8 Cleanup (0%)        :p8, after p7, 1d
 ```
 
-## Phase 0 — Foundations
-- [ ] `cargo clippy --workspace --all-targets -- -D warnings` passes *(README: not green)*
-- [ ] `cargo test --workspace --no-fail-fast` passes *(unverified)*
+## Phase 0 — Foundations ✅ closed 2026-11-22
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` passes *(baseline 2026-11-22)*
+- [x] `cargo test --workspace --no-fail-fast` passes *(2,065 / 2,065)*
 - [x] New APIs are additive
 - [x] `ember_stdlib::juice` has unit tests ⚑
-- [ ] `MainLoop::run` integration test (headless order `init/process/draw/finalize`)
+- [x] `MainLoop` headless integration test — `run_headless` + `crates/ember-core/tests/main_loop.rs`
 - [x] `Cooldown::running` / `Cooldown::ready(d)` + `#[deprecated]` aliases ⚑
 - [x] `primary_action()` *(in `ember-input`)*
 

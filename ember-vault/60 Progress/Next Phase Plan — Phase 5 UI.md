@@ -17,7 +17,7 @@ estimate: "5–6 sessions (gate 1–2, UI 4)"
 
 | Phase | State | What's left |
 |---|---|---|
-| P0 Foundations | ✅ ~90 % | `MainLoop::run<L>()` helper + headless order test |
+| P0 Foundations | ✅ closed 2026-11-22 | — |
 | P1 Scene core | ✅ ~90 % | run `hello_scene` once headless |
 | P2 Serialization | 🟡 65 % | `#[export]`, `SceneWriter`, scene connections, font/audio loaders, hot-reload |
 | P3 Signals | ✅ ~85 % | scene-declared connections (needs P2) |
@@ -32,8 +32,8 @@ Roadmap entry criteria for P5 are "Phase 4 complete" and "[[24-ember-ui]] ✅". 
 
 | # | Task | Why | Deliverable | Commit |
 |---|---|---|---|---|
-| G1 | Commit the pending merge and push; run `make hooks` | Phase 0 is staged but not committed | merge on `origin/main` | `chore(git): Merge Phase 0 branch into main` |
-| G2 | Baseline: `make test-count`, `make check`, `make gates` | No test/clippy run since the engine work started | numbers in a new dated evaluation note | `doc(vault-progress): Record post-merge baseline` |
+| G1 ✅ | Commit the pending merge and push; run `make hooks` | Phase 0 is staged but not committed | merge on `origin/main` | `chore(git): Merge Phase 0 branch into main` |
+| G2 ✅ | Baseline: `make test-count`, `make check`, `make gates` → [[Baseline 2026-11-22]] | No test/clippy run since the engine work started | numbers in a new dated evaluation note | `doc(vault-progress): Record post-merge baseline` |
 | G3 | **ADR-030 — derive + behaviour.** Split naming into `trait NodeName { name, set_name }`; `Node: Object + NodeName`. `#[derive(Node)]` emits `Object` + `NodeName` only; the user writes `impl Node for T { … }` with just the lifecycle they need. Add `#[node(no_behavior)]` (or `#[derive(Node, DataNode)]`) to emit the empty `impl Node`. Migrate `hello_scene`, pong, tests | Every UI widget in the spec is a derived node with behaviour; acceptance item 8 needs it too | `ember-macros`, `ember-scene`, compile-fail tests (`trybuild`) | `feat(macros-derive): Derive Object and NodeName, leave Node lifecycle to the user` |
 | G4 | **ADR-031 — clip stack.** `RenderingServer::push_clip(Rect)` / `pop_clip()` (intersecting stack, scissor in screen space after camera); macroquad impl via the GL scissor; `MockRenderer` records it | `ScrollContainer`, text fields, panels | `ember-servers`, `ember-render-macroquad`, contract test | `feat(servers-render): Add push_clip and pop_clip scissor stack` |
 | G5 | **ADR-032 — text & wheel input.** `Input` gains `chars_typed: Vec<char>` and `mouse_wheel: Vec2`; poller fills them from macroquad. `Key` gains `Home`, `End`, `Delete` if missing. ADR-018 already allows adding fields | `TextInput`, `ScrollContainer` | `ember-input`, `render-mq/input.rs`, contract tests | `feat(input): Add chars_typed and mouse_wheel to Input` |

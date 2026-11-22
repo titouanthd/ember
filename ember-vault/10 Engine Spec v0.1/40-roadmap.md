@@ -62,21 +62,21 @@ editor is finished.
 
 ## 3. Phase 0 — Foundations
 
-> **Progress:** 🟡 The `MainLoop` trait (`ember-core::main_loop`; no
-> `run<L>()` helper yet) and `Input::primary_action` (`ember-input`, not
-> `ember_stdlib::input`) are in. **Done:**
-> `ember_stdlib::juice` is shipped (with unit tests); the `juice.rs` copies
-> in `ember-wars`, `pagoda` and `jade-garden` are gone (the last two keep a
-> thin local `effects.rs` wrapper that `Deref`s to `Juice`, see ADR-029).
-> `Cooldown::running` / `Cooldown::ready(d)` exist, `new` / `with_duration`
-> are `#[deprecated]` aliases and every call site is migrated. **Open:**
-> `MainLoop::run<L>()` helper. The playlist/music logic is shared in
-> `ember_stdlib::music` (`MusicPlayer<B: MusicBackend>`, `MacroquadMusic`;
-> `AudioClip::load_optional`); the remaining `audio.rs` files in
-> `air-hockey`, `bore-inc`, `jade-garden`, `pagoda` are thin
-> game-specific layers (event→sound map, jade's soloud/subprocess backend)
-> that go away with `AudioPlayer` nodes (Phase 4+).
-> The workspace has 17 games, not 18.
+> **Progress:** ✅ **Closed 2026-11-22.** Post-merge baseline: 2,065 tests
+> pass, clippy `-D warnings` green, fmt clean, `xtask check-layers` and
+> `check-macroquad` green. Delivered: `MainLoop` + `FrameStepper` +
+> `run_headless` in `ember-core::main_loop`, with the headless lifecycle
+> test `crates/ember-core/tests/main_loop.rs`; the windowed runner
+> (`ember::run`) uses the same `FrameStepper`. `ember_stdlib::juice`
+> (unit-tested) replaces the `juice.rs` copies (ADR-029); `ember_stdlib::music`
+> shares the playlist logic. `Cooldown::running` / `ready(d)` with
+> `#[deprecated]` `new` / `with_duration`, no call site left.
+> **Deviations:** `primary_action` lives in `ember-input` (the backend-agnostic
+> `Input`), not `ember_stdlib::input`; the core helper is `run_headless`
+> (the windowed `run` needs a backend, so it lives in `ember-render-macroquad`).
+> The remaining `audio.rs` files in `air-hockey`, `bore-inc`, `jade-garden`,
+> `pagoda` are game-specific layers and go with `AudioPlayer` nodes
+> (Phase 4+). The workspace has 17 games, not 18.
 
 ### 3.1 Scope
 

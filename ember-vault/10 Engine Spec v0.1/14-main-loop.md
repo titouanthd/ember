@@ -61,29 +61,28 @@ fine-grained needs implements `MainLoop` directly.
 ### 3.1 Algorithm
 
 ```rust
+// ember_core::main_loop — the frame algorithm, backend-agnostic and tested headlessly
+pub struct FrameStepper { accumulator: f32 }
+impl FrameStepper {
+    /// clamp dt to [0, MAX_FRAME_DT] → physics_process ×0..N at FIXED_DT
+    /// → process(dt) → draw() unless process returned false
+    pub fn frame<L: MainLoop + ?Sized>(&mut self, game: &mut L, frame_dt: f32) -> bool;
+}
+/// init → one frame per dt → finalize, no window (tests, tools)
+pub fn run_headless<L, I>(game: &mut L, frame_dts: I) -> HeadlessRun;
+
 // ember_render_macroquad::run, re-exported as ember::run
 pub async fn run<L: MainLoop + InputSink>(mut game: L) {
     if !game.init() {
         return;
     }
-    let mut accumulator = 0.0;
+    let mut stepper = FrameStepper::new();
     loop {
-        let dt = get_frame_time().min(MAX_FRAME_DT);
+        let dt = get_frame_time();
         game.set_input(poll_input());   // one Input snapshot per frame
-
-        // fixed-step physics
-        accumulator += dt;
-        while accumulator >= FIXED_DT {
-            game.physics_process(FIXED_DT);
-            accumulator -= FIXED_DT;
-        }
-
-        // variable-step process
-        if !game.process(dt) {
+        if !stepper.frame(&mut game, dt) {
             break;
         }
-
-        game.draw();
         next_frame().await;
     }
     game.finalize();

@@ -22,7 +22,7 @@ glam, serde, ron
 
 ## Implementation status
 
-🟢 Substantial. `MainLoop`, `Variant`, `ClassDB`, `Object` present. **Gaps:** no `Plugin` trait, no `Stopwatch`; several spec'd Rng/hash helpers use different names.
+🟢 Substantial. `MainLoop` + `FrameStepper` + `run_headless` (headless lifecycle tests), `Variant`, `ClassDB`, `Object` present. **Gaps:** no `Plugin` trait, no `Stopwatch`; several spec'd Rng/hash helpers use different names.
 
 ## Spec
 
