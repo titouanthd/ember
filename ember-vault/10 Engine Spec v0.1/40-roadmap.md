@@ -2,15 +2,15 @@
 title: "40 — Roadmap"
 aliases: ["40 — Roadmap"]
 tags: ["ember/spec", "ember/wave-4"]
-doc-status: "draft"
-former-path: "docs/engine/v0.1/40-roadmap.md"
+doc-status: "partial"
+former-path: ".worktrees/titouanthd-potential-carnival/docs/engine/v0.1/40-roadmap.md"
 imported: "2026-11-22"
 wave: "4 — Format, Process & Reference"
 ---
 
 # 40 — Roadmap
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; phase progress notes match code, later-phase specs are still plans
 > **Audience:** all
 > **Prerequisites:** [[00-overview]], [[01-architecture]]
 
@@ -62,6 +62,22 @@ editor is finished.
 
 ## 3. Phase 0 — Foundations
 
+> **Progress:** 🟡 The `MainLoop` trait (`ember-core::main_loop`; no
+> `run<L>()` helper yet) and `Input::primary_action` (`ember-input`, not
+> `ember_stdlib::input`) are in. **Done:**
+> `ember_stdlib::juice` is shipped (with unit tests); the `juice.rs` copies
+> in `ember-wars`, `pagoda` and `jade-garden` are gone (the last two keep a
+> thin local `effects.rs` wrapper that `Deref`s to `Juice`, see ADR-029).
+> `Cooldown::running` / `Cooldown::ready(d)` exist, `new` / `with_duration`
+> are `#[deprecated]` aliases and every call site is migrated. **Open:**
+> `MainLoop::run<L>()` helper. The playlist/music logic is shared in
+> `ember_stdlib::music` (`MusicPlayer<B: MusicBackend>`, `MacroquadMusic`;
+> `AudioClip::load_optional`); the remaining `audio.rs` files in
+> `air-hockey`, `bore-inc`, `jade-garden`, `pagoda` are thin
+> game-specific layers (event→sound map, jade's soloud/subprocess backend)
+> that go away with `AudioPlayer` nodes (Phase 4+).
+> The workspace has 17 games, not 18.
+
 ### 3.1 Scope
 
 - Extract `ember_stdlib::juice` from the 6 duplicate `juice.rs` files
@@ -91,7 +107,7 @@ editor is finished.
 - `crates/ember_core/src/main_loop.rs` (+ tests)
 - `crates/ember_core/src/time/cooldown.rs` updated with deprecations
 - `crates/ember_stdlib/src/input.rs` updated with `primary_action`
-- All 18 games' `juice.rs` files replaced with `use ember_stdlib::juice::*;`
+- All `juice.rs` files in games replaced with `ember_stdlib::juice` (done)
 - Workspace green
 
 ### 3.5 Estimated effort
@@ -104,7 +120,8 @@ editor is finished.
 > ordering/stale-id tests are in. `crates/ember/examples/hello_scene.rs`
 > runs the tree on macroquad via `ember::run_window` (runner and input
 > poller live in `ember-render-macroquad`; `InputSink` in `ember-input`).
-> Build-verified only; not run headlessly. Deviations: ADR-022.
+> Build-verified only; not run headlessly. `NodeTreeMainLoop` was
+> replaced by `SceneLoop`. Deviations: ADR-022.
 
 ### 4.1 Scope
 
@@ -123,7 +140,7 @@ editor is finished.
 
 ### 4.3 Exit criteria
 
-- A hand-written test game (not one of the 18) can create a `NodeTree`,
+- A hand-written test game (not one of the 17) can create a `NodeTree`,
   add a `Sprite` node, and render it via `ember_render_macroquad`.
 - `NodeTree::process` order is verified by a test with 3 nodes that
   assert their `process` order.
@@ -138,7 +155,7 @@ editor is finished.
 - `crates/ember_scene/tests/tree_ordering.rs`
 - `crates/ember_scene/tests/ready_ordering.rs`
 - `crates/ember_scene/tests/stale_id.rs`
-- A `examples/hello_scene.rs` in the workspace root
+- `crates/ember/examples/hello_scene.rs`
 
 ### 4.5 Estimated effort
 
@@ -151,6 +168,11 @@ editor is finished.
 > textures and RON/scene assets (ADR-026) are in, plus nested
 > `instance:` with cycle detection (ADR-027). Open: scene-declared
 > connection wiring, hot-reload watching, audio/font loaders.
+> Deviations from the deliverables below: `#[derive(Node)]` and the
+> `#[signal]` no-op live in `ember-macros/src/{lib,node}.rs` (`#[export]`
+> is a field attribute); `ClassDB` is in `ember-core/src/class_db.rs`
+> with node constructors in `ember-scene`; `PackedScene` is in
+> `ember-scene/src/packed.rs` (no `writer.rs`/`reader.rs`).
 
 ### 5.1 Scope
 
@@ -202,8 +224,9 @@ editor is finished.
 > **Progress:** 🟡 `SignalTable`, `ScopedConnection`, typed
 > `emit`/`emit_deferred`/`connect`/`disconnect` and the dispatch-order,
 > stale-target, cycle and scoped-connection tests are in (landed ahead
-> of Phase 2). Open: scene-declared connections (needs `.escene`) and
-> the pong migration. Deviations: ADR-023.
+> of Phase 2). Pong's paddle→score path uses a `PointScored` signal
+> (merged on main, unlike the branch planned below). Open:
+> scene-declared connections. Deviations: ADR-023.
 
 ### 6.1 Scope
 
@@ -243,8 +266,14 @@ editor is finished.
 
 ## 7. Phase 4 — Servers
 
-> **Progress:** ✅ `LinearPhysics` (ADR-028) is in `ember-servers` and
-> reachable as `ctx.physics()`.
+> **Progress:** 🟡 Server traits, mock backends, macroquad render/audio
+> backends, `LinearPhysics` (ADR-028, `ember-servers/src/physics/linear.rs`,
+> reachable as `ctx.physics()`) and `xtask check-layers` /
+> `check-macroquad` are in. **Open:** the `grep "use macroquad"` exit
+> criterion is unmet — `ember-stdlib` (transitional, see
+> `xtask/macroquad-allowlist.txt`) and all non-pong games still import
+> it. `MockRenderingServer` is in `ember-servers/src/mock.rs`, not
+> `tests/common/`; xtask lives in `xtask/src/`.
 
 ### 7.1 Scope
 
@@ -289,6 +318,8 @@ editor is finished.
 
 ## 8. Phase 5 — UI
 
+> **Progress:** ⬜ Not started. `crates/ember-ui/src/lib.rs` is a 4-line stub.
+
 ### 8.1 Scope
 
 - Add `crates/ember_ui`.
@@ -325,6 +356,8 @@ editor is finished.
 
 ## 9. Phase 6 — Editor POC
 
+> **Progress:** ⬜ Not started. `crates/ember-editor` is a stub (`lib.rs`, `main.rs`).
+
 ### 8.6 Scope
 
 - Add `crates/ember_editor` (dev-only).
@@ -359,9 +392,14 @@ editor is finished.
 
 ## 10. Phase 7 — Migration
 
+> **Progress:** 🟡 1 of 17 games migrated (`pong`: `NodeTree` +
+> `SceneLoop` + `PointScored` signal, 20-line `main.rs`). Other games
+> still use `macroquad` and `ember-stdlib` directly. `ember-ui`
+> (Phase 5) and `ember-editor` (Phase 6) are stubs.
+
 ### 10.1 Scope
 
-Migrate all 18 games onto `MainLoop + NodeTree + Servers`. One game per
+Migrate all 17 games onto `MainLoop + NodeTree + Servers`. One game per
 PR. Order matters — see [[41-migration-guide]].
 
 ### 10.2 Entry criteria
@@ -380,14 +418,14 @@ Per-game:
 
 Global:
 
-- All 18 games migrated.
+- All 17 games migrated.
 - No game imports `macroquad` directly.
 - `ember_stdlib::input` is still used by games for input (indirectly
   through `NodeContext`).
 
 ### 10.4 Deliverables
 
-- 18 PRs, one per game, in the order defined by
+- 17 PRs, one per game, in the order defined by
   [[41-migration-guide#3. Migration order|41-migration-guide.md §3]]
 - A `MIGRATION_LOG.md` recording per-game effort and unexpected issues
 - Updated `game_scenarios.rs` files (unchanged behavior, adapted to new
@@ -481,7 +519,7 @@ games can begin before the editor exists).
 | M4 — Backends are swappable | P4 | `macroquad` is isolated to 2 crates |
 | M5 — UI works | P5 | A menu can be built with `Button`, `VBox`, `Label` |
 | M6 — Authoring works | P6 | A `.escene` can be edited outside code |
-| M7 — POC complete | P7 | All 18 games run on the engine |
+| M7 — POC complete | P7 | All 17 games run on the engine |
 | M8 — v0.1 released | P8 | No deprecated APIs remain |
 
 ## 14. Cross-references

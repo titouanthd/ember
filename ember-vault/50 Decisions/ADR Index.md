@@ -39,6 +39,6 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 027 | [[50-design-decisions#ADR-027: Nested `instance:` is resolved by `instantiate_with`\|Nested `instance:` is resolved by `instantiate_with`]] | ✅ |
 | 028 | [[50-design-decisions#ADR-028: `LinearPhysics` lives in `ember-servers` and joins `Servers`\|`LinearPhysics` lives in `ember-servers` and joins `Servers`]] | ✅ |
 
-The unmerged branch adds **ADR-029** (game-local `effects.rs` wrappers that `Deref` to the shared `Juice`) — see [[50-design-decisions (branch)]].
+The unmerged branch adds **ADR-029** (game-local `effects.rs` wrappers that `Deref` to the shared `Juice`) — see [[50-design-decisions]].
 
 New ADRs: copy [[ADR Template]].

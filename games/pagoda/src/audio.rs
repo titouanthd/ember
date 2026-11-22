@@ -50,14 +50,7 @@ impl SoundBank {
     /// where each load performs an HTTP fetch.
     pub async fn load() -> Self {
         async fn clip(name: &str) -> Option<AudioClip> {
-            let path = paths::asset(&format!("sfx/{name}.wav"));
-            match AudioClip::load(&path).await {
-                Ok(clip) => Some(clip),
-                Err(e) => {
-                    eprintln!("[audio] failed to load {}: {e}", path.display());
-                    None
-                }
-            }
+            AudioClip::load_optional(&paths::asset(&format!("sfx/{name}.wav"))).await
         }
 
         let mut perfect = Vec::with_capacity(PERFECT_NOTES);

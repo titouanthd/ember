@@ -2,14 +2,14 @@
 title: "Ember Engine — Documentation (v0.1)"
 aliases: ["Ember Engine — Documentation (v0.1)"]
 tags: ["ember/spec"]
-doc-status: "draft"
-former-path: "docs/engine/v0.1/README.md"
+doc-status: "partial"
+former-path: ".worktrees/titouanthd-potential-carnival/docs/engine/v0.1/README.md"
 imported: "2026-11-22"
 ---
 
 # Ember Engine — Documentation (v0.1)
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; index and snapshot mirror per-file status headers
 > **Audience:** all (entry point)
 > **Prerequisites:** none
 
@@ -18,9 +18,26 @@ Ember is a 2D game engine written in Rust, sitting on top of
 This directory is the single source of truth for its architecture, API
 specifications, formats, and roadmap.
 
-The current workspace already ships **18 playable 2D games**. This
+The current workspace already ships **17 playable 2D games**. This
 documentation describes how those games get a real engine underneath
 them without rewriting their logic — the goal of the v0.1 POC.
+
+**Naming:** specs say `ember_core`, `ember_scene`, …; the actual
+crates and directories use hyphens (`ember-core`, `ember-scene`;
+backends live in `crates/ember-render/macroquad` and
+`crates/ember-audio/macroquad`).
+
+### Implementation snapshot
+
+| Area | State |
+|---|---|
+| `ember-core`, `ember-scene`, `ember-servers`, `ember-assets`, `ember-input`, macroquad backends | 🟡 implemented, partially (see ADR-022…028) |
+| `ember-macros` | 🟡 `#[derive(Node)]` only |
+| `ember-ui`, `ember-editor` | ⬜ stubs |
+| Games migrated to `NodeTree` | 1 / 17 (`pong`) |
+
+Per-phase detail lives in the *Progress* notes of
+[[40-roadmap]].
 
 ---
 
@@ -50,13 +67,15 @@ them without rewriting their logic — the goal of the v0.1 POC.
 
 ## 3. Status legend
 
-Every file begins with a status header so readers know what they can rely on:
+Every file begins with a status header (line 3) so readers know what they can rely on:
 
 | Status | Meaning | Safe to code against? |
 |---|---|---|
 | 📋 planned | Documented in this README, not yet written | No |
 | ⬜ draft | Written, awaiting review | No — content may change |
 | 🟨 review | Reviewed, actively refined | Cautiously — flag mismatches |
+| 🟡 partial | Reviewed against code; part of the spec is implemented, the rest is flagged inline | Only the implemented parts |
+| ✅ up to date | Reviewed against code and matches it | Yes |
 | ✅ frozen | Locked; code must conform; changes need an ADR | Yes |
 
 **Rule:** any file referenced by a crate's public API must be ✅ frozen
@@ -70,44 +89,44 @@ before that crate's first PR lands.
 
 | File | Purpose | Status |
 |---|---|---|
-| [[00-overview]] | What Ember is, POC scope, success criteria | ⬜ draft |
-| [[01-architecture]] | Layer diagram, crate map, dependency rules | ⬜ draft |
-| [[02-principles]] | Invariants, naming, testing, error handling | ⬜ draft |
-| [[51-glossary]] | Terms and acronyms, cross-referenced | ⬜ draft |
+| [[00-overview]] | What Ember is, POC scope, success criteria | 🟡 partial |
+| [[01-architecture]] | Layer diagram, crate map, dependency rules | 🟡 partial |
+| [[02-principles]] | Invariants, naming, testing, error handling | 🟡 partial |
+| [[51-glossary]] | Terms and acronyms, cross-referenced | 🟡 partial |
 
 ### Wave 2 — Concepts
 
 | File | Purpose | Status |
 |---|---|---|
-| [[10-nodes-and-scenes]] | Node, NodeId, NodeTree, PackedScene, lifecycle | 📋 planned |
-| [[11-signals]] | Typed signals, connect/emit, ordering | 📋 planned |
-| [[12-servers]] | Rendering/Audio/Physics trait contracts | 📋 planned |
-| [[13-assets]] | AssetServer, UIDs, hot-reload, async | 📋 planned |
-| [[14-main-loop]] | MainLoop, fixed step, pause, quit | 📋 planned |
-| [[15-input]] | Input mapping, primary_action, gamepad/touch | 📋 planned |
+| [[10-nodes-and-scenes]] | Node, NodeId, NodeTree, PackedScene, lifecycle | 🟡 partial |
+| [[11-signals]] | Typed signals, connect/emit, ordering | 🟡 partial |
+| [[12-servers]] | Rendering/Audio/Physics trait contracts | 🟡 partial |
+| [[13-assets]] | AssetServer, UIDs, hot-reload, async | 🟡 partial |
+| [[14-main-loop]] | MainLoop, fixed step, pause, quit | 🟡 partial |
+| [[15-input]] | Input mapping, primary_action, gamepad/touch | 🟡 partial |
 
 ### Wave 3 — Crate Specifications
 
 | File | Purpose | Status |
 |---|---|---|
-| [[20-ember-core]] | math, time, hash, rng, Variant, Object/ClassDB | 📋 planned |
-| [[21-ember-scene]] | Full Node / SceneTree / PackedScene API | 📋 planned |
-| [[22-ember-servers]] | Trait signatures, backend registration | 📋 planned |
-| [[23-ember-render-macroquad]] | Reference backend implementation | 📋 planned |
-| [[24-ember-ui]] | Control nodes, layout, focus, theming | 📋 planned |
-| [[25-ember-assets]] | Loader registry, UID lookup, hot-reload | 📋 planned |
-| [[26-ember-macros]] | #[derive(Node)], #[signal], #[export] | 📋 planned |
+| [[20-ember-core]] | math, time, hash, rng, Variant, Object/ClassDB | 🟡 partial |
+| [[21-ember-scene]] | Full Node / SceneTree / PackedScene API | 🟡 partial |
+| [[22-ember-servers]] | Trait signatures, backend registration | 🟡 partial |
+| [[23-ember-render-macroquad]] | Reference backend implementation | 🟡 partial |
+| [[24-ember-ui]] | Control nodes, layout, focus, theming | ⬜ draft |
+| [[25-ember-assets]] | Loader registry, UID lookup, hot-reload | 🟡 partial |
+| [[26-ember-macros]] | #[derive(Node)], #[signal], #[export] | 🟡 partial |
 
 ### Wave 4 — Format, Process & Reference
 
 | File | Purpose | Status |
 |---|---|---|
-| [[30-escene-format]] | `.escene` v1 spec, examples, migration | 📋 planned |
-| [[40-roadmap]] | 9 phases, entry/exit criteria | 📋 planned |
-| [[41-migration-guide]] | Per-game checklist, rollback | 📋 planned |
-| [[42-acceptance-tests]] | ember-wars as conformance suite | 📋 planned |
-| [[43-testing-strategy]] | Unit/integration/conformance matrix, CI | 📋 planned |
-| [[50-design-decisions]] | ADRs with alternatives considered | 📋 planned |
+| [[30-escene-format]] | `.escene` v1 spec, examples, migration | 🟡 partial |
+| [[40-roadmap]] | 9 phases, entry/exit criteria | 🟡 partial |
+| [[41-migration-guide]] | Per-game checklist, rollback | 🟡 partial |
+| [[42-acceptance-tests]] | ember-wars as conformance suite | ⬜ draft |
+| [[43-testing-strategy]] | Unit/integration/conformance matrix, CI | 🟡 partial |
+| [[50-design-decisions]] | ADRs with alternatives considered | 🟡 partial |
 
 ---
 
@@ -188,7 +207,7 @@ This is a *spec-first* repository. Every engine crate follows this loop:
 - **Between versions**, the top-level `docs/engine/README.md` (not
   versioned) links to the current version and lists the diffs.
 
----S
+---
 
 ## 8. Cross-references
 

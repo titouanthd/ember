@@ -2,15 +2,15 @@
 title: "15 — Input"
 aliases: ["15 — Input"]
 tags: ["ember/spec", "ember/wave-2"]
-doc-status: "draft"
-former-path: "docs/engine/v0.1/15-input.md"
+doc-status: "partial"
+former-path: ".worktrees/titouanthd-potential-carnival/docs/engine/v0.1/15-input.md"
 imported: "2026-11-22"
 wave: "2 — Concepts"
 ---
 
 # 15 — Input
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; raw `Input` snapshot, `primary_action`/`secondary_action`, touch points and `InputSink` implemented; action maps, analog axes, dead zones, mouse wheel and real gamepad are not
 > **Audience:** game authors, implementers
 > **Prerequisites:** [[14-main-loop]]
 
@@ -18,7 +18,10 @@ wave: "2 — Concepts"
 
 Explain how Ember reads input: raw key/mouse state, the
 `primary_action` convention, action maps, dead zones for analog input,
-and the gamepad and touch stubs.
+and the gamepad and touch support. Raw input and `primary_action` /
+`secondary_action` are implemented in `ember_input`; **action maps,
+analog axes and dead zones (§2.2, §5, §6) are planned and *not yet
+implemented*.**
 
 The key takeaway: **most games should use `primary_action` for start /
 confirm, and action maps for gameplay**. Raw key checks are for the rare
@@ -33,15 +36,18 @@ Ember exposes two layers of input:
 Direct key/mouse state, polled every frame:
 
 ```rust
-ctx.input().key(Key::Space)          // is Space held down?
-ctx.input().pressed(Key::Enter)      // was Enter pressed this frame?
-ctx.input().mouse_position()         // current mouse position
-ctx.input().mouse_pressed(MouseButton::Left)
+ctx.input().is_key_down(Key::Space)       // is Space held down?
+ctx.input().is_key_pressed(Key::Enter)    // was Enter pressed this frame?
+ctx.input().is_key_released(Key::Enter)   // released this frame?
+ctx.input().mouse_pos                     // current mouse position (Vec2 field)
+ctx.input().is_mouse_pressed(MouseButton::Left)
 ```
 
 This is what you use when you need exact hardware-level state.
 
-### 2.2 Mapped input (action maps)
+### 2.2 Mapped input (action maps) — *not yet implemented*
+
+`Input` has no `action*` methods and no `ActionMap` exists. The design:
 
 Named actions, resolved from a configuration file:
 
@@ -74,18 +80,19 @@ It returns `true` when any of the following is pressed this frame:
 - Enter
 - Left mouse click
 - Gamepad South (A on Xbox, Cross on PlayStation)
+- Any touch point that started this frame
 
 ### 3.2 Why it exists
 
 Every game currently implements the same pattern:
 
 ```rust
-if input.pressed(Key::Space) || input.pressed(Key::Enter) || input.mouse_pressed(MouseButton::Left) {
+if input.is_key_pressed(Key::Space) || input.is_key_pressed(Key::Enter) || input.is_mouse_pressed(MouseButton::Left) {
     self.start();
 }
 ```
 
-That's three checks per game, times 18 games, times every menu
+That's three checks per game, times 17 games, times every menu
 transition. `primary_action` collapses it to one call:
 
 ```rust
@@ -95,12 +102,13 @@ if ctx.input().primary_action() {
 ```
 
 And it works consistently across platforms — a touch on mobile maps to
-`primary_action`, a gamepad button on desktop maps to `primary_action`.
+`primary_action`, a gamepad button on desktop maps to `primary_action`
+(ADR-010). `secondary_action()` is the cancel counterpart: Escape,
+Backspace, right mouse click, Gamepad East.
 
 ### 3.3 What it does not include
 
-- Escape (that's `secondary_action` or a raw check)
-- Backspace (same)
+- Escape / Backspace (those are `secondary_action`)
 - Any modifier (Shift, Ctrl, Alt)
 
 The convention is **"press to advance"** — the same action as a
@@ -109,68 +117,75 @@ touchscreen tap.
 ## 4. The `Input` struct
 
 ```rust
+// ember_input::Input — a plain, `Default`, `Clone` snapshot built once per
+// frame by the backend. Deliberately not #[non_exhaustive] (ADR-018).
 pub struct Input {
-    // Keyboard
-    keys_down: HashSet<Key>,
-    keys_pressed: HashSet<Key>,
-    keys_released: HashSet<Key>,
-
-    // Mouse
-    mouse_pos: Vec2,
-    mouse_buttons_down: HashSet<MouseButton>,
-    mouse_buttons_pressed: HashSet<MouseButton>,
-    mouse_wheel: f32,
-
-    // Gamepad (stub in v0.1)
-    gamepads: Vec<GamepadState>,
-
-    // Touch (stub in v0.1)
-    touches: Vec<TouchState>,
-
-    // Actions
-    actions: ActionMap,
-    prev_actions: HashSet<String>,
+    pub mouse_pos: Vec2,
+    pub mouse_left_pressed: bool,   pub mouse_left_down: bool,   pub mouse_left_released: bool,
+    pub mouse_right_pressed: bool,  pub mouse_right_down: bool,  pub mouse_right_released: bool,
+    pub mouse_middle_pressed: bool, pub mouse_middle_down: bool, pub mouse_middle_released: bool,
+    pub keys_pressed: Vec<Key>,
+    pub keys_down: Vec<Key>,
+    pub keys_released: Vec<Key>,
+    pub gamepad_pressed: Vec<GamepadButton>,
+    pub gamepad_down: Vec<GamepadButton>,
+    pub gamepad_released: Vec<GamepadButton>,
+    pub touch_points: Vec<TouchPoint>,
 }
 ```
+
+There is no mouse wheel, no `ActionMap` and no analog gamepad state yet.
+`ember_stdlib::input::Input` is a separate, older macroquad-based helper.
 
 ### 4.1 Query methods
 
 ```rust
 impl Input {
     // Keyboard
-    pub fn key(&self, key: Key) -> bool;
-    pub fn pressed(&self, key: Key) -> bool;
-    pub fn released(&self, key: Key) -> bool;
+    pub fn is_key_down(&self, key: Key) -> bool;
+    pub fn is_key_pressed(&self, key: Key) -> bool;
+    pub fn is_key_released(&self, key: Key) -> bool;
+    pub fn pressed_or_down(&self, key: Key) -> bool;
 
-    // Mouse
-    pub fn mouse_position(&self) -> Vec2;
-    pub fn mouse_button(&self, button: MouseButton) -> bool;
-    pub fn mouse_pressed(&self, button: MouseButton) -> bool;
-    pub fn mouse_wheel(&self) -> f32;
+    // Mouse (position is the `mouse_pos` field)
+    pub fn is_mouse_down(&self, button: MouseButton) -> bool;
+    pub fn is_mouse_pressed(&self, button: MouseButton) -> bool;
+    pub fn is_mouse_released(&self, button: MouseButton) -> bool;
 
-    // Actions
-    pub fn action(&self, name: &str) -> bool;
-    pub fn action_pressed(&self, name: &str) -> bool;
-    pub fn action_released(&self, name: &str) -> bool;
-    pub fn action_axis(&self, name: &str) -> f32;   // -1.0 to 1.0
+    // Gamepad
+    pub fn is_gamepad_down(&self, button: GamepadButton) -> bool;
+    pub fn is_gamepad_pressed(&self, button: GamepadButton) -> bool;
+    pub fn is_gamepad_released(&self, button: GamepadButton) -> bool;
+
+    // Touch
+    pub fn touches_started(&self) -> impl Iterator<Item = &TouchPoint>;
+    pub fn touches_active(&self) -> impl Iterator<Item = &TouchPoint>;
 
     // Convenience
     pub fn primary_action(&self) -> bool;
-    pub fn secondary_action(&self) -> bool;   // Escape / Backspace
+    pub fn secondary_action(&self) -> bool;   // Escape / Backspace / right click / gamepad East
 }
+
+// Implemented by anything a runner feeds an Input to each frame (SceneLoop does).
+pub trait InputSink { fn set_input(&mut self, input: Input); }
 ```
+
+*Planned, not yet implemented:* `action`, `action_pressed`, `action_released`,
+`action_axis`, `mouse_wheel`.
 
 ### 4.2 Frame semantics
 
 `pressed` and `released` refer to **this frame only**. A key that was
-pressed three frames ago returns `false` for `pressed` on frame 4.
-`key` (or `action`) returns `true` for as long as the key is held.
+pressed three frames ago returns `false` for `is_key_pressed` on frame 4.
+`is_key_down` returns `true` for as long as the key is held.
 
 This is the standard input model from every game engine since the 90s.
 Alternatives (event queues, callbacks) exist but are worse for games
 because they decouple input from the frame where the game logic runs.
 
 ## 5. Action map format
+
+> *Not yet implemented (§5–§6): no `ActionMap`, no `input.ron` loader.*
 
 ### 5.1 RON file
 
@@ -205,7 +220,7 @@ uncommon but legal — the action map is not a partition.
 ### 5.4 Re-loading
 
 ```rust
-ctx.assets().reload_action_map("input.ron");
+ctx.assets().reload_action_map("input.ron");   // hypothetical; NodeContext has no assets()
 ```
 
 Reloading is hot-reload-aware: editing `input.ron` updates the active
@@ -249,19 +264,14 @@ This is a v0.1 convention; a v0.2 enhancement lets games override.
 
 ### 7.1 v0.1 status
 
-**Stub.** The `GamepadState` struct exists but is not populated — macroquad
-has minimal gamepad support and we defer full support to v0.2.
-
-```rust
-pub struct GamepadState {
-    pub buttons: HashSet<GamepadButton>,
-    pub axes: HashMap<GamepadAxis, f32>,
-    pub connected: bool,
-}
-```
-
-Games that need gamepad support today should query `input.gamepads()`
-and handle the empty case.
+**Partial.** `Input` carries digital button lists
+(`gamepad_pressed/down/released: Vec<GamepadButton>`, with `GamepadButton`
+= `South`, `East`, `North`, `West`, `Start`, `Select`, `LeftBumper`,
+`RightBumper`, `DPadUp/Down/Left/Right`) and `primary_action` /
+`secondary_action` honour them. The macroquad backend never fills these
+lists (macroquad has no gamepad support), so they are always empty at
+runtime. There is no `GamepadState`, no axes and no `input.gamepads()`;
+those are *not yet implemented*.
 
 ### 7.2 v0.2 plan
 
@@ -273,15 +283,16 @@ and handle the empty case.
 
 ### 8.1 v0.1 status
 
-**Stub.** `TouchState` exists but only `primary_action` is wired up (a
-tap maps to `primary_action`). This is enough for menu-driven games on
-mobile; full multi-touch is v0.2.
+**Partial.** The macroquad backend fills `Input::touch_points` with
+`TouchPoint`s; `touches_started()` / `touches_active()` iterate them and a
+started touch triggers `primary_action` (a tap). Gesture recognition and
+a two-finger `secondary_action` are not implemented.
 
 ```rust
-pub struct TouchState {
+pub struct TouchPoint {
     pub id: u64,
     pub position: Vec2,
-    pub phase: TouchPhase,   // Started, Moved, Ended, Cancelled
+    pub phase: TouchPhase,   // Started, Moved, Stationary, Ended, Cancelled (#[non_exhaustive])
 }
 ```
 
@@ -301,7 +312,7 @@ impl Node for MainMenu {
         if ctx.input().primary_action() {
             ctx.emit::<StartGame>(StartGame);
         }
-        if ctx.input().pressed(Key::Escape) {
+        if ctx.input().secondary_action() {
             ctx.emit::<QuitGame>(QuitGame);
         }
     }
@@ -309,6 +320,9 @@ impl Node for MainMenu {
 ```
 
 ### 9.2 Player movement with action map
+
+*(Illustrative — uses the not-yet-implemented action API; today use
+`is_key_down(Key::A)` etc.)*
 
 ```rust
 impl Node for Player {
@@ -327,6 +341,8 @@ impl Node for Player {
 
 ### 9.3 Analog stick movement
 
+*(Illustrative — `action_axis` is not yet implemented.)*
+
 ```rust
 fn physics_process(&mut self, dt: f32, ctx: &mut NodeContext) {
     let input = ctx.input();
@@ -341,7 +357,7 @@ fn physics_process(&mut self, dt: f32, ctx: &mut NodeContext) {
 
 ```rust
 fn process(&mut self, _dt: f32, ctx: &mut NodeContext) {
-    if ctx.input().pressed(Key::F1) {
+    if ctx.input().is_key_pressed(Key::F1) {
         self.debug_overlay = !self.debug_overlay;
     }
 }
@@ -373,7 +389,8 @@ abandoned.
 
 ### 10.4 Why gamepad/touch are stubs in v0.1
 
-Because none of the 18 existing games use them. Adding full support is
+Because none of the 17 existing games use them. (Touch points and digital
+gamepad buttons are now in `Input`; axes and device management are not.) Adding full support is
 a real feature (SDL-style device enumeration, per-device state, device
 hotplug), not a weekend task. The stubs exist so the API can be designed
 now and implemented in v0.2 without breaking changes.
@@ -381,8 +398,7 @@ now and implemented in v0.2 without breaking changes.
 ## 11. Open questions
 
 - **Q1:** Should `primary_action` include gamepad "Start" or just "A"?
-  *Provisional:* just "South" (A/Cross). Start is separate
-  (`action("pause")` by default).
+  *Resolved:* just "South" (A/Cross), plus touch start. Start is separate.
 - **Q2:** Should actions support chords (Ctrl+S)?
   *Provisional:* not in v0.1. Single key per binding.
 - **Q3:** Should action maps be hot-swappable at runtime?
@@ -392,13 +408,13 @@ now and implemented in v0.2 without breaking changes.
   keys? *Provisional:* no. Logical keys (Key::A) map to physical scan
   codes via the OS. This is what every game engine does.
 - **Q5:** Should touch be mapped to actions, or stay raw?
-  *Provisional:* touch maps to `primary_action` (tap) and
-  `secondary_action` (two-finger tap) for menus. Full multi-touch is
+  *Provisional:* touch maps to `primary_action` (tap, implemented) and
+  `secondary_action` (two-finger tap, not yet implemented) for menus. Full multi-touch is
   raw.
 
 ## 12. Cross-references
 
 - `Input` in the loop → [[14-main-loop#3. The loop|14-main-loop.md §3]]
-- Action map loading → [[13-assets#7. Format detection and loaders|13-assets.md §7]]
-- Full `Input` API → [[20-ember-core]]
+- Action map loading (planned) → [[13-assets#7. Format detection and loaders|13-assets.md §7]]
+- Full `Input` API → `crates/ember-input/src/input.rs`
 - `primary_action` ADR → [[50-design-decisions]]

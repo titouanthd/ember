@@ -1,7 +1,11 @@
 {
+  "collapse-filter": true,
+  "search": "-path:\"90 Branch Snapshot\" -path:\"80 Templates\"",
   "showTags": false,
   "showAttachments": false,
+  "hideUnresolved": false,
   "showOrphans": true,
+  "collapse-color-groups": true,
   "colorGroups": [
     {
       "query": "path:\"10 Engine Spec v0.1\"",
@@ -39,5 +43,16 @@
       }
     }
   ],
-  "search": "-path:\"90 Branch Snapshot\" -path:\"80 Templates\""
+  "collapse-display": true,
+  "showArrow": false,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 1,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": true,
+  "centerStrength": 0.518713248970312,
+  "repelStrength": 10,
+  "linkStrength": 1,
+  "linkDistance": 250,
+  "scale": 1.3669901458066107,
+  "close": false
 }

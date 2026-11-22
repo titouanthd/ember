@@ -2,15 +2,15 @@
 title: "51 — Glossary"
 aliases: ["51 — Glossary"]
 tags: ["ember/spec", "ember/wave-1"]
-doc-status: "draft"
-former-path: "docs/engine/v0.1/51-glossary.md"
+doc-status: "partial"
+former-path: ".worktrees/titouanthd-potential-carnival/docs/engine/v0.1/51-glossary.md"
 imported: "2026-11-22"
 wave: "1 — Foundation"
 ---
 
 # 51 — Glossary
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; terms are defined, but Progress, Plugin, Control and hot-reload are not implemented (flagged inline)
 > **Audience:** all
 > **Prerequisites:** none
 
@@ -27,9 +27,9 @@ non-obvious design choice, its alternatives, and consequences. See
 level data). Assets are referenced by `Handle<T>` and loaded through
 `AssetServer`. See [[13-assets]].
 
-**AssetServer** — the engine subsystem that loads, caches, and hot-reloads
+**AssetServer** — the engine subsystem that loads, caches, and reloads
 assets. Games never call `image::open` directly; they ask the
-`AssetServer`. See [[25-ember-assets]].
+`AssetServer`. Hot-reload is manual (`reload`); no file watcher yet. See [[25-ember-assets]].
 
 **AudioServer** — the trait that abstracts audio playback. The reference
 implementation is `ember_audio_macroquad`. See [[12-servers]].
@@ -42,12 +42,12 @@ type map in every game. Godot-parity concept; documented in
 [[20-ember-core]].
 
 **Control** — the base trait for retained-mode UI nodes (`Button`,
-`Label`, `Panel`, etc.). Lives in `ember_ui`. See [[24-ember-ui]].
+`Label`, `Panel`, etc.). Planned for `ember_ui` (currently an empty stub). See [[24-ember-ui]].
 
 **Cooldown** — a timer utility in `ember_core::time`. Two constructors:
 `ready(d)` (ready now, re-arms to `d` after `trigger`) and `running(d)`
-(already running, ready after `d`). The `new` constructor is deprecated
-because it is the root of the `ember-wars` 31-test bug. See
+(already running, ready after `d`). The old `new` / `with_duration` constructors are
+`#[deprecated]` aliases (`new` was the root of the `ember-wars` 31-test bug). See
 [[20-ember-core]].
 
 ## D
@@ -69,19 +69,20 @@ depend on frame rate. See [[14-main-loop]].
 
 ## G
 
-**GameState** — the coarse enum (`Menu`, `Playing`, `Paused`, `Won`,
-`Lost`) that the host uses to decide whether to save. Games with richer
-internal states map to these five. See [[14-main-loop]].
+**GameState** — the coarse enum (`Start`, `Playing`, `LevelCleared`,
+`GameOver`, `Win`; `ember_core::app`) that the host uses to decide
+whether to save. Games with richer internal states map to these five. See [[14-main-loop]].
 
 ## H
 
 **Handle<T>** — an owned reference to a loaded asset. Keeping a `Handle`
-alive keeps the asset in memory; dropping it allows the `AssetServer` to
-unload on demand. See [[13-assets]].
+alive keeps the asset in memory; the server caches only a `Weak` per
+path and prunes dead entries on `poll()`. See [[13-assets]].
 
 **Hot-reload** — the ability to modify an asset file on disk and have the
 running game reflect the change without a restart. Enabled in dev builds
-only. See [[13-assets]].
+only. Not implemented: `Asset::reload` exists but there is no watcher.
+See [[13-assets]].
 
 ## L
 
@@ -99,12 +100,13 @@ point. Methods: `init`, `process`, `physics_process`, `draw`,
 `finalize`. See [[14-main-loop]].
 
 **miniquad** — the low-level graphics abstraction underneath macroquad.
-`ember_render_macroquad` sits on `miniquad::RenderingBackend`; a future
-`ember_render_wgpu` would not.
+Ember does not use it directly.
 
 **macroquad** — the immediate-mode 2D graphics library Ember uses for
-v0.1. Games never depend on it directly; only `ember_render_macroquad`
-and `ember_audio_macroquad` do.
+v0.1. Migrated games never depend on it directly; only
+`ember_render_macroquad` and `ember_audio_macroquad` should. Until
+migration finishes, `ember-stdlib` and unmigrated games still import it
+(`xtask/macroquad-allowlist.txt`).
 
 ## N
 
@@ -137,11 +139,12 @@ number of times. Analogous to a Godot scene file. See
 [[10-nodes-and-scenes]].
 
 **Plugin** — an optional trait a game implements to hook into engine
-startup (registering assets, initialising game state). Games work
-without it; it's the extension point. See [[40-roadmap]].
+startup (registering assets, initialising game state). Planned only: no
+`Plugin` trait exists in code (its home is an open question in
+[[01-architecture#7. Open questions|01-architecture.md §7]]).
 
 **POC** — Proof of Concept. The v0.1 milestone: engine structure works,
-all 18 games migrate, `ember-wars` passes its conformance suite. See
+all 17 games migrate, `ember-wars` passes its conformance suite. See
 [[00-overview#4. What "POC" means here|00-overview.md §4]].
 
 **prelude** — a curated set of re-exports (`ember::prelude::*`) that
@@ -150,7 +153,8 @@ covers the common 80% of any game's usage. See
 
 **Progress** — the serializable struct a game persists between runs
 (best score, unlocked levels, upgrades). Stored by the `MainLoop` via
-`MainLoop::progress()` and `MainLoop::take_dirty()`. See
+`MainLoop::progress()` and `MainLoop::take_dirty()` (specified, not
+implemented: the `MainLoop` trait has no such methods). See
 [[14-main-loop]].
 
 ## R
@@ -188,13 +192,13 @@ detection.
 
 **UID** — a stable identifier for a resource (asset or scene). Used in
 `.escene` files to reference assets by stable string rather than fragile
-path. Format: `uid://<base36-encoded-hash>`. See
+path. Format: `uid://<file-stem>_<5 hex digits of content hash>`. See
 [[30-escene-format]].
 
 ## V
 
 **Variant** — a tagged union of primitives (`Nil`, `Bool`, `Int`,
-`Float`, `String`, `Vec2`, `Color`, `Vec<Variant>`, `Map<String, Variant>`,
+`Float`, `String`, `Vec2`, `Color`, `Array(Vec<Variant>)`, `Map<String, Variant>`,
 `ObjectRef`). Used at the `Object`/`ClassDB` boundary for serialization
 and dynamic property editing. Type-safe Rust structs are still preferred
 in game code. See [[20-ember-core]].

@@ -3,16 +3,25 @@ title: "24 — `ember_ui`"
 aliases: ["24 — `ember_ui`"]
 tags: ["ember/spec", "ember/wave-3"]
 doc-status: "draft"
-former-path: "docs/engine/v0.1/24-ember-ui.md"
+former-path: ".worktrees/titouanthd-potential-carnival/docs/engine/v0.1/24-ember-ui.md"
 imported: "2026-11-22"
 wave: "3 — Crate Specifications"
 ---
 
 # 24 — `ember_ui`
 
-> **Status:** ⬜ draft
+> **Status:** ⬜ draft — reviewed 2026-11-19; not implemented yet (`crates/ember-ui` is an empty stub)
 > **Audience:** game authors, implementers
 > **Prerequisites:** [[21-ember-scene]], [[23-ember-render-macroquad]]
+
+> **Not yet implemented.** `crates/ember-ui/src/lib.rs` contains only a doc
+> comment; no module, type or trait in this document exists. It is still
+> a dependency of the `ember` facade crate. Note also that
+> `#[derive(Node)]` as used in the examples below is the *planned* form —
+> today it needs `#[class_name]` and a user-declared `name: String`, and
+> generates no `new()` or `#[export]` handling (see ADR-019 and
+> [[26-ember-macros]]). Only pong's `Scoreboard`
+> (hand-drawn text via `DrawContext`) stands in for UI in games today.
 
 ## 1. Purpose
 
@@ -530,13 +539,13 @@ each widget only implements the specifics.
 
 Because drag-and-drop is 3× the complexity of click handling (drag
 threshold, drag ghost, drop targets, `CanDrop` negotiation, cancellation).
-The 18 games don't need it; shipping it half-done would be worse than
+The 17 games don't need it; shipping it half-done would be worse than
 not shipping it.
 
 ## 12. Open questions
 
 - **Q1:** Should `Control::on_mouse_up` return `bool` (consumed)?
-  *Provisional:* v0.2. v0.1 propagates everywhere, and 18/18 games work.
+  *Provisional:* v0.2. v0.1 propagates everywhere, and 17/17 games work.
 - **Q2:** Should `TextInput` support copy/paste? *Provisional:* v0.2.
   Needs clipboard access (platform-specific).
 - **Q3:** Should `Theme` be a `Resource` (asset-loaded) or a struct?

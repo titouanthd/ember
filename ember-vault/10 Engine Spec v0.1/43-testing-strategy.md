@@ -2,15 +2,15 @@
 title: "43 — Testing Strategy"
 aliases: ["43 — Testing Strategy"]
 tags: ["ember/spec", "ember/wave-4"]
-doc-status: "draft"
-former-path: "docs/engine/v0.1/43-testing-strategy.md"
+doc-status: "partial"
+former-path: ".worktrees/titouanthd-potential-carnival/docs/engine/v0.1/43-testing-strategy.md"
 imported: "2026-11-22"
 wave: "4 — Format, Process & Reference"
 ---
 
 # 43 — Testing Strategy
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; unit/integration/conformance layers, mocks, `make ci` and xtask checks exist; CI workflow, `trybuild`, coverage targets and UI/editor tests do not
 > **Audience:** implementers, reviewers
 > **Prerequisites:** [[02-principles#6. Testing philosophy|02-principles.md §6]]
 
@@ -36,6 +36,13 @@ before reviewing a PR that changes test infrastructure.
 
 ### 2.1 Coverage expectations per crate
 
+> Targets, not measurements: no coverage tooling is configured. Crate
+> directories use hyphens (`ember-core`), and the macroquad backends live
+> at `crates/ember-render/macroquad` (`ember-render-macroquad`) and
+> `crates/ember-audio/macroquad` (`ember-audio-macroquad`). `ember-ui` is
+> a stub with no tests; `ember-macros` has only happy-path tests via
+> `ember-scene/tests/derive_works.rs` (`trybuild` is not set up).
+
 | Crate | Unit | Integration | Notes |
 |---|---|---|---|
 | `ember_core` | 80%+ line coverage | 1 end-to-end test | Math/time/rng — pure functions, easy to test |
@@ -57,7 +64,7 @@ before reviewing a PR that changes test infrastructure.
 Every crate's source file has a `#[cfg(test)] mod tests` at the bottom:
 
 ```rust
-// crates/ember_core/src/time/cooldown.rs
+// crates/ember-core/src/time/cooldown.rs
 
 pub struct Cooldown { /* ... */ }
 
@@ -112,19 +119,28 @@ what broke, it's wrong.
 `cargo test` runs each as a separate binary.
 
 ```
-crates/ember_scene/
-├── src/
-└── tests/
-    ├── tree_ordering.rs
-    ├── ready_ordering.rs
-    ├── attach_cycle_rejected.rs
-    └── spawn_deferred.rs
+crates/ember-scene/tests/
+├── tree_ordering.rs
+├── ready_ordering.rs
+├── spawn_deferred.rs
+├── signal_dispatch_order.rs / signal_cycle.rs / signal_stale_target.rs
+├── scoped_connection.rs / stale_id.rs
+├── scene_loop.rs / physics_context.rs / class_db_nodes.rs
+├── packed_scene.rs          (.escene parse / instantiate / round-trip)
+├── derive_works.rs          (#[derive(Node)])
+└── common/                  shared helpers
 ```
+
+Other integration tests today: `ember-assets/tests/assets.rs`,
+`ember-core/tests/collision.rs`, `ember-input/tests/contract.rs`,
+`ember-servers/tests/contract.rs` (mock backends),
+`ember-render/macroquad/tests/headless.rs`. `ember-ui`, `ember-editor`
+and `ember` have none.
 
 ### 4.2 What an integration test looks like
 
 ```rust
-// crates/ember_scene/tests/tree_ordering.rs
+// crates/ember-scene/tests/tree_ordering.rs (illustrative sketch)
 
 use ember_scene::prelude::*;
 
@@ -215,8 +231,8 @@ fn enemy_catapult_fires_when_player_unit_in_range() {
 
 | Game | Scenario tests |
 |---|---|
-| snake | 4 |
-| pong | 13 |
+| snake | 12 |
+| pong | 13 (+3 headless `SceneLoop` tests in `tests/scene.rs`) |
 | simon | 8 |
 | memory | 4 |
 | minesweeper | 8 |
@@ -225,12 +241,12 @@ fn enemy_catapult_fires_when_player_unit_in_range() {
 | asteroids | 10 |
 | air-hockey | 10 |
 | bullet-hell | 11 |
-| pagoda | 0 (should add) |
-| taiji | varies |
-| zhuo-ji | varies |
+| pagoda | 0 (no `tests/` dir; should add) |
+| taiji | 0 (no `tests/` dir) |
+| zhuo-ji | 10 |
 | bore-inc | 21 |
-| jade-garden | 22 + 1 balance |
-| accretion | 2 balance |
+| jade-garden | 22 + 1 balance (+ `objectives.rs`) |
+| accretion | 3 balance (+ `save.rs`) |
 | ember-wars | 20 |
 
 Games with 0 or 1 scenario test are candidates for enrichment during
@@ -240,8 +256,15 @@ migration (Phase 7).
 
 ### 6.1 What CI runs
 
+> *Not yet implemented:* the repo has **no** `.github/workflows`. Today
+> the gate is local: `make ci` (= `make check` + `make test`, i.e.
+> `cargo clippy --workspace --all-targets -- -D warnings` and
+> `cargo test --workspace`), plus `cargo run -p xtask -- check-layers` and
+> `-- check-macroquad` (allowlist in `xtask/macroquad-allowlist.txt`;
+> replaces the grep job below). The YAML is the planned outline.
+
 ```yaml
-# .github/workflows/ci.yml (outline)
+# .github/workflows/ci.yml (planned outline)
 on: [push, pull_request]
 
 jobs:
@@ -298,7 +321,7 @@ This is slower but better for PR review (one CI run per PR, not N).
 
 ### 7.1 `trybuild` for macros
 
-`ember_macros` uses `trybuild` to verify compile errors:
+*Not yet implemented* (deferred, see `derive_works.rs` header). `ember-macros` will use `trybuild` to verify compile errors:
 
 ```rust
 #[test]
@@ -313,14 +336,14 @@ contain the expected error text.
 
 ### 7.2 Headless rendering
 
-`ember_render_macroquad` tests are `#[ignore]` by default — they need a
+`ember-render-macroquad` tests (`tests/headless.rs`) are `#[ignore]` by default — they need a
 window. CI can run them with `xvfb`:
 
 ```yaml
-- run: xvfb-run cargo test -p ember_render_macroquad -- --ignored
+- run: xvfb-run cargo test -p ember-render-macroquad -- --ignored
 ```
 
-Local developers run them with `cargo test -p ember_render_macroquad -- --ignored`.
+Local developers run them with `cargo test -p ember-render-macroquad -- --ignored`.
 
 ### 7.3 Timing-sensitive tests
 
@@ -336,7 +359,7 @@ Never `std::thread::sleep`. Never `Instant::now().elapsed()`.
 
 ### 7.4 Asset round-trip
 
-`ember_assets` has a `round_trip.rs` scenario test:
+`ember-assets` covers this in `tests/assets.rs` (sketch of the idea):
 
 ```rust
 #[test]
@@ -348,7 +371,8 @@ fn png_roundtrips_through_texture() {
 }
 ```
 
-`test_assets/` is committed to the repo (small fixtures).
+Fixtures are committed under `assets/test_fixtures/` (`pixel.png`,
+`player.escene`).
 
 ## 8. What makes a test "good" in this codebase
 
@@ -382,7 +406,8 @@ Unit tests should be < 1 ms; integration < 100 ms; conformance < 2 s.
 
 ### 8.4 It uses real types
 
-No mocks except for the three server traits. Even then, prefer a real
+No mocks except for the server traits (`MockRenderer`, `MockAudio` in
+`ember-servers/src/mock.rs`). Even then, prefer a real
 mock implementation (a struct that records calls) over a mocking
 framework.
 
@@ -418,6 +443,9 @@ cargo test --workspace --no-fail-fast
 workspace state, not for iterating.
 
 ### 9.3 The pre-push ritual
+
+`make ci` runs clippy + tests; xtask checks are separate:
+`cargo run -p xtask -- check-layers && cargo run -p xtask -- check-macroquad`.
 
 ```bash
 cargo clippy --workspace --all-targets -- -D warnings \

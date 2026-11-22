@@ -3,13 +3,14 @@
 use glam::Vec2;
 use macroquad::prelude::*;
 
+use ember_stdlib::juice;
 use jade_garden::Easing;
-use jade_garden::audio::{MusicPlayer, default_playlist};
+use jade_garden::audio::{MusicPlayer, default_playlist, new_player};
 use jade_garden::components::{GRID_H, GRID_W};
 use jade_garden::config::GameContext;
+use jade_garden::effects;
 use jade_garden::fonts::PoemFont;
 use jade_garden::hud;
-use jade_garden::juice;
 use jade_garden::level;
 use jade_garden::menu::{Menu, MenuAction};
 use jade_garden::poem;
@@ -367,7 +368,7 @@ async fn main() {
     println!("DONE: poem font");
 
     println!("START: audio load");
-    let mut audio = MusicPlayer::load(default_playlist());
+    let mut audio = new_player(default_playlist());
     println!("DONE: audio load");
 
     println!("START: audio preload");
@@ -1225,11 +1226,11 @@ fn draw_game_background(state: &AppState, chapter: u32) {
 fn draw_game(ctx: &GameContext, game: &Game, shake: Vec2) {
     draw_grid(ctx, game, shake);
     juice::draw_shockwaves(&game.juice, shake);
-    juice::draw_radial_rays(&game.juice, shake);
+    effects::draw_radial_rays(&game.juice, shake);
     juice::draw_particles(&game.juice, shake);
     juice::draw_floating_texts(&game.juice, shake);
     hud::draw(ctx, game);
-    juice::draw_vignette(&game.juice);
+    effects::draw_vignette(&game.juice);
     juice::draw_flashes(&game.juice);
 }
 

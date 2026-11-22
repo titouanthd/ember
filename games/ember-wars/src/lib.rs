@@ -7,7 +7,6 @@ pub mod combat;
 pub mod components;
 pub mod config;
 pub mod fonts;
-pub mod juice;
 pub mod layout;
 pub mod mana;
 pub mod menu;

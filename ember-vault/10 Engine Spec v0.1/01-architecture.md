@@ -2,15 +2,15 @@
 title: "01 — Architecture"
 aliases: ["01 — Architecture"]
 tags: ["ember/spec", "ember/wave-1"]
-doc-status: "draft"
-former-path: "docs/engine/v0.1/01-architecture.md"
+doc-status: "partial"
+former-path: ".worktrees/titouanthd-potential-carnival/docs/engine/v0.1/01-architecture.md"
 imported: "2026-11-22"
 wave: "1 — Foundation"
 ---
 
 # 01 — Architecture
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; layers, crate map and xtask checks match code; `ember_ui`/`ember_editor` are stubs, `Plugin`/`juice` do not exist
 > **Audience:** implementers, reviewers
 > **Prerequisites:** [[00-overview]]
 
@@ -73,7 +73,7 @@ CI — see §5.
 
 | Layer | Responsible for | Does **not** know about |
 |---|---|---|
-| **L4 · Main** | Entry point, `MainLoop` implementation, editor tooling | Concrete node types (only the tree) |
+| **L4 · Main** | Entry point (`ember::run`), `MainLoop` host, editor tooling | Concrete node types (only the tree) |
 | **L3 · Scene** | Node trait, tree, lifecycle, assets, UI, scene format | How rendering happens, how input is polled |
 | **L2 · Servers** | Backend-agnostic trait definitions; concrete backend impls | Scenes, nodes, game logic |
 | **L1 · Core** | Math, time, hash, rng, `Variant`, `Object`/`ClassDB`, utilities | Rendering, input, game logic |
@@ -98,17 +98,18 @@ ember_workspace/
 │   │   └── macroquad/             (L2, impl — package: ember-render-macroquad)
 │   ├── ember-audio/
 │   │   └── macroquad/             (L2, impl — package: ember-audio-macroquad)
-│   ├── ember_input                (L2)
-│   ├── ember_scene                (L3)
-│   ├── ember_ui                   (L3)
-│   ├── ember_assets               (L3)
-│   ├── ember_editor               (L4, dev-only)
-│   └── ember                      (L4, facade)
-├── ember_stdlib/                  (L1, kept as-is for utility functions)
+│   ├── ember-input                (L2)
+│   ├── ember-scene                (L3)
+│   ├── ember-ui                   (L3, stub — empty)
+│   ├── ember-assets               (L3)
+│   ├── ember-editor               (L4, dev-only, placeholder)
+│   ├── ember                      (L4, facade)
+│   └── ember-stdlib/              (L1, kept as-is for utility functions)
+├── xtask/                         (check-layers, check-macroquad)
 └── games/
     ├── ember-wars/
     ├── jade-garden/
-    └── … (18 total)
+    └── … (17 total)
 ```
 
 ### 3.2 Per-crate dependency graph (allowed edges only)
@@ -121,6 +122,7 @@ flowchart LR
     ember --> ember_servers
     ember --> ember_input
     ember --> ember_core
+    ember --> ember_macros
     ember --> ember_render_macroquad
     ember --> ember_audio_macroquad
 
@@ -132,6 +134,7 @@ flowchart LR
     ember_scene --> ember_assets
     ember_scene --> ember_core
     ember_scene --> ember_macros
+    ember_scene --> ember_input
 
     ember_ui --> ember_scene
     ember_ui --> ember_servers
@@ -144,6 +147,7 @@ flowchart LR
     ember_render_macroquad --> ember_servers
     ember_audio_macroquad --> ember_servers
     ember_render_macroquad --> ember_core
+    ember_render_macroquad --> ember_input
     ember_audio_macroquad --> ember_core
 
     ember_servers --> ember_core
@@ -155,24 +159,25 @@ flowchart LR
 > **Note:** the graph shows `ember_stdlib → ember_core` (one direction only).
 > Earlier drafts described a cycle; that was a mistake. In practice,
 > `ember_core` has **no** dependency on `ember_stdlib`, and `ember_stdlib`
-> may re-export math helpers from `ember_core`. See §5.3.
+> re-exports `ember_core` (`pub use ember_core::*`). Unlike a pure L1 crate it
+> also depends on `macroquad` directly (see §5.3).
 
 ### 3.3 Crate purpose table
 
 | Crate | Layer | One-line purpose |
 |---|---|---|
 | `ember_core` | L1 | Math, time, hash, rng, `Variant`, `Object`/`ClassDB` |
-| `ember_stdlib` | L1 | Existing utilities kept as-is (input primitives, grid, collider, sprite, transform, persistence) |
-| `ember_macros` | L1 | `#[derive(Node)]`, `#[signal]`, `#[export]` |
-| `ember_servers` | L2 | Trait definitions only — no implementation |
+| `ember_stdlib` | L1 | Existing utilities kept as-is (input primitives, grid, collider, sprite, transform, persistence, config, layout, fonts, ui helpers); depends on `macroquad` |
+| `ember_macros` | L1 | `#[derive(Node)]` (implemented); `#[signal]` is a no-op marker; `#[export]` is accepted but inert |
+| `ember_servers` | L2 | Trait definitions, `MockRenderer`/`MockAudio`, and the `LinearPhysics` `PhysicsServer` backend (ADR-028) |
 | `ember_render_macroquad` | L2 | Reference `RenderingServer` on macroquad |
 | `ember_audio_macroquad` | L2 | Reference `AudioServer` on macroquad |
-| `ember_input` | L2 | Input polling + action mapping + `primary_action` |
-| `ember_scene` | L3 | `Node` trait, `NodeTree`, `PackedScene`, `.escene` format |
-| `ember_ui` | L3 | Retained-mode `Control` nodes |
-| `ember_assets` | L3 | `AssetServer`, `Handle<T>`, UID registry, hot-reload |
-| `ember_editor` | L4 | Scene inspector (dev-only, not shipped in games) |
-| `ember` | L4 | Facade: prelude re-exports, no logic |
+| `ember_input` | L2 | Backend-agnostic `Input` snapshot, `Key`/`MouseButton`/`GamepadButton`/`TouchPoint`, `primary_action`; action mapping *not yet implemented* |
+| `ember_scene` | L3 | `Node` trait, `NodeTree`, `NodeContext`, `SignalTable`, `PackedScene`, `.escene` format, `SceneLoop` |
+| `ember_ui` | L3 | Retained-mode `Control` nodes — *not yet implemented (empty crate)* |
+| `ember_assets` | L3 | `AssetServer`, `Handle<T>`, UID registry (hot-reload *not yet implemented*, ADR-026) |
+| `ember_editor` | L4 | Scene inspector (dev-only) — *not yet implemented (placeholder crate)* |
+| `ember` | L4 | Facade: prelude re-exports, `run`/`run_window`, no logic |
 
 ### 3.4 Rule of thumb
 
@@ -182,7 +187,7 @@ When you cannot decide which crate a piece of code belongs in:
 - **If it defines a trait consumed by games** → `ember_servers` or `ember_scene`.
 - **If it is pure math / data structure** → `ember_core`.
 - **If it is a self-contained utility** → `ember_stdlib`.
-- **If it depends on `ember_scene`** → Layer 4 (a game or `ember_editor`).
+- **If it depends on `ember_scene`** → Layer 3 (`ember_ui`) or Layer 4 (a game, `ember` or `ember_editor`).
 
 ## 4. Runtime view
 
@@ -197,23 +202,23 @@ spent a whole session fixing in `ember-wars`.
 ```mermaid
 sequenceDiagram
     participant Host as Host loop
-    participant ML as MainLoop
+    participant ML as MainLoop (SceneLoop)
     participant SC as NodeTree
     participant RD as RenderingServer
     participant AS as AudioServer
 
     loop every frame
-        Host->>ML: process(frame_dt)
-        activate ML
-        ML->>SC: process(frame_dt)
-        SC->>SC: node.process(dt) for each node
-        deactivate ML
-
         Note over Host,ML: Fixed-step physics runs 0..N times
         loop while accumulator >= 1/60
             Host->>ML: physics_process(1/60)
             ML->>SC: physics_process(1/60)
         end
+
+        Host->>ML: process(frame_dt)
+        activate ML
+        ML->>SC: process(frame_dt)
+        SC->>SC: node.process(dt) for each node
+        deactivate ML
 
         Host->>ML: draw()
         ML->>SC: draw(ctx)
@@ -241,73 +246,76 @@ sequenceDiagram
     participant Root as Root node
 
     Main->>Cfg: load
-    Main->>RS: create(RenderingBackend::Macroquad)
-    Main->>AS: create(root_path)
-    Main->>Tree: new()
-    Main->>Root: instantiate(.escene)
+    Main->>RS: MacroquadRenderer::new()
+    Main->>AS: AssetServer::new(root_path)
+    Main->>Tree: NodeTree::new()
+    Main->>Root: PackedScene::instantiate_with(ClassDB, AssetServer, tree)
     Tree->>Root: attach as child of root
     Tree->>Root: ready(ctx)
-    Main->>Main: loop { process · draw }
+    Main->>Main: ember::run(loop) · process · physics_process · draw
 ```
+
+> Illustrative: `config` loading and exact constructor calls are up to the
+> game's `main`; `ember::run` / `run_window` drive the loop.
 
 ### 4.3 Shutdown sequence
 
 Reverse of startup. `finalize()` is best-effort (save progress, flush audio),
-then servers drop in reverse dependency order. No node is dropped before
+then servers drop in reverse dependency order. `MainLoop::finalize` is the
+hook; `SceneLoop::finalize` calls `NodeTree::clear`, which finalizes every
+node bottom-up. No node is dropped before
 its children (`NodeTree` owns the arena and drops bottom-up).
 
 ## 5. Enforcement
 
-Two rules are enforced by CI, not just by convention:
+Two rules have `xtask` checks (`cargo run -p xtask -- check-layers` and
+`check-macroquad`), not just convention:
 
 ### 5.1 No crate imports a higher layer
 
-A small tool crate (`xtask check-layers`) walks `Cargo.toml` files and
-asserts that every dependency edge matches the allowed graph in §3.2.
-Violation fails CI. This prevents the slow spiral where `ember_core`
+`xtask check-layers` reads `cargo metadata` and asserts that every
+engine crate's dependency edges match the allowed table in
+`xtask/src/check_layers.rs` (the graph in §3.2). A violation exits non-zero. This prevents the slow spiral where `ember_core`
 "just needs a `Node` for convenience" and the layer structure dissolves.
 
 ### 5.2 No crate imports `macroquad` except the `_macroquad` crates
 
-```bash
-grep -rn "use macroquad" --include='*.rs' crates/
-```
-
-must return only hits inside `ember_render_macroquad` and
-`ember_audio_macroquad`. Same for `miniquad`. This is the seam that lets
+`xtask check-macroquad` verifies that `macroquad`/`miniquad` imports
+appear only in `ember_render_macroquad`, `ember_audio_macroquad` or an
+explicit allowlist (today including `ember_stdlib` and the games). This is the seam that lets
 v0.2 add a wgpu backend without a single game rewrite.
 
 ### 5.3 Current state (`main` branch)
 
 | Rule | Status |
 |---|---|
-| §5.1 Layer order | ❌ not enforced yet — CI check lands in Phase 4 |
-| §5.2 `macroquad` isolation | ❌ not enforced — every game imports macroquad today |
-| §5.3 `ember_stdlib` has no `ember_*` deps | ⚠️ true today, will tighten after Phase 2 |
+| §5.1 Layer order | ✅ `xtask check-layers` implemented |
+| §5.2 `macroquad` isolation | ⚠️ `xtask check-macroquad` implemented with an allowlist; `ember_stdlib` and games still import macroquad |
+| `ember_core` has no `ember_*` deps | ✅ true |
+| `ember_stdlib` depends only on `ember_core` (among `ember_*`) | ✅ true |
 
-The plan is to add these checks **during Phase 4** of the roadmap (see
-[[40-roadmap]]). Nothing in v0.1 is blocked on having them
-green — they are the acceptance criteria for Phase 4's exit.
+Whether these run in CI is tracked in [[40-roadmap]].
 
 ## 6. What survives, what dies
 
 ### 6.1 Survives unchanged
 
-- **`ember_core`** — math, rng, hash, time. Only the `Cooldown` API surface
-  changes (rename `new`→`running`, `with_duration`→`ready`, deprecate `new`).
+- **`ember_core`** — math, rng, hash, time. The planned `Cooldown` constructor
+  rename (`new`→`running`, deprecate `new`) is *not yet implemented*: `Cooldown`
+  still has `new`, `with_duration` and `ready`, with no `#[deprecated]`.
 - **`ember_stdlib`** — input primitives, grid, collider, sprite, transform,
   persistence, layout. These are useful regardless of the engine architecture.
   They gradually become a *facade over* `ember_core` and *complements to*
   `ember_scene` — but their public API stays.
-- **All 18 games' logic code** — the `systems::update`, `resolve_attacks`,
+- **All 17 games' logic code** — the `systems::update`, `resolve_attacks`,
   `resolve_projectiles`, etc. functions. Migration replaces the *wrapping*,
   not the *contents*.
 
 ### 6.2 Dies
 
-- **Per-game `main.rs`** — replaced by `ember::run::<G>()` (or the equivalent
-  `MainLoop` implementation).
-- **Per-game `juice.rs`** — extracted to `ember_stdlib::juice` (Phase 0).
+- **Per-game `main.rs`** — replaced by `ember::run` / `run_window` driving a
+  `MainLoop` implementation (games have not all migrated yet).
+- **Per-game `juice.rs`** — to be extracted to `ember_stdlib::juice` (*not yet done* — no such module).
 - **Per-game `audio.rs`** — replaced by `AudioServer` calls through `NodeContext`.
 - **Per-game asset loading** — replaced by `AssetServer` + `Handle<T>`.
 - **Per-game save/load** — replaced by `MainLoop::progress()` + a
@@ -317,24 +325,24 @@ green — they are the acceptance criteria for Phase 4's exit.
 
 ### 6.3 Mutates
 
-- **`ember_core::time::Cooldown`** — constructors renamed, `new` deprecated.
+- **`ember_core::time::Cooldown`** — constructors to be renamed, `new` deprecated (*not yet done*).
 - **`ember_stdlib::input::Input`** — extended with `primary_action` and touch/gamepad fields.
-- **`ember_stdlib::juice::Juice`** — promoted from per-game copies to a
+- **`ember_stdlib::juice::Juice`** *(planned; not yet present)* — promoted from per-game copies to a
   shared struct; gains a `tick` and stays identical otherwise.
 
 ## 7. Open questions
 
 - **Q1:** Do we need `ember_physics` as a separate crate, or is
-  `ember_stdlib::collider` enough? *Provisional:* `collider` stays in
-  `ember_stdlib`; a real physics solver is v0.2+.
+  `ember_stdlib::collider` enough? *Resolved (ADR-028):* `PhysicsServer` with the `LinearPhysics` backend lives in `ember_servers`; `collider` stays in
+  `ember_stdlib` unmigrated; a real physics solver is v0.2+.
 - **Q2:** Does `ember_ui` live in `ember_scene` or its own crate? *Provisional:*
   own crate, so games with no UI (bullet-hell, asteroids) don't pull it in.
 - **Q3:** Where does the `Plugin` trait live? *Provisional:*
   `ember_core::plugin`, one implementation per game's `lib.rs`. It's the
-  only extension point we commit to.
+  only extension point we commit to. *Not yet implemented — no `plugin` module.*
 - **Q4:** Should `ember_servers` have its own test doubles (mock rendering)?
-  *Provisional:* no. The seam is already the trait; integration tests use
-  the macroquad backend. Mocks are added only if profiling shows a need.
+  *Resolved differently:* `MockRenderer` and `MockAudio` ship in
+  `ember_servers` and are used by scene tests.
 
 ## 8. Cross-references
 

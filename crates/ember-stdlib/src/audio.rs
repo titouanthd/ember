@@ -28,6 +28,18 @@ impl AudioClip {
         Ok(Self { sound })
     }
 
+    /// Like [`load`](Self::load), but a missing or malformed file yields
+    /// `None` (logged to stderr) so the game stays playable without assets.
+    pub async fn load_optional(path: &Path) -> Option<Self> {
+        match Self::load(path).await {
+            Ok(clip) => Some(clip),
+            Err(e) => {
+                eprintln!("[audio] {e}");
+                None
+            }
+        }
+    }
+
     /// Play once at full volume. Non-blocking.
     pub fn play(&self) {
         play_sound(

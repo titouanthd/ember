@@ -7,7 +7,7 @@ generated: "2026-11-22"
 
 # Doc ↔ code discrepancies
 
-Found while reading the specs against `main`. Most are fixed on the unmerged branch `titouanthd-docs-crates-games-plan` (see [[Engine Spec Index (branch)]]) — marked **⚑ fixed on branch**.
+Found while reading the specs against `main`. Most are fixed on the unmerged branch `titouanthd-docs-crates-games-plan` (see [[Engine Spec Index]]) — marked **⚑ fixed on branch**.
 
 | # | Where | Docs say | Code / repo says | |
 |---|---|---|---|---|

@@ -8,8 +8,8 @@ use macroquad::prelude::*;
 
 use crate::components::{GRID_H, GRID_W};
 use crate::config::GameContext;
+use crate::effects::Effects;
 use crate::grid::Grid;
-use crate::juice::Juice;
 use crate::level::{LevelConfig, Objective};
 use crate::scoring::{cascade_tier, score_for_match};
 use crate::tile_render::jade_color_base;
@@ -73,7 +73,7 @@ pub struct Game {
     pub hover: Option<(usize, usize)>,
     pub swap_anim: Option<SwapAnim>,
     pub resolution: Option<Resolution>,
-    pub juice: Juice,
+    pub juice: Effects,
     pub rng: Rng,
     pub time: f32,
     pub objective_progress: u32,
@@ -124,7 +124,7 @@ impl Game {
             hover: None,
             swap_anim: None,
             resolution: None,
-            juice: Juice::new(),
+            juice: Effects::new(),
             rng: Rng::new(seed),
             time: 0.0,
             objective_progress: 0,
@@ -421,8 +421,9 @@ impl Game {
                 // free, so the player has to actually chain reactions.
                 if self.cascade_level > 0 {
                     self.objective_progress += 1;
+                    let center = self.tile_center_avg(&to_remove);
                     self.juice.spawn_floating_text(
-                        self.tile_center_avg(&to_remove),
+                        center,
                         "+1 chain".to_string(),
                         Color::new(0.85, 0.70, 0.45, 1.0),
                         16.0,

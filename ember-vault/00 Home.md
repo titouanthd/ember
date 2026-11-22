@@ -54,7 +54,7 @@ A 2D game engine in Rust (macroquad backend) built on top of **17 games**. **Thi
 - [[Browser Build (WASM)]] · [[Project Recap (version.txt)]] · repo README: `README.md` (outside the vault)
 
 ## Branch snapshot
-`titouanthd-docs-crates-games-plan` (local, unpushed) has a reviewed copy of every spec file → [[Engine Spec Index (branch)]]. Kept separate so the `main` versions stay authoritative.
+`titouanthd-docs-crates-games-plan` (local, unpushed) has a reviewed copy of every spec file → [[Engine Spec Index]]. Kept separate so the `main` versions stay authoritative.
 
 ## Vault layout
 | Folder | Contents |

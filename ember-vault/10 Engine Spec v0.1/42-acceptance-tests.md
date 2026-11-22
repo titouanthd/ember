@@ -3,14 +3,14 @@ title: "42 — Acceptance Tests"
 aliases: ["42 — Acceptance Tests"]
 tags: ["ember/spec", "ember/wave-4"]
 doc-status: "draft"
-former-path: "docs/engine/v0.1/42-acceptance-tests.md"
+former-path: ".worktrees/titouanthd-potential-carnival/docs/engine/v0.1/42-acceptance-tests.md"
 imported: "2026-11-22"
 wave: "4 — Format, Process & Reference"
 ---
 
 # 42 — Acceptance Tests
 
-> **Status:** ⬜ draft
+> **Status:** ⬜ draft — reviewed 2026-11-19; not implemented yet (`ember-wars` is unmigrated; only pong has moved to `NodeTree`)
 > **Audience:** implementers, reviewers
 > **Prerequisites:** [[40-roadmap]], [[41-migration-guide]]
 
@@ -57,6 +57,14 @@ is complete for v0.1's scope.
 
 ## 3. The acceptance checklist
 
+> **Current state (2026-11-19):** none of the items below is met yet.
+> `games/ember-wars/src/main.rs` is 210 lines, still uses macroquad and
+> `ember_stdlib` audio, and still has `juice.rs`; there is no `game.rs`.
+> It has 320 `#[test]`s in total (the "316 lib" figure below is from the
+> original plan; re-count before gating) and 20 scenario tests in
+> `tests/game_scenarios.rs`. Items 4 and 8 depend on `MainLoop`/derive
+> details that have since changed (see below).
+
 `ember-wars` migration is done when **all** of these are true. Each
 item is testable.
 
@@ -65,13 +73,13 @@ item is testable.
 | # | Criterion | Verification |
 |---|---|---|
 | 1 | `games/ember-wars/src/main.rs` ≤ 10 lines | `wc -l` |
-| 2 | `impl MainLoop for Game` exists in `game.rs` | `grep` |
+| 2 | `ember-wars` runs through `SceneLoop` (which implements `MainLoop`) or an `impl MainLoop` | `grep` |
 | 3 | No `use macroquad` in `games/ember-wars/src/` | `grep` |
 | 4 | No `use ember_stdlib::audio` — audio goes through `ctx.audio()` | `grep` |
 | 5 | No `juice.rs`, no `audio.rs` | `ls` |
 | 6 | `Vec<Unit>` replaced with `NodeId` references, or justified as a kept data structure | code review |
 | 7 | `Vec<Projectile>` replaced with `NodeId` references, or justified | code review |
-| 8 | `Catapult` and `Unit` are `#[derive(Node)]` | `grep` |
+| 8 | `Catapult` and `Unit` are nodes (`#[derive(Node)]` requires `#[class_name]` and a `name: String` field, ADR-019; pong implements `Object`/`Node` by hand) | `grep` |
 
 ### 3.2 Behavioral criteria
 
@@ -91,9 +99,9 @@ item is testable.
 |---|---|---|
 | 16 | No new `unsafe` blocks introduced | `grep -c unsafe games/ember-wars/src/` unchanged |
 | 17 | No new `unwrap()` in non-test code | `grep -rn "unwrap()" games/ember-wars/src/ --exclude=*test*` |
-| 18 | No `RenderingServer` method added just for `ember-wars` | `git diff` on `ember_servers` |
-| 19 | No `SceneError` variant added just for `ember-wars` | `git diff` on `ember_scene` |
-| 20 | No `NodeContext` method added just for `ember-wars` | `git diff` on `ember_scene` |
+| 18 | No `RenderingServer` method added just for `ember-wars` | `git diff` on `crates/ember-servers` |
+| 19 | No `SceneError` variant added just for `ember-wars` | `git diff` on `crates/ember-scene` |
+| 20 | No `NodeContext` method added just for `ember-wars` | `git diff` on `crates/ember-scene` |
 
 Item 18–20 are the crucial ones. If migrating `ember-wars` requires
 touching `ember_servers` or `ember_scene` to add a method only it uses,
@@ -142,6 +150,9 @@ flowchart TB
 and drives the combat resolution. `Units` and `Projectiles` are
 container nodes; individual units and projectiles are children.
 
+(`ember-ui` is still a stub, so `UiRoot`, `SpawnBar`, `UpgradeModal` and
+`HUD` widgets do not exist yet.)
+
 This shape is the **proof** that the engine's primitives are correct.
 If any of these nodes needs to reach across the tree with a path
 instead of a `NodeId`, or downcast through `Any` in a way that a
@@ -156,7 +167,7 @@ ADR.
 ### 5.1 "I need `&mut NodeTree` outside of `process`"
 
 If a `World` system needs to iterate children and call their methods,
-it goes through `ctx.tree().iter()` and `ctx.tree().get_mut()`. If that
+it goes through `ctx.tree().iter()` / `children()` / `descendants()` and `ctx.tree().get_mut()`. If that
 pattern is too slow (O(n) per unit), the tree needs a spatial index —
 which is a legitimate engine feature (add to `ember_servers::PhysicsServer`).
 
@@ -168,7 +179,7 @@ manually kept in sync. That's a shadow tree, and it will drift.
 If combat resolution needs `if child is Catapult`, the answer is:
 
 - Downcast: `child.as_any().downcast_ref::<Catapult>()`.
-- Or, use a signal: `emit::<Damaged>(...)` and let the catapult react.
+- Or, use a signal: `ctx.emit(Damaged { .. })` (pong's `PointScored` is the working example) and let the catapult react.
 
 If downcasting is used in `ember-wars` but not in simpler games, it's a
 signal design smell — the interaction should be a signal, not a downcast.
@@ -191,8 +202,9 @@ about `Catapult`.
 `WaveManager` doesn't iterate all units — it emits `WaveStarted`. Units
 react.
 
-If it does iterate (e.g., "count alive enemies"), it uses
-`ctx.tree().find_all_by_class("Unit")`. That's O(n) but runs once per
+If it does iterate (e.g., "count alive enemies"), it iterates
+`ctx.tree().children(units_id)` (a `find_all_by_class` helper does not exist
+yet). That's O(n) but runs once per
 wave tick, not per frame.
 
 ### 5.5 "Audio needs to know which unit died"
@@ -211,7 +223,7 @@ merges after all checklist items pass. The PR description includes:
 
 - Before/after LOC for `main.rs`
 - The target tree diagram (from §4)
-- The `MIGRATION_LOG` entries for `ember-wars`
+- The `MIGRATION_LOG` entries for `ember-wars` (*no `MIGRATION_LOG` file exists yet*)
 - Any signals introduced during migration (list them)
 - Any engine changes made during migration (should be zero)
 - A video of a chapter-1 playthrough
@@ -239,8 +251,10 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace --no-fail-fast
 ```
 
-Both must pass with **zero** warnings and **zero** failures. All 18
-games, all their tests, all lints.
+Both must pass with **zero** warnings and **zero** failures. All 17
+games, all their tests, all lints. (`make ci` runs the same two commands
+without `--no-fail-fast`; they are the workspace gate today. There is no
+CI workflow in the repo yet.)
 
 This is the POC's final gate. `v0.1.0` is tagged on the commit that
 passes this.

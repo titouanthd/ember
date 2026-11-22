@@ -16,12 +16,12 @@ use crate::catapult::{
 use crate::combat;
 use crate::components::{Projectile, Team, Tower, Unit, UnitIdGen};
 use crate::config::{self, Balance, GameContext, LevelConfig, Objective};
-use crate::juice::Juice;
 use crate::mana::ManaPool;
 use crate::progress::Progress;
 use crate::textures::{self, Palette};
 use crate::units::{can_spawn, spawn_unit, unit_stats};
 use crate::upgrades::UpgradeTree;
+use ember_stdlib::juice::Juice;
 
 pub const TOWER_OFFSET_X: f32 = 60.0;
 pub const UNIT_SPAWN_OFFSET_X: f32 = 40.0;
@@ -152,7 +152,7 @@ impl Game {
             balance,
             stats: GameStats::default(),
             ground_y,
-            juice: Juice::new(),
+            juice: Juice::with_config(crate::config::JUICE_CONFIG),
         })
     }
 
@@ -317,10 +317,10 @@ impl Game {
         ) {
             Some(unit) => {
                 self.juice
-                    .spawn_hit_spark(Vec2::new(x, self.ground_y - 20.0), stats.color());
+                    .spark(Vec2::new(x, self.ground_y - 20.0), stats.color());
                 self.units.push(unit);
                 self.player_cooldowns
-                    .insert(kind.to_string(), Cooldown::new(stats.cooldown));
+                    .insert(kind.to_string(), Cooldown::running(stats.cooldown));
                 true
             }
             None => false,
@@ -392,7 +392,7 @@ impl Game {
         ) {
             self.units.push(unit);
             self.enemy_cooldowns
-                .insert(kind, Cooldown::new(stats.cooldown));
+                .insert(kind, Cooldown::running(stats.cooldown));
         }
     }
 

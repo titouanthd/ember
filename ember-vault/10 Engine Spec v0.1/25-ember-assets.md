@@ -3,47 +3,43 @@ title: "25 — `ember_assets`"
 aliases: ["25 — `ember_assets`"]
 tags: ["ember/spec", "ember/wave-3"]
 doc-status: "partial"
-former-path: "docs/engine/v0.1/25-ember-assets.md"
+former-path: ".worktrees/titouanthd-potential-carnival/docs/engine/v0.1/25-ember-assets.md"
 imported: "2026-11-22"
 wave: "3 — Crate Specifications"
 ---
 
 # 25 — `ember_assets`
 
-> **Status:** 🟡 partial — see ADR-026 (no loader registry, no hot-reload watcher, no async)
+> **Status:** 🟡 partial — reviewed 2026-11-19; `AssetServer`, handles, UID registry, `Texture`/`RonAsset`/`PackedScene` loading work (ADR-026); loader registry, async loading, hot-reload and audio/font assets are not implemented.
 > **Audience:** implementers
 > **Prerequisites:** [[13-assets]], [[22-ember-servers]]
 
 ## 1. Purpose
 
 Specify the `AssetServer` API: `Handle<T>`, `WeakHandle<T>`, `AssetId`,
-the loader registry, UID registry, hot-reload, and error types. This is
-the crate that games use to load textures, fonts, audio, scenes, and
-level data.
+the `Asset` trait, UID registry and error types. This is the crate that
+games use to load textures and RON/scene data. Fonts and audio clips are
+created directly through the servers for now (§5.3). Hot-reload watching,
+async loading and a loader registry are *Not yet implemented* (ADR-026).
 
 ## 2. Module layout
 
 ```
-ember_assets/
-├── Cargo.toml
-├── src/
-│   ├── lib.rs
-│   ├── prelude.rs
-│   ├── server.rs       AssetServer
-│   ├── handle.rs       Handle, WeakHandle
-│   ├── id.rs           AssetId, Uid
-│   ├── loader.rs       AssetLoader trait, LoaderRegistry
-│   ├── loaders/
-│   │   ├── mod.rs
-│   │   ├── image.rs    ImageLoader
-│   │   ├── audio.rs    AudioLoader
-│   │   ├── font.rs     FontLoader
-│   │   ├── scene.rs    SceneLoader
-│   │   └── ron.rs      RonLoader
-│   ├── uid_registry.rs UID assignment and lookup
-│   ├── hot_reload.rs   file watcher
-│   └── error.rs        AssetError
+ember-assets/src/
+├── lib.rs          re-exports + prelude
+├── asset.rs        Asset trait, AssetLoadContext, Texture, RonAsset<T>
+├── server.rs       AssetServer
+├── handle.rs       Handle, WeakHandle, AssetGuard
+├── id.rs           AssetId, Uid
+├── uid_registry.rs UidRegistry
+└── error.rs        AssetError
 ```
+
+*Not yet implemented:* `loader.rs` / `loaders/*` (loader registry),
+`hot_reload.rs`. Loading is driven by the `Asset` trait itself, and
+`PackedScene` implements `Asset` in `ember-scene` (ADR-026). The prelude
+exports `Asset`, `AssetError`, `AssetServer`, `Handle`, `RonAsset`,
+`Texture`, `Uid`.
 
 ## 3. `AssetId` and `Uid`
 
@@ -56,6 +52,7 @@ pub struct AssetId(u64);
 impl AssetId {
     pub fn invalid() -> Self;
     pub fn is_valid(self) -> bool;
+    // `new` is pub(crate): only the server issues ids
 }
 ```
 
@@ -92,44 +89,37 @@ purpose; conflating them would compromise one.
 ```rust
 pub struct Handle<T: Asset> {
     id: AssetId,
-    arc: Arc<RwLock<AssetData<T>>>,   // shared with WeakHandle and cache
-    server: AssetServerRef,            // for get() and drop hook
+    uid: Uid,
+    arc: Arc<RwLock<T>>,   // shared with WeakHandle and the cache
 }
 
 impl<T: Asset> Handle<T> {
     pub fn id(&self) -> AssetId;
-    pub fn is_ready(&self) -> bool;
-    pub fn get(&self) -> Option<AssetGuard<'_, T>>;
+    pub fn uid(&self) -> &Uid;
+    pub fn get(&self) -> AssetGuard<'_, T>;   // read lock, never `None`
     pub fn downgrade(&self) -> WeakHandle<T>;
 }
 
 impl<T: Asset> Clone for Handle<T> { /* clones Arc */ }
-impl<T: Asset> Drop for Handle<T> { /* decrements cache refcount */ }
+impl<T: Asset> PartialEq for Handle<T> { /* compares AssetId */ }
 ```
+
+Assets are loaded synchronously, so a `Handle` always holds loaded data:
+there is no `is_ready` and no custom `Drop`.
 
 ### 4.2 `AssetGuard<'a, T>`
 
 ```rust
-pub struct AssetGuard<'a, T: Asset> {
-    guard: std::sync::RwLockReadGuard<'a, AssetData<T>>,
-}
-
-impl<'a, T: Asset> std::ops::Deref for AssetGuard<'a, T> {
-    type Target = T;
-    fn deref(&self) -> &T { &self.guard.value }
-}
+pub type AssetGuard<'a, T> = std::sync::RwLockReadGuard<'a, T>;
 ```
 
-`handle.get()` returns a `Deref` to `T` — the guard prevents the asset
-from being swapped out mid-read (hot-reload acquires a write lock).
+`handle.get()` returns a read guard that derefs to `T`; it prevents the
+asset from being swapped out mid-read (`reload` takes the write lock).
 
 ### 4.3 `WeakHandle<T>`
 
 ```rust
-pub struct WeakHandle<T: Asset> {
-    id: AssetId,
-    arc: Weak<RwLock<AssetData<T>>>,
-}
+pub struct WeakHandle<T: Asset> { /* id, Weak<RwLock<T>> */ }
 
 impl<T: Asset> WeakHandle<T> {
     pub fn id(&self) -> AssetId;
@@ -137,27 +127,30 @@ impl<T: Asset> WeakHandle<T> {
 }
 ```
 
-Does not keep the asset alive. `upgrade()` returns `None` if the asset
-has been unloaded.
+Does not keep the asset alive. `upgrade()` returns `None` once every
+strong handle has dropped.
 
 ### 4.4 Clone and equality semantics
 
-- `Handle::clone` — refcount increment, O(1).
+- `Handle::clone` — `Arc` increment, O(1).
 - `Handle ==` — compares `AssetId`, not underlying data.
-- `Handle::drop` — refcount decrement; if zero, the asset is queued for
-  unloading at `AssetServer::poll()`.
+- Dropping the last `Handle` frees the asset's memory immediately; the
+  cache only holds a `Weak`, and the stale entry is pruned by
+  `AssetServer::poll()`. There is no drop hook, so GPU resources (e.g.
+  textures) are **not** released automatically: call
+  `RenderingServer::destroy_texture` (ADR-026).
 
 ## 5. `Asset` trait
 
 ### 5.1 Trait
 
 ```rust
-pub trait Asset: Send + Sync + 'static {
-    fn load(bytes: &[u8], ctx: &AssetLoadContext) -> Result<Self, AssetError>
-    where Self: Sized;
-
-    /// Called on hot-reload. Default implementation is to replace.
-    fn reload(current: &mut Self, bytes: &[u8], ctx: &AssetLoadContext) -> Result<(), AssetError>;
+pub trait Asset: Send + Sync + Sized + 'static {
+    fn extensions() -> &'static [&'static str];
+    fn load(bytes: &[u8], ctx: &mut AssetLoadContext) -> Result<Self, AssetError>;
+    /// Called by `AssetServer::reload`. Default: replace with `load`.
+    fn reload(current: &mut Self, bytes: &[u8], ctx: &mut AssetLoadContext)
+        -> Result<(), AssetError>;
 }
 ```
 
@@ -167,176 +160,117 @@ pub trait Asset: Send + Sync + 'static {
 pub struct AssetLoadContext<'a> {
     pub path: &'a Path,
     pub uid: &'a Uid,
-    pub rendering: &'a mut dyn RenderingServer,
-    pub audio: &'a mut dyn AudioServer,
-    pub class_db: &'a ClassDB,
+    pub rendering: Option<&'a mut dyn RenderingServer>,
 }
 ```
 
-The context gives the loader access to server APIs (e.g. `ImageLoader`
-calls `rendering.create_texture`) and to `ClassDB` (e.g. `SceneLoader`
-instantiates packed scenes).
+`rendering` is `Some` only through the `*_with` / `texture` entry points
+(GPU assets). Loading a `Texture` through plain `load` fails with
+`AssetError::NeedsRenderer`. There is no `audio` or `class_db` in the
+context.
 
 ### 5.3 Built-in assets
 
-| Asset type | Loader | Format |
+| Asset type | Format | Notes |
 |---|---|---|
-| `Texture` | `ImageLoader` | PNG, JPG |
-| `AudioClip` | `AudioLoader` | OGG, WAV |
-| `Font` | `FontLoader` | TTF, OTF |
-| `PackedScene` | `SceneLoader` | `.escene` |
-| `RonAsset<T>` | `RonLoader` | `.ron` |
+| `Texture { id: TextureId, width, height }` | PNG only | via the `png` crate; `reload` destroys the old GPU texture |
+| `RonAsset<T>(pub T)` | `.ron` | |
+| `PackedScene` (in `ember-scene`) | `.escene` | |
 
-Games can define custom assets by implementing `Asset` and registering
-a loader.
+*Not yet implemented:* JPG, `AudioClip` / `Font` assets (use
+`RenderingServer::create_font` and `AudioServer::load_clip` with bytes
+read by the game). Custom assets implement `Asset`; no registration step
+is needed.
 
 ## 6. `AssetServer`
 
 ### 6.1 Struct
 
-```rust
-pub struct AssetServer {
-    root: PathBuf,
-    loaders: LoaderRegistry,
-    cache: HashMap<AssetId, Weak<dyn AnyAsset>>,   // type-erased
-    path_to_id: HashMap<PathBuf, AssetId>,
-    uid_registry: UidRegistry,
-    hot_reload: Option<HotReloader>,
-    pending: Vec<AssetId>,                         // for unload at poll()
-    server_refs: Vec<Weak<ServerHandle>>,          // for Handle drop hooks
-}
-```
+Private state behind a mutex: `root`, a cache keyed by normalised path
+(each entry a `Weak` plus `TypeId`), the next `AssetId`, and the
+`UidRegistry`.
 
 ### 6.2 Construction
 
 ```rust
 impl AssetServer {
     pub fn new(root: impl Into<PathBuf>) -> Result<Self, AssetError>;
-    pub fn builder() -> AssetServerBuilder;
-}
-
-pub struct AssetServerBuilder {
-    root: PathBuf,
-    watch: bool,
-    loaders: LoaderRegistry,
-}
-
-impl AssetServerBuilder {
-    pub fn new(root: impl Into<PathBuf>) -> Self;
-    pub fn watch(mut self, enabled: bool) -> Self;
-    pub fn register_loader<T: Asset, L: AssetLoader<T>>(mut self) -> Self;
-    pub fn build(self) -> Result<AssetServer, AssetError>;
+    pub fn root(&self) -> &Path;
 }
 ```
+
+*Not yet implemented:* `AssetServerBuilder`, `watch`, `register_loader`.
 
 ### 6.3 Loading
 
 ```rust
 impl AssetServer {
-    // === Synchronous ===
     pub fn load<T: Asset>(&self, path: &str) -> Result<Handle<T>, AssetError>;
+    pub fn load_with<T: Asset>(&self, path: &str,
+        rendering: &mut dyn RenderingServer) -> Result<Handle<T>, AssetError>;
     pub fn load_by_uid<T: Asset>(&self, uid: &Uid) -> Result<Handle<T>, AssetError>;
-
-    // === Asynchronous ===
-    pub fn load_async<T: Asset>(&self, path: &str) -> Handle<T>;
-    pub fn load_async_by_uid<T: Asset>(&self, uid: &Uid) -> Handle<T>;
-
-    // === Typed convenience (via extension traits) ===
-    pub fn texture(&self, path: &str) -> Result<Handle<Texture>, AssetError>;
-    pub fn audio(&self, path: &str) -> Result<Handle<AudioClip>, AssetError>;
-    pub fn font(&self, path: &str) -> Result<Handle<Font>, AssetError>;
-    pub fn scene(&self, path: &str) -> Result<Handle<PackedScene>, AssetError>;
-    pub fn ron<T: DeserializeOwned + Send + Sync + 'static>(
-        &self,
-        path: &str,
-    ) -> Result<Handle<RonAsset<T>>, AssetError>;
+    pub fn load_by_uid_with<T: Asset>(&self, uid: &Uid,
+        rendering: &mut dyn RenderingServer) -> Result<Handle<T>, AssetError>;
+    pub fn texture(&self, path: &str,
+        rendering: &mut dyn RenderingServer) -> Result<Handle<Texture>, AssetError>;
+    pub fn uid_of(&self, path: &str) -> Option<Uid>;
 }
 ```
+
+*Not yet implemented:* `load_async*`, `audio`, `font`, and the `scene` /
+`ron` shortcuts on `AssetServer` (use `load::<PackedScene>` /
+`load::<RonAsset<T>>`; `ember_scene::SceneAssets::scene(path)` is
+implemented for `AssetServer`).
 
 ### 6.4 Loading semantics
 
 - **Cached.** Second `load(path)` returns a new `Handle` to the same
-  asset — same `AssetId`, same `Arc`.
-- **Type-checked.** `load::<Texture>("player.png")` returns
-  `Err(AssetError::WrongType)` if the file is registered as a different
-  asset type.
-- **Path resolution.** `path` is relative to `root`. `.`, `..`, and
-  absolute paths are rejected (must be under `root`).
+  asset — same `AssetId`, same `Arc` — while any handle is alive.
+- **Type-checked.** `load::<T>` of a cached path as another type returns
+  `Err(AssetError::WrongType { path, expected })`.
+- **Path resolution.** `path` is relative to `root`. Absolute paths,
+  `.`/`..` components and empty paths return `AssetError::InvalidPath`.
+- The UID registry is saved only the first time a path is loaded.
 
 ### 6.5 Reload
 
 ```rust
 impl AssetServer {
-    pub fn reload(&self, path: &str) -> Result<(), AssetError>;
-    pub fn reload_all(&self);
+    pub fn reload<T: Asset>(&self, path: &str,
+        rendering: Option<&mut dyn RenderingServer>) -> Result<(), AssetError>;
 }
 ```
 
-`reload` reads the file, calls `Asset::reload` on the live asset. All
-existing `Handle`s see the updated data. Hot-reload calls `reload`
-automatically when files change.
+`reload` re-reads the file and calls `Asset::reload` under the write
+lock; existing `Handle`s see the updated data. It is manual:
+nothing calls it on file change. *Not yet implemented:* `reload_all`.
 
 ### 6.6 Poll
 
 ```rust
 impl AssetServer {
-    /// Called once per frame by MainLoop. Processes hot-reload events
-    /// and unloads assets whose refcount reached zero.
-    pub fn poll(&mut self);
+    /// Drops cache entries nobody holds a handle to; returns how many.
+    pub fn poll(&self) -> usize;
+    /// Cache entry count, including ones `poll` has not pruned yet.
+    pub fn cached(&self) -> usize;
 }
 ```
+
+`poll` does not process hot-reload events (none exist). Nothing calls it
+automatically; games call it when convenient.
 
 ### 6.7 Unloading
 
-When a `Handle<T>` drops and its refcount reaches zero:
-
-1. The `AssetServer` is notified (via a `Weak<ServerHandle>` in the
-   `Handle`).
-2. The `AssetId` is added to `pending`.
-3. On the next `poll()`, the asset is removed from the cache and dropped.
-
-This defers the actual drop to a safe point outside the frame loop.
+Dropping the last `Handle<T>` drops the data (the cache holds a `Weak`).
+`poll()` only removes the dead cache entries. There is no drop
+notification to the server (ADR-026).
 
 ## 7. Loader registry
 
-### 7.1 `AssetLoader` trait
-
-```rust
-pub trait AssetLoader<T: Asset>: Send + Sync + 'static {
-    fn extensions(&self) -> &'static [&'static str];
-    fn load(&self, bytes: &[u8], ctx: &mut AssetLoadContext) -> Result<T, AssetError>;
-    fn reload(
-        &self,
-        current: &mut T,
-        bytes: &[u8],
-        ctx: &mut AssetLoadContext,
-    ) -> Result<(), AssetError>;
-}
-```
-
-### 7.2 Registry
-
-```rust
-pub struct LoaderRegistry {
-    by_extension: HashMap<&'static str, Box<dyn ErasedLoader>>,
-    by_asset_type: HashMap<TypeId, &'static str>,
-}
-
-impl LoaderRegistry {
-    pub fn new() -> Self;
-    pub fn register<T: Asset, L: AssetLoader<T> + 'static>(&mut self, loader: L);
-    pub fn loader_for_extension(&self, ext: &str) -> Option<&dyn ErasedLoader>;
-}
-```
-
-The registry is populated by `AssetServerBuilder::register_loader` and
-by the built-in loaders (registered automatically at `build()`).
-
-### 7.3 Registration precedence
-
-Custom loaders override built-in loaders for the same extension. This
-lets a game provide a `"png"` loader that preprocesses images, without
-forking `ember_assets`.
+*Not yet implemented.* ADR-026 replaced `AssetLoader` / `LoaderRegistry`
+with the type-driven `Asset` trait (§5): the requested type `T` selects
+the loader, and `Asset::extensions()` documents accepted file extensions.
+There is no precedence/override mechanism.
 
 ## 8. UID registry
 
@@ -348,218 +282,149 @@ forking `ember_assets`.
 (
     assets: {
         "sprites/player.png": "uid://player_a3b1c",
-        "sprites/enemy.png": "uid://enemy_b4d2e",
         "levels/forest.escene": "uid://forest_f5e3a",
     },
 )
 ```
 
+UIDs look like `uid://<file stem>_<5 hex chars>` (FNV-1a of the content
+hash).
+
 ### 8.2 Behavior
 
 - **Assign.** First load of a file without a UID entry: hash the content,
   assign a UID, write to the registry.
-- **Resolve.** Loading by UID: look up the path, then load by path.
-- **Stable.** Renaming a file updates its path in the registry, keeps
-  the UID.
+- **Resolve.** Loading by UID: look up the path, then load by path
+  (`AssetError::UnknownUid` if missing).
+- **Stable.** `rename(old, new)` updates the path, keeps the UID.
 
 ### 8.3 API
 
 ```rust
 impl UidRegistry {
-    pub fn load(path: &Path) -> Result<Self, AssetError>;
-    pub fn save(&self, path: &Path) -> Result<(), AssetError>;
-    pub fn uid_for_path(&self, path: &Path) -> Option<&Uid>;
-    pub fn path_for_uid(&self, uid: &Uid) -> Option<&Path>;
-    pub fn assign(&mut self, path: &Path, content_hash: u64) -> Uid;
-    pub fn rename(&mut self, old: &Path, new: &Path) -> Result<(), AssetError>;
+    pub fn load(file: &Path) -> Result<Self, AssetError>;
+    pub fn save(&self, file: &Path) -> Result<(), AssetError>;
+    pub fn uid_for_path(&self, path: &str) -> Option<&Uid>;
+    pub fn path_for_uid(&self, uid: &Uid) -> Option<&str>;
+    pub fn assign(&mut self, path: &str, content_hash: u64) -> Uid;
+    pub fn rename(&mut self, old: &str, new: &str) -> Result<(), AssetError>;
 }
 ```
 
-### 8.4 Why content hash for UID
+(Asset paths are normalised `&str`s.)
 
-If the UID is the hash of file content, renaming a file keeps its UID
-(the content is unchanged). Moving the file also keeps the UID. Only
-editing the content (which changes the hash) would generate a new UID —
-but that's wrong, because editing content shouldn't break references.
+### 8.4 UID rule
 
-**Actual rule:** UID is assigned on **first registration** and never
-changed, regardless of content or path. The hash is just used to
-generate the initial UID (a random-looking stable string). Files
+UID is assigned on **first registration** and never changed, regardless
+of content or path. The hash only seeds the initial string. Files
 registered twice get the existing UID.
 
 ## 9. Hot-reload
 
-### 9.1 Watcher
+*Not yet implemented* (ADR-026). There is no `HotReloader`, no `notify`
+dependency and no `watch` option. Reloading is manual via
+`AssetServer::reload` (§6.5). When it is called:
 
-```rust
-pub struct HotReloader {
-    watcher: notify::RecommendedWatcher,
-    changed: Receiver<PathBuf>,
-}
-```
+1. The file is re-read and `Asset::reload` updates the asset in place.
+2. All existing `Handle`s see the new data.
+3. Live nodes' own state is unchanged.
 
-The watcher runs on a background thread, sends changed paths to a
-`crossbeam` channel. `AssetServer::poll` drains the channel and calls
-`reload` for each changed path.
-
-### 9.2 Availability
-
-- **Enabled** in `cfg(debug_assertions)` and when `watch(true)` is
-  set explicitly.
-- **Disabled** in release builds and when `watch(false)` is set.
-
-### 9.3 Behavior on reload
-
-1. Loader reads new bytes.
-2. `Asset::reload` updates the asset in place.
-3. All existing `Handle`s see the new data.
-4. Live game objects (nodes with `Handle`) are **not** automatically
-   updated — they see the new data via the handle's `get()`, but their
-   *state* (e.g. a texture's position on screen) is unchanged.
-
-### 9.4 Reload of packed scenes
-
-Reloading a `.escene` file:
-- New instances pick up the new content.
-- Existing instances are unchanged.
-
-To reset live instances, the game must be restarted (v0.1). A
-"reload scene" button in the editor is v0.2.
+Reloading a `.escene` replaces the stored `PackedScene` only; new
+instantiations use it, existing instances are unchanged.
 
 ## 10. Errors
 
 ```rust
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum AssetError {
-    #[error("asset not found: {0}")]
     NotFound(String),
-
-    #[error("path outside root: {0}")]
-    OutsideRoot(String),
-
-    #[error("unknown extension: {0}")]
-    UnknownExtension(String),
-
-    #[error("loader failed: {0}")]
-    LoaderFailed(String),
-
-    #[error("type mismatch for {0}: registered as {1}, requested as {2}")]
-    WrongType(String, &'static str, &'static str),
-
-    #[error("asset not yet loaded: {0:?}")]
-    NotLoaded(AssetId),
-
-    #[error("uid not found: {0}")]
-    UidNotFound(String),
-
-    #[error("registry error: {0}")]
-    Registry(String),
-
-    #[error("io error: {0}")]
-    Io(#[from] std::io::Error),
+    Io(std::io::Error),
+    InvalidPath(String),
+    WrongType { path: String, expected: &'static str },
+    Parse(String),
+    InvalidUid(String),
+    UnknownUid(Uid),
+    NeedsRenderer(String),
+    Server(ServerError),
 }
 ```
 
+`Display`/`Error` are hand-written (no `thiserror`).
+
 ## 11. Examples
 
-### 11.1 Loading a texture in `ready`
+### 11.1 Loading a texture at start-up
+
+`NodeContext` has no `assets()` (*Not yet implemented*), so games load
+before building the tree:
 
 ```rust
-impl Node for Sprite {
-    fn ready(&mut self, ctx: &mut NodeContext) {
-        match ctx.assets().texture("sprites/player.png") {
-            Ok(handle) => self.handle = Some(handle),
-            Err(e) => log::warn!("failed to load player texture: {e}"),
-        }
-    }
-}
+let assets = AssetServer::new("assets")?;
+let tex: Handle<Texture> = assets.texture("sprites/player.png", &mut renderer)?;
+// later, in draw: ctx.render().draw_sprite(tex.get().id, dst, None, Color::WHITE);
 ```
 
 ### 11.2 Async loading with a loading screen
 
-```rust
-struct LoadingScreen { pending: Vec<WeakHandle<Texture>> }
-
-impl Node for LoadingScreen {
-    fn process(&mut self, _dt: f32, ctx: &mut NodeContext) {
-        self.pending.retain(|h| h.upgrade().is_none());
-        if self.pending.is_empty() {
-            ctx.emit::<LoadComplete>(LoadComplete);
-        }
-    }
-}
-```
+*Not yet implemented* (`load_async`). Loading is synchronous; a loading
+screen can load one asset per frame instead.
 
 ### 11.3 Custom asset type
 
 ```rust
 #[derive(Clone)]
-pub struct LevelConfig {
-    pub name: String,
-    pub width: f32,
-}
+pub struct LevelConfig { pub name: String, pub width: f32 }
 
 impl Asset for LevelConfig {
+    fn extensions() -> &'static [&'static str] { &["level"] }
     fn load(bytes: &[u8], _ctx: &mut AssetLoadContext) -> Result<Self, AssetError> {
-        ron::de::from_bytes(bytes).map_err(|e| AssetError::LoaderFailed(e.to_string()))
-    }
-
-    fn reload(current: &mut Self, bytes: &[u8], ctx: &mut AssetLoadContext) -> Result<(), AssetError> {
-        *current = Self::load(bytes, ctx)?;
-        Ok(())
+        // parse bytes (e.g. with ron) and map errors to AssetError::Parse
     }
 }
 
-// In main:
-let mut builder = AssetServer::builder();
-builder.register_loader::<LevelConfig, _>(LevelConfigLoader);
-let assets = builder.build()?;
+let level: Handle<LevelConfig> = assets.load("levels/one.level")?;
 ```
+
+(`reload` has a default implementation that replaces the value.) For
+plain serde data, `RonAsset<T>` needs no impl.
 
 ## 12. Design notes
 
 ### 12.1 Why `Arc<RwLock<>>` and not `RefCell`
 
-Because hot-reload runs on a background thread (the file watcher) that
-acquires a write lock. `RefCell` is `!Sync` — the reload can't touch it.
+`Asset: Send + Sync`, handles are shared and `reload` mutates in place
+under a write lock; `RefCell` is `!Sync`.
 
 ### 12.2 Why `AssetGuard` and not `&T`
 
-Because returning `&T` from `handle.get()` would require locking for the
-lifetime of the reference — which is the handle's lifetime, not the
-caller's. `AssetGuard` bounds the lock to the caller's `let` binding:
+Returning `&T` would require holding the lock for the handle's lifetime.
+The guard bounds the lock to the caller's binding:
 
 ```rust
-if let Some(tex) = handle.get() {
-    // lock held only while `tex` is alive
-    ctx.render().draw_sprite(tex.id(), dst, None, WHITE);
-}
-// lock released
+let tex = handle.get();          // lock held while `tex` is alive
+ctx.render().draw_sprite(tex.id, dst, None, Color::WHITE);
 ```
 
 ### 12.3 Why content hash for UID generation
 
-Because the hash is deterministic (same file, same UID across machines),
-avoids needing a UID-authoring tool, and stays stable when files move.
+Deterministic (same file, same UID across machines), needs no authoring
+tool, and stable when files move.
 
 ### 12.4 Why no async executor
 
-Because v0.1 targets desktop-first, where `std::fs::read` is fast enough
-to block on. `load_async` on web is powered by macroquad's wasm-specific
-image loader, not a general async runtime. Full async (with a runtime
-like `tokio`) is a v0.2 feature when web target becomes first-class.
+v0.1 targets desktop-first, where `std::fs::read` is fast enough to block
+on. Async loading is a v0.2 design.
 
 ### 12.5 Why `poll()` and not automatic unload
 
-Because dropping a `Handle` mid-frame would mutate the cache while it's
-being iterated. `poll()` runs once per frame at a safe point, applies
-pending unloads, and processes hot-reload events in one place.
+Memory is freed on the last handle drop; `poll()` only prunes dead cache
+entries at a point the game chooses.
 
 ## 13. Open questions
 
 - **Q1:** Should `Handle::get` block during hot-reload? *Provisional:*
-  yes. Hot-reload is rare; a 1-frame stall is invisible.
+  yes (reload takes a write lock). Watcher-driven reload is not implemented.
 - **Q2:** Should loading be reference-counted per path or per asset?
   *Provisional:* per asset. Two paths can point to the same asset
   (via `uid://`); both share the same underlying `Arc`.

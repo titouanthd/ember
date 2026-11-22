@@ -2,15 +2,15 @@
 title: "02 — Principles"
 aliases: ["02 — Principles"]
 tags: ["ember/spec", "ember/wave-1"]
-doc-status: "draft"
-former-path: "docs/engine/v0.1/02-principles.md"
+doc-status: "partial"
+former-path: ".worktrees/titouanthd-potential-carnival/docs/engine/v0.1/02-principles.md"
 imported: "2026-11-22"
 wave: "1 — Foundation"
 ---
 
 # 02 — Principles
 
-> **Status:** ⬜ draft
+> **Status:** 🟡 partial — reviewed 2026-11-19; rules are policy and mostly followed; error enums, prelude and profiling differ from the sketches
 > **Audience:** implementers, reviewers
 > **Prerequisites:** [[01-architecture]]
 
@@ -40,9 +40,11 @@ small helper". Helpers go down, never up.
 
 ### I2 — Only the `_macroquad` crates depend on `macroquad`
 
-`ember_render_macroquad` and `ember_audio_macroquad` are the *only* crates
-allowed to import `macroquad` / `miniquad`. Every other crate talks
-through `RenderingServer` / `AudioServer` traits.
+`ember_render_macroquad` and `ember_audio_macroquad` are the *only* engine
+crates allowed to import `macroquad` / `miniquad`. Every other crate talks
+through `RenderingServer` / `AudioServer` traits. *Current exception:*
+`ember_stdlib` (and the games) still depend on `macroquad`; `xtask
+check-macroquad` keeps them on an allowlist until they migrate.
 
 **Violated by:** "just one `draw_rectangle` call in `ember_scene`". Use
 `ctx.render().draw_rect(...)` instead.
@@ -88,7 +90,8 @@ is wrong; the PR reviewer decides which.
 ### I6 — Public types are `#[non_exhaustive]` until v1.0
 
 Every public enum and struct that is expected to grow (server capability
-flags, `GameState`, config structs) is `#[non_exhaustive]`. Add fields via
+flags, `GameState`, config structs) is `#[non_exhaustive]`. *Partially
+applied:* `CoreError`, `ServerError` and `AssetError` are; `SceneError` is not. Exception: fixture structs games construct, e.g. `Input` (ADR-018). Add fields via
 new constructors, not by growing the struct.
 
 **Violated by:** adding a fifth field to `GameConfig` and breaking every
@@ -100,8 +103,8 @@ An API is marked `#[deprecated(note = "…")]` for one minor version
 (e.g. all of v0.1), then removed in the next (v0.2). Deprecation without
 a note explaining the replacement is rejected in review.
 
-**Example:** `Cooldown::new` → `Cooldown::running` is a v0.1 deprecation;
-`new` disappears in v0.2.
+**Example (applied):** `Cooldown::new` → `Cooldown::running` is a v0.1
+deprecation; `new` and `with_duration` carry `#[deprecated]` attributes.
 
 ### I8 — Tests are colocated and always run
 
@@ -134,7 +137,7 @@ a note explaining the replacement is rejected in review.
 
 | Pattern | Rule | Example |
 |---|---|---|
-| Constructor | `new` / `with_*` | `Catapult::new`, `Cooldown::ready` |
+| Constructor | `new` / `with_*` | `Cooldown::running`, `Cooldown::ready` |
 | Fallible | `try_*` | `try_spawn`, `try_fire` |
 | Query | `is_*` / `has_*` | `is_ready`, `has_child` |
 | Conversion | `as_*` (cheap) / `to_*` (allocating) | `as_str`, `to_owned` |
@@ -186,13 +189,15 @@ crates/ember_x/
 Contains the minimum set of types a game needs to start:
 
 ```rust
-// crates/ember/src/prelude.rs
-pub use ember_scene::{Node, NodeId, NodeTree, NodeContext, PackedScene};
-pub use ember_core::math::{Vec2, Rect};
-pub use ember_core::color::Color;
-pub use ember_core::time::Cooldown;
-pub use ember_macros::{Node, signal};
+// crates/ember/src/lib.rs (mod prelude) — abridged
+pub use ember_scene::prelude::*; // Node, NodeId, NodeTree, NodeContext, DrawContext, Servers, PackedScene, SceneLoop, Signal…
+pub use ember_core::math::Rect;
+pub use ember_core::{Color, MainLoop, Object};
+pub use ember_macros::Node; // derive (`#[signal]` is not re-exported)
+pub use glam::Vec2;
 ```
+
+`Cooldown` is not in the prelude and `#[signal]` (a no-op marker in `ember_macros`) is not re-exported.
 
 The prelude is not the whole crate. Advanced APIs are used with their
 full path (`ember_scene::advanced::...`).
@@ -205,38 +210,39 @@ full path (`ember_scene::advanced::...`).
 |---|---|
 | L1 · Core | Typed `CoreError` enum; no `anyhow` |
 | L2 · Servers | Trait methods return `Result<_, ServerError>`; `ServerError` is a coarse enum |
-| L3 · Scene / Assets / UI | Typed enums per crate (`SceneError`, `AssetError`, `UiError`) |
+| L3 · Scene / Assets / UI | Typed enums per crate (`SceneError`, `AssetError`; `UiError` *not yet implemented*) |
 | L4 · Main / Editor | May use `anyhow::Result` for the top-level entry point only |
 
 ### 5.2 Error crate
 
-Each crate defines its own error in `error.rs`:
+Each crate defines its own error in `error.rs`, hand-written (`impl Display` +
+`impl std::error::Error`); the workspace does not use `thiserror`:
 
 ```rust
-// crates/ember_scene/src/error.rs
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
+// crates/ember-scene/src/error.rs (abridged)
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SceneError {
-    #[error("node not found: {0:?}")]
-    NodeNotFound(NodeId),
-
-    #[error("node already attached: {0:?}")]
+    NotFound(NodeId),
+    SelfParent(NodeId),
+    IsRoot(NodeId),
     AlreadyAttached(NodeId),
-
-    #[error("cycle detected while re-parenting {0:?} under {1:?}")]
-    CycleDetected(NodeId, NodeId),
-
-    #[error("scene parse error: {0}")]
+    NotAttached(NodeId),
+    Cycle { child: NodeId, parent: NodeId },
     Parse(String),
-
-    #[error("io error: {0}")]
-    Io(#[from] std::io::Error),
+    UnsupportedFormat(u32),
+    ClassNotRegistered(String),
+    InvalidName(String),
+    Io(String),
+    Asset(String),
+    InstanceCycle(String),
 }
 ```
 
 ### 5.3 Error chaining
 
-Errors are always `#[from]`-chained, never flattened to `String`. The
+Errors are meant to be `#[from]`-chained, never flattened to `String`.
+*Not fully applied:* `SceneError::Io`/`Asset` and `AssetError::Io` carry a
+`String`. The
 goal is that a failing call site can always report *which crate, which
 concept, which value* caused the failure.
 
@@ -244,7 +250,7 @@ concept, which value* caused the failure.
 
 The following are **never** errors in Ember, and are silently handled:
 
-- Asking for the `NodeId` of a node that has been freed → `None`
+- Looking up a freed `NodeId` with `NodeTree::get` → `None`
 - Disconnecting a signal that isn't connected → no-op
 - Drawing outside the viewport → clipped, no warning
 - Ticking a `Cooldown` that's already ready → no-op
@@ -259,7 +265,7 @@ for every "node is gone" check — pollutes every system function with
 - Referencing a freed `NodeId` from outside the tree
 - Loading a scene file with a missing `ext_resource`
 - Attaching a node that already has a parent (unless detached first)
-- A `#[signal]` payload type that isn't `Send + Sync + 'static`
+- A `#[signal]` payload type that isn't `Send + Sync + 'static` (*`#[signal]` is a no-op marker; the bound is enforced by the `Signal` trait*)
 
 These surface at the boundary, not inside the game loop.
 
@@ -283,9 +289,8 @@ These surface at the boundary, not inside the game loop.
    that exercises a plausible use case.
 4. **Every game has a `game_scenarios.rs`.** These are the conformance
    suite. When engine internals change, they must still pass.
-5. **No mocking of the rendering server.** The `RenderingServer` trait is
-   the seam; integration tests use `ember_render_macroquad` with a
-   headless miniquad backend.
+5. **Scene tests use `MockRenderer` / `MockAudio`** (recording backends in
+   `ember_servers`) rather than a headless macroquad backend.
 6. **No mocking of `NodeTree`.** If a test needs a tree, build one. The
    tree is fast enough that faking it is wasted effort.
 
@@ -299,6 +304,8 @@ These surface at the boundary, not inside the game loop.
 ## 7. Deprecation policy
 
 ### 7.1 How to deprecate
+
+*(Applied to `Cooldown::new` / `with_duration` in `ember-core`.)*
 
 ```rust
 #[deprecated(
@@ -346,7 +353,7 @@ The POC is not performance-critical. The following rules apply:
 
 Profiling infrastructure:
 
-- `ember_profiling` — a macro crate providing `profile_scope!()` and
+- `ember_profiling` — *not yet implemented (no such crate)*; planned as a macro crate providing `profile_scope!()` and
   `profile_frame!()`. No-op by default; enabled with a feature flag.
 - Profiler UI is v0.2+. For POC, `profile_scope!` writes to
   `tracing` if the `tracing` feature is enabled.

@@ -3,7 +3,7 @@ use crate::AppState;
 use crate::components::{Block, SlidingBlock};
 use crate::config::{GameContext, block_color};
 use crate::controls::confirm_pressed;
-use crate::juice::Juice;
+use crate::effects::Effects;
 use ember_stdlib::input::Input;
 use glam::Vec2;
 use macroquad::prelude::*;
@@ -46,7 +46,7 @@ pub struct MatchState {
     pub last_drop_perfect: bool,
     /// Consecutive perfect drops. Shown in the HUD.
     pub combo: u32,
-    pub juice: Juice,
+    pub juice: Effects,
     /// 1.0 right after a perfect drop, decays to 0.0. Drives the camera punch.
     pub camera_punch: f32,
     /// 1.0 right after any landing, decays to 0.0. Drives the gold
@@ -82,7 +82,7 @@ impl MatchState {
             camera_y: camera_target(start_y, ctx.screen_h),
             last_drop_perfect: false,
             combo: 0,
-            juice: Juice::new(),
+            juice: Effects::new(),
             camera_punch: 0.0,
             land_pulse: 0.0,
         };
