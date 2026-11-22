@@ -3,16 +3,19 @@
 use crate::{Anchors, Measure, Theme, UiDrawContext};
 use ember_core::math::Rect;
 use ember_input::{Key, MouseButton};
-use ember_scene::{DrawContext, Node, NodeId};
+use ember_scene::{DrawContext, Node, NodeContext, NodeId, Signal};
 use glam::Vec2;
 use std::sync::Arc;
+
+/// A signal a control asked to emit; `UiRoot` runs it with the control's
+/// id after routing input (ADR-036).
+pub(crate) type PendingSignal = Box<dyn FnOnce(&mut NodeContext<'_>, NodeId) + Send + Sync>;
 
 /// State shared by every control. Embed one and return it from
 /// [`Control::base`] / [`Control::base_mut`]; the trait's defaults read it.
 ///
-/// `rect`, `theme`, `focused` and `hovered` are written by the UI root
-/// each frame; the rest is the control's own configuration.
-#[derive(Debug, Clone)]
+/// `rect`, `theme`, `focused`, `hovered` and `pressed` are written by the
+/// UI root each frame; the rest is the control's own configuration.
 pub struct ControlBase {
     /// Final rect in screen pixels, set by the parent's layout.
     pub rect: Rect,
@@ -27,8 +30,12 @@ pub struct ControlBase {
     pub visible: bool,
     pub focused: bool,
     pub hovered: bool,
+    /// The left mouse button went down on this control and has not been
+    /// released yet; it still gets `on_mouse_up` if the pointer left.
+    pub pressed: bool,
     /// The UI root's theme, handed down during layout.
     pub theme: Arc<Theme>,
+    outbox: Vec<PendingSignal>,
 }
 
 impl Default for ControlBase {
@@ -41,8 +48,44 @@ impl Default for ControlBase {
             visible: true,
             focused: false,
             hovered: false,
+            pressed: false,
             theme: Arc::new(Theme::dark()),
+            outbox: Vec::new(),
         }
+    }
+}
+
+/// Clones the configuration and state; queued signals are not cloned.
+impl Clone for ControlBase {
+    fn clone(&self) -> Self {
+        Self {
+            rect: self.rect,
+            anchors: self.anchors,
+            offset: self.offset,
+            min_size: self.min_size,
+            visible: self.visible,
+            focused: self.focused,
+            hovered: self.hovered,
+            pressed: self.pressed,
+            theme: Arc::clone(&self.theme),
+            outbox: Vec::new(),
+        }
+    }
+}
+
+impl std::fmt::Debug for ControlBase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ControlBase")
+            .field("rect", &self.rect)
+            .field("anchors", &self.anchors)
+            .field("offset", &self.offset)
+            .field("min_size", &self.min_size)
+            .field("visible", &self.visible)
+            .field("focused", &self.focused)
+            .field("hovered", &self.hovered)
+            .field("pressed", &self.pressed)
+            .field("queued_signals", &self.outbox.len())
+            .finish()
     }
 }
 
@@ -64,6 +107,23 @@ impl ControlBase {
     pub fn with_min_size(mut self, min_size: Vec2) -> Self {
         self.min_size = min_size;
         self
+    }
+
+    /// Queue a signal for `UiRoot` to emit after this frame's input
+    /// routing. `make` receives the control's `NodeId` (ADR-036):
+    /// `self.base.emit(|id| ButtonClicked { button: id })`.
+    pub fn emit<T: Signal>(&mut self, make: impl FnOnce(NodeId) -> T + Send + Sync + 'static) {
+        self.outbox
+            .push(Box::new(move |ctx, id| ctx.emit(make(id))));
+    }
+
+    /// Number of signals waiting to be emitted.
+    pub fn queued_signals(&self) -> usize {
+        self.outbox.len()
+    }
+
+    pub(crate) fn take_signals(&mut self) -> Vec<PendingSignal> {
+        std::mem::take(&mut self.outbox)
     }
 }
 
@@ -147,7 +207,7 @@ pub trait Control: Node {
         None
     }
 
-    // --- Input (routed by the UI root, Phase 5.3) ---
+    // --- Input (routed by `UiRoot`, spec §9, ADR-036) ---
 
     fn focusable(&self) -> bool {
         false
@@ -163,6 +223,8 @@ pub trait Control: Node {
     fn on_mouse_up(&mut self, _button: MouseButton, _pos: Vec2) {}
     fn on_mouse_wheel(&mut self, _delta: f32) {}
     fn on_key_press(&mut self, _key: Key) {}
+    /// Enter / Space / gamepad South while focused (spec §6.2).
+    fn on_activate(&mut self) {}
     fn on_focus(&mut self) {}
     fn on_blur(&mut self) {}
 }
