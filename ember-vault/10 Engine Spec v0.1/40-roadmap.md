@@ -34,9 +34,9 @@ Phase N's exit criteria are met.
 > [!summary] Status at a glance (2026-11-22)
 > | P0 | P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8 |
 > |---|---|---|---|---|---|---|---|---|
-> | ✅ | 🟢 95 % | 🟡 65 % | 🟢 90 % | ✅ | 🟡 25 % | ⬜ | 🟡 1/17 | ⬜ 10 % |
+> | ✅ | 🟢 95 % | 🟡 65 % | 🟢 90 % | ✅ | 🟡 50 % | ⬜ | 🟡 1/17 | ⬜ 10 % |
 >
-> ≈ **38 %** of the POC effort done, ≈ 20 sessions left. In practice P5 and
+> ≈ **40 %** of the POC effort done, ≈ 19 sessions left. In practice P5 and
 > P7 run in parallel (allowed after P4), and **P2's close-out (`#[export]`,
 > `SceneWriter`, scene connections) must land before P6**, because the
 > editor saves scenes. Detail and re-plan: [[Roadmap Review 2026-11-22]].
@@ -330,10 +330,11 @@ editor is finished.
 ## 8. Phase 5 — UI
 
 > **Progress:** 🟡 Entry gate done 2026-11-22 (Phase 4 closed, ADR-033;
-> [[24-ember-ui]] ✅; ADR-030/031/032). **Session 5.1 done** (`cdbc078`):
-> `Control` + `ControlBase`, `Anchors`, `Theme::dark/light`,
-> `ControlRegistry`, `UiRoot` layout, `control_node!` (ADR-034). Next:
-> 5.2 containers + static widgets, 5.3 focus/buttons/mouse (ADR-036),
+> [[24-ember-ui]] ✅; ADR-030/031/032). **Sessions 5.1** (`cdbc078`) **and 5.2** (`064e44c`)
+> **done:** `Control` + `ControlBase`, `Anchors`, `Theme`, `ControlRegistry`,
+> `UiRoot` layout, `control_node!`, bottom-up measuring, `VBox`, `HBox`,
+> `Stretch`, `Label`, `Panel`, `Image`, facade re-export (ADR-034). Next:
+> 5.3 focus/buttons/mouse (ADR-036),
 > 5.4 scroll + text input + `ui_demo` (ADR-035). See
 > [[Next Phase Plan — Phase 5 UI]].
 
@@ -537,7 +538,7 @@ games can begin before the editor exists).
 | M2 — Scenes are files | P2 | A `.escene` file loads and runs | 🟡 loads + instantiates; no writer |
 | M3 — Nodes talk | P3 | Signals connect nodes without shared refs | ✅ (pong) |
 | M4 — Backends are swappable | P4 | `macroquad` is isolated to 2 crates | ✅ engine crates (ADR-033) |
-| M5 — UI works | P5 | A menu can be built with `Button`, `VBox`, `Label` | 🟡 foundations only |
+| M5 — UI works | P5 | A menu can be built with `Button`, `VBox`, `Label` | 🟡 `VBox` + `Label` ✅, `Button` in 5.3 |
 | M6 — Authoring works | P6 | A `.escene` can be edited outside code | ⬜ |
 | M7 — POC complete | P7 | All 17 games run on the engine | 🟡 1/17 |
 | M8 — v0.1 released | P8 | No deprecated APIs remain | ⬜ |

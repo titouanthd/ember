@@ -49,7 +49,7 @@ Branch: `feat/ui` (or one branch per session), pushed after the first commit.
 | Session | Build | Tests (MockRenderer + synthetic `Input`) |
 |---|---|---|
 | **5.1 Foundations** ✅ `cdbc078` | `ember-ui` crate layout per spec §2. `Control` trait (rect, min_size, focusable, input hooks), `UiDrawContext` (wraps `DrawContext` + `Theme` + clip stack), `Anchors` + `compute_rect`, `Theme::dark()` / `light()`, `UiRoot` node that runs layout once per frame | `layout_anchors.rs`: anchors resolve for 4 corners + stretch; theme defaults |
-| **5.2 Layout & static widgets** | `VBox`, `HBox`, `Stretch` (one-pass layout, spec §11.1), `Label`, `Panel`, `Image` (`Handle<Texture>`) | `layout_vbox.rs` (3 children, spacing, stretch weights), `layout_hbox.rs`; draw-call snapshots |
+| **5.2 Layout & static widgets** ✅ `064e44c` | `VBox`, `HBox`, `Stretch` (one-pass layout, spec §11.1), `Label`, `Panel`, `Image` (`Handle<Texture>`) | `layout_vbox.rs` (3 children, spacing, stretch weights), `layout_hbox.rs`; draw-call snapshots |
 | **5.3 Interaction** | `FocusManager` (Tab / Shift+Tab, wrap-around, `set_focus`), `Button` emitting `ButtonPressed { id }` via signals, mouse routing top-down with consumption (spec §9), `primary_action` activates the focused button | `focus_navigation.rs` (Tab ×3 cycles, Enter emits), `mouse_routing.rs` (overlapping controls, consumption) |
 | **5.4 Scroll, text, demo** | `ScrollContainer` (wheel + clip + scrollbar), `TextInput` (caret, Backspace/Delete/Home/End, max length, `TextSubmitted` signal), `crates/ember/examples/ui_demo.rs` showing every widget | `scroll_clip.rs` (clip calls bracket children, offset), `text_input.rs` (typing, backspace, submit) |
 

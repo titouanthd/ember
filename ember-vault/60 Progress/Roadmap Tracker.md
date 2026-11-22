@@ -64,7 +64,8 @@ gantt
 - [x] `LinearPhysics` backend; `ctx.physics()`
 - [x] ~~`ember_stdlib::collider` migrated into `LinearPhysics`~~ — dropped: `LinearPhysics` written fresh in `ember-servers` (ADR-028)
 
-## Phase 5 — UI (entry gate ✅, 5.1 ✅ `cdbc078`)
+## Phase 5 — UI (entry gate ✅, 5.1 ✅ `cdbc078`, 5.2 ✅ `064e44c`)
+- [x] `VBox`, `HBox`, `Stretch`, `Label`, `Panel`, `Image`; bottom-up measuring; built-ins registered (5.2)
 - [x] `Control` trait, `ControlBase`, `Anchors`, `Theme::dark()/light()`, `UiRoot` layout (5.1)
 - [ ] `VBox` with 3 `Button`s, Tab/Enter navigation
 - [ ] `ScrollContainer` clips

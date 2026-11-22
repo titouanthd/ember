@@ -3,7 +3,7 @@ title: "ember-ui"
 tags: ["ember/crate"]
 layer: "L3 · Scene"
 path: "crates/ember-ui"
-loc: ~900
+loc: ~2500
 tests: 0
 generated: "2026-11-22"
 ---
@@ -22,7 +22,7 @@ ember-scene, ember-servers
 
 ## Implementation status
 
-🟡 Session 5.1 (`cdbc078`): `Control` + `ControlBase`, `Anchors`, `Theme`, `ControlRegistry`, `UiRoot` (layout once per frame), `control_node!`, `UiDrawContext` (ADR-034). Widgets and containers next (5.2).
+🟡 Sessions 5.1 (`cdbc078`) and 5.2 (`064e44c`): `Control` + `ControlBase`, `Anchors`, `Theme`, `ControlRegistry`, `UiRoot` (layout once per frame, bottom-up measure), `control_node!`, `UiDrawContext`, `VBox`/`HBox`/`Stretch`, `Label`/`Panel`/`Image` (ADR-034). Next: focus + `Button` (5.3), scroll + `TextInput` (5.4).
 
 ## Spec
 

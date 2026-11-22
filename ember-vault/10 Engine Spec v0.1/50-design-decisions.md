@@ -1401,6 +1401,21 @@ rule forbids `impl<T: Control> Node for T` in `ember-ui`.
   must close after the children draw, which needs a post-children draw
   hook in `ember-scene` (ADR-035, planned).
 
+### Addendum — session 5.2 (2026-11-22)
+
+- **Bottom-up measuring.** `Control::measure(available, &Measure)` sizes
+  the control itself; the new `Control::measure_children(own, sizes)`
+  lets containers add their children (measured first). Spec §4.3's
+  "`measure` sums the children" is not possible from `&self`.
+- **`Measure`** gives text metrics from the renderer; `UiRoot` gets tree
+  and renderer together through `NodeContext::tree_and_render` (new,
+  generic split borrow).
+- **Padding is `Margins`** (per side), not a `Rect` as in the spec.
+- **`Image` takes a `TextureId` + pixel size**, not `Handle<Texture>`:
+  `ember-ui` does not depend on `ember-assets` (same layer).
+- `UiRoot::new` registers every built-in control; the `ember` facade
+  re-exports `ember_ui` and its prelude.
+
 ## How to add an ADR
 
 1. Copy the template:
