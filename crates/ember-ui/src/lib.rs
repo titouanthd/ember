@@ -28,16 +28,20 @@
 mod control;
 mod draw;
 pub mod layout;
+mod measure;
 mod registry;
 mod root;
 mod theme;
+pub mod widgets;
 
-pub use control::{ChildLayout, Control, ControlBase, draw_control_node};
+pub use control::{ChildLayout, Control, ControlBase, ControlExt, draw_control_node};
 pub use draw::UiDrawContext;
-pub use layout::Anchors;
+pub use layout::{Anchors, HBox, Margins, Stretch, StretchMode, VBox};
+pub use measure::Measure;
 pub use registry::ControlRegistry;
 pub use root::UiRoot;
 pub use theme::Theme;
+pub use widgets::{Alignment, Image, ImageMode, Label, Panel};
 
 /// Draw layer of every UI node: above the game world (spec §8).
 pub const UI_Z: f32 = 100.0;
@@ -71,7 +75,8 @@ macro_rules! control_node {
 
 pub mod prelude {
     pub use crate::{
-        Anchors, ChildLayout, Control, ControlBase, ControlRegistry, Theme, UI_Z, UiDrawContext,
-        UiRoot, control_node,
+        Alignment, Anchors, ChildLayout, Control, ControlBase, ControlExt, ControlRegistry, HBox,
+        Image, ImageMode, Label, Margins, Measure, Panel, Stretch, StretchMode, Theme, UI_Z,
+        UiDrawContext, UiRoot, VBox, control_node,
     };
 }

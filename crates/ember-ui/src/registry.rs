@@ -39,6 +39,19 @@ impl ControlRegistry {
         Self::default()
     }
 
+    /// A registry with every built-in control: `Label`, `Panel`, `Image`,
+    /// `VBox`, `HBox`, `Stretch`.
+    pub fn with_builtins() -> Self {
+        let mut r = Self::new();
+        r.register::<crate::Label>()
+            .register::<crate::Panel>()
+            .register::<crate::Image>()
+            .register::<crate::VBox>()
+            .register::<crate::HBox>()
+            .register::<crate::Stretch>();
+        r
+    }
+
     /// Make nodes of type `T` visible to layout and input as controls.
     /// Registering twice is harmless.
     pub fn register<T: Control>(&mut self) -> &mut Self {

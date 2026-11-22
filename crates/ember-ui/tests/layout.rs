@@ -45,7 +45,8 @@ fn control<'a>(tree: &'a NodeTree, reg: &ControlRegistry, id: NodeId) -> &'a dyn
 }
 
 fn run_layout(tree: &mut NodeTree, reg: &ControlRegistry, root: NodeId, theme: &Arc<Theme>) {
-    layout_children(tree, reg, root, SCREEN, theme);
+    let render = MockRenderer::new();
+    layout_children(tree, reg, &render, root, SCREEN, theme);
 }
 
 // --- Layout --------------------------------------------------------------

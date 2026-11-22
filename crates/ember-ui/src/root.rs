@@ -22,12 +22,12 @@ impl UiRoot {
         Self {
             name: "UiRoot".into(),
             theme: Arc::new(theme),
-            registry: ControlRegistry::new(),
+            registry: ControlRegistry::with_builtins(),
         }
     }
 
-    /// Make a control type visible to layout and input. Built-in widgets
-    /// register themselves as they land (Phase 5.2+).
+    /// Make a custom control type visible to layout and input. Built-in
+    /// widgets are already registered.
     pub fn register<T: Control>(mut self) -> Self {
         self.registry.register::<T>();
         self
@@ -86,6 +86,7 @@ impl Node for UiRoot {
     fn process(&mut self, _dt: f32, ctx: &mut NodeContext) {
         let viewport = ctx.render().viewport();
         let me = ctx.current_id();
-        layout_children(ctx.tree(), &self.registry, me, viewport, &self.theme);
+        let (tree, render) = ctx.tree_and_render();
+        layout_children(tree, &self.registry, render, me, viewport, &self.theme);
     }
 }

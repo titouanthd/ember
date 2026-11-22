@@ -1,6 +1,6 @@
 //! The `Control` trait and the state every control embeds.
 
-use crate::{Anchors, Theme, UiDrawContext};
+use crate::{Anchors, Measure, Theme, UiDrawContext};
 use ember_core::math::Rect;
 use ember_input::{Key, MouseButton};
 use ember_scene::{DrawContext, Node, NodeId};
@@ -74,7 +74,8 @@ pub struct ChildLayout {
     pub anchors: Anchors,
     pub offset: Vec2,
     pub min_size: Vec2,
-    /// `measure(available)` of the child.
+    /// The child's desired size: its own `measure`, combined with its
+    /// children's through `measure_children`, at least `min_size`.
     pub desired: Vec2,
 }
 
@@ -105,10 +106,17 @@ pub trait Control: Node {
 
     // --- Layout ---
 
-    /// Desired size given the space the parent offers. Default:
-    /// `min_size()`.
-    fn measure(&self, _available: Vec2) -> Vec2 {
+    /// Desired size of the control itself (text, image…) given the space
+    /// the parent offers. Default: `min_size()`.
+    fn measure(&self, _available: Vec2, _m: &Measure) -> Vec2 {
         self.min_size()
+    }
+
+    /// Combine the control's own desired size with its children's
+    /// (measured first, bottom-up). Containers override this; the default
+    /// ignores children.
+    fn measure_children(&self, own: Vec2, _children: &[Vec2]) -> Vec2 {
+        own
     }
 
     fn rect(&self) -> Rect {
@@ -158,6 +166,37 @@ pub trait Control: Node {
     fn on_focus(&mut self) {}
     fn on_blur(&mut self) {}
 }
+
+/// Builder helpers available on every control:
+/// `Label::new("Play").with_anchors(Anchors::CENTER)`.
+pub trait ControlExt: Control + Sized {
+    fn with_anchors(mut self, anchors: Anchors) -> Self {
+        self.base_mut().anchors = anchors;
+        self
+    }
+
+    fn with_offset(mut self, offset: Vec2) -> Self {
+        self.base_mut().offset = offset;
+        self
+    }
+
+    fn with_min_size(mut self, min_size: Vec2) -> Self {
+        self.base_mut().min_size = min_size;
+        self
+    }
+
+    fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.set_name(name.into());
+        self
+    }
+
+    fn hidden(mut self) -> Self {
+        self.base_mut().visible = false;
+        self
+    }
+}
+
+impl<T: Control + Sized> ControlExt for T {}
 
 /// `Node::draw` body for a control: wraps the context with the control's
 /// theme and focus state and calls [`Control::draw_control`]. Used by
