@@ -10,6 +10,8 @@ struct Derived {
     name: String,
 }
 
+impl Node for Derived {}
+
 impl Object for Plain {
     fn class_name() -> &'static str {
         "Plain"

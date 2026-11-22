@@ -17,8 +17,11 @@ impl Root {
     }
 }
 
-// Hand-written: the derive generates an empty Node impl, so a node with
-// behavior implements Object and Node itself.
+// No behaviour: the derive provides `Object` + `NodeName`; the empty
+// `impl Node` keeps every lifecycle default.
+impl Node for Root {}
+
+// Hand-written on purpose (no derive): shows the full manual form.
 struct Player {
     name: String,
     pos: Vec2,
@@ -41,13 +44,16 @@ impl Object for Player {
     }
 }
 
-impl Node for Player {
+impl NodeName for Player {
     fn name(&self) -> &str {
         &self.name
     }
     fn set_name(&mut self, name: String) {
         self.name = name;
     }
+}
+
+impl Node for Player {
     fn process(&mut self, dt: f32, ctx: &mut NodeContext) {
         let input = ctx.input();
         let mut dir = Vec2::ZERO;

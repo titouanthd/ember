@@ -22,11 +22,14 @@ impl Object for Sensor {
     }
 }
 
-impl Node for Sensor {
+impl NodeName for Sensor {
     fn name(&self) -> &str {
         "Sensor"
     }
     fn set_name(&mut self, _: String) {}
+}
+
+impl Node for Sensor {
     fn z(&self) -> f32 {
         0.0
     }

@@ -83,14 +83,16 @@ impl Object for Pong {
     }
 }
 
-impl Node for Pong {
+impl NodeName for Pong {
     fn name(&self) -> &str {
         &self.name
     }
     fn set_name(&mut self, name: String) {
         self.name = name;
     }
+}
 
+impl Node for Pong {
     fn process(&mut self, dt: f32, ctx: &mut NodeContext) {
         let dt = dt.min(MAX_FRAME_DT);
         let input = ctx.input();
@@ -209,14 +211,16 @@ impl Object for Scoreboard {
     }
 }
 
-impl Node for Scoreboard {
+impl NodeName for Scoreboard {
     fn name(&self) -> &str {
         &self.name
     }
     fn set_name(&mut self, name: String) {
         self.name = name;
     }
+}
 
+impl Node for Scoreboard {
     fn ready(&mut self, ctx: &mut NodeContext) {
         let me = ctx.current_id();
         ctx.connect::<PointScored>(me, |ctx, p| {

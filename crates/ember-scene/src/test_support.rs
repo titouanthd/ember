@@ -1,6 +1,6 @@
 //! Minimal hand-written node for unit tests.
 
-use crate::Node;
+use crate::{Node, NodeName};
 use ember_core::Object;
 use std::any::Any;
 
@@ -26,7 +26,7 @@ impl Object for Dummy {
     }
 }
 
-impl Node for Dummy {
+impl NodeName for Dummy {
     fn name(&self) -> &str {
         &self.name
     }
@@ -34,3 +34,5 @@ impl Node for Dummy {
         self.name = name;
     }
 }
+
+impl Node for Dummy {}

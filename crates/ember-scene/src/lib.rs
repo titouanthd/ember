@@ -18,7 +18,7 @@ pub mod tree;
 mod test_support;
 
 // Re-export the crate under its own extern name so that
-// `#[derive(Node)]`'s expansion (`::ember_scene::Node`) resolves even
+// `#[derive(Node)]`'s expansion (`::ember_scene::NodeName`) resolves even
 // when applied to a struct inside `ember-scene` itself. This is the
 // standard self-alias pattern (tokio, bytemuck, serde use it).
 pub use crate as ember_scene;
@@ -26,7 +26,7 @@ pub use crate as ember_scene;
 pub use class_db::ClassDbNodes;
 pub use context::{DrawContext, NodeContext, Servers};
 pub use error::SceneError;
-pub use node::{Node, NodeId};
+pub use node::{Node, NodeId, NodeName};
 pub use packed::{PackedScene, SceneAssets};
 pub use scene::SceneWriter;
 pub use scene_loop::SceneLoop;
@@ -37,7 +37,7 @@ pub mod prelude {
     pub use crate::class_db::ClassDbNodes;
     pub use crate::context::{DrawContext, NodeContext, Servers};
     pub use crate::error::SceneError;
-    pub use crate::node::{Node, NodeId};
+    pub use crate::node::{Node, NodeId, NodeName};
     pub use crate::packed::{PackedScene, SceneAssets};
     pub use crate::scene::SceneWriter;
     pub use crate::scene_loop::SceneLoop;

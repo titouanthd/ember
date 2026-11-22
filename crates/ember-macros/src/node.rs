@@ -27,7 +27,7 @@ pub fn derive(input: DeriveInput) -> Result<TokenStream> {
             }
         }
 
-        impl #impl_generics ::ember_scene::Node for #name #ty_generics #where_clause {
+        impl #impl_generics ::ember_scene::NodeName for #name #ty_generics #where_clause {
             fn name(&self) -> &str {
                 &self.name
             }

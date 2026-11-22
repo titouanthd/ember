@@ -24,13 +24,16 @@ macro_rules! thing {
             }
         }
 
-        impl Node for $t {
+        impl NodeName for $t {
             fn name(&self) -> &str {
                 &self.name
             }
             fn set_name(&mut self, name: String) {
                 self.name = name;
             }
+        }
+
+        impl Node for $t {
             fn z(&self) -> f32 {
                 self.z
             }

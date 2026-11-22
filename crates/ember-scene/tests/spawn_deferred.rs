@@ -24,11 +24,14 @@ impl Object for Spawner {
     }
 }
 
-impl Node for Spawner {
+impl NodeName for Spawner {
     fn name(&self) -> &str {
         "spawner"
     }
     fn set_name(&mut self, _: String) {}
+}
+
+impl Node for Spawner {
     fn process(&mut self, _dt: f32, ctx: &mut NodeContext) {
         if self.done {
             return;

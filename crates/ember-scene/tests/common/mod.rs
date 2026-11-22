@@ -56,13 +56,16 @@ impl Object for Recorder {
     }
 }
 
-impl Node for Recorder {
+impl NodeName for Recorder {
     fn name(&self) -> &str {
         &self.name
     }
     fn set_name(&mut self, name: String) {
         self.name = name;
     }
+}
+
+impl Node for Recorder {
     fn z(&self) -> f32 {
         self.z
     }
@@ -159,13 +162,16 @@ impl Object for Script {
     }
 }
 
-impl Node for Script {
+impl NodeName for Script {
     fn name(&self) -> &str {
         &self.name
     }
     fn set_name(&mut self, name: String) {
         self.name = name;
     }
+}
+
+impl Node for Script {
     fn process(&mut self, _dt: f32, ctx: &mut NodeContext) {
         (self.f)(ctx);
     }

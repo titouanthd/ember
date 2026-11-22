@@ -2,9 +2,11 @@
 //!
 //! Three macros:
 //!
-//! - `#[derive(Node)]` — generates `impl Object` and `impl Node` for a
+//! - `#[derive(Node)]` — generates `impl Object` and `impl NodeName` for a
 //!   struct. Requires `#[class_name = "..."]` and a `name: String`
-//!   field. See ADR-019.
+//!   field. The user writes `impl Node for T { … }` with only the
+//!   lifecycle the node needs (`impl Node for T {}` for none). See
+//!   ADR-019 and ADR-030.
 //! - `#[signal]` — no-op marker. Any `Send + Sync + 'static` type is
 //!   already a `Signal` via a blanket impl; the attribute exists to
 //!   make signal declarations greppable.
@@ -15,7 +17,8 @@ use proc_macro::TokenStream;
 
 mod node;
 
-/// Generate `Object` and `Node` implementations.
+/// Generate `Object` and `NodeName` implementations. Pair it with an
+/// `impl Node for T { … }` block (ADR-030).
 ///
 /// Requires:
 /// - `#[class_name = "..."]` on the struct
