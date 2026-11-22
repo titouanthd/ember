@@ -7,7 +7,9 @@
 //! - every control embeds a [`ControlBase`] and implements [`Control`];
 //! - [`control_node!`] writes its `impl Node` (z, visibility, draw);
 //! - [`UiRoot`] owns the [`Theme`] and a [`ControlRegistry`] that turns
-//!   tree nodes back into controls for layout.
+//!   tree nodes back into controls for layout and input;
+//! - [`UiRoot`] also routes input, moves focus and emits control signals
+//!   such as [`ButtonClicked`] (ADR-036).
 //!
 //! ```ignore
 //! #[derive(Node)]
@@ -27,21 +29,26 @@
 
 mod control;
 mod draw;
+mod focus;
 pub mod layout;
 mod measure;
 mod registry;
 mod root;
+mod route;
+mod signals;
 mod theme;
 pub mod widgets;
 
 pub use control::{ChildLayout, Control, ControlBase, ControlExt, draw_control_node};
 pub use draw::UiDrawContext;
+pub use focus::FocusManager;
 pub use layout::{Anchors, HBox, Margins, Stretch, StretchMode, VBox};
 pub use measure::Measure;
 pub use registry::ControlRegistry;
 pub use root::UiRoot;
+pub use signals::{ButtonClicked, FocusChanged};
 pub use theme::Theme;
-pub use widgets::{Alignment, Image, ImageMode, Label, Panel};
+pub use widgets::{Alignment, Button, ButtonState, Image, ImageMode, Label, Panel};
 
 /// Draw layer of every UI node: above the game world (spec §8).
 pub const UI_Z: f32 = 100.0;
@@ -75,8 +82,9 @@ macro_rules! control_node {
 
 pub mod prelude {
     pub use crate::{
-        Alignment, Anchors, ChildLayout, Control, ControlBase, ControlExt, ControlRegistry, HBox,
-        Image, ImageMode, Label, Margins, Measure, Panel, Stretch, StretchMode, Theme, UI_Z,
-        UiDrawContext, UiRoot, VBox, control_node,
+        Alignment, Anchors, Button, ButtonClicked, ButtonState, ChildLayout, Control, ControlBase,
+        ControlExt, ControlRegistry, FocusChanged, FocusManager, HBox, Image, ImageMode, Label,
+        Margins, Measure, Panel, Stretch, StretchMode, Theme, UI_Z, UiDrawContext, UiRoot, VBox,
+        control_node,
     };
 }

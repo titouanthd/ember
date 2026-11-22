@@ -1,5 +1,6 @@
 //! `Theme`: colours and sizes shared by every control under a `UiRoot`.
 
+use crate::ButtonState;
 use ember_core::Color;
 
 /// Spec §7.1. `Theme::default()` is [`Theme::dark`]. Loading a theme from
@@ -64,6 +65,24 @@ impl Theme {
             button_text_disabled: rgb(0xA0, 0xA7, 0xB3),
             focus_border: rgb(0x25, 0x63, 0xEB),
             scrollbar: rgb(0xA8, 0xB0, 0xBD),
+        }
+    }
+
+    /// Button background for `state` (spec §5.2).
+    pub fn button_bg(&self, state: ButtonState) -> Color {
+        match state {
+            ButtonState::Normal => self.button_bg_normal,
+            ButtonState::Hover => self.button_bg_hover,
+            ButtonState::Pressed => self.button_bg_pressed,
+            ButtonState::Disabled => self.button_bg_disabled,
+        }
+    }
+
+    /// Button label colour for `state`.
+    pub fn button_text(&self, state: ButtonState) -> Color {
+        match state {
+            ButtonState::Disabled => self.button_text_disabled,
+            _ => self.button_text_normal,
         }
     }
 }

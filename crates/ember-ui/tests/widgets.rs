@@ -143,12 +143,13 @@ fn ui_root_registers_every_builtin() {
     let root = UiRoot::default();
     let reg = root.registry();
     assert!(reg.is_registered::<Label>());
+    assert!(reg.is_registered::<Button>());
     assert!(reg.is_registered::<Panel>());
     assert!(reg.is_registered::<Image>());
     assert!(reg.is_registered::<VBox>());
     assert!(reg.is_registered::<HBox>());
     assert!(reg.is_registered::<Stretch>());
-    assert_eq!(reg.len(), 6);
+    assert_eq!(reg.len(), 7);
 }
 
 #[test]

@@ -39,11 +39,12 @@ impl ControlRegistry {
         Self::default()
     }
 
-    /// A registry with every built-in control: `Label`, `Panel`, `Image`,
-    /// `VBox`, `HBox`, `Stretch`.
+    /// A registry with every built-in control: `Label`, `Button`, `Panel`,
+    /// `Image`, `VBox`, `HBox`, `Stretch`.
     pub fn with_builtins() -> Self {
         let mut r = Self::new();
         r.register::<crate::Label>()
+            .register::<crate::Button>()
             .register::<crate::Panel>()
             .register::<crate::Image>()
             .register::<crate::VBox>()

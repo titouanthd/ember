@@ -1,9 +1,11 @@
 //! Built-in widgets (spec §5). `UiRoot::new` registers all of them.
 
+mod button;
 mod image;
 mod label;
 mod panel;
 
+pub use button::{BUTTON_PADDING_H, BUTTON_PADDING_V, Button, ButtonState};
 pub use image::{Image, ImageMode};
 pub use label::{Alignment, Label};
 pub use panel::Panel;
