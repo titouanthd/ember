@@ -2,6 +2,7 @@
 
 pub use ember_core::MainLoop;
 pub use ember_render_macroquad::{run, run_window};
+pub use ember_ui;
 
 pub mod prelude {
     pub use ember_audio_macroquad::MacroquadAudio;
@@ -12,5 +13,6 @@ pub mod prelude {
     pub use ember_render_macroquad::{MacroquadRenderer, run, run_window};
     pub use ember_scene::prelude::*;
     pub use ember_servers::{AudioServer, RenderingServer};
+    pub use ember_ui::prelude::*;
     pub use glam::Vec2;
 }
