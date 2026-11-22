@@ -19,6 +19,10 @@ A 2D game engine in Rust (macroquad backend) built on top of **17 games**. **Thi
 - [[Doc–Code Discrepancies]] — where docs and code disagree
 - [[Engine Spec Index]] — the original spec entry point (reading paths A–D)
 
+## Workflow
+- [[Commit & Push]] — commit message format, pre-push checks, push / merge / hotfix flow
+- [[Next Phase Plan — Phase 5 UI]] — the plan for what comes next
+
 ## Maps of content
 - [[Crates MOC]] — 12 engine crates, layers, LOC, test counts
 - [[Games MOC]] — 17 games in migration order
@@ -53,8 +57,6 @@ A 2D game engine in Rust (macroquad backend) built on top of **17 games**. **Thi
 ## Workspace docs
 - [[Browser Build (WASM)]] · [[Project Recap (version.txt)]] · repo README: `README.md` (outside the vault)
 
-## Branch snapshot
-`titouanthd-docs-crates-games-plan` (local, unpushed) has a reviewed copy of every spec file → [[Engine Spec Index]]. Kept separate so the `main` versions stay authoritative.
 
 ## Vault layout
 | Folder | Contents |
@@ -66,4 +68,3 @@ A 2D game engine in Rust (macroquad backend) built on top of **17 games**. **Thi
 | `50 Decisions` | ADR index |
 | `60 Progress` | evaluation, tracker, discrepancies |
 | `80 Templates` | [[ADR Template]] and [[Game Design Template]] (core Templates plugin points here) |
-| `90 Branch Snapshot` | docs from the unmerged branch |

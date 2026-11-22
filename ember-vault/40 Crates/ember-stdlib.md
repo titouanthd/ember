@@ -22,7 +22,7 @@ ember-core, glam, macroquad, serde, ron, dotenvy
 
 ## Implementation status
 
-🟡 Legacy layer still used by 16/17 games and still depends on macroquad (allow-listed). `juice` + `music` modules exist **only on the unmerged branch**.
+🟡 Legacy layer still used by 16/17 games and still depends on macroquad (allow-listed). Shared `juice` (ADR-029) and `music` (`MusicPlayer`) modules merged 2026-11-22.
 
 ## Spec
 

@@ -22,7 +22,7 @@ glam, serde, ron
 
 ## Implementation status
 
-🟢 Substantial. `MainLoop`, `Variant`, `ClassDB`, `Object` present. **Gaps:** `Cooldown::running/ready(d)` rename (ADR-011) not on `main` (done on unmerged branch); no `Plugin` trait, no `Stopwatch`; several spec'd Rng/hash helpers use different names.
+🟢 Substantial. `MainLoop`, `Variant`, `ClassDB`, `Object` present. **Gaps:** no `Plugin` trait, no `Stopwatch`; several spec'd Rng/hash helpers use different names.
 
 ## Spec
 

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Enforce: <type>(<scope>): <Description>   — see ember-vault/70 Workflow/Commit & Push.md
+header=$(grep -v '^#' "$1" | head -n1)
+case "$header" in
+  'Revert "'*|fixup!*|squash!*|amend!*) exit 0 ;;
+esac
+if ! printf '%s' "$header" | grep -Eq '^(feat|fix|chore|hotfix|doc)\([a-z0-9][a-z0-9-]*\): [A-Z0-9].{0,70}$'; then
+  cat >&2 <<MSG
+✗ Commit message rejected:
+    $header
+
+  Expected: <type>(<scope>): <Description>
+    type  = feat | fix | chore | hotfix | doc
+    scope = lower-case kebab-case, e.g. core-math, scene-signal, pong, vault
+    Description starts with a capital, header ≤ 72 chars, no trailing period.
+  Example: fix(core-cooldown): Rename cooldown fn xy ex detail
+  Guide:   ember-vault/70 Workflow/Commit & Push.md
+MSG
+  exit 1
+fi
+case "$header" in *.) echo "✗ No trailing period in the commit header." >&2; exit 1 ;; esac

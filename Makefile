@@ -12,7 +12,7 @@ PORT    ?= 8000
 ENGINE_FLAGS := $(addprefix -p ,$(ENGINE))
 
 .DEFAULT_GOAL := help
-.PHONY: help setup build release run run-release example \
+.PHONY: help setup hooks build release run run-release example \
         test test-engine test-games test-crate test-game test-one test-count \
         check fix fmt fmt-check layers macroquad gates ci pre-push \
         doc web web-serve vault vault-check docs-guard \
@@ -27,9 +27,13 @@ help: ## Show this help
 	@echo "Engine: $(ENGINE)"
 
 ## —— Setup ——————————————————————————————————————————————————————————————
-setup: ## Install toolchain components (clippy, rustfmt, wasm32 target)
+setup: hooks ## Install toolchain components (clippy, rustfmt, wasm32) + git hooks
 	rustup component add clippy rustfmt
 	rustup target add wasm32-unknown-unknown
+
+hooks: ## Enable the commit-msg hook (enforces type(scope): Description)
+	git config core.hooksPath .githooks
+	@echo "commit-msg hook enabled — format: ember-vault/70 Workflow/Commit & Push.md"
 
 ## —— Build & run ————————————————————————————————————————————————————————
 build: ## cargo build --workspace

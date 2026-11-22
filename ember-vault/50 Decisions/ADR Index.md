@@ -20,7 +20,7 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 008 | [[50-design-decisions#ADR-008: Fixed-step physics, variable-step process\|Fixed-step physics, variable-step process]] | ✅ `FIXED_DT` accumulator in runner |
 | 009 | [[50-design-decisions#ADR-009: Deferred spawn / structural changes\|Deferred spawn / structural changes]] | ✅ deferred spawn/despawn |
 | 010 | [[50-design-decisions#ADR-010: primary_action convenience method\|primary_action convenience method]] | ✅ `primary_action` in ember-input |
-| 011 | [[50-design-decisions#ADR-011: Cooldown::new → running / ready\|Cooldown::new → running / ready]] | ❌ on main · ✅ on unmerged branch |
+| 011 | [[50-design-decisions#ADR-011: Cooldown::new → running / ready\|Cooldown::new → running / ready]] | ✅ `running`/`ready(d)`, old names `#[deprecated]` (merged 2026-11-22) |
 | 012 | [[50-design-decisions#ADR-012: Handle<T> for assets\|Handle<T> for assets]] | ✅ `Handle<T>` |
 | 013 | [[50-design-decisions#ADR-013: No global mutable state\|No global mutable state]] | ✅ no global registry |
 | 014 | [[50-design-decisions#ADR-014: Explicit plugin registration\|Explicit plugin registration]] | ❌ no `Plugin` trait yet |
@@ -39,6 +39,8 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 027 | [[50-design-decisions#ADR-027: Nested `instance:` is resolved by `instantiate_with`\|Nested `instance:` is resolved by `instantiate_with`]] | ✅ |
 | 028 | [[50-design-decisions#ADR-028: `LinearPhysics` lives in `ember-servers` and joins `Servers`\|`LinearPhysics` lives in `ember-servers` and joins `Servers`]] | ✅ |
 
-The unmerged branch adds **ADR-029** (game-local `effects.rs` wrappers that `Deref` to the shared `Juice`) — see [[50-design-decisions]].
+| 029 | [[50-design-decisions#ADR-029: Shared `ember_stdlib::juice`; game-specific effects wrap it\|Shared juice; game effects wrap it]] | ✅ merged 2026-11-22 |
+
+Planned next: ADR-030 (derive + behaviour), ADR-031 (render clip stack), ADR-032 (text & wheel input), ADR-033 (Phase 4 exit re-scope) — see [[Next Phase Plan — Phase 5 UI]].
 
 New ADRs: copy [[ADR Template]].

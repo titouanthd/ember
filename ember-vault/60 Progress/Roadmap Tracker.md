@@ -6,14 +6,14 @@ generated: "2026-11-22"
 
 # Roadmap tracker
 
-Checklist of every **exit criterion** in [[40-roadmap]], ticked against the `main` branch on 2026-11-22. Tick boxes as work lands. ⚑ = done only on the unmerged branch.
+Checklist of every **exit criterion** in [[40-roadmap]], ticked against the `main` branch on 2026-11-22. Tick boxes as work lands. ⚑ = landed with the merge of `titouanthd-docs-crates-games-plan` (2026-11-22).
 
 ```mermaid
 gantt
   dateFormat YYYY-MM-DD
   title Ember v0.1 — estimated completion per phase
   section Engine core
-  P0 Foundations (50%)   :active, p0, 2026-11-18, 1d
+  P0 Foundations (90%)   :active, p0, 2026-11-18, 1d
   P1 Scene core (90%)    :active, p1, 2026-11-16, 3d
   P2 Serialization (65%) :active, p2, 2026-11-18, 5d
   P3 Signals (85%)       :active, p3, 2026-11-18, 2d
@@ -30,9 +30,9 @@ gantt
 - [ ] `cargo clippy --workspace --all-targets -- -D warnings` passes *(README: not green)*
 - [ ] `cargo test --workspace --no-fail-fast` passes *(unverified)*
 - [x] New APIs are additive
-- [ ] `ember_stdlib::juice` has unit tests ⚑
+- [x] `ember_stdlib::juice` has unit tests ⚑
 - [ ] `MainLoop::run` integration test (headless order `init/process/draw/finalize`)
-- [ ] `Cooldown::running` / `Cooldown::ready(d)` + `#[deprecated]` aliases ⚑
+- [x] `Cooldown::running` / `Cooldown::ready(d)` + `#[deprecated]` aliases ⚑
 - [x] `primary_action()` *(in `ember-input`)*
 
 ## Phase 1 — Scene core
@@ -97,8 +97,8 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [ ] ember-wars → full checklist in [[42-acceptance-tests]]
 
 ## Phase 8 — Cleanup
-- [ ] no `Cooldown::new` / `with_duration` call sites ⚑
-- [ ] no `juice.rs` in games ⚑
+- [x] no `Cooldown::new` / `with_duration` call sites ⚑
+- [x] no `juice.rs` in games ⚑
 - [ ] no `audio.rs` in games
 - [ ] workspace tests + clippy green
 - [ ] `CHANGELOG.md`
