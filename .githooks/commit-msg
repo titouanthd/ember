@@ -19,3 +19,6 @@ MSG
   exit 1
 fi
 case "$header" in *.) echo "✗ No trailing period in the commit header." >&2; exit 1 ;; esac
+if [ "${#header}" -gt 72 ]; then
+  echo "✗ Commit header is ${#header} chars; keep it ≤ 72." >&2; exit 1
+fi
