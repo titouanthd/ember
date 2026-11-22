@@ -33,7 +33,7 @@ const ALLOWED: &[(&str, &[&str])] = &[
             "ember-macros",
         ],
     ),
-    ("ember-ui", &["ember-scene", "ember-servers"]),
+    ("ember-ui", &["ember-scene", "ember-servers", "ember-input", "ember-core"]),
     ("ember-assets", &["ember-core", "ember-servers"]),
     ("ember-input", &["ember-core"]),
     (
