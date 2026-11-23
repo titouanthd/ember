@@ -12,7 +12,7 @@ PORT    ?= 8000
 ENGINE_FLAGS := $(addprefix -p ,$(ENGINE))
 
 .DEFAULT_GOAL := help
-.PHONY: help setup hooks build release run run-release example \
+.PHONY: help setup hooks build release run run-release example ui-demo \
         test test-engine test-games test-crate test-game test-one test-count \
         check fix fmt fmt-check layers macroquad gates ci pre-push \
         doc web web-serve vault vault-check docs-guard \
@@ -50,6 +50,9 @@ run-release: _need-game ## Run a game in release mode: make run-release GAME=pag
 
 example: ## Run the engine demo (crates/ember/examples/hello_scene.rs)
 	$(CARGO) run -p ember --example hello_scene
+
+ui-demo: ## Run the UI demo (crates/ember/examples/ui_demo.rs)
+	$(CARGO) run -p ember --example ui_demo
 
 ## —— Tests ——————————————————————————————————————————————————————————————
 test: ## All tests, no fail-fast (workspace)
