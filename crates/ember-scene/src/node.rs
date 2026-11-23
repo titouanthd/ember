@@ -63,6 +63,11 @@ pub trait Node: Object + NodeName {
     fn process(&mut self, _dt: f32, _ctx: &mut NodeContext) {}
     fn physics_process(&mut self, _fixed_dt: f32, _ctx: &mut NodeContext) {}
     fn draw(&self, _ctx: &mut DrawContext) {}
+    /// Runs after this node's children have drawn (and only when `draw`
+    /// ran, i.e. the node is visible). The server's z is reset to `z()`
+    /// first. Use it to close what `draw` opened for the subtree, such as
+    /// a clip rect, or to draw on top of the children (ADR-035).
+    fn draw_after_children(&self, _ctx: &mut DrawContext) {}
     fn finalize(&mut self) {}
 
     /// Sets an exported property from a scene file. Returns `false`

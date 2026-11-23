@@ -352,7 +352,8 @@ impl NodeTree {
         self.flush(servers);
     }
 
-    /// Top-down, tree order. Each node sets the server's z first. A node
+    /// Top-down, tree order. Each node sets the server's z first, then
+    /// `draw`, its children, and `draw_after_children` (ADR-035). A node
     /// with `visible() == false` hides its whole subtree.
     pub fn draw(&self, ctx: &mut DrawContext) {
         let Some(root) = self.root else { return };
@@ -494,9 +495,14 @@ impl NodeTree {
         }
         ctx.render().set_z(node.z());
         node.draw(ctx);
-        for child in self.children(id) {
+        let children = self.children(id);
+        for child in children {
             self.draw_subtree(*child, ctx);
         }
+        if !children.is_empty() {
+            ctx.render().set_z(node.z());
+        }
+        node.draw_after_children(ctx);
     }
 
     /// True if `ancestor` is `node` or one of its ancestors.
