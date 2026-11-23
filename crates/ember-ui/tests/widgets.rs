@@ -149,7 +149,9 @@ fn ui_root_registers_every_builtin() {
     assert!(reg.is_registered::<VBox>());
     assert!(reg.is_registered::<HBox>());
     assert!(reg.is_registered::<Stretch>());
-    assert_eq!(reg.len(), 7);
+    assert!(reg.is_registered::<TextInput>());
+    assert!(reg.is_registered::<ScrollContainer>());
+    assert_eq!(reg.len(), 9);
 }
 
 #[test]

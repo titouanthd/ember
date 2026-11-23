@@ -39,16 +39,20 @@ mod signals;
 mod theme;
 pub mod widgets;
 
-pub use control::{ChildLayout, Control, ControlBase, ControlExt, draw_control_node};
+pub use control::{
+    ChildLayout, Control, ControlBase, ControlExt, draw_control_after_children, draw_control_node,
+};
 pub use draw::UiDrawContext;
 pub use focus::FocusManager;
 pub use layout::{Anchors, HBox, Margins, Stretch, StretchMode, VBox};
 pub use measure::Measure;
 pub use registry::ControlRegistry;
 pub use root::UiRoot;
-pub use signals::{ButtonClicked, FocusChanged};
+pub use signals::{ButtonClicked, FocusChanged, TextChanged, TextSubmitted};
 pub use theme::Theme;
-pub use widgets::{Alignment, Button, ButtonState, Image, ImageMode, Label, Panel};
+pub use widgets::{
+    Alignment, Button, ButtonState, Image, ImageMode, Label, Panel, ScrollContainer, TextInput,
+};
 
 /// Draw layer of every UI node: above the game world (spec §8).
 pub const UI_Z: f32 = 100.0;
@@ -60,9 +64,11 @@ pub mod __private {
 }
 
 /// Implement `ember_scene::Node` for a control: UI z-layer, visibility from
-/// [`ControlBase::visible`], and `draw` forwarding to
-/// [`Control::draw_control`]. Use it instead of writing `impl Node` by hand
-/// (spec §3.3: games extend `Control`, not `Node`).
+/// [`ControlBase::visible`], `draw` forwarding to
+/// [`Control::draw_control`] and `draw_after_children` to
+/// [`Control::draw_overlay`] (closing the children clip, ADR-035). Use
+/// it instead of writing `impl Node` by hand (spec §3.3: games extend
+/// `Control`, not `Node`).
 #[macro_export]
 macro_rules! control_node {
     ($t:ty) => {
@@ -76,6 +82,9 @@ macro_rules! control_node {
             fn draw(&self, ctx: &mut $crate::__private::DrawContext) {
                 $crate::draw_control_node(self, ctx);
             }
+            fn draw_after_children(&self, ctx: &mut $crate::__private::DrawContext) {
+                $crate::draw_control_after_children(self, ctx);
+            }
         }
     };
 }
@@ -84,7 +93,7 @@ pub mod prelude {
     pub use crate::{
         Alignment, Anchors, Button, ButtonClicked, ButtonState, ChildLayout, Control, ControlBase,
         ControlExt, ControlRegistry, FocusChanged, FocusManager, HBox, Image, ImageMode, Label,
-        Margins, Measure, Panel, Stretch, StretchMode, Theme, UI_Z, UiDrawContext, UiRoot, VBox,
-        control_node,
+        Margins, Measure, Panel, ScrollContainer, Stretch, StretchMode, TextChanged, TextInput,
+        TextSubmitted, Theme, UI_Z, UiDrawContext, UiRoot, VBox, control_node,
     };
 }

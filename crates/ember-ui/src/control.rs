@@ -164,6 +164,18 @@ pub trait Control: Node {
     /// Draw the control. Children are drawn afterwards by the tree.
     fn draw_control(&self, ui: &mut UiDrawContext<'_, '_>);
 
+    /// Draw on top of the children (after the whole subtree drew).
+    /// Runs outside [`clip_children`](Self::clip_children), so a
+    /// scrollbar drawn here is not clipped (ADR-035).
+    fn draw_overlay(&self, _ui: &mut UiDrawContext<'_, '_>) {}
+
+    /// Clip the children's drawing to this rect (screen pixels). `None`
+    /// (default) = no clip. Must not change between `draw` and
+    /// `draw_overlay` of one frame (it is read in both).
+    fn clip_children(&self) -> Option<Rect> {
+        None
+    }
+
     // --- Layout ---
 
     /// Desired size of the control itself (text, image…) given the space
@@ -207,6 +219,11 @@ pub trait Control: Node {
         None
     }
 
+    /// Called after layout placed this control's children, with their
+    /// final rects in child order. Lets a container remember what it
+    /// holds (e.g. `ScrollContainer`'s content height).
+    fn children_arranged(&mut self, _rects: &[Rect]) {}
+
     // --- Input (routed by `UiRoot`, spec §9, ADR-036) ---
 
     fn focusable(&self) -> bool {
@@ -223,6 +240,14 @@ pub trait Control: Node {
     fn on_mouse_up(&mut self, _button: MouseButton, _pos: Vec2) {}
     fn on_mouse_wheel(&mut self, _delta: f32) {}
     fn on_key_press(&mut self, _key: Key) {}
+    /// A typed character (from `Input::chars_typed`, control characters
+    /// removed) while focused.
+    fn on_text_input(&mut self, _ch: char) {}
+    /// `true` for text entry: Space types a space instead of activating
+    /// the control (Enter still activates).
+    fn captures_text(&self) -> bool {
+        false
+    }
     /// Enter / Space / gamepad South while focused (spec §6.2).
     fn on_activate(&mut self) {}
     fn on_focus(&mut self) {}
@@ -261,11 +286,31 @@ pub trait ControlExt: Control + Sized {
 impl<T: Control + Sized> ControlExt for T {}
 
 /// `Node::draw` body for a control: wraps the context with the control's
-/// theme and focus state and calls [`Control::draw_control`]. Used by
+/// theme and focus state, calls [`Control::draw_control`], then opens the
+/// [`Control::clip_children`] clip for the subtree. Used by
 /// [`crate::control_node!`].
 pub fn draw_control_node<C: Control>(control: &C, ctx: &mut DrawContext<'_>) {
     let base = control.base();
     let theme = Arc::clone(&base.theme);
+    {
+        let mut ui = UiDrawContext::new(ctx, &theme, base.focused, base.hovered);
+        control.draw_control(&mut ui);
+    }
+    // Pushed on the raw server: `UiDrawContext` pops its own clips on drop.
+    if let Some(clip) = control.clip_children() {
+        ctx.render().push_clip_rect(clip);
+    }
+}
+
+/// `Node::draw_after_children` body for a control: closes the
+/// [`Control::clip_children`] clip, then calls
+/// [`Control::draw_overlay`] (ADR-035).
+pub fn draw_control_after_children<C: Control>(control: &C, ctx: &mut DrawContext<'_>) {
+    if control.clip_children().is_some() {
+        ctx.render().pop_clip_rect();
+    }
+    let base = control.base();
+    let theme = Arc::clone(&base.theme);
     let mut ui = UiDrawContext::new(ctx, &theme, base.focused, base.hovered);
-    control.draw_control(&mut ui);
+    control.draw_overlay(&mut ui);
 }

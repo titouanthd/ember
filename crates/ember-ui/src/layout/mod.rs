@@ -48,7 +48,8 @@ pub fn measure_node(
 /// subtree), place it (the parent control's
 /// [`crate::Control::arrange_children`] if `parent` is a control and
 /// returns rects, otherwise the child's anchors), hand it `theme`, then
-/// recurse into its [`crate::Control::content_rect`]. Children that are
+/// recurse into its [`crate::Control::content_rect`]. Finally the parent
+/// control gets [`crate::Control::children_arranged`]. Children that are
 /// not registered controls are skipped together with their subtree.
 pub fn layout_children(
     tree: &mut NodeTree,
@@ -80,6 +81,7 @@ pub fn layout_children(
         .and_then(|n| registry.cast(n))
         .and_then(|p| p.arrange_children(content, &infos));
 
+    let mut placed = Vec::with_capacity(infos.len());
     for (i, info) in infos.iter().enumerate() {
         let rect = arranged
             .as_ref()
@@ -90,7 +92,12 @@ pub fn layout_children(
         };
         control.base_mut().theme = Arc::clone(theme);
         control.set_rect(rect);
+        placed.push(rect);
         let inner = control.content_rect();
         layout_children(tree, registry, render, info.id, inner, theme);
+    }
+
+    if let Some(p) = tree.get_mut(parent).and_then(|n| registry.cast_mut(n)) {
+        p.children_arranged(&placed);
     }
 }

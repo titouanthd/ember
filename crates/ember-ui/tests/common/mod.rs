@@ -3,9 +3,13 @@
 
 use ember_core::math::Rect;
 use ember_core::{Color, Object};
-use ember_scene::{Node, NodeName};
+use ember_input::{Input, Key};
+use ember_scene::{Node, NodeId, NodeName, NodeTree, Servers};
+use ember_servers::{LinearPhysics, MockAudio, MockRenderer, RenderingServer};
 use ember_ui::prelude::*;
+use glam::Vec2;
 use std::any::Any;
+use std::sync::{Arc, Mutex};
 
 // --- Test controls -----------------------------------------------------
 
@@ -184,3 +188,140 @@ impl NodeName for Plain {
 }
 
 impl Node for Plain {}
+
+// --- UI harness --------------------------------------------------------
+
+pub const VIEWPORT: Rect = Rect::new(0.0, 0.0, 640.0, 480.0);
+
+/// A tree with a `UiRoot`, a listener node and handlers that record the
+/// built-in signals.
+pub struct Ui {
+    pub tree: NodeTree,
+    pub root: NodeId,
+    pub render: MockRenderer,
+    pub audio: MockAudio,
+    pub physics: LinearPhysics,
+    pub clicks: Arc<Mutex<Vec<NodeId>>>,
+    pub focus_changes: Arc<Mutex<Vec<FocusChanged>>>,
+    pub text_changes: Arc<Mutex<Vec<TextChanged>>>,
+    pub submits: Arc<Mutex<Vec<TextSubmitted>>>,
+}
+
+impl Ui {
+    /// A `UiRoot` with `Swatch` registered.
+    pub fn new() -> Self {
+        Self::with_root(UiRoot::default().register::<Swatch>())
+    }
+
+    pub fn with_root(ui_root: UiRoot) -> Self {
+        let mut tree = NodeTree::with_root(ui_root);
+        let root = tree.root().unwrap();
+        let listener = tree.insert(Plain {
+            name: "Listener".into(),
+        });
+        tree.attach(listener, root).unwrap();
+        let clicks = Arc::new(Mutex::new(Vec::new()));
+        let focus_changes = Arc::new(Mutex::new(Vec::new()));
+        let c = Arc::clone(&clicks);
+        tree.connect::<ButtonClicked>(listener, move |_ctx, ev| {
+            c.lock().unwrap().push(ev.button);
+        });
+        let f = Arc::clone(&focus_changes);
+        tree.connect::<FocusChanged>(listener, move |_ctx, ev| {
+            f.lock().unwrap().push(*ev);
+        });
+        let text_changes = Arc::new(Mutex::new(Vec::new()));
+        let t = Arc::clone(&text_changes);
+        tree.connect::<TextChanged>(listener, move |_ctx, ev| {
+            t.lock().unwrap().push(ev.clone());
+        });
+        let submits = Arc::new(Mutex::new(Vec::new()));
+        let s = Arc::clone(&submits);
+        tree.connect::<TextSubmitted>(listener, move |_ctx, ev| {
+            s.lock().unwrap().push(ev.clone());
+        });
+        Self {
+            tree,
+            root,
+            render: MockRenderer::new(),
+            audio: MockAudio::new(),
+            physics: LinearPhysics::new(),
+            clicks,
+            focus_changes,
+            text_changes,
+            submits,
+        }
+    }
+
+    /// A button at `(x, y)`, attached to the root.
+    pub fn button(&mut self, text: &str, x: f32, y: f32) -> NodeId {
+        self.add(Button::new(text).with_offset(Vec2::new(x, y)))
+    }
+
+    pub fn add(&mut self, node: impl Node) -> NodeId {
+        let id = self.tree.insert(node);
+        self.tree.attach(id, self.root).unwrap();
+        id
+    }
+
+    pub fn frame(&mut self, input: Input) {
+        self.render.begin_frame(VIEWPORT);
+        let mut servers = Servers {
+            rendering: &mut self.render,
+            audio: &mut self.audio,
+            physics: &mut self.physics,
+            input: &input,
+        };
+        self.tree.process(&mut servers, 0.016);
+        self.render.end_frame();
+    }
+
+    pub fn keys(&mut self, keys: &[Key]) {
+        self.frame(Input {
+            keys_pressed: keys.to_vec(),
+            ..Input::default()
+        });
+    }
+
+    pub fn mouse(&mut self, pos: Vec2, pressed: bool, released: bool) {
+        self.frame(Input {
+            mouse_pos: pos,
+            mouse_left_pressed: pressed,
+            mouse_left_down: pressed,
+            mouse_left_released: released,
+            ..Input::default()
+        });
+    }
+
+    pub fn get<T: 'static>(&self, id: NodeId) -> &T {
+        self.tree
+            .get(id)
+            .unwrap()
+            .as_any()
+            .downcast_ref::<T>()
+            .unwrap()
+    }
+
+    pub fn get_mut<T: 'static>(&mut self, id: NodeId) -> &mut T {
+        self.tree
+            .get_mut(id)
+            .unwrap()
+            .as_any_mut()
+            .downcast_mut::<T>()
+            .unwrap()
+    }
+
+    pub fn focused(&self) -> Option<NodeId> {
+        self.get::<UiRoot>(self.root).focused()
+    }
+
+    pub fn clicks(&self) -> Vec<NodeId> {
+        self.clicks.lock().unwrap().clone()
+    }
+}
+
+impl Default for Ui {
+    fn default() -> Self {
+        Self::new()
+    }
+}

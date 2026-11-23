@@ -1,6 +1,7 @@
 //! Input routing for one `UiRoot` (spec §9, ADR-036).
 
 use crate::{ControlRegistry, FocusChanged, FocusManager, control::PendingSignal};
+use ember_core::math::Rect;
 use ember_input::{GamepadButton, Input, Key, MouseButton};
 use ember_scene::{NodeId, NodeTree};
 
@@ -10,10 +11,22 @@ const PREV_KEYS: [Key; 1] = [Key::Up];
 /// Keys that activate the focused control (also gamepad South).
 const ACTIVATE_KEYS: [Key; 2] = [Key::Enter, Key::Space];
 
-/// Visible controls under `root`, depth first in tree order. A hidden or
-/// unregistered node hides its whole subtree.
-pub fn collect_controls(tree: &NodeTree, registry: &ControlRegistry, root: NodeId) -> Vec<NodeId> {
-    fn walk(tree: &NodeTree, registry: &ControlRegistry, id: NodeId, out: &mut Vec<NodeId>) {
+/// Visible controls under `root`, depth first in tree order, each with
+/// the clip its ancestors' [`Control::clip_children`](crate::Control::clip_children)
+/// put on it (`None` = unclipped). A hidden or unregistered node hides
+/// its whole subtree.
+pub fn collect_controls(
+    tree: &NodeTree,
+    registry: &ControlRegistry,
+    root: NodeId,
+) -> Vec<(NodeId, Option<Rect>)> {
+    fn walk(
+        tree: &NodeTree,
+        registry: &ControlRegistry,
+        id: NodeId,
+        clip: Option<Rect>,
+        out: &mut Vec<(NodeId, Option<Rect>)>,
+    ) {
         for &kid in tree.children(id) {
             let Some(c) = tree.get(kid).and_then(|n| registry.cast(n)) else {
                 continue;
@@ -21,12 +34,20 @@ pub fn collect_controls(tree: &NodeTree, registry: &ControlRegistry, root: NodeI
             if !c.base().visible {
                 continue;
             }
-            out.push(kid);
-            walk(tree, registry, kid, out);
+            out.push((kid, clip));
+            let inner = match (clip, c.clip_children()) {
+                (Some(outer), Some(own)) => Some(
+                    outer
+                        .intersect(&own)
+                        .unwrap_or(Rect::new(own.x, own.y, 0.0, 0.0)),
+                ),
+                (outer, own) => own.or(outer),
+            };
+            walk(tree, registry, kid, inner, out);
         }
     }
     let mut out = Vec::new();
-    walk(tree, registry, root, &mut out);
+    walk(tree, registry, root, None, &mut out);
     out
 }
 
@@ -44,8 +65,13 @@ pub struct Routed {
 /// 3. wheel: `on_mouse_wheel(y)` to hovered controls;
 /// 4. focus: `request` first, then a left click, then Tab / Down /
 ///    D-pad down (next), Up / D-pad up (previous);
-/// 5. Enter / Space / gamepad South: `on_activate` on the focused control;
-///    every other pressed key: `on_key_press` on it.
+/// 5. Enter / Space / gamepad South: `on_activate` on the focused control
+///    (not Space if it [captures text](crate::Control::captures_text));
+///    typed characters: `on_text_input`; then every other pressed key:
+///    `on_key_press`.
+///
+/// The pointer only reaches a control inside its ancestors'
+/// `clip_children` rects (a `ScrollContainer` hides what is scrolled out).
 ///
 /// v0.1 does not consume events: every control under the pointer gets
 /// them (spec §9.2).
@@ -57,16 +83,18 @@ pub fn route(
     input: &Input,
     request: Option<Option<NodeId>>,
 ) -> Routed {
-    let order = collect_controls(tree, registry, root);
+    let visible = collect_controls(tree, registry, root);
+    let order: Vec<NodeId> = visible.iter().map(|&(id, _)| id).collect();
     let before = focus.focused();
     let pos = input.mouse_pos;
 
     // 1. Hover
-    for &id in &order {
+    for &(id, clip) in &visible {
         let Some(c) = tree.get_mut(id).and_then(|n| registry.cast_mut(n)) else {
             continue;
         };
-        let inside = c.wants_mouse() && c.rect().contains(pos);
+        let inside =
+            c.wants_mouse() && c.rect().contains(pos) && clip.is_none_or(|r| r.contains(pos));
         if inside != c.base().hovered {
             c.base_mut().hovered = inside;
             if inside {
@@ -183,14 +211,20 @@ pub fn route(
     if let Some(id) = focus.focused()
         && let Some(c) = tree.get_mut(id).and_then(|n| registry.cast_mut(n))
     {
+        // A text field types Space instead of activating on it.
+        let captures = c.captures_text();
+        let activates = |k: &Key| ACTIVATE_KEYS.contains(k) && !(captures && *k == Key::Space);
         let gamepad = input.is_gamepad_pressed(GamepadButton::South);
-        if gamepad || keys_for_control.iter().any(|k| ACTIVATE_KEYS.contains(k)) {
+        if gamepad || keys_for_control.iter().any(activates) {
             c.on_activate();
         }
-        for key in keys_for_control {
-            if !ACTIVATE_KEYS.contains(&key) {
-                c.on_key_press(key);
-            }
+        // Text first: "type, then Backspace" in one frame erases the
+        // typed character, not the one before it.
+        for &ch in input.chars_typed.iter().filter(|ch| !ch.is_control()) {
+            c.on_text_input(ch);
+        }
+        for key in keys_for_control.iter().filter(|k| !activates(k)) {
+            c.on_key_press(*key);
         }
     }
 

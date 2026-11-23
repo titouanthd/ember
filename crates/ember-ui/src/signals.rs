@@ -26,3 +26,17 @@ pub struct FocusChanged {
     pub from: Option<NodeId>,
     pub to: Option<NodeId>,
 }
+
+/// A `TextInput`'s text changed (typing, Backspace, Delete).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TextChanged {
+    pub input: NodeId,
+    pub text: String,
+}
+
+/// Enter was pressed in a focused `TextInput`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TextSubmitted {
+    pub input: NodeId,
+    pub text: String,
+}

@@ -4,11 +4,15 @@ mod button;
 mod image;
 mod label;
 mod panel;
+mod scroll;
+mod text_input;
 
 pub use button::{BUTTON_PADDING_H, BUTTON_PADDING_V, Button, ButtonState};
 pub use image::{Image, ImageMode};
 pub use label::{Alignment, Label};
 pub use panel::Panel;
+pub use scroll::{SCROLL_STEP, SCROLLBAR_WIDTH, ScrollContainer};
+pub use text_input::{TEXT_INPUT_PADDING, TEXT_INPUT_WIDTH, TextInput};
 
 /// `Object` + `NodeName` for a built-in control with a `name: String`
 /// field. `ember-ui` cannot use `#[derive(Node)]` (`ember-macros` is not a

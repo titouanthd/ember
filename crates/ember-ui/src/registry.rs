@@ -40,13 +40,15 @@ impl ControlRegistry {
     }
 
     /// A registry with every built-in control: `Label`, `Button`, `Panel`,
-    /// `Image`, `VBox`, `HBox`, `Stretch`.
+    /// `Image`, `TextInput`, `ScrollContainer`, `VBox`, `HBox`, `Stretch`.
     pub fn with_builtins() -> Self {
         let mut r = Self::new();
         r.register::<crate::Label>()
             .register::<crate::Button>()
             .register::<crate::Panel>()
             .register::<crate::Image>()
+            .register::<crate::TextInput>()
+            .register::<crate::ScrollContainer>()
             .register::<crate::VBox>()
             .register::<crate::HBox>()
             .register::<crate::Stretch>();

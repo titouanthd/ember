@@ -6,15 +6,11 @@ use common::*;
 use ember_core::math::Rect;
 use ember_core::{Color, Object};
 use ember_input::{GamepadButton, Input, Key, MouseButton};
-use ember_scene::{NodeId, NodeName, NodeTree, Servers};
-use ember_servers::{LinearPhysics, MockAudio, MockRenderer, RenderingServer};
+use ember_scene::NodeName;
 use ember_ui::prelude::*;
 use ember_ui::widgets;
 use glam::Vec2;
 use std::any::Any;
-use std::sync::{Arc, Mutex};
-
-const VIEWPORT: Rect = Rect::new(0.0, 0.0, 640.0, 480.0);
 
 /// Records every mouse callback it gets.
 struct Recorder {
@@ -85,119 +81,15 @@ impl Control for Recorder {
 
 control_node!(Recorder);
 
-/// A tree with a `UiRoot`, a listener node and handlers that record
-/// `ButtonClicked` and `FocusChanged`.
-struct Ui {
-    tree: NodeTree,
-    root: NodeId,
-    render: MockRenderer,
-    audio: MockAudio,
-    physics: LinearPhysics,
-    clicks: Arc<Mutex<Vec<NodeId>>>,
-    focus_changes: Arc<Mutex<Vec<FocusChanged>>>,
-}
-
-impl Ui {
-    fn new() -> Self {
-        let mut tree = NodeTree::with_root(UiRoot::default().register::<Recorder>());
-        let root = tree.root().unwrap();
-        let listener = tree.insert(Plain {
-            name: "Listener".into(),
-        });
-        tree.attach(listener, root).unwrap();
-        let clicks = Arc::new(Mutex::new(Vec::new()));
-        let focus_changes = Arc::new(Mutex::new(Vec::new()));
-        let c = Arc::clone(&clicks);
-        tree.connect::<ButtonClicked>(listener, move |_ctx, ev| {
-            c.lock().unwrap().push(ev.button);
-        });
-        let f = Arc::clone(&focus_changes);
-        tree.connect::<FocusChanged>(listener, move |_ctx, ev| {
-            f.lock().unwrap().push(*ev);
-        });
-        Self {
-            tree,
-            root,
-            render: MockRenderer::new(),
-            audio: MockAudio::new(),
-            physics: LinearPhysics::new(),
-            clicks,
-            focus_changes,
-        }
-    }
-
-    /// A button at `(x, y)`, attached to the root.
-    fn button(&mut self, text: &str, x: f32, y: f32) -> NodeId {
-        self.add(Button::new(text).with_offset(Vec2::new(x, y)))
-    }
-
-    fn add(&mut self, node: impl ember_scene::Node) -> NodeId {
-        let id = self.tree.insert(node);
-        self.tree.attach(id, self.root).unwrap();
-        id
-    }
-
-    fn frame(&mut self, input: Input) {
-        self.render.begin_frame(VIEWPORT);
-        let mut servers = Servers {
-            rendering: &mut self.render,
-            audio: &mut self.audio,
-            physics: &mut self.physics,
-            input: &input,
-        };
-        self.tree.process(&mut servers, 0.016);
-        self.render.end_frame();
-    }
-
-    fn keys(&mut self, keys: &[Key]) {
-        self.frame(Input {
-            keys_pressed: keys.to_vec(),
-            ..Input::default()
-        });
-    }
-
-    fn mouse(&mut self, pos: Vec2, pressed: bool, released: bool) {
-        self.frame(Input {
-            mouse_pos: pos,
-            mouse_left_pressed: pressed,
-            mouse_left_down: pressed,
-            mouse_left_released: released,
-            ..Input::default()
-        });
-    }
-
-    fn get<T: 'static>(&self, id: NodeId) -> &T {
-        self.tree
-            .get(id)
-            .unwrap()
-            .as_any()
-            .downcast_ref::<T>()
-            .unwrap()
-    }
-
-    fn get_mut<T: 'static>(&mut self, id: NodeId) -> &mut T {
-        self.tree
-            .get_mut(id)
-            .unwrap()
-            .as_any_mut()
-            .downcast_mut::<T>()
-            .unwrap()
-    }
-
-    fn focused(&self) -> Option<NodeId> {
-        self.get::<UiRoot>(self.root).focused()
-    }
-
-    fn clicks(&self) -> Vec<NodeId> {
-        self.clicks.lock().unwrap().clone()
-    }
-}
-
 // --- Focus -------------------------------------------------------------
 
 #[test]
 fn tab_cycles_focus_in_tree_order_and_skips_disabled() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let play = ui.button("Play", 10.0, 10.0);
     let off = ui.add(
         Button::new("Off")
@@ -241,7 +133,11 @@ fn tab_cycles_focus_in_tree_order_and_skips_disabled() {
 
 #[test]
 fn dpad_moves_focus() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let a = ui.button("A", 10.0, 10.0);
     let b = ui.button("B", 10.0, 60.0);
     let pad = |button| Input {
@@ -258,7 +154,11 @@ fn dpad_moves_focus() {
 
 #[test]
 fn request_focus_applies_next_frame_and_ignores_non_focusables() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let _a = ui.button("A", 10.0, 10.0);
     let b = ui.button("B", 10.0, 60.0);
     let label = ui.add(Label::new("Score"));
@@ -276,7 +176,11 @@ fn request_focus_applies_next_frame_and_ignores_non_focusables() {
 
 #[test]
 fn hiding_the_focused_control_drops_focus() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let a = ui.button("A", 10.0, 10.0);
     ui.keys(&[Key::Tab]);
     assert_eq!(ui.focused(), Some(a));
@@ -289,7 +193,11 @@ fn hiding_the_focused_control_drops_focus() {
 
 #[test]
 fn enter_space_and_gamepad_south_click_the_focused_button() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let _a = ui.button("A", 10.0, 10.0);
     let b = ui.button("B", 10.0, 60.0);
 
@@ -309,7 +217,11 @@ fn enter_space_and_gamepad_south_click_the_focused_button() {
 
 #[test]
 fn enter_and_space_in_one_frame_click_once() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let a = ui.button("A", 10.0, 10.0);
     ui.keys(&[Key::Tab]);
     ui.keys(&[Key::Enter, Key::Space]);
@@ -320,7 +232,11 @@ fn enter_and_space_in_one_frame_click_once() {
 
 #[test]
 fn press_and_release_inside_clicks_and_focuses() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let play = ui.button("Play", 10.0, 10.0);
     let inside = Vec2::new(20.0, 20.0);
 
@@ -340,7 +256,11 @@ fn press_and_release_inside_clicks_and_focuses() {
 
 #[test]
 fn releasing_outside_does_not_click() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let play = ui.button("Play", 10.0, 10.0);
     ui.mouse(Vec2::new(20.0, 20.0), true, false);
     ui.mouse(Vec2::new(400.0, 400.0), false, true);
@@ -351,7 +271,11 @@ fn releasing_outside_does_not_click() {
 
 #[test]
 fn pressing_outside_then_releasing_inside_does_not_click() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let play = ui.button("Play", 10.0, 10.0);
     ui.mouse(Vec2::new(400.0, 400.0), true, false);
     ui.mouse(Vec2::new(20.0, 20.0), false, true);
@@ -362,7 +286,11 @@ fn pressing_outside_then_releasing_inside_does_not_click() {
 
 #[test]
 fn disabled_buttons_ignore_the_mouse() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let off = ui.add(
         Button::new("Off")
             .disabled()
@@ -377,7 +305,11 @@ fn disabled_buttons_ignore_the_mouse() {
 
 #[test]
 fn hover_enter_leave_and_wheel_reach_every_control_under_the_pointer() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let back = ui.add(Recorder::new(Rect::new(0.0, 0.0, 200.0, 200.0)));
     let front = ui.add(Recorder::new(Rect::new(50.0, 50.0, 50.0, 50.0)));
 
@@ -403,7 +335,11 @@ fn hover_enter_leave_and_wheel_reach_every_control_under_the_pointer() {
 
 #[test]
 fn hidden_controls_get_no_mouse_events() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let r = ui.add(Recorder::new(Rect::new(0.0, 0.0, 100.0, 100.0)).hidden());
     ui.mouse(Vec2::new(10.0, 10.0), true, false);
     assert!(ui.get::<Recorder>(r).log.is_empty());
@@ -413,7 +349,11 @@ fn hidden_controls_get_no_mouse_events() {
 
 #[test]
 fn button_measures_its_text_plus_padding() {
-    let mut ui = Ui::new();
+    let mut ui = Ui::with_root(
+        UiRoot::default()
+            .register::<Recorder>()
+            .register::<Swatch>(),
+    );
     let play = ui.button("Play", 10.0, 10.0);
     ui.keys(&[Key::Tab]);
     let button = ui.get::<Button>(play);
