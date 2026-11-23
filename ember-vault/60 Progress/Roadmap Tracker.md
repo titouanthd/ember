@@ -64,13 +64,13 @@ gantt
 - [x] `LinearPhysics` backend; `ctx.physics()`
 - [x] ~~`ember_stdlib::collider` migrated into `LinearPhysics`~~ — dropped: `LinearPhysics` written fresh in `ember-servers` (ADR-028)
 
-## Phase 5 — UI (entry gate ✅, 5.1 ✅ `cdbc078`, 5.2 ✅ `064e44c`, 5.3 ✅ `45e44da`)
+## Phase 5 — UI (entry gate ✅, 5.1 ✅ `cdbc078`, 5.2 ✅ `064e44c`, 5.3 ✅ `45e44da`, 5.4 🟡 `bc8191d` — visual check pending)
 - [x] `Button`, `FocusManager`, mouse routing, `ButtonClicked` / `FocusChanged` emitted by `UiRoot` (5.3, ADR-036)
 - [x] `VBox`, `HBox`, `Stretch`, `Label`, `Panel`, `Image`; bottom-up measuring; built-ins registered (5.2)
 - [x] `Control` trait, `ControlBase`, `Anchors`, `Theme::dark()/light()`, `UiRoot` layout (5.1)
-- [ ] `VBox` with 3 `Button`s, Tab/Enter navigation *(covered by `tests/input.rs`; visual check in `ui_demo`, 5.4)*
-- [ ] `ScrollContainer` clips
-- [ ] `TextInput` accepts text
+- [ ] `VBox` with 3 `Button`s, Tab/Enter navigation *(`tests/input.rs` + `make ui-demo`; visual check pending)*
+- [x] `ScrollContainer` clips *(tests; visual check in `make ui-demo` pending)*
+- [x] `TextInput` accepts text *(tests; visual check pending)*
 - [x] `Theme::dark()`
 
 ## Phase 6 — Editor POC

@@ -22,7 +22,7 @@ ember-scene, ember-servers
 
 ## Implementation status
 
-🟡 Sessions 5.1 (`cdbc078`), 5.2 (`064e44c`) and 5.3 (`45e44da`): `Control` + `ControlBase`, `Anchors`, `Theme`, `ControlRegistry`, `UiRoot` (layout once per frame, bottom-up measure), `control_node!`, `UiDrawContext`, `VBox`/`HBox`/`Stretch`, `Label`/`Panel`/`Image` (ADR-034); `Button`, `FocusManager`, input routing and the `ControlBase` signal outbox (`ButtonClicked`, `FocusChanged`, ADR-036). Next: scroll + `TextInput` + `ui_demo` (5.4, ADR-035).
+🟡 Sessions 5.1 (`cdbc078`), 5.2 (`064e44c`), 5.3 (`45e44da`) and 5.4: `Control` + `ControlBase`, `Anchors`, `Theme`, `ControlRegistry`, `UiRoot` (layout once per frame, bottom-up measure), `control_node!`, `UiDrawContext`, `VBox`/`HBox`/`Stretch`, `Label`/`Panel`/`Image` (ADR-034); `Button`, `FocusManager`, input routing and the `ControlBase` signal outbox (`ButtonClicked`, `FocusChanged`, ADR-036). 5.4 (`bc8191d`): `ScrollContainer`, `TextInput`, children clip and overlay hooks, `TextChanged` / `TextSubmitted` (ADR-035); demo: `make ui-demo`. Left for P5 exit: visual checks.
 
 ## Spec
 
