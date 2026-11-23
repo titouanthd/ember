@@ -1399,7 +1399,7 @@ rule forbids `impl<T: Control> Node for T` in `ember-ui`.
 - Open for 5.3/5.4: event handlers have no `NodeContext`, so signals are
   emitted by `UiRoot` after routing (ADR-036); a scroll clip
   must close after the children draw, which needs a post-children draw
-  hook in `ember-scene` (ADR-035, planned).
+  hook in `ember-scene` (ADR-035).
 
 ### Addendum — session 5.2 (2026-11-22)
 
@@ -1415,6 +1415,66 @@ rule forbids `impl<T: Control> Node for T` in `ember-ui`.
   `ember-ui` does not depend on `ember-assets` (same layer).
 - `UiRoot::new` registers every built-in control; the `ember` facade
   re-exports `ember_ui` and its prelude.
+
+## ADR-035: Post-children draw hook and children clip for controls
+
+**Status:** accepted (2026-11-23) — refines [[24-ember-ui]] §5.3, §5.4
+
+### Context
+
+`ScrollContainer` must clip its children's drawing to its rect. The
+clip stack (ADR-031) is push / pop, but the tree draws a node, then its
+children, with no call after the children (ADR-022): a node can open a
+clip in `draw` and never close it. `TextInput` also needs typed
+characters, and Space must type a space in a text field while it still
+presses a focused button (ADR-036).
+
+### Decision
+
+- **`Node::draw_after_children(&self, &mut DrawContext)`**, default
+  empty, in `ember-scene`. The tree calls it after a visible node's
+  subtree has drawn, with the server's z set back to the node's `z()`.
+  Hidden nodes skip it with their subtree.
+- **On `Control`:** `clip_children() -> Option<Rect>` (default `None`)
+  and `draw_overlay(&self, ui)` (default empty; named so it does not
+  clash with the `Node` method). `control_node!` now writes both draw
+  methods: `draw` = `draw_control`, then push the children clip on the
+  raw server (`UiDrawContext` pops its own clips on drop);
+  `draw_after_children` = pop that clip, then `draw_overlay`, which is
+  unclipped (the scrollbar).
+- **Routing honours clips:** the pointer reaches a control only inside
+  the intersection of its ancestors' `clip_children`, so rows scrolled
+  out of view cannot be hovered or clicked.
+- **`Control::children_arranged(&mut self, rects)`** runs after layout
+  placed a control's children. `ScrollContainer` reads its content
+  height from it (layout callbacks are otherwise `&self`).
+- **Text entry:** `Control::on_text_input(char)` receives
+  `Input::chars_typed` without control characters, before the frame's
+  keys (so "type then Backspace" erases the typed character).
+  `Control::captures_text()` makes Space type instead of activate;
+  Enter still activates (`TextSubmitted`).
+- `ScrollContainer` is vertical only; wheel up (positive y) scrolls
+  towards the top by 40 px per notch; content is laid out at the
+  container width and each child's desired height.
+
+### Alternatives
+
+- **Clip inside `draw_control` around a manual child draw:** controls
+  cannot draw their children (`DrawContext` has no tree, ADR-022).
+  Rejected.
+- **A `Clip` marker node closing the clip as last child:** fragile with
+  dynamic children and z. Rejected.
+- **Route `chars_typed` through `on_key_press`:** `Key` has no
+  character values. Rejected.
+
+### Consequences
+
+- The hook is additive: existing nodes draw exactly as before, plus one
+  extra `set_z` after a node with children.
+- Clip rects are screen pixels; a scroll area under a camera transform
+  is not supported (UI is screen space anyway).
+- To check visually: Retina scissor scale and the wheel direction on
+  macOS (natural scrolling) — `make ui-demo`.
 
 ## ADR-036: `UiRoot` routes input and emits control signals
 
