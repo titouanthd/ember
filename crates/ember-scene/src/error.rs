@@ -31,6 +31,8 @@ pub enum SceneError {
     Asset(String),
     /// A scene instances itself, directly or through other scenes.
     InstanceCycle(String),
+    /// The scene writer met a node whose type is not in the `ClassDB`.
+    NotSaveable(String),
 }
 
 impl fmt::Display for SceneError {
@@ -48,6 +50,9 @@ impl fmt::Display for SceneError {
             Self::Io(m) => write!(f, "scene io error: {m}"),
             Self::Asset(m) => write!(f, "nested scene load failed: {m}"),
             Self::InstanceCycle(c) => write!(f, "cycle detected instancing {c}"),
+            Self::NotSaveable(n) => {
+                write!(f, "node `{n}`: its type is not registered in the ClassDB")
+            }
             Self::Cycle { child, parent } => {
                 write!(
                     f,

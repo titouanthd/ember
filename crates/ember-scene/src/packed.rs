@@ -5,6 +5,7 @@ use crate::{ClassDbNodes, NodeId, NodeTree, SceneError};
 use ember_assets::{Asset, AssetError, AssetLoadContext, AssetServer, Handle};
 use ember_core::{ClassDB, Variant};
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
@@ -140,8 +141,7 @@ impl PackedScene {
     }
 
     pub fn to_ron(&self) -> String {
-        let cfg = ron::ser::PrettyConfig::default();
-        ron::ser::to_string_pretty(&self.file, cfg).expect("a scene always serializes")
+        Self::ron_of(&self.file)
     }
 
     pub fn uid(&self) -> &str {
@@ -354,5 +354,145 @@ impl PackedScene {
             return Err(e);
         }
         Ok(root)
+    }
+}
+
+// --- Writing ---------------------------------------------------------
+
+/// One node for [`SceneWriter::write_node`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct NodeRecord {
+    pub name: String,
+    pub class: String,
+    /// `None` for the root, `"."` for its children, otherwise a path
+    /// below the root (`"Sprite/Gun"`'s parent is `"Sprite"`).
+    pub parent: Option<String>,
+    pub properties: BTreeMap<String, Variant>,
+    pub visible: bool,
+    pub z: f32,
+}
+
+/// Builds an `.escene` file node by node (spec 21 §9, ADR-037). Nodes are
+/// written root first, parents before children.
+///
+/// ```ignore
+/// let mut w = SceneWriter::new("uid://player");
+/// w.write_node(NodeRecord { name: "Player".into(), class: "Player".into(), .. });
+/// let scene = w.finish()?;          // validated like a loaded file
+/// std::fs::write(path, scene.to_ron())?;
+/// ```
+#[derive(Clone, Debug)]
+pub struct SceneWriter {
+    file: SceneFile,
+}
+
+impl SceneWriter {
+    pub fn new(uid: impl Into<String>) -> Self {
+        Self {
+            file: SceneFile {
+                format: SUPPORTED_FORMAT,
+                uid: uid.into(),
+                ext_resources: Vec::new(),
+                sub_resources: Vec::new(),
+                nodes: Vec::new(),
+                connections: Vec::new(),
+            },
+        }
+    }
+
+    pub fn write_ext_resource(&mut self, ty: &str, uid: &str, path: &str) {
+        self.file.ext_resources.push(ExtResource {
+            ty: ty.into(),
+            uid: uid.into(),
+            path: path.into(),
+        });
+    }
+
+    pub fn write_node(&mut self, node: NodeRecord) {
+        self.file.nodes.push(NodeEntry {
+            name: node.name,
+            class: node.class,
+            parent: node.parent.unwrap_or_default(),
+            instance: String::new(),
+            properties: node.properties,
+            visible: node.visible,
+            z: node.z,
+        });
+    }
+
+    pub fn write_connection(&mut self, signal: &str, from: &str, to: &str, method: &str) {
+        self.file.connections.push(Connection {
+            signal: signal.into(),
+            from: from.into(),
+            to: to.into(),
+            method: method.into(),
+        });
+    }
+
+    /// The finished scene, checked with the same rules as a loaded file.
+    pub fn finish(self) -> Result<PackedScene, SceneError> {
+        PackedScene::from_ron(&PackedScene::ron_of(&self.file))
+    }
+}
+
+impl PackedScene {
+    fn ron_of(file: &SceneFile) -> String {
+        let cfg = ron::ser::PrettyConfig::default();
+        ron::ser::to_string_pretty(file, cfg).expect("a scene always serializes")
+    }
+
+    /// Save the subtree under `root` as a scene (ADR-037): every node's
+    /// class (looked up in `classes` by Rust type), name, exported
+    /// properties (`NodeName::property_list`), `visible` and `z`.
+    ///
+    /// Nodes that came from a nested `instance:` are written inline.
+    /// Connections are not written (none are wired from scenes yet).
+    /// Fails with `NotSaveable` if a node's type is not registered.
+    pub fn from_tree(
+        tree: &NodeTree,
+        root: NodeId,
+        classes: &ClassDB,
+        uid: impl Into<String>,
+    ) -> Result<Self, SceneError> {
+        let mut w = SceneWriter::new(uid);
+        Self::write_subtree(tree, root, None, classes, &mut w)?;
+        w.finish()
+    }
+
+    fn write_subtree(
+        tree: &NodeTree,
+        id: NodeId,
+        parent: Option<&str>,
+        classes: &ClassDB,
+        w: &mut SceneWriter,
+    ) -> Result<(), SceneError> {
+        let node = tree.get(id).ok_or(SceneError::NotFound(id))?;
+        let name = node.name().to_string();
+        let class = classes
+            .class_of(Any::type_id(node.as_any()))
+            .ok_or_else(|| SceneError::NotSaveable(name.clone()))?;
+        let properties = node
+            .property_list()
+            .iter()
+            .filter_map(|&k| Some((k.to_string(), node.get_property(k)?)))
+            .collect();
+        w.write_node(NodeRecord {
+            name: name.clone(),
+            class: class.to_string(),
+            parent: parent.map(str::to_string),
+            properties,
+            visible: node.visible(),
+            z: node.z(),
+        });
+        // Paths of this node's children, relative to the root.
+        let here = match parent {
+            None => ".".to_string(),
+            Some(".") => name,
+            Some(p) => format!("{p}/{name}"),
+        };
+        for &child in tree.children(id) {
+            Self::write_subtree(tree, child, Some(&here), classes, w)?;
+        }
+        Ok(())
     }
 }

@@ -1,13 +1,4 @@
-//! Scene serialization types. Stub until Phase 11.
+//! Writing scenes: [`SceneWriter`] and [`NodeRecord`] (ADR-037). They
+//! live next to the `.escene` file model in `packed`.
 
-pub struct SceneWriter {}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn scene_writer_is_constructible() {
-        let _ = SceneWriter {};
-    }
-}
+pub use crate::packed::{NodeRecord, SceneWriter};

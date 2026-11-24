@@ -28,7 +28,7 @@ pub use context::{DrawContext, NodeContext, Servers};
 pub use error::SceneError;
 pub use node::{Node, NodeId, NodeName};
 pub use packed::{PackedScene, SceneAssets};
-pub use scene::SceneWriter;
+pub use scene::{NodeRecord, SceneWriter};
 pub use scene_loop::SceneLoop;
 pub use signal::{Handler, ScopedConnection, Signal, SignalTable};
 pub use tree::NodeTree;
@@ -39,7 +39,7 @@ pub mod prelude {
     pub use crate::error::SceneError;
     pub use crate::node::{Node, NodeId, NodeName};
     pub use crate::packed::{PackedScene, SceneAssets};
-    pub use crate::scene::SceneWriter;
+    pub use crate::scene::{NodeRecord, SceneWriter};
     pub use crate::scene_loop::SceneLoop;
     pub use crate::signal::{ScopedConnection, Signal};
     pub use crate::tree::NodeTree;
