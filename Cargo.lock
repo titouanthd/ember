@@ -342,8 +342,11 @@ dependencies = [
 name = "ember-ui"
 version = "0.1.0"
 dependencies = [
+ "ember-core",
+ "ember-input",
  "ember-scene",
  "ember-servers",
+ "glam",
 ]
 
 [[package]]
