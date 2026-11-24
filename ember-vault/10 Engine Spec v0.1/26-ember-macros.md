@@ -10,7 +10,7 @@ wave: "3 — Crate Specifications"
 
 # 26 — `ember_macros`
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; `#[derive(Node)]` (minimal, ADR-019) and no-op `#[signal]` exist; `#[export]` handling, generated `new()`/serialize/registration are not implemented
+> **Status:** 🟡 partial — reviewed 2026-11-19; `#[derive(Node)]` (minimal, ADR-019) and no-op `#[signal]` exist; `#[export]` generates `property_list` / `get_property` / `set_property` on `NodeName` (ADR-037); `#[export(default)]`, generated `new()` and registration are not implemented
 > **Audience:** implementers
 > **Prerequisites:** [[21-ember-scene]], [[11-signals]]
 

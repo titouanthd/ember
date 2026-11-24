@@ -10,7 +10,7 @@ wave: "3 — Crate Specifications"
 
 # 21 — `ember_scene`
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; tree, signals, `NodeContext`/`DrawContext`, `SceneLoop`, `PackedScene` exist; `SceneWriter`/`SceneReader`, `ctx.assets()`, scene connections and several tree queries are not implemented.
+> **Status:** 🟡 partial — reviewed 2026-11-19; tree, signals, `NodeContext`/`DrawContext`, `SceneLoop`, `PackedScene` exist; `SceneWriter` + `PackedScene::from_tree` exist (ADR-037); `SceneReader`, `ctx.assets()`, scene connections and several tree queries are not implemented.
 > **Audience:** implementers
 > **Prerequisites:** [[10-nodes-and-scenes]], [[20-ember-core]]
 

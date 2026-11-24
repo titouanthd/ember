@@ -15,7 +15,7 @@ gantt
   section Engine core
   P0 Foundations (done)  :done, p0, 2026-11-18, 1d
   P1 Scene core (90%)    :active, p1, 2026-11-16, 3d
-  P2 Serialization (65%) :active, p2, 2026-11-18, 5d
+  P2 Serialization (done):done, p2, 2026-11-18, 7d
   P3 Signals (85%)       :active, p3, 2026-11-18, 2d
   P4 Servers (done)      :done, p4, 2026-11-16, 3d
   section Tools
@@ -41,13 +41,15 @@ gantt
 - [x] ready order (bottom-up) test — `tests/ready_ordering.rs`
 - [x] stale `NodeId` test — `tests/stale_id.rs`
 
-## Phase 2 — Serialization
-- [ ] `#[derive(Node)]` struct instantiable via `ClassDB::instantiate` *(needs `Default` + `register_node`; works, but derive can't carry behaviour)*
+## Phase 2 — Serialization ✅ closed 2026-11-24 (ADR-037, ADR-038)
+- [x] `#[derive(Node)]` struct instantiable via `ClassDB::instantiate`, `#[export]` fields set from `.escene` — `tests/scene_writer.rs`
 - [x] `PackedScene` round-trips through `to_ron()` — `tests/packed_scene.rs`
 - [x] hand-written `player.escene` instantiates into a `NodeTree`
 - [x] `AssetServer` loads PNG → `TextureId` (with renderer, ADR-026)
 - [x] UID registry persisted (`uid_registry.ron`)
-- [ ] `#[export]` serialization · `SceneWriter` · font/audio loaders · hot-reload watcher
+- [x] `#[export]` → `property_list` / `get_property` / `set_property` on `NodeName` (`f3eedef`, ADR-037)
+- [x] `SceneWriter` + `PackedScene::from_tree`: save → load → save round-trips (`d057b2c`)
+- [x] font / audio loaders and `AssetServer::reload_changed` hot reload (`a048f66`, ADR-038) — `tests/hot_reload.rs`
 
 ## Phase 3 — Signals
 - [x] Pong paddle→score via signal (`PointScored`)

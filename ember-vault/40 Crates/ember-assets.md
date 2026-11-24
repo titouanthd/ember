@@ -22,7 +22,7 @@ ember-core, ember-servers, serde, ron, png
 
 ## Implementation status
 
-🟡 Per ADR-026: synchronous, type-driven. **Deferred:** hot-reload watcher, async loads, font/audio loaders, loader registry. Lowest test density of the implemented crates (7 tests).
+🟢 Per ADR-026/038: synchronous, type-driven; `Texture`, `Font`, `AudioClip`, `RonAsset`, `PackedScene`; hot reload via `reload_changed` (polling). **Deferred:** async loads, watcher thread, loader registry. 14 tests (`assets.rs`, `hot_reload.rs`).
 
 ## Spec
 

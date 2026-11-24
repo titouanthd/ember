@@ -10,7 +10,7 @@ wave: "2 — Concepts"
 
 # 13 — Assets
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; synchronous cached loading, `Handle`/`WeakHandle`, UID registry, PNG/RON/scene assets work; async loading, hot-reload watcher, audio/font loaders and `ctx.assets()` are not implemented.
+> **Status:** 🟡 partial — reviewed 2026-11-19; synchronous cached loading, `Handle`/`WeakHandle`, UID registry, PNG/RON/scene/font/audio assets work, hot reload by polling `AssetServer::reload_changed` (ADR-038); async loading, a file-watcher thread and `ctx.assets()` are not implemented.
 > **Audience:** game authors, implementers
 > **Prerequisites:** [[10-nodes-and-scenes]], [[12-servers]]
 

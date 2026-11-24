@@ -22,7 +22,7 @@ syn, quote, proc-macro2
 
 ## Implementation status
 
-🟡 Minimal. Since ADR-030 the derive emits `Object` + `NodeName`; the user writes `impl Node for T { … }` with only the lifecycle needed (empty for data nodes). `#[export]` has no effect; no tests in-crate (covered by `ember-scene/tests/derive_works.rs`).
+🟡 Minimal. Since ADR-030 the derive emits `Object` + `NodeName`; the user writes `impl Node for T { … }` with only the lifecycle needed (empty for data nodes). `#[export]` generates `property_list` / `get_property` / `set_property` (ADR-037); no tests in-crate (covered by `ember-scene/tests/derive_works.rs` and `scene_writer.rs`).
 
 ## Spec
 

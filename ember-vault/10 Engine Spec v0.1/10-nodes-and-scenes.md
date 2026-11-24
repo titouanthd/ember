@@ -10,7 +10,7 @@ wave: "2 — Concepts"
 
 # 10 — Nodes and Scenes
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; `Node`/`NodeTree`/contexts/`PackedScene` implemented (ADR-022..027); `#[export]`, serialization, signal wiring from scenes and `find_by_class` are pending
+> **Status:** 🟡 partial — reviewed 2026-11-19; `Node`/`NodeTree`/contexts/`PackedScene` implemented (ADR-022..027); `#[export]` and the scene writer landed in Phase 2 (ADR-037: properties on `NodeName`, `PackedScene::from_tree`); signal wiring from scenes and `find_by_class` are pending
 > **Audience:** game authors, implementers
 > **Prerequisites:** [[01-architecture]]
 
