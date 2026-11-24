@@ -943,10 +943,11 @@ name = "simon"
 version = "0.1.0"
 dependencies = [
  "dotenvy",
+ "ember",
  "ember-core",
+ "ember-servers",
  "ember-stdlib",
  "glam",
- "macroquad",
  "ron",
  "serde",
 ]
