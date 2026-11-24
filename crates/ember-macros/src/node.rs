@@ -2,7 +2,8 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, LitStr, Result};
+use syn::ext::IdentExt;
+use syn::{Data, DeriveInput, Ident, LitStr, Result, Type};
 
 pub fn derive(input: DeriveInput) -> Result<TokenStream> {
     let name = &input.ident;
@@ -10,6 +11,7 @@ pub fn derive(input: DeriveInput) -> Result<TokenStream> {
 
     let class_name = parse_class_name(&input)?;
     verify_struct_has_name_field(&input)?;
+    let properties = property_methods(&exported_fields(&input)?);
 
     Ok(quote! {
         impl #impl_generics ::ember_core::Object for #name #ty_generics #where_clause {
@@ -34,8 +36,90 @@ pub fn derive(input: DeriveInput) -> Result<TokenStream> {
             fn set_name(&mut self, name: ::std::string::String) {
                 self.name = name;
             }
+            #properties
         }
     })
+}
+
+/// `#[export]` fields, in declaration order (ADR-037).
+fn exported_fields(input: &DeriveInput) -> Result<Vec<(Ident, Type)>> {
+    let Data::Struct(data) = &input.data else {
+        return Ok(Vec::new()); // reported by verify_struct_has_name_field
+    };
+    let mut out = Vec::new();
+    for field in &data.fields {
+        let mut export = false;
+        for attr in field.attrs.iter().filter(|a| a.path().is_ident("export")) {
+            match &attr.meta {
+                syn::Meta::Path(_) => export = true,
+                syn::Meta::List(_) => {
+                    attr.parse_nested_meta(|meta| {
+                        if meta.path.is_ident("skip") {
+                            Ok(())
+                        } else {
+                            Err(meta.error("only #[export] and #[export(skip)] exist in v0.1"))
+                        }
+                    })?;
+                }
+                syn::Meta::NameValue(nv) => {
+                    return Err(syn::Error::new_spanned(nv, "expected #[export]"));
+                }
+            }
+        }
+        if !export {
+            continue;
+        }
+        let Some(ident) = field.ident.clone() else {
+            return Err(syn::Error::new_spanned(
+                field,
+                "#[export] needs a named field",
+            ));
+        };
+        if ident == "name" {
+            return Err(syn::Error::new_spanned(
+                field,
+                "`name` is the node's name and is always saved; remove #[export]",
+            ));
+        }
+        out.push((ident, field.ty.clone()));
+    }
+    Ok(out)
+}
+
+/// `property_list` / `get_property` / `set_property` for the exported
+/// fields. Nothing when there are none: the `NodeName` defaults apply.
+fn property_methods(fields: &[(Ident, Type)]) -> TokenStream {
+    if fields.is_empty() {
+        return TokenStream::new();
+    }
+    let keys: Vec<String> = fields.iter().map(|(i, _)| i.unraw().to_string()).collect();
+    let idents: Vec<&Ident> = fields.iter().map(|(i, _)| i).collect();
+    let types: Vec<&Type> = fields.iter().map(|(_, t)| t).collect();
+    quote! {
+        fn property_list(&self) -> &'static [&'static str] {
+            &[#(#keys),*]
+        }
+        fn get_property(&self, key: &str) -> ::std::option::Option<::ember_core::Variant> {
+            match key {
+                #(#keys => ::std::option::Option::Some(
+                    ::ember_core::VariantValue::to_variant(&self.#idents)
+                ),)*
+                _ => ::std::option::Option::None,
+            }
+        }
+        fn set_property(&mut self, key: &str, value: &::ember_core::Variant) -> bool {
+            match key {
+                #(#keys => match <#types as ::ember_core::VariantValue>::from_variant(value) {
+                    ::std::option::Option::Some(v) => {
+                        self.#idents = v;
+                        true
+                    }
+                    ::std::option::Option::None => false,
+                },)*
+                _ => false,
+            }
+        }
+    }
 }
 
 fn parse_class_name(input: &DeriveInput) -> Result<LitStr> {
