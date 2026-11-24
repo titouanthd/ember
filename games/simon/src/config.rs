@@ -1,9 +1,21 @@
 use std::path::PathBuf;
 
+use ember_core::Color;
 use glam::Vec2;
-use macroquad::prelude::Color;
 
-use ember_stdlib::config::{env_color, env_f32};
+use ember_stdlib::config::env_f32;
+
+/// `<PREFIX>_R`, `_G`, `_B`, `_A` from the environment, each falling back
+/// to `default`. Local twin of `ember_stdlib::config::env_color`, which
+/// returns a macroquad colour.
+fn env_color(prefix: &str, default: Color) -> Color {
+    Color::new(
+        env_f32(&format!("{prefix}_R"), default.r),
+        env_f32(&format!("{prefix}_G"), default.g),
+        env_f32(&format!("{prefix}_B"), default.b),
+        env_f32(&format!("{prefix}_A"), default.a),
+    )
+}
 
 #[derive(Debug, Clone)]
 pub struct GameContext {

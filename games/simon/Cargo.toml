@@ -6,11 +6,12 @@ edition.workspace = true
 [dependencies]
 ember-core.workspace = true
 ember-stdlib.workspace = true
-macroquad.workspace = true
 glam.workspace = true
 serde.workspace = true
 ron.workspace = true
 dotenvy.workspace = true
+ember.workspace = true
+ember-servers.workspace = true
 
 [lib]
 name = "simon"

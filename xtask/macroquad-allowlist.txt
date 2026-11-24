@@ -34,7 +34,6 @@ games/minesweeper/
 games/pagoda/
 # pong: on NodeTree already; only macroquad::Color left (config, components, scene)
 games/pong/
-games/simon/
 games/snake/
 games/taiji/
 games/zhuo-ji/
