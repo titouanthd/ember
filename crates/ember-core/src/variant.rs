@@ -146,6 +146,123 @@ impl Variant {
     }
 }
 
+/// A Rust value that converts to and from a [`Variant`]. `#[export]`
+/// fields must implement it (ADR-037).
+///
+/// `from_variant` is lenient where a hand-written scene would be: an
+/// `Int` is accepted for a float field. Integer fields reject values out
+/// of their range.
+pub trait VariantValue: Sized {
+    fn to_variant(&self) -> Variant;
+    fn from_variant(v: &Variant) -> Option<Self>;
+}
+
+impl VariantValue for Variant {
+    fn to_variant(&self) -> Variant {
+        self.clone()
+    }
+    fn from_variant(v: &Variant) -> Option<Self> {
+        Some(v.clone())
+    }
+}
+
+impl VariantValue for bool {
+    fn to_variant(&self) -> Variant {
+        Variant::Bool(*self)
+    }
+    fn from_variant(v: &Variant) -> Option<Self> {
+        v.as_bool()
+    }
+}
+
+macro_rules! int_variant {
+    ($($t:ty),*) => {$(
+        impl VariantValue for $t {
+            fn to_variant(&self) -> Variant {
+                Variant::Int(i64::try_from(*self).unwrap_or(i64::MAX))
+            }
+            fn from_variant(v: &Variant) -> Option<Self> {
+                <$t>::try_from(v.as_i64()?).ok()
+            }
+        }
+    )*};
+}
+int_variant!(i8, i16, i32, i64, u8, u16, u32, u64, usize);
+
+impl VariantValue for f64 {
+    fn to_variant(&self) -> Variant {
+        Variant::Float(*self)
+    }
+    fn from_variant(v: &Variant) -> Option<Self> {
+        v.as_f64()
+    }
+}
+
+impl VariantValue for f32 {
+    fn to_variant(&self) -> Variant {
+        Variant::Float(f64::from(*self))
+    }
+    fn from_variant(v: &Variant) -> Option<Self> {
+        v.as_f64().map(|f| f as f32)
+    }
+}
+
+impl VariantValue for String {
+    fn to_variant(&self) -> Variant {
+        Variant::String(self.clone())
+    }
+    fn from_variant(v: &Variant) -> Option<Self> {
+        match v {
+            Variant::String(s) => Some(s.clone()),
+            _ => None,
+        }
+    }
+}
+
+impl VariantValue for Vec2 {
+    fn to_variant(&self) -> Variant {
+        Variant::Vec2(*self)
+    }
+    fn from_variant(v: &Variant) -> Option<Self> {
+        v.as_vec2()
+    }
+}
+
+impl VariantValue for Color {
+    fn to_variant(&self) -> Variant {
+        Variant::Color(*self)
+    }
+    fn from_variant(v: &Variant) -> Option<Self> {
+        v.as_color()
+    }
+}
+
+/// `None` is `Nil`.
+impl<T: VariantValue> VariantValue for Option<T> {
+    fn to_variant(&self) -> Variant {
+        self.as_ref().map_or(Variant::Nil, T::to_variant)
+    }
+    fn from_variant(v: &Variant) -> Option<Self> {
+        match v {
+            Variant::Nil => Some(None),
+            other => T::from_variant(other).map(Some),
+        }
+    }
+}
+
+/// An `Array` whose every element converts.
+impl<T: VariantValue> VariantValue for Vec<T> {
+    fn to_variant(&self) -> Variant {
+        Variant::Array(self.iter().map(T::to_variant).collect())
+    }
+    fn from_variant(v: &Variant) -> Option<Self> {
+        match v {
+            Variant::Array(items) => items.iter().map(T::from_variant).collect(),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -186,5 +303,39 @@ mod tests {
         assert_eq!(Variant::Float(2.0).as_i64(), None);
         assert_eq!(Variant::Bool(true).type_name(), "Bool");
         assert!(Variant::from_ron("Bogus(1)").is_err());
+    }
+
+    #[test]
+    fn variant_values_round_trip() {
+        fn rt<T: VariantValue + PartialEq + std::fmt::Debug + Clone>(v: T) {
+            assert_eq!(T::from_variant(&v.to_variant()), Some(v));
+        }
+        rt(true);
+        rt(-7i32);
+        rt(300u16);
+        rt(0.1f32);
+        rt(2.5f64);
+        rt(String::from("hi"));
+        rt(Vec2::new(1.0, -2.0));
+        rt(Color::new(0.1, 0.2, 0.3, 0.4));
+        rt(Some(3u8));
+        rt(None::<u8>);
+        rt(vec![1i64, 2, 3]);
+    }
+
+    #[test]
+    fn variant_values_reject_wrong_kinds_and_ranges() {
+        assert_eq!(u8::from_variant(&Variant::Int(300)), None);
+        assert_eq!(u32::from_variant(&Variant::Int(-1)), None);
+        assert_eq!(f32::from_variant(&Variant::Int(2)), Some(2.0));
+        assert_eq!(i32::from_variant(&Variant::Float(2.0)), None);
+        assert_eq!(
+            String::from_variant(&Variant::ObjectRef("uid://a".into())),
+            None
+        );
+        assert_eq!(
+            Vec::<u8>::from_variant(&Variant::Array(vec![Variant::Bool(true)])),
+            None
+        );
     }
 }
