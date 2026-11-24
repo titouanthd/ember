@@ -12,8 +12,8 @@ generated: "2026-11-22"
 |---|---|
 | **Crate** | `games/simon` (`cargo run -p simon`) |
 | **Platform** | Native |
-| **Engine bricks exercised** | Audio playback, circle buttons, sequence timers, best score |
-| **Engine migration (Phase 7)** | ⬜ not migrated |
+| **Engine bricks exercised** | `SceneLoop`, signals, `ember_ui` (`UiRoot`, `Panel`, `Label`, custom `Control` with `hit_test`), `AudioServer::load_clip`, sequence timers, best score |
+| **Engine migration (Phase 7)** | ✅ migrated `1d0dc87` — `src/scene.rs`: `Simon` root node, `ember_ui` screens, custom `ColorPad` control, `PadClicked` signal, sounds via `AudioServer` |
 
 ## Documents
 

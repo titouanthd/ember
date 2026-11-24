@@ -51,7 +51,7 @@ Branch: `feat/ui` (or one branch per session), pushed after the first commit.
 | **5.1 Foundations** ✅ `cdbc078` | `ember-ui` crate layout per spec §2. `Control` trait (rect, min_size, focusable, input hooks), `UiDrawContext` (wraps `DrawContext` + `Theme` + clip stack), `Anchors` + `compute_rect`, `Theme::dark()` / `light()`, `UiRoot` node that runs layout once per frame | `layout_anchors.rs`: anchors resolve for 4 corners + stretch; theme defaults |
 | **5.2 Layout & static widgets** ✅ `064e44c` | `VBox`, `HBox`, `Stretch` (one-pass layout, spec §11.1), `Label`, `Panel`, `Image` (`Handle<Texture>`) | `layout_vbox.rs` (3 children, spacing, stretch weights), `layout_hbox.rs`; draw-call snapshots |
 | **5.3 Interaction** ✅ `45e44da` | `FocusManager` (Tab / Shift+Tab, wrap-around, `set_focus`), `Button` emitting `ButtonPressed { id }` via signals, mouse routing top-down with consumption (spec §9), `primary_action` activates the focused button | `focus_navigation.rs` (Tab ×3 cycles, Enter emits), `mouse_routing.rs` (overlapping controls, consumption) |
-| **5.4 Scroll, text, demo** 🟡 `bc8191d` `048fc42` | `ScrollContainer` (wheel + clip + scrollbar), `TextInput` (caret, Backspace/Delete/Home/End, max length, `TextSubmitted` signal), `crates/ember/examples/ui_demo.rs` showing every widget | `scroll_clip.rs` (clip calls bracket children, offset), `text_input.rs` (typing, backspace, submit) |
+| **5.4 Scroll, text, demo** ✅ `bc8191d` `048fc42` | `ScrollContainer` (wheel + clip + scrollbar), `TextInput` (caret, Backspace/Delete/Home/End, max length, `TextSubmitted` signal), `crates/ember/examples/ui_demo.rs` showing every widget | `scroll_clip.rs` (clip calls bracket children, offset), `text_input.rs` (typing, backspace, submit) |
 
 Every commit uses the format in [[Commit & Push]], e.g. `feat(ui-layout): Add VBox and HBox one-pass layout`.
 
@@ -60,17 +60,17 @@ Every commit uses the format in [[Commit & Push]], e.g. `feat(ui-layout): Add VB
 - Controls embed `ControlBase`; `UiRoot` owns a `ControlRegistry` and lays out in `process`; `control_node!` writes `impl Node` (ADR-034).
 - **5.2** must register built-in widgets in `UiRoot::new` and re-export `ember_ui` from the `ember` facade.
 - **5.3** ✅ ADR-036: handlers have no `NodeContext`; controls queue signals on `ControlBase`, `UiRoot` emits `ButtonClicked { button }` / `FocusChanged` after routing. Delivered as `tests/input.rs` (13 tests); no consumption and no Shift+Tab in v0.1.
-- **5.4** ✅ ADR-035: `Node::draw_after_children` + `Control::clip_children` / `draw_overlay`; routing respects clips; `TextInput` gets `on_text_input` and `captures_text`. Tests: `tests/scroll_text.rs` (8), `draw_after_children.rs` (3). Left: visual checks with `make ui-demo`.
+- **5.4** ✅ ADR-035: `Node::draw_after_children` + `Control::clip_children` / `draw_overlay`; routing respects clips; `TextInput` gets `on_text_input` and `captures_text`. Tests: `tests/scroll_text.rs` (8), `draw_after_children.rs` (3). Visual checks done by hand (2026-11-24).
 - Estimate: 4 UI sessions (was 2.5).
 
 ## Exit criteria (from [[40-roadmap]] §8.3, made testable)
 
-- [ ] `ui_demo` shows a `VBox` with 3 `Button`s; Tab moves focus, Enter activates (manual + `input.rs` ✅)
-- [ ] `ScrollContainer` clips its content (`scroll_text.rs` ✅ + visual check)
-- [ ] `TextInput` accepts and displays text (`scroll_text.rs` ✅ + visual check)
-- [ ] `Theme::dark()` renders a readable UI (visual check, screenshot in the vault)
-- [ ] `make pre-push` green; `xtask check-layers` still passes (`ember-ui` → `ember-scene`, `ember-servers` only)
-- [ ] [[ember-ui]] crate note and [[Roadmap Tracker]] updated
+- [x] `ui_demo` shows a `VBox` with 3 `Button`s; Tab moves focus, Enter activates (manual + `input.rs` ✅)
+- [x] `ScrollContainer` clips its content (`scroll_text.rs` ✅ + visual check)
+- [x] `TextInput` accepts and displays text (`scroll_text.rs` ✅ + visual check)
+- [x] `Theme::dark()` renders a readable UI (visual check, screenshot in the vault)
+- [x] `make pre-push` green; `xtask check-layers` still passes (`ember-ui` → `ember-scene`, `ember-servers` only)
+- [x] [[ember-ui]] crate note and [[Roadmap Tracker]] updated
 
 ## Validation on a real game
 

@@ -19,10 +19,10 @@ gantt
   P3 Signals (85%)       :active, p3, 2026-11-18, 2d
   P4 Servers (done)      :done, p4, 2026-11-16, 3d
   section Tools
-  P5 UI (0%)             :p5, after p4, 3d
+  P5 UI (done)           :done, p5, 2026-11-22, 3d
   P6 Editor (0%)         :p6, after p5, 4d
   section Application
-  P7 Migration (1/17)    :active, p7, 2026-11-18, 13d
+  P7 Migration (2/17)    :active, p7, 2026-11-18, 13d
   P8 Cleanup (0%)        :p8, after p7, 1d
 ```
 
@@ -64,13 +64,13 @@ gantt
 - [x] `LinearPhysics` backend; `ctx.physics()`
 - [x] ~~`ember_stdlib::collider` migrated into `LinearPhysics`~~ — dropped: `LinearPhysics` written fresh in `ember-servers` (ADR-028)
 
-## Phase 5 — UI (entry gate ✅, 5.1 ✅ `cdbc078`, 5.2 ✅ `064e44c`, 5.3 ✅ `45e44da`, 5.4 🟡 `bc8191d` — visual check pending)
+## Phase 5 — UI ✅ closed 2026-11-24 (5.1 `cdbc078`, 5.2 `064e44c`, 5.3 `45e44da`, 5.4 `bc8191d`; `make ui-demo` checked by hand)
 - [x] `Button`, `FocusManager`, mouse routing, `ButtonClicked` / `FocusChanged` emitted by `UiRoot` (5.3, ADR-036)
 - [x] `VBox`, `HBox`, `Stretch`, `Label`, `Panel`, `Image`; bottom-up measuring; built-ins registered (5.2)
 - [x] `Control` trait, `ControlBase`, `Anchors`, `Theme::dark()/light()`, `UiRoot` layout (5.1)
-- [ ] `VBox` with 3 `Button`s, Tab/Enter navigation *(`tests/input.rs` + `make ui-demo`; visual check pending)*
-- [x] `ScrollContainer` clips *(tests; visual check in `make ui-demo` pending)*
-- [x] `TextInput` accepts text *(tests; visual check pending)*
+- [x] `VBox` with 3 `Button`s, Tab/Enter navigation *(`tests/input.rs` + `make ui-demo`)*
+- [x] `ScrollContainer` clips *(`tests/scroll_text.rs` + `make ui-demo`)*
+- [x] `TextInput` accepts text *(`tests/scroll_text.rs` + `make ui-demo`)*
 - [x] `Theme::dark()`
 
 ## Phase 6 — Editor POC
@@ -83,7 +83,7 @@ gantt
 Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `macroquad`.
 - [ ] snake
 - [ ] pong *(on NodeTree + signal; `main.rs` 20 lines; still imports macroquad Color)*
-- [ ] simon
+- [x] simon *(`1d0dc87`: root node + `ember_ui` screens + custom `ColorPad`; `main.rs` 5 lines; no macroquad; 8 `SceneLoop` tests)*
 - [ ] memory
 - [ ] minesweeper
 - [ ] freecell

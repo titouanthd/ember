@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 41 — Migration Guide
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; 1 of 17 games (pong) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
+> **Status:** 🟡 partial — reviewed 2026-11-19; 2 of 17 games (pong, simon) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [[40-roadmap]], [[21-ember-scene]]
 
@@ -279,10 +279,28 @@ persistence API lands.
   depends on `macroquad` (config colours, `render.rs`, the window
   backend). Order in §3 has pong 2nd but it was migrated first.
 
-### 5.3 simon
+### 5.3 simon — **migrated** (`1d0dc87`, 2026-11-24)
 
-- 21 unit + 8 scenario.
-- Button-click game — good test of `Button` widget.
+- 21 unit + 8 scenario (unchanged) + 8 headless `SceneLoop` tests
+  (`games/simon/tests/scene.rs`).
+- Result: `src/scene.rs`. `Simon` (root) owns the `GameWorld`, reads
+  Space / R, ticks playback and pushes state into the UI every frame.
+  Under a `UiRoot`: three `Panel` groups (start, playfield, game-over
+  box) of `Label`s, and four `ColorPad`s — a game-defined `Control` with
+  a round `Control::hit_test` that emits `PadClicked` through `UiRoot`
+  (ADR-036). `main.rs` is 5 lines (`simon::scene::run()`); the crate
+  depends on `ember` and `ember-servers`, not macroquad.
+- Lessons: a custom control is ~60 lines (`Object` + `NodeName` +
+  `Control` + `control_node!`). Round buttons needed `Control::hit_test`
+  (added in `ember-ui`, `3f456aa`). A handler that needs the root's
+  state downcasts it from `ctx.tree()` and returns what to do (here the
+  clip to play), then acts on `ctx`. Sounds are `include_bytes!` +
+  `AudioServer::load_clip` in `ready` (no file paths at runtime).
+  `ember_stdlib::config::env_color` returns a macroquad colour, so
+  `config.rs` has a local twin returning `ember_core::Color`.
+- Kept as-is: the click sound plays on click *and* again when the
+  flash lights the pad next frame (same as before); the best score
+  still goes through `ember_stdlib::persistence` (step 7 deferred).
 
 ### 5.4 memory
 
