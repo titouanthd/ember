@@ -19,9 +19,20 @@ const ALLOWED: &[(&str, &[&str])] = &[
             "ember-macros",
         ],
     ),
+    // L4 tool: everything below it, like the facade (Phase 6).
     (
         "ember-editor",
-        &["ember-scene", "ember-assets", "ember-render-macroquad"],
+        &[
+            "ember-scene",
+            "ember-ui",
+            "ember-assets",
+            "ember-servers",
+            "ember-input",
+            "ember-core",
+            "ember-render-macroquad",
+            "ember-audio-macroquad",
+            "ember-macros",
+        ],
     ),
     (
         "ember-scene",
