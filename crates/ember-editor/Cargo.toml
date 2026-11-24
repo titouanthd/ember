@@ -8,6 +8,10 @@ ember-core.workspace = true
 ember-macros.workspace = true
 ember-scene.workspace = true
 ember-servers.workspace = true
+ember-input.workspace = true
+ember-ui.workspace = true
+ember-render-macroquad.workspace = true
+ember-audio-macroquad.workspace = true
 glam.workspace = true
 
 [[bin]]

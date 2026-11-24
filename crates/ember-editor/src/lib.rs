@@ -4,7 +4,10 @@
 //!   inspect, edit through exported properties and save (no window).
 //! - [`nodes`]: the built-in editable classes (`Player`, `Sprite`).
 //! - [`value`]: properties shown and edited as text.
+//! - [`app`]: the window — outline, inspector, preview (an `ember_ui`
+//!   node tree run by `SceneLoop`).
 
+pub mod app;
 pub mod document;
 pub mod nodes;
 pub mod value;

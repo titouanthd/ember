@@ -12,7 +12,7 @@ PORT    ?= 8000
 ENGINE_FLAGS := $(addprefix -p ,$(ENGINE))
 
 .DEFAULT_GOAL := help
-.PHONY: help setup hooks build release run run-release example ui-demo \
+.PHONY: help setup hooks build release run run-release example ui-demo editor \
         test test-engine test-games test-crate test-game test-one test-count \
         check fix fmt fmt-check layers macroquad gates ci pre-push \
         doc web web-serve vault vault-check docs-guard \
@@ -53,6 +53,10 @@ example: ## Run the engine demo (crates/ember/examples/hello_scene.rs)
 
 ui-demo: ## Run the UI demo (crates/ember/examples/ui_demo.rs)
 	$(CARGO) run -p ember --example ui_demo
+
+SCENE ?= assets/test_fixtures/player.escene
+editor: ## Open a scene in the editor: make editor SCENE=path/to/scene.escene
+	$(CARGO) run -p ember-editor -- $(SCENE)
 
 ## —— Tests ——————————————————————————————————————————————————————————————
 test: ## All tests, no fail-fast (workspace)

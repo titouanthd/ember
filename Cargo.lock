@@ -273,6 +273,13 @@ dependencies = [
 [[package]]
 name = "ember-editor"
 version = "0.1.0"
+dependencies = [
+ "ember-core",
+ "ember-macros",
+ "ember-scene",
+ "ember-servers",
+ "glam",
+]
 
 [[package]]
 name = "ember-input"
