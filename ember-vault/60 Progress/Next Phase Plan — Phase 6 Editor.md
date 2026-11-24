@@ -1,6 +1,6 @@
 ---
 title: "Next Phase Plan — Phase 6 Editor"
-aliases: ["Phase 6 plan", "Next phase"]
+aliases: ["Phase 6 plan"]
 tags: ["ember/progress", "ember/plan", "ember/phase-6"]
 created: "2026-11-24"
 phase: "6 — Editor POC"
@@ -40,11 +40,11 @@ estimate: "3 sessions"
 |---|---|---|
 | **6.1 Model** ✅ `484ead0` | crate setup + layer rules, built-in nodes, `value` (format/parse), `Document`, CLI `--print` | `load_edit_save.rs` (exit criteria on the model), `value` unit tests |
 | **6.2 App** ✅ `e4a725a` | `EditorApp` node: outline, inspector, preview, Save; `cargo run -p ember-editor -- scene.escene` | headless `SceneLoop` tests: click a node, edit `size`, save |
-| **6.3 Close** | visual check, docs, crate note, tracker | — |
+| **6.3 Close** ✅ | visual check, docs, crate note, tracker | — |
 
 ## Exit criteria ([[40-roadmap]] §9.2)
 
-- [ ] opens `player.escene`, shows `Player / Sprite / Hitbox`
-- [ ] clicking `Sprite` shows `texture` and `size`
-- [ ] changing `size` from `(32, 32)` to `(64, 64)` updates the preview
-- [ ] saving round-trips the change through `.escene`
+- [x] opens `player.escene`, shows `Player / Sprite / Hitbox`
+- [x] clicking `Sprite` shows `texture` and `size`
+- [x] changing `size` from `(32, 32)` to `(64, 64)` updates the preview
+- [x] saving round-trips the change through `.escene`
