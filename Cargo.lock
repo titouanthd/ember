@@ -274,10 +274,14 @@ dependencies = [
 name = "ember-editor"
 version = "0.1.0"
 dependencies = [
+ "ember-audio-macroquad",
  "ember-core",
+ "ember-input",
  "ember-macros",
+ "ember-render-macroquad",
  "ember-scene",
  "ember-servers",
+ "ember-ui",
  "glam",
 ]
 
