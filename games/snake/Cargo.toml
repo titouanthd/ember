@@ -4,13 +4,16 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-macroquad.workspace = true
 glam.workspace = true
 dotenvy.workspace = true
 serde.workspace = true
 ron.workspace = true
 ember-core.workspace = true
 ember-stdlib.workspace = true
+ember.workspace = true
+
+[dev-dependencies]
+ember-servers.workspace = true
 
 [lib]
 name = "snake"

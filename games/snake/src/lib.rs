@@ -1,6 +1,7 @@
 // games/snake/src/lib.rs
 pub mod components;
 pub mod config;
+pub mod scene;
 pub mod systems;
 
 pub use components::{Cell, Direction, Food, Snake, Wall};
