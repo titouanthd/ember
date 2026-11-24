@@ -31,15 +31,6 @@ macro_rules! thing {
             fn set_name(&mut self, name: String) {
                 self.name = name;
             }
-        }
-
-        impl Node for $t {
-            fn z(&self) -> f32 {
-                self.z
-            }
-            fn visible(&self) -> bool {
-                self.visible
-            }
             fn set_property(&mut self, key: &str, v: &Variant) -> bool {
                 match key {
                     "max_hp" => v.as_f64().map(|x| self.hp = x).is_some(),
@@ -49,6 +40,15 @@ macro_rules! thing {
                     "z" => v.as_f64().map(|x| self.z = x as f32).is_some(),
                     _ => false,
                 }
+            }
+        }
+
+        impl Node for $t {
+            fn z(&self) -> f32 {
+                self.z
+            }
+            fn visible(&self) -> bool {
+                self.visible
             }
         }
     };
