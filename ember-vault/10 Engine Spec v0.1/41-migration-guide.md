@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 41 — Migration Guide
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; 2 of 17 games (pong, simon) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
+> **Status:** 🟡 partial — reviewed 2026-11-19; 3 of 17 games (pong, simon, snake) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [[40-roadmap]], [[21-ember-scene]]
 
@@ -251,12 +251,22 @@ persistence API lands.
 
 ## 5. Per-game notes
 
-### 5.1 snake (easiest)
+### 5.1 snake — **migrated** (`77d7694`, 2026-11-24)
 
-- 20 unit tests + 4 scenario tests.
-- Single state machine, no UI beyond a score.
-- Migration time: ~2 hours.
-- The migration is a model for the rest.
+- 20 unit + 12 scenario (unchanged) + 7 headless `SceneLoop` tests
+  (`games/snake/tests/scene.rs`).
+- Result: `src/scene.rs`, one `SnakeGame` root node owning the
+  `SnakeWorld` plus the session state the old loop kept in locals (best,
+  level index, level-cleared timer, now counted in `dt` instead of
+  `Instant`). HUD and overlays are drawn text (`measure_text` to centre),
+  not `ember_ui` — a single fixed screen does not need widgets.
+  `main.rs` is 5 lines; no macroquad.
+- Data-only prep commit (`fe976b2`): `ember_core::Color` for colours and
+  an `ember_core::Rng` behind a static for food placement (macroquad's
+  global `rand` was unseeded too; the scene seeds it from the clock).
+  Food positions differ from before; no test depended on them.
+- Lesson: a game with no widgets migrates in one node — a second node
+  only pays off when another one listens to its signals (pong).
 
 ### 5.2 pong — **migrated**
 

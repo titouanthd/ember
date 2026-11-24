@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/snake` (`cargo run -p snake`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | Grid logic, fixed-step timer, level progression |
-| **Engine migration (Phase 7)** | ⬜ not migrated (first in migration order) |
+| **Engine migration (Phase 7)** | ✅ migrated `77d7694` — `src/scene.rs`: one `SnakeGame` root node, drawing through the `RenderingServer`; no macroquad |
 
 ## Documents
 

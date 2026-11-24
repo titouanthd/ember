@@ -22,7 +22,7 @@ gantt
   P5 UI (done)           :done, p5, 2026-11-22, 3d
   P6 Editor (done)       :done, p6, 2026-11-24, 1d
   section Application
-  P7 Migration (2/17)    :active, p7, 2026-11-18, 13d
+  P7 Migration (3/17)    :active, p7, 2026-11-18, 13d
   P8 Cleanup (0%)        :p8, after p7, 1d
 ```
 
@@ -83,7 +83,7 @@ gantt
 
 ## Phase 7 — Migration
 Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `macroquad`.
-- [ ] snake
+- [x] snake *(`77d7694`: one root node; `main.rs` 5 lines; no macroquad; 7 `SceneLoop` tests)*
 - [ ] pong *(on NodeTree + signal; `main.rs` 20 lines; still imports macroquad Color)*
 - [x] simon *(`1d0dc87`: root node + `ember_ui` screens + custom `ColorPad`; `main.rs` 5 lines; no macroquad; 8 `SceneLoop` tests)*
 - [ ] memory
