@@ -40,7 +40,15 @@ pub struct NodeTree {
     deferred_emits: Vec<DeferredEmit>,
 }
 
-type DeferredEmit = Box<dyn FnOnce(&mut NodeContext<'_>) + Send>;
+// `Sync` too (a signal payload is `Send + Sync`), so a whole `NodeTree`
+// is `Send + Sync` and can live inside a node, as the editor's
+// document does.
+type DeferredEmit = Box<dyn FnOnce(&mut NodeContext<'_>) + Send + Sync>;
+
+const _: () = {
+    fn send_sync<T: Send + Sync>() {}
+    let _ = send_sync::<NodeTree>;
+};
 
 impl NodeTree {
     pub fn new() -> Self {
