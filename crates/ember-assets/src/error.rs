@@ -24,6 +24,8 @@ pub enum AssetError {
     UnknownUid(String),
     /// The asset needs a `RenderingServer`; use `load_with`.
     NeedsRenderer(String),
+    /// The asset needs an `AudioServer`; use `load_audio`.
+    NeedsAudio(String),
     /// A server call failed.
     Server(String),
 }
@@ -41,6 +43,7 @@ impl fmt::Display for AssetError {
             Self::InvalidUid(u) => write!(f, "invalid uid `{u}`"),
             Self::UnknownUid(u) => write!(f, "unknown uid `{u}`"),
             Self::NeedsRenderer(p) => write!(f, "asset `{p}` needs a RenderingServer"),
+            Self::NeedsAudio(p) => write!(f, "asset `{p}` needs an AudioServer"),
             Self::Server(m) => write!(f, "server error: {m}"),
         }
     }

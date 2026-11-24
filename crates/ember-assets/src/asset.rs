@@ -2,7 +2,7 @@
 
 use crate::{AssetError, Uid};
 use ember_core::Image;
-use ember_servers::{RenderingServer, TextureId};
+use ember_servers::{AudioClipId, AudioServer, FontId, RenderingServer, TextureId};
 use serde::de::DeserializeOwned;
 use std::path::Path;
 
@@ -11,6 +11,8 @@ pub struct AssetLoadContext<'a> {
     pub uid: &'a Uid,
     /// `Some` only when loaded through `load_with` (ADR-026).
     pub rendering: Option<&'a mut dyn RenderingServer>,
+    /// `Some` only when loaded through `load_audio` (ADR-038).
+    pub audio: Option<&'a mut dyn AudioServer>,
 }
 
 pub trait Asset: Send + Sync + Sized + 'static {
@@ -95,6 +97,83 @@ impl Asset for Texture {
         let fresh = Self::load(bytes, ctx)?;
         if let Some(r) = ctx.rendering.as_deref_mut() {
             r.destroy_texture(current.id);
+        }
+        *current = fresh;
+        Ok(())
+    }
+}
+
+/// A font registered with the renderer (`.ttf`, `.otf`). Load it with
+/// `AssetServer::font` (ADR-038).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Font {
+    pub id: FontId,
+}
+
+impl Asset for Font {
+    fn extensions() -> &'static [&'static str] {
+        &["ttf", "otf"]
+    }
+
+    fn load(bytes: &[u8], ctx: &mut AssetLoadContext) -> Result<Self, AssetError> {
+        let path = ctx.path.display().to_string();
+        let rendering = ctx
+            .rendering
+            .as_deref_mut()
+            .ok_or(AssetError::NeedsRenderer(path))?;
+        let id = rendering
+            .create_font(bytes)
+            .map_err(|e| AssetError::Server(e.to_string()))?;
+        Ok(Self { id })
+    }
+
+    fn reload(
+        current: &mut Self,
+        bytes: &[u8],
+        ctx: &mut AssetLoadContext,
+    ) -> Result<(), AssetError> {
+        let fresh = Self::load(bytes, ctx)?;
+        if let Some(r) = ctx.rendering.as_deref_mut() {
+            r.destroy_font(current.id);
+        }
+        *current = fresh;
+        Ok(())
+    }
+}
+
+/// A sound loaded into the audio backend (`.wav`, `.ogg`). Load it with
+/// `AssetServer::audio_clip` and play `clip.id` with
+/// `AudioServer::play` (ADR-038).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AudioClip {
+    pub id: AudioClipId,
+}
+
+impl Asset for AudioClip {
+    fn extensions() -> &'static [&'static str] {
+        &["wav", "ogg"]
+    }
+
+    fn load(bytes: &[u8], ctx: &mut AssetLoadContext) -> Result<Self, AssetError> {
+        let path = ctx.path.display().to_string();
+        let audio = ctx
+            .audio
+            .as_deref_mut()
+            .ok_or(AssetError::NeedsAudio(path))?;
+        let id = audio
+            .load_clip(bytes)
+            .map_err(|e| AssetError::Server(e.to_string()))?;
+        Ok(Self { id })
+    }
+
+    fn reload(
+        current: &mut Self,
+        bytes: &[u8],
+        ctx: &mut AssetLoadContext,
+    ) -> Result<(), AssetError> {
+        let fresh = Self::load(bytes, ctx)?;
+        if let Some(a) = ctx.audio.as_deref_mut() {
+            a.destroy_clip(current.id);
         }
         *current = fresh;
         Ok(())
