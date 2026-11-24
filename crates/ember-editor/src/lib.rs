@@ -1,14 +1,12 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! A dev-only scene editor (Phase 6 POC, roadmap §9).
+//!
+//! - [`Document`]: an opened `.escene` as a live `NodeTree` you can
+//!   inspect, edit through exported properties and save (no window).
+//! - [`nodes`]: the built-in editable classes (`Player`, `Sprite`).
+//! - [`value`]: properties shown and edited as text.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod document;
+pub mod nodes;
+pub mod value;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use document::{Document, EditorError, OutlineRow};

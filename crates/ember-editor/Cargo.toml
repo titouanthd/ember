@@ -4,3 +4,12 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+ember-core.workspace = true
+ember-macros.workspace = true
+ember-scene.workspace = true
+ember-servers.workspace = true
+glam.workspace = true
+
+[[bin]]
+name = "ember-editor"
+path = "src/main.rs"

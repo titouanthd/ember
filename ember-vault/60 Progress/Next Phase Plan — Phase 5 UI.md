@@ -1,6 +1,6 @@
 ---
 title: "Next Phase Plan — Phase 5 UI"
-aliases: ["Phase 5 plan", "Next phase"]
+aliases: ["Phase 5 plan"]
 tags: ["ember/progress", "ember/plan", "ember/phase-5"]
 created: "2026-11-22"
 phase: "5 — UI (+ entry gate)"
