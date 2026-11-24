@@ -1,10 +1,12 @@
 // games/snake/src/systems.rs
 use crate::components::{Cell, Direction, Food, Snake, Wall};
+use ember_core::Color;
+use ember_core::Rng;
 use ember_core::app::GameState;
 use ember_core::time::TickTimer;
-use macroquad::prelude::Color;
 use serde::Deserialize;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 /// Format RON d'un niveau Snake.
 #[derive(Debug, Clone, Deserialize)]
@@ -275,16 +277,32 @@ pub fn spawn_food(snake: &Snake, ctx: &GameContext) -> Food {
     spawn_food_avoiding(snake, &[], ctx)
 }
 
-pub fn spawn_food_avoiding(snake: &Snake, walls: &[Wall], ctx: &GameContext) -> Food {
-    use macroquad::rand::gen_range;
+/// State of the food RNG (Phase 7: replaces macroquad's global
+/// `rand::gen_range`, which was never seeded either).
+static FOOD_RNG: Mutex<u32> = Mutex::new(0x5EED_F00D);
 
+/// Reseed where food appears (the scene seeds it from the clock).
+pub fn seed_food(seed: u32) {
+    *FOOD_RNG.lock().unwrap_or_else(|e| e.into_inner()) = Rng::new(seed).state();
+}
+
+/// A number in `0..n` from the food RNG.
+fn gen_range(n: i32) -> i32 {
+    let mut state = FOOD_RNG.lock().unwrap_or_else(|e| e.into_inner());
+    let mut rng = Rng::from_state(*state);
+    let v = rng.next_range(n.max(1) as usize) as i32;
+    *state = rng.state();
+    v
+}
+
+pub fn spawn_food_avoiding(snake: &Snake, walls: &[Wall], ctx: &GameContext) -> Food {
     let is_occupied =
         |c: Cell| -> bool { snake.body.contains(&c) || walls.iter().any(|w| w.cell == c) };
 
     for _ in 0..200 {
         let c = Cell::new(
-            gen_range(0, ctx.grid_cols as i32),
-            gen_range(0, ctx.grid_rows as i32),
+            gen_range(ctx.grid_cols as i32),
+            gen_range(ctx.grid_rows as i32),
         );
         if !is_occupied(c) {
             return Food::new(c, ctx.food_color);

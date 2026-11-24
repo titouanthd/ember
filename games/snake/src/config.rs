@@ -1,7 +1,7 @@
 // games/snake/src/config.rs
 use crate::systems::GameContext;
+use ember_core::Color;
 use ember_stdlib::config::{env_f32, env_u32};
-use macroquad::prelude::Color;
 use std::path::PathBuf;
 
 pub fn load_config() -> GameContext {

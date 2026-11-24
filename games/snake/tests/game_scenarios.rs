@@ -9,7 +9,7 @@
 //! individuelles. Seuls les tests qui exercent `update` construisent
 //! désormais un `SnakeWorld`.
 
-use macroquad::prelude::Color;
+use ember_core::Color;
 use snake::GameState;
 use snake::components::{Cell, Direction, Food, Snake, Wall};
 use snake::systems::{self, GameContext, SnakeState, SnakeWorld, TickEvent};

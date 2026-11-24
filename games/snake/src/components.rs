@@ -1,6 +1,6 @@
 // components.rs
+use ember_core::Color;
 use glam::IVec2;
-use macroquad::prelude::Color;
 
 /// Une case sur la grille logique (colonne, ligne).
 /// On utilise IVec2 (entiers) pour éviter les erreurs de float.
