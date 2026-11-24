@@ -38,8 +38,8 @@ estimate: "3 sessions"
 
 | Session | Content | Tests |
 |---|---|---|
-| **6.1 Model** | crate setup + layer rules, built-in nodes, `value` (format/parse), `Document`, CLI `--print` | `load_edit_save.rs` (exit criteria on the model), `value` unit tests |
-| **6.2 App** | `EditorApp` node: outline, inspector, preview, Save; `cargo run -p ember-editor -- scene.escene` | headless `SceneLoop` tests: click a node, edit `size`, save |
+| **6.1 Model** ✅ `484ead0` | crate setup + layer rules, built-in nodes, `value` (format/parse), `Document`, CLI `--print` | `load_edit_save.rs` (exit criteria on the model), `value` unit tests |
+| **6.2 App** ✅ `e4a725a` | `EditorApp` node: outline, inspector, preview, Save; `cargo run -p ember-editor -- scene.escene` | headless `SceneLoop` tests: click a node, edit `size`, save |
 | **6.3 Close** | visual check, docs, crate note, tracker | — |
 
 ## Exit criteria ([[40-roadmap]] §9.2)

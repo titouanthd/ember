@@ -22,7 +22,7 @@ Scene inspector POC (planned)
 
 ## Implementation status
 
-⬜ **Placeholder** — `lib.rs` is the cargo template `add()` fn; `main.rs` prints “Coming soon”. Phase 6 not started.
+🟡 Phase 6 POC (sessions 6.1 `484ead0`, 6.2 `e4a725a`). `Document` (open / outline / properties as text / edit / save via `PackedScene::from_tree`), built-in `Player` and `Sprite` (`#[derive(Node)]` + `#[export]`), `app::EditorApp` window: toolbar (Save, status), outline, inspector (one `TextInput` per property), clipped preview of the scene. `make editor SCENE=…`, `--print` for a text outline. 13 tests (`load_edit_save.rs`, `app.rs`) + `value` unit tests. **Limits:** no add/remove/rename of nodes, no undo, textures not drawn, connections and ext resources not saved, at most 16 properties per node.
 
 ## Spec
 

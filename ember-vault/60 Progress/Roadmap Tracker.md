@@ -20,7 +20,7 @@ gantt
   P4 Servers (done)      :done, p4, 2026-11-16, 3d
   section Tools
   P5 UI (done)           :done, p5, 2026-11-22, 3d
-  P6 Editor (6.1/3)      :active, p6, 2026-11-24, 3d
+  P6 Editor (6.2/3)      :active, p6, 2026-11-24, 3d
   section Application
   P7 Migration (2/17)    :active, p7, 2026-11-18, 13d
   P8 Cleanup (0%)        :p8, after p7, 1d
@@ -75,11 +75,11 @@ gantt
 - [x] `TextInput` accepts text *(`tests/scroll_text.rs` + `make ui-demo`)*
 - [x] `Theme::dark()`
 
-## Phase 6 — Editor POC (6.1 ✅ `484ead0` model · 6.2 app · 6.3 close — [[Next Phase Plan — Phase 6 Editor|plan]])
-- [ ] opens `player.escene`, shows `Player / Sprite / Hitbox` *(model ✅ `load_edit_save.rs`; window in 6.2)*
-- [ ] property panel shows `texture`, `size`
-- [ ] edit `size` → preview updates
-- [ ] save round-trips
+## Phase 6 — Editor POC (6.1 ✅ `484ead0` model · 6.2 ✅ `e4a725a` window · 6.3 visual check — [[Next Phase Plan — Phase 6 Editor|plan]])
+- [ ] opens `player.escene`, shows `Player / Sprite / Hitbox` *(tests ✅ `load_edit_save.rs`, `app.rs`; `make editor` visual check pending)*
+- [ ] property panel shows `texture`, `size` *(tests ✅)*
+- [ ] edit `size` → preview updates *(tests ✅)*
+- [ ] save round-trips *(tests ✅)*
 
 ## Phase 7 — Migration
 Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `macroquad`.
