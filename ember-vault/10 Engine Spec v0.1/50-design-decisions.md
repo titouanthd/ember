@@ -1535,6 +1535,101 @@ control does not know its own `NodeId`. Spec §6.1 also gives
 - Handlers targeting `UiRoot` itself are skipped (it is checked out of
   the tree during `process`, ADR-022); connect to another node.
 
+## ADR-037: Exported properties live on `NodeName`; scenes are written from live trees
+
+**Status:** accepted (2026-11-24) — refines [[10-nodes-and-scenes]] §11, [[21-ember-scene]] §9, [[26-ember-macros]]; amends ADR-025, ADR-030
+
+### Context
+
+Phase 2 needs `#[export]` to generate property access and a writer that
+saves a tree back to `.escene` (the editor, Phase 6, depends on both).
+Since ADR-030 the user owns `impl Node`, so the derive cannot add
+`set_property` there. `Node::serialize(&self, &mut SceneWriter)` was a
+stub, and a `&dyn Node` cannot name its class (`Object::class_name` is
+`Self: Sized`).
+
+### Decision
+
+- **Properties move to `NodeName`**, the half of a node the derive
+  writes: `property_list() -> &'static [&'static str]`,
+  `get_property(key) -> Option<Variant>`, `set_property(key, &Variant)
+  -> bool`, all defaulted. `Node::set_property` and `Node::serialize`
+  are removed. Hand-written nodes implement them on `NodeName` if they
+  load or save properties.
+- **`#[derive(Node)]` generates them** from `#[export]` fields
+  (`f3eedef`). A field type must implement `ember_core::VariantValue` (new:
+  `bool`, integer types with range checks, `f32`/`f64` — `Int` accepted
+  for floats —, `String`, `Vec2`, `Color`, `Option<T>` (= `Nil`),
+  `Vec<T>` (= `Array`)). `#[export(skip)]` is accepted; exporting
+  `name` is a compile error; `#[export(default = …)]` is not in v0.1.
+- **`ClassDB` maps Rust types back to class names**
+  (`class_of(TypeId)`, `class_name_of(&dyn Object)`).
+- **Writing (`d057b2c`):** `SceneWriter::new(uid)` + `write_node(NodeRecord)`
+  / `write_ext_resource` / `write_connection` + `finish() ->
+  PackedScene` (validated like a loaded file). `PackedScene::from_tree(
+  tree, root, &ClassDB, uid)` saves a subtree: class, name, exported
+  properties, `visible`, `z`. Unregistered node types fail with
+  `SceneError::NotSaveable`. Nested `instance:` nodes are written
+  inline; connections are not written.
+
+### Alternatives
+
+- **New supertrait `Properties` on `Node`:** every hand-written node and
+  macro (`ember-ui`, pong, simon, tests) would need an empty impl.
+  Rejected; `NodeName` already has to exist on each.
+- **Derive generates inherent methods the user forwards to:** easy to
+  forget, and scenes would silently ignore properties. Rejected.
+- **`Node::class(&self)` on every node:** another hand-written method;
+  the `ClassDB` already knows the types it can load. Rejected.
+
+### Consequences
+
+- `ClassDB::instantiate` + `.escene` properties + `from_tree` round-trip
+  derived nodes with no hand-written property code
+  (`tests/scene_writer.rs`).
+- `Handle<T>` fields cannot be exported yet (need the `AssetServer` to
+  resolve `uid://`); store the path as a `String`.
+- `NodeName` is now a slight misnomer; it stays to avoid churn.
+
+## ADR-038: Font and audio loaders; hot reload by polling
+
+**Status:** accepted (2026-11-24) — refines [[13-assets]] §7–8; amends ADR-026
+
+### Context
+
+Phase 2 listed font and audio loaders and a hot-reload watcher. The
+spec's watcher uses the `notify` crate on a background thread; the
+engine is single-threaded and its GPU / audio handles must be recreated
+on the main thread with the servers at hand.
+
+### Decision (`a048f66`)
+
+- **`Font`** (`.ttf`, `.otf`) → `RenderingServer::create_font`;
+  **`AudioClip`** (`.wav`, `.ogg`) → `AudioServer::load_clip`.
+  `AssetLoadContext` gains `audio`; `AssetServer` gains `load_audio`,
+  `font`, `audio_clip`; `AssetError::NeedsAudio`. Reloads destroy the
+  old font / clip.
+- **Hot reload = polling:** each cache entry records the file's mtime
+  and a type-erased reload function. `AssetServer::reload_changed(
+  rendering, audio)` reloads every live asset whose file changed, in
+  path order, and returns `(path, Result)` for each. A failed reload
+  keeps the old value and is not retried until the file changes again.
+  The game (or editor) calls it — every frame in debug, on a timer, or
+  on a key.
+
+### Alternatives
+
+- **`notify` watcher thread:** new dependency, platform quirks, and
+  events still have to be applied on the main thread. Rejected for
+  v0.1; `reload_changed` can later be fed by one.
+- **Automatic reload inside `SceneLoop`:** the loop does not own an
+  `AssetServer` yet (`ctx.assets()` is not implemented). Deferred.
+
+### Consequences
+
+- One `stat` per live asset per call; fine for v0.1 asset counts.
+- Code hot-reload stays out of scope (spec §10.3).
+
 ## How to add an ADR
 
 1. Copy the template:
