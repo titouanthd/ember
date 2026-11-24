@@ -230,6 +230,13 @@ pub trait Control: Node {
         false
     }
 
+    /// Is `pos` (screen pixels) over this control? Defaults to its rect;
+    /// round or irregular controls narrow it. Routing (hover, clicks,
+    /// wheel) uses it.
+    fn hit_test(&self, pos: Vec2) -> bool {
+        self.rect().contains(pos)
+    }
+
     fn wants_mouse(&self) -> bool {
         true
     }

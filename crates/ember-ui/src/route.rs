@@ -93,8 +93,7 @@ pub fn route(
         let Some(c) = tree.get_mut(id).and_then(|n| registry.cast_mut(n)) else {
             continue;
         };
-        let inside =
-            c.wants_mouse() && c.rect().contains(pos) && clip.is_none_or(|r| r.contains(pos));
+        let inside = c.wants_mouse() && c.hit_test(pos) && clip.is_none_or(|r| r.contains(pos));
         if inside != c.base().hovered {
             c.base_mut().hovered = inside;
             if inside {

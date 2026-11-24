@@ -333,6 +333,66 @@ fn hover_enter_leave_and_wheel_reach_every_control_under_the_pointer() {
     );
 }
 
+/// A `Recorder` that is only hit inside the circle its rect encloses.
+struct Round(Recorder);
+
+impl Object for Round {
+    fn class_name() -> &'static str {
+        "Round"
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+impl NodeName for Round {
+    fn name(&self) -> &str {
+        self.0.name()
+    }
+    fn set_name(&mut self, name: String) {
+        self.0.set_name(name);
+    }
+}
+
+impl Control for Round {
+    fn base(&self) -> &ControlBase {
+        self.0.base()
+    }
+    fn base_mut(&mut self) -> &mut ControlBase {
+        self.0.base_mut()
+    }
+    fn draw_control(&self, ui: &mut UiDrawContext) {
+        self.0.draw_control(ui);
+    }
+    fn hit_test(&self, pos: Vec2) -> bool {
+        let r = self.rect();
+        let c = Vec2::new(r.x + r.w * 0.5, r.y + r.h * 0.5);
+        let d = pos - c;
+        d.x * d.x + d.y * d.y <= (r.w * 0.5) * (r.w * 0.5)
+    }
+    fn on_mouse_enter(&mut self) {
+        self.0.on_mouse_enter();
+    }
+    fn on_mouse_down(&mut self, button: MouseButton, pos: Vec2) {
+        self.0.on_mouse_down(button, pos);
+    }
+}
+
+control_node!(Round);
+
+#[test]
+fn hit_test_narrows_the_pointer_area() {
+    let mut ui = Ui::with_root(UiRoot::default().register::<Round>());
+    let r = ui.add(Round(Recorder::new(Rect::new(0.0, 0.0, 100.0, 100.0))));
+    ui.mouse(Vec2::new(5.0, 5.0), true, false); // rect corner, outside the circle
+    assert!(ui.get::<Round>(r).0.log.is_empty());
+    ui.mouse(Vec2::new(50.0, 50.0), true, false);
+    assert_eq!(ui.get::<Round>(r).0.log, ["enter", "down Left"]);
+}
+
 #[test]
 fn hidden_controls_get_no_mouse_events() {
     let mut ui = Ui::with_root(
