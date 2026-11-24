@@ -15,6 +15,8 @@ struct Entry {
 #[derive(Default)]
 pub struct ClassDB {
     classes: BTreeMap<&'static str, Entry>,
+    /// Rust type -> class name, for writing live objects back (ADR-037).
+    types: HashMap<TypeId, &'static str>,
 }
 
 impl ClassDB {
@@ -30,6 +32,9 @@ impl ClassDB {
 
     /// Register `T` with a custom constructor.
     pub fn register_with<T: Object>(&mut self, ctor: fn() -> T) {
+        self.types
+            .entry(TypeId::of::<T>())
+            .or_insert(T::class_name());
         self.classes
             .entry(T::class_name())
             .or_insert_with(|| Entry {
@@ -45,6 +50,18 @@ impl ClassDB {
     /// A fresh instance of `class_name`, or `None` if unregistered.
     pub fn instantiate(&self, class_name: &str) -> Option<Box<dyn Object>> {
         self.classes.get(class_name).map(|e| (e.construct)())
+    }
+
+    /// The class name registered for the Rust type `type_id`.
+    pub fn class_of(&self, type_id: TypeId) -> Option<&'static str> {
+        self.types.get(&type_id).copied()
+    }
+
+    /// The class name of a live object, if its type is registered.
+    pub fn class_name_of(&self, object: &dyn Object) -> Option<&'static str> {
+        // `Any::type_id` through the vtable: the concrete type, not
+        // `&dyn Any`'s.
+        self.class_of(Any::type_id(object.as_any()))
     }
 
     /// Registered class names, sorted.
@@ -141,5 +158,16 @@ mod tests {
         assert!(!db.set_extension("Nope", 5u32));
         assert_eq!(db.extension::<u32>("Orc"), Some(&5));
         assert_eq!(db.extension::<u32>("Elf"), None);
+    }
+
+    #[test]
+    fn live_objects_map_back_to_their_class() {
+        let mut db = ClassDB::new();
+        db.register::<Orc>();
+        let orc: Box<dyn Object> = Box::new(Orc::default());
+        let elf: Box<dyn Object> = Box::new(Elf);
+        assert_eq!(db.class_name_of(orc.as_ref()), Some("Orc"));
+        assert_eq!(db.class_name_of(elf.as_ref()), None);
+        assert_eq!(db.class_of(TypeId::of::<Orc>()), Some("Orc"));
     }
 }

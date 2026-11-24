@@ -23,4 +23,4 @@ pub use math::{Aabb, Circle, reflect};
 pub use object::Object;
 pub use rng::Rng;
 pub use time::{Cooldown, TickTimer};
-pub use variant::Variant;
+pub use variant::{Variant, VariantValue};
