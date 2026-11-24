@@ -443,7 +443,8 @@ impl PackedScene {
 
     /// Save the subtree under `root` as a scene (ADR-037): every node's
     /// class (looked up in `classes` by Rust type), name, exported
-    /// properties (`NodeName::property_list`), `visible` and `z`.
+    /// properties (`NodeName::property_list`), `visible` and `z`. Exported
+    /// properties named `visible` or `z` go to those entry fields only.
     ///
     /// Nodes that came from a nested `instance:` are written inline.
     /// Connections are not written (none are wired from scenes yet).
@@ -471,9 +472,11 @@ impl PackedScene {
         let class = classes
             .class_of(Any::type_id(node.as_any()))
             .ok_or_else(|| SceneError::NotSaveable(name.clone()))?;
+        // `visible` and `z` are written as the entry's own fields.
         let properties = node
             .property_list()
             .iter()
+            .filter(|&&k| k != "visible" && k != "z")
             .filter_map(|&k| Some((k.to_string(), node.get_property(k)?)))
             .collect();
         w.write_node(NodeRecord {
