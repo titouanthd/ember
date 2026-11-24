@@ -54,8 +54,11 @@ example: ## Run the engine demo (crates/ember/examples/hello_scene.rs)
 ui-demo: ## Run the UI demo (crates/ember/examples/ui_demo.rs)
 	$(CARGO) run -p ember --example ui_demo
 
-SCENE ?= assets/test_fixtures/player.escene
+# Default: a scratch copy of the test fixture, so saving never edits it.
+SCENE ?= target/editor/player.escene
 editor: ## Open a scene in the editor: make editor SCENE=path/to/scene.escene
+	@if [ "$(SCENE)" = "target/editor/player.escene" ] && [ ! -f "$(SCENE)" ]; then \
+		mkdir -p target/editor && cp assets/test_fixtures/player.escene $(SCENE); fi
 	$(CARGO) run -p ember-editor -- $(SCENE)
 
 ## —— Tests ——————————————————————————————————————————————————————————————
