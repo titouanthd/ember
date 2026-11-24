@@ -1,7 +1,8 @@
 //! `Button`: a clickable text label (spec §5.2). Emits
 //! [`ButtonClicked`](crate::ButtonClicked) through `UiRoot` (ADR-036).
 
-use crate::{ButtonClicked, Control, ControlBase, Measure, UiDrawContext};
+use crate::{Alignment, ButtonClicked, Control, ControlBase, Measure, UiDrawContext};
+use ember_core::math::Rect;
 use ember_input::MouseButton;
 use glam::Vec2;
 
@@ -28,6 +29,8 @@ pub struct Button {
     pub text: String,
     /// `None` = `Theme::font_size`.
     pub size: Option<f32>,
+    /// Where the text sits inside the padding. Default `Center`.
+    pub align: Alignment,
     disabled: bool,
     state: ButtonState,
 }
@@ -39,6 +42,7 @@ impl Button {
             base: ControlBase::new(),
             text: text.into(),
             size: None,
+            align: Alignment::Center,
             disabled: false,
             state: ButtonState::Normal,
         }
@@ -46,6 +50,11 @@ impl Button {
 
     pub fn with_size(mut self, size: f32) -> Self {
         self.size = Some(size);
+        self
+    }
+
+    pub fn with_align(mut self, align: Alignment) -> Self {
+        self.align = align;
         self
     }
 
@@ -175,10 +184,15 @@ impl Control for Button {
             return;
         }
         let metrics = ui.render().measure_text(&self.text, size);
-        let top_left = Vec2::new(
-            rect.x + (rect.w - metrics.width) * 0.5,
-            rect.y + (rect.h - metrics.height) * 0.5,
+        let inner = Rect::new(
+            rect.x + BUTTON_PADDING_H,
+            rect.y,
+            (rect.w - 2.0 * BUTTON_PADDING_H).max(0.0),
+            rect.h,
         );
+        let top_left = self
+            .align
+            .place(inner, Vec2::new(metrics.width, metrics.height));
         // `draw_text` takes the baseline.
         let baseline = Vec2::new(top_left.x, top_left.y + metrics.offset_y);
         ui.draw_text(&self.text, baseline, size, text_color);
