@@ -3,9 +3,8 @@ use crate::ai::AiController;
 use crate::components::{Paddle, QiBall, Side};
 use crate::config::GameContext;
 use ember_core::rng::Rng;
-use ember_stdlib::input::Input;
+use ember_input::{Input, Key};
 use glam::Vec2;
-use macroquad::prelude::*;
 
 pub const BASE_SPEED: f32 = 400.0;
 pub const MAX_SPEED: f32 = 1200.0;
@@ -88,7 +87,7 @@ pub fn update(
     input: &Input,
 ) -> Option<ScoreEvent> {
     // --- 1. Le Souffle du Temps (Yin / Yang) ---
-    let space_held = input.is_key_down(KeyCode::Space);
+    let space_held = input.is_key_down(Key::Space);
 
     if space_held {
         match_state.was_yin = true;
@@ -117,10 +116,10 @@ pub fn update(
 
     // --- 2. Input joueur ---
     match_state.player.reset_velocity();
-    if input.is_key_down(KeyCode::W) || input.is_key_down(KeyCode::Up) {
+    if input.is_key_down(Key::W) || input.is_key_down(Key::Up) {
         match_state.player.move_up(dt);
     }
-    if input.is_key_down(KeyCode::S) || input.is_key_down(KeyCode::Down) {
+    if input.is_key_down(Key::S) || input.is_key_down(Key::Down) {
         match_state.player.move_down(dt, ctx.screen_h);
     }
 

@@ -1,5 +1,10 @@
 // games/taiji/src/config.rs
-use macroquad::prelude::*;
+use ember_core::Color;
+
+/// macroquad's `BLACK`, `DARKGRAY` and `WHITE`, kept exactly.
+pub const BLACK: Color = Color::new(0.0, 0.0, 0.0, 1.0);
+pub const DARKGRAY: Color = Color::new(0.31, 0.31, 0.31, 1.0);
+pub const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
 
 #[derive(Debug, Clone)]
 pub struct GameContext {

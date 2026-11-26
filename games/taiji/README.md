@@ -14,7 +14,7 @@ cargo run --release -p taiji
 ```
 
 The game opens an 800×600 window. The canvas is letterboxed if the window is
-resized.
+resized (the engine's virtual resolution, ADR-041).
 
 ## Controls
 
@@ -53,8 +53,8 @@ charge/capture mechanic from the original pitch.
 cargo test -p taiji
 ```
 
-2 tests. Clippy currently warns about a missing `Default for App` and a
-collapsible `if` in `main.rs`.
+11 tests: 7 match scenarios (`tests/game_scenarios.rs`) and 4 headless
+`SceneLoop` runs (`tests/scene.rs`).
 
 ## Layout
 
@@ -62,14 +62,15 @@ collapsible `if` in `main.rs`.
 games/taiji/
 ├── (design doc → ember-vault)
 ├── Cargo.toml
-└── src/
-    ├── main.rs        loop, virtual canvas, scoring, tint
-    ├── app.rs         MainMenu / Playing / Paused / GameOver
-    ├── components.rs  Paddle, QiBall, Side
-    ├── systems.rs     time dilation, physics, collisions
-    ├── ai.rs          predictive AI tracker
-    ├── config.rs      GameContext + constants
-    └── render.rs      letterbox + coordinate mapping
+├── src/
+│   ├── main.rs        calls scene::run()
+│   ├── scene.rs       the Taiji root node: scoring, tint, drawing
+│   ├── app.rs         MainMenu / Playing / Paused / GameOver
+│   ├── components.rs  Paddle, QiBall, Side
+│   ├── systems.rs     time dilation, physics, collisions
+│   ├── ai.rs          predictive AI tracker
+│   └── config.rs      GameContext + constants
+└── tests/             game_scenarios.rs, scene.rs
 ```
 
 ## Documentation

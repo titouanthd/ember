@@ -1,8 +1,8 @@
 // games/taiji/src/components.rs
+use ember_core::Color;
 use ember_core::math::Aabb;
 use ember_stdlib::Transform;
 use glam::Vec2;
-use macroquad::prelude::Color;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {

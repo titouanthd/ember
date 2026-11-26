@@ -25,5 +25,4 @@ games/bore-inc/
 games/ember-wars/
 games/jade-garden/
 games/pagoda/
-games/taiji/
 games/zhuo-ji/
