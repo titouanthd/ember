@@ -64,6 +64,15 @@ impl Camera2d {
         Self::placing_origin_at(Vec2::new(r.x, r.y), zoom.max(f32::MIN_POSITIVE))
     }
 
+    /// This camera with the world scaled by `factor` about `world`
+    /// first (a "punch" zoom): `world` stays where it was on screen.
+    pub fn zoomed_about(self, world: Vec2, factor: f32) -> Self {
+        Self {
+            offset: world - (world - self.offset) / factor,
+            zoom: self.zoom * factor,
+        }
+    }
+
     pub fn world_to_screen(&self, world: Vec2) -> Vec2 {
         (world - self.offset) * self.zoom
     }
@@ -138,6 +147,20 @@ mod tests {
         );
         let same = Camera2d::letterbox(size, size);
         assert_eq!(same, Camera2d::IDENTITY);
+    }
+
+    #[test]
+    fn zooming_about_a_point_keeps_it_in_place() {
+        let base = Camera2d::letterbox(Vec2::new(1000.0, 1000.0), Vec2::new(800.0, 600.0));
+        let centre = Vec2::new(400.0, 300.0);
+        let punched = base.zoomed_about(centre, 1.03);
+        assert!((punched.world_to_screen(centre) - base.world_to_screen(centre)).length() < 1e-3);
+        assert!((punched.zoom - base.zoom * 1.03).abs() < 1e-6);
+        // A corner moves outward by 3 % of its distance to the centre.
+        let corner = punched.world_to_screen(Vec2::ZERO);
+        let expect = base.world_to_screen(centre)
+            - (base.world_to_screen(centre) - base.world_to_screen(Vec2::ZERO)) * 1.03;
+        assert!((corner - expect).length() < 1e-3);
     }
 
     #[test]
