@@ -1,7 +1,6 @@
 //! Integration scenarios for Zhuo Ji.
 
-use ember_stdlib::input::Input;
-use glam::Vec2;
+use ember_input::Input;
 use zhuo_ji::{Game, GameContext, Phase};
 
 fn ctx() -> GameContext {
@@ -9,21 +8,7 @@ fn ctx() -> GameContext {
 }
 
 fn empty_input() -> Input {
-    Input {
-        mouse_pos: Vec2::ZERO,
-        mouse_left_pressed: false,
-        mouse_left_down: false,
-        mouse_left_released: false,
-        mouse_right_pressed: false,
-        mouse_right_down: false,
-        mouse_right_released: false,
-        mouse_middle_pressed: false,
-        mouse_middle_down: false,
-        mouse_middle_released: false,
-        keys_pressed: Vec::new(),
-        keys_down: Vec::new(),
-        keys_released: Vec::new(),
-    }
+    Input::default()
 }
 
 fn advance_to_human_discard(g: &mut Game, c: &GameContext, max_frames: usize) {

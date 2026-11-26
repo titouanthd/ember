@@ -1,16 +1,12 @@
 //! Main menu — title screen with three buttons.
 
-use macroquad::prelude::*;
+use ember::prelude::*;
 
 use crate::components::{Suit, Tile};
 use crate::config::GameContext;
 use crate::layout::{TableLayout, TileSize};
 use crate::tiles;
 use crate::ui::panel;
-
-use ember_stdlib::graphics::text::draw_centered;
-use ember_stdlib::graphics::text::draw_right;
-use ember_stdlib::ui::hit;
 
 pub const VERSION: &str = "0.1.0";
 
@@ -92,7 +88,7 @@ impl MenuGeom {
     pub fn new(layout: &TableLayout) -> Self {
         let pw = PANEL_W.min(layout.scr_w - 80.0);
         let ph = PANEL_H.min(layout.scr_h - 80.0);
-        let r = ember_stdlib::layout::centered_rect(layout.scr_w, layout.scr_h, pw, ph);
+        let r = crate::ui::centered_rect(layout.scr_w, layout.scr_h, pw, ph);
         Self {
             px: r.x,
             py: r.y,
@@ -113,7 +109,7 @@ pub fn hit_button_idx(layout: &TableLayout, mouse: Vec2) -> Option<usize> {
     let g = MenuGeom::new(layout);
     for i in 0..MenuButton::ALL.len() {
         let (x, y, w, h) = button_rect(&g, i);
-        if hit::contains_xywh(x, y, w, h, mouse) {
+        if Rect::new(x, y, w, h).contains(mouse) {
             return Some(i);
         }
     }
@@ -129,25 +125,36 @@ pub fn hit_test(layout: &TableLayout, mouse: Vec2) -> MenuAction {
     }
 }
 
-pub fn draw_menu(layout: &TableLayout, ctx: &GameContext, state: &MenuState, mouse: Vec2) {
+pub fn draw_menu(
+    gfx: &mut dyn RenderingServer,
+    layout: &TableLayout,
+    ctx: &GameContext,
+    state: &MenuState,
+    mouse: Vec2,
+    time: f32,
+) {
     // Soft dimmer over the background mountains.
-    draw_rectangle(
-        0.0,
-        0.0,
-        layout.scr_w,
-        layout.scr_h,
+    gfx.draw_rect(
+        Rect::new(0.0, 0.0, layout.scr_w, layout.scr_h),
         Color::new(0.02, 0.05, 0.04, 0.45),
     );
 
     let g = MenuGeom::new(layout);
 
     // Panel background + gold double border + corner diamonds.
-    panel::draw_premium_panel(Rect::new(g.px, g.py, g.pw, g.ph), 1.0, 10.0, &ctx.colors);
+    panel::draw_premium_panel(
+        gfx,
+        Rect::new(g.px, g.py, g.pw, g.ph),
+        1.0,
+        10.0,
+        &ctx.colors,
+    );
 
     // Pulsing title.
     let cx = g.px + g.pw * 0.5;
-    let pulse = 1.0 + 0.03 * (get_time() as f32 * 2.5).sin();
+    let pulse = 1.0 + 0.03 * (time * 2.5).sin();
     text_centered(
+        gfx,
         "Zhuo Ji",
         cx,
         g.py + 110.0,
@@ -158,9 +165,10 @@ pub fn draw_menu(layout: &TableLayout, ctx: &GameContext, state: &MenuState, mou
     // CJK subtitle (uses the TileFont).
     if ctx.font.is_available() {
         ctx.font
-            .draw_centered("贵阳捉鸡麻将", cx, g.py + 155.0, 28.0, ctx.colors.text);
+            .draw_centered(gfx, "贵阳捉鸡麻将", cx, g.py + 155.0, 28.0, ctx.colors.text);
     }
     text_centered(
+        gfx,
         "Guiyang Mahjong",
         cx,
         g.py + 190.0,
@@ -169,11 +177,9 @@ pub fn draw_menu(layout: &TableLayout, ctx: &GameContext, state: &MenuState, mou
     );
 
     // Divider.
-    draw_line(
-        g.px + 80.0,
-        g.py + 215.0,
-        g.px + g.pw - 80.0,
-        g.py + 215.0,
+    gfx.draw_line(
+        Vec2::new(g.px + 80.0, g.py + 215.0),
+        Vec2::new(g.px + g.pw - 80.0, g.py + 215.0),
         1.0,
         ctx.colors.gold_dark,
     );
@@ -192,13 +198,13 @@ pub fn draw_menu(layout: &TableLayout, ctx: &GameContext, state: &MenuState, mou
     ];
     for (i, t) in deco_tiles.iter().enumerate() {
         let tx = deco_x0 + i as f32 * (deco_size.w + deco_gap);
-        tiles::draw_tile_flat(*t, tx, deco_y, deco_size, &ctx.colors, &ctx.font);
+        tiles::draw_tile_flat(gfx, *t, tx, deco_y, deco_size, &ctx.colors, &ctx.font);
     }
 
     // Buttons.
     for (i, btn) in MenuButton::ALL.iter().enumerate() {
         let (x, y, w, h) = button_rect(&g, i);
-        let hovered = hit::contains_xywh(x, y, w, h, mouse);
+        let hovered = Rect::new(x, y, w, h).contains(mouse);
         let selected = state.selected == i;
         let active = hovered || selected;
 
@@ -215,24 +221,25 @@ pub fn draw_menu(layout: &TableLayout, ctx: &GameContext, state: &MenuState, mou
                 Color::new(0.65, 0.55, 0.28, 1.0),
             )
         };
-        draw_rectangle(x, y, w, h, bg);
-        draw_rectangle_lines(x, y, w, h, 2.5, border);
+        gfx.draw_rect(Rect::new(x, y, w, h), bg);
+        gfx.draw_rect_outline(Rect::new(x, y, w, h), 2.5, border);
         if selected && !hovered {
             // Draw a small left-margin indicator for keyboard-selected.
             let mx = x - 22.0;
             let my = y + h * 0.5;
-            draw_triangle(
+            gfx.draw_triangle(
                 Vec2::new(mx - 6.0, my - 8.0),
                 Vec2::new(mx + 6.0, my),
                 Vec2::new(mx - 6.0, my + 8.0),
                 ctx.colors.highlight,
             );
         }
-        text_centered(btn.label(), x + w * 0.5, y + h * 0.5 + 9.0, 22.0, txt);
+        text_centered(gfx, btn.label(), x + w * 0.5, y + h * 0.5 + 9.0, 22.0, txt);
     }
 
     // Footer hints centered.
     text_centered(
+        gfx,
         "Up/Down select   Enter confirm   H rules",
         cx,
         g.py + g.ph - 34.0,
@@ -242,6 +249,7 @@ pub fn draw_menu(layout: &TableLayout, ctx: &GameContext, state: &MenuState, mou
 
     // Version stamp.
     text_right(
+        gfx,
         &format!("v{VERSION}"),
         g.px + g.pw - 16.0,
         g.py + g.ph - 12.0,
@@ -250,12 +258,19 @@ pub fn draw_menu(layout: &TableLayout, ctx: &GameContext, state: &MenuState, mou
     );
 }
 
-fn text_centered(text: &str, cx: f32, y: f32, size: f32, color: Color) {
-    draw_centered(text, cx, y, size as u16, color);
+fn text_centered(
+    gfx: &mut dyn RenderingServer,
+    text: &str,
+    cx: f32,
+    y: f32,
+    size: f32,
+    color: Color,
+) {
+    crate::ui::draw_centered(gfx, text, cx, y, size, color);
 }
 
-fn text_right(text: &str, rx: f32, y: f32, size: f32, color: Color) {
-    draw_right(text, rx, y, size as u16, color);
+fn text_right(gfx: &mut dyn RenderingServer, text: &str, rx: f32, y: f32, size: f32, color: Color) {
+    crate::ui::draw_right(gfx, text, rx, y, size, color);
 }
 
 #[cfg(test)]

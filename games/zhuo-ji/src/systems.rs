@@ -1,9 +1,8 @@
 //! Game state machine and turn flow.
 
 use ember_core::rng::Rng;
-use ember_stdlib::input::Input;
+use ember_input::{Input, Key};
 use ember_stdlib::time::Cooldown;
-use macroquad::prelude::KeyCode;
 
 use crate::ai;
 use crate::components::{ClaimKind, GangSource, Meld, Player, Tile};
@@ -299,17 +298,17 @@ impl Game {
             }
 
             Phase::Hu { .. } | Phase::HuangZhuang => {
-                if input.is_key_pressed(KeyCode::Space) {
+                if input.is_key_pressed(Key::Space) {
                     self.start_next_hand();
                     events.push(GameEvent::DealComplete);
                 }
             }
 
             Phase::MatchOver { .. } => {
-                if input.is_key_pressed(KeyCode::Space) {
+                if input.is_key_pressed(Key::Space) {
                     self.extend_match();
                     events.push(GameEvent::DealComplete);
-                } else if input.is_key_pressed(KeyCode::R) {
+                } else if input.is_key_pressed(Key::R) {
                     self.reset_match();
                     events.push(GameEvent::DealComplete);
                 }
@@ -756,27 +755,12 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use glam::Vec2;
 
     fn empty_input() -> Input {
-        Input {
-            mouse_pos: Vec2::ZERO,
-            mouse_left_pressed: false,
-            mouse_left_down: false,
-            mouse_left_released: false,
-            mouse_right_pressed: false,
-            mouse_right_down: false,
-            mouse_right_released: false,
-            mouse_middle_pressed: false,
-            mouse_middle_down: false,
-            mouse_middle_released: false,
-            keys_pressed: Vec::new(),
-            keys_down: Vec::new(),
-            keys_released: Vec::new(),
-        }
+        Input::default()
     }
 
-    fn key_input(k: KeyCode) -> Input {
+    fn key_input(k: Key) -> Input {
         let mut i = empty_input();
         i.keys_pressed = vec![k];
         i
@@ -960,7 +944,7 @@ mod tests {
         g.players[0].drawn = None;
         g.human_zimo();
         assert!(matches!(g.phase, Phase::Hu { winner: 0, .. }));
-        g.update(&key_input(KeyCode::Space), &c, 1.0 / 60.0);
+        g.update(&key_input(Key::Space), &c, 1.0 / 60.0);
         assert!(matches!(g.phase, Phase::Deal { .. }));
         assert_eq!(g.dealer, 1);
     }
@@ -984,7 +968,7 @@ mod tests {
         g.phase = Phase::MatchOver { winner: 0 };
         g.players[0].score = 42;
         g.match_length = 16;
-        g.update(&key_input(KeyCode::Space), &c, 1.0 / 60.0);
+        g.update(&key_input(Key::Space), &c, 1.0 / 60.0);
         assert_eq!(g.players[0].score, 42);
         assert_eq!(g.match_length, 32);
         assert!(matches!(g.phase, Phase::Deal { .. }));
@@ -997,7 +981,7 @@ mod tests {
         g.phase = Phase::MatchOver { winner: 0 };
         g.players[0].score = 42;
         g.match_length = 32;
-        g.update(&key_input(KeyCode::R), &c, 1.0 / 60.0);
+        g.update(&key_input(Key::R), &c, 1.0 / 60.0);
         assert_eq!(g.players[0].score, 0);
         assert_eq!(g.match_length, 16);
     }
@@ -1080,7 +1064,7 @@ mod tests {
         assert_eq!(g.hand_history.len(), 1);
 
         g.phase = Phase::MatchOver { winner: 0 };
-        g.update(&key_input(KeyCode::R), &c, 1.0 / 60.0);
+        g.update(&key_input(Key::R), &c, 1.0 / 60.0);
         assert!(g.hand_history.is_empty());
     }
 
@@ -1154,7 +1138,7 @@ mod tests {
         g.players[0].drawn = None;
         g.human_zimo();
         assert!(g.last_breakdown.is_some());
-        g.update(&key_input(KeyCode::Space), &c, 1.0 / 60.0);
+        g.update(&key_input(Key::Space), &c, 1.0 / 60.0);
         assert!(g.last_breakdown.is_none());
     }
 
@@ -1201,7 +1185,7 @@ mod tests {
         g.players[0].drawn = None;
         g.human_zimo();
         assert!(g.last_hand_snapshot.is_some());
-        g.update(&key_input(KeyCode::Space), &c, 1.0 / 60.0);
+        g.update(&key_input(Key::Space), &c, 1.0 / 60.0);
         assert!(g.last_hand_snapshot.is_none());
     }
 }

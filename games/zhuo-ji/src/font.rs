@@ -1,22 +1,26 @@
 //! CJK font loading with hermetic fallback.
 //!
 //! The bundled subset contains only the glyphs used by Zhuo Ji
-//! (numerals, suit chars, winds, dragons, title). If the font fails
-//! to load (tests, headless CI), every method falls back to the
-//! default macroquad font so nothing panics.
+//! (numerals, suit chars, winds, dragons, title). It is installed through
+//! `RenderingServer::create_font` in the root node's `ready`. If it fails
+//! to load (tests, headless CI), every method falls back to the default
+//! font so nothing panics.
 
-use macroquad::prelude::*;
+use ember::prelude::*;
+use ember_servers::{FontId, TextMetrics};
+
+const FONT_BYTES: &[u8] = include_bytes!("../assets/NotoSansSC-ZhuoJi.ttf");
 
 pub struct TileFont {
-    font: Option<Font>,
+    font: Option<FontId>,
 }
 
 impl TileFont {
     /// Load the bundled subset font.
-    pub fn load() -> Self {
-        let bytes = include_bytes!("../assets/NotoSansSC-ZhuoJi.ttf");
-        let font = load_ttf_font_from_bytes(bytes).ok();
-        Self { font }
+    pub fn load(gfx: &mut dyn RenderingServer) -> Self {
+        Self {
+            font: gfx.create_font(FONT_BYTES).ok(),
+        }
     }
 
     /// No-op font for tests and headless contexts.
@@ -29,41 +33,53 @@ impl TileFont {
     }
 
     /// Draw text at (x, y) — y is the baseline.
-    pub fn draw(&self, text: &str, x: f32, y: f32, size: f32, color: Color) {
-        match &self.font {
-            Some(f) => {
-                draw_text_ex(
-                    text,
-                    x,
-                    y,
-                    TextParams {
-                        font: Some(f),
-                        font_size: size as u16,
-                        color,
-                        ..Default::default()
-                    },
-                );
-            }
-            None => {
-                draw_text(text, x, y, size, color);
-            }
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        text: &str,
+        x: f32,
+        y: f32,
+        size: f32,
+        color: Color,
+    ) {
+        let pos = Vec2::new(x, y);
+        match self.font {
+            Some(f) => gfx.draw_text_with_font(f, text, pos, size, color),
+            None => gfx.draw_text(text, pos, size, color),
         }
     }
 
-    pub fn measure(&self, text: &str, size: f32) -> TextDimensions {
-        match &self.font {
-            Some(f) => measure_text(text, Some(f), size as u16, 1.0),
-            None => measure_text(text, None, size as u16, 1.0),
+    pub fn measure(&self, gfx: &dyn RenderingServer, text: &str, size: f32) -> TextMetrics {
+        match self.font {
+            Some(f) => gfx.measure_text_with_font(f, text, size),
+            None => gfx.measure_text(text, size),
         }
     }
 
-    pub fn draw_centered(&self, text: &str, cx: f32, y: f32, size: f32, color: Color) {
-        let dim = self.measure(text, size);
-        self.draw(text, cx - dim.width * 0.5, y, size, color);
+    pub fn draw_centered(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        text: &str,
+        cx: f32,
+        y: f32,
+        size: f32,
+        color: Color,
+    ) {
+        let dim = self.measure(gfx, text, size);
+        self.draw(gfx, text, cx - dim.width * 0.5, y, size, color);
     }
 
-    pub fn draw_right_aligned(&self, text: &str, right_x: f32, y: f32, size: f32, color: Color) {
-        let dim = self.measure(text, size);
-        self.draw(text, right_x - dim.width, y, size, color);
+    pub fn draw_right_aligned(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        text: &str,
+        right_x: f32,
+        y: f32,
+        size: f32,
+        color: Color,
+    ) {
+        let dim = self.measure(gfx, text, size);
+        self.draw(gfx, text, right_x - dim.width, y, size, color);
     }
 }

@@ -14,7 +14,7 @@
 //! ("glow") can be applied around a tile to flag its status
 //! (useful / Ji) without touching the face.
 
-use macroquad::prelude::*;
+use ember::prelude::*;
 
 use crate::components::{Suit, Tile};
 use crate::config::Colors;
@@ -88,7 +88,7 @@ fn corner_padding_top(fs: f32) -> f32 {
 }
 
 /// Vertical offset from the tile top to the center of the corner
-/// glyph band. Used by `main.rs` to place status indicators
+/// glyph band. Used by `table.rs` to place status indicators
 /// consistently with the glyphs.
 ///
 /// We avoid `measure_text` here because it requires the macroquad
@@ -103,6 +103,7 @@ pub fn glyph_band_center_offset(size: TileSize) -> f32 {
 // ─── Flat tiles (rivers, miniatures) ─────────────────────────────────────
 
 pub fn draw_tile_flat(
+    gfx: &mut dyn RenderingServer,
     tile: Tile,
     x: f32,
     y: f32,
@@ -111,25 +112,23 @@ pub fn draw_tile_flat(
     font: &TileFont,
 ) {
     let s = shadow_offset();
-    draw_rectangle(
-        x + s.x,
-        y + s.y,
-        size.w,
-        size.h,
+    gfx.draw_rect(
+        Rect::new(x + s.x, y + s.y, size.w, size.h),
         Color::new(0.0, 0.0, 0.0, 0.25),
     );
-    draw_rectangle(x, y, size.w, size.h, colors.tile_face);
-    draw_rectangle_lines(x, y, size.w, size.h, 1.5, colors.tile_edge);
-    draw_tile_face(tile, x, y, size, font);
+    gfx.draw_rect(Rect::new(x, y, size.w, size.h), colors.tile_face);
+    gfx.draw_rect_outline(Rect::new(x, y, size.w, size.h), 1.5, colors.tile_edge);
+    draw_tile_face(gfx, tile, x, y, size, font);
 }
 
 // ─── Standing tiles: split base + face + optional glow ───────────────────
 
-pub fn draw_tile_standing_base(x: f32, y: f32, size: TileSize) {
-    draw_standing_base(x, y, size);
+pub fn draw_tile_standing_base(gfx: &mut dyn RenderingServer, x: f32, y: f32, size: TileSize) {
+    draw_standing_base(gfx, x, y, size);
 }
 
 pub fn draw_tile_standing_face(
+    gfx: &mut dyn RenderingServer,
     tile: Tile,
     x: f32,
     y: f32,
@@ -137,12 +136,13 @@ pub fn draw_tile_standing_face(
     colors: &Colors,
     font: &TileFont,
 ) {
-    draw_rectangle(x, y, size.w, size.h, colors.tile_face);
-    draw_rectangle_lines(x, y, size.w, size.h, 1.5, colors.tile_edge);
-    draw_tile_face(tile, x, y, size, font);
+    gfx.draw_rect(Rect::new(x, y, size.w, size.h), colors.tile_face);
+    gfx.draw_rect_outline(Rect::new(x, y, size.w, size.h), 1.5, colors.tile_edge);
+    draw_tile_face(gfx, tile, x, y, size, font);
 }
 
 pub fn draw_tile_standing(
+    gfx: &mut dyn RenderingServer,
     tile: Tile,
     x: f32,
     y: f32,
@@ -150,15 +150,17 @@ pub fn draw_tile_standing(
     colors: &Colors,
     font: &TileFont,
 ) {
-    draw_tile_standing_base(x, y, size);
-    draw_tile_standing_face(tile, x, y, size, colors, font);
+    draw_tile_standing_base(gfx, x, y, size);
+    draw_tile_standing_face(gfx, tile, x, y, size, colors, font);
 }
 
 /// Same as `draw_tile_standing`, but draws a colored outline around
 /// the tile to flag its status (useful, Ji). The glow is applied
 /// after the face so it sits on top of the tile's own edge, giving
 /// the illusion of a soft halo without needing a blur pass.
+#[allow(clippy::too_many_arguments)]
 pub fn draw_tile_standing_with_glow(
+    gfx: &mut dyn RenderingServer,
     tile: Tile,
     x: f32,
     y: f32,
@@ -167,23 +169,32 @@ pub fn draw_tile_standing_with_glow(
     colors: &Colors,
     font: &TileFont,
 ) {
-    draw_tile_standing_base(x, y, size);
-    draw_tile_standing_face(tile, x, y, size, colors, font);
+    draw_tile_standing_base(gfx, x, y, size);
+    draw_tile_standing_face(gfx, tile, x, y, size, colors, font);
     if let Some(color) = glow.color() {
-        draw_glow_outline(x, y, size, color);
+        draw_glow_outline(gfx, x, y, size, color);
     }
 }
 
 /// Two-layer outline: a wide, low-alpha ring for the soft halo, and
 /// a tight, high-alpha ring for the bright core. Macroquad has no
 /// native blur, so we fake it with layered strokes.
-fn draw_glow_outline(x: f32, y: f32, size: TileSize, color: Color) {
+fn draw_glow_outline(gfx: &mut dyn RenderingServer, x: f32, y: f32, size: TileSize, color: Color) {
     let soft = Color::new(color.r, color.g, color.b, color.a * 0.45);
-    draw_rectangle_lines(x - 3.5, y - 3.5, size.w + 7.0, size.h + 7.0, 5.0, soft);
-    draw_rectangle_lines(x - 1.0, y - 1.0, size.w + 2.0, size.h + 2.0, 1.8, color);
+    gfx.draw_rect_outline(
+        Rect::new(x - 3.5, y - 3.5, size.w + 7.0, size.h + 7.0),
+        5.0,
+        soft,
+    );
+    gfx.draw_rect_outline(
+        Rect::new(x - 1.0, y - 1.0, size.w + 2.0, size.h + 2.0),
+        1.8,
+        color,
+    );
 }
 
 pub fn draw_tile_standing_highlighted(
+    gfx: &mut dyn RenderingServer,
     tile: Tile,
     x: f32,
     y: f32,
@@ -191,39 +202,38 @@ pub fn draw_tile_standing_highlighted(
     colors: &Colors,
     font: &TileFont,
 ) {
-    draw_standing_base(x, y, size);
-    draw_rectangle(x, y, size.w, size.h, colors.tile_face);
-    draw_rectangle_lines(x, y, size.w, size.h, 3.0, colors.highlight);
-    draw_tile_face(tile, x, y, size, font);
+    draw_standing_base(gfx, x, y, size);
+    gfx.draw_rect(Rect::new(x, y, size.w, size.h), colors.tile_face);
+    gfx.draw_rect_outline(Rect::new(x, y, size.w, size.h), 3.0, colors.highlight);
+    draw_tile_face(gfx, tile, x, y, size, font);
 }
 
-pub fn draw_tile_back_standing(x: f32, y: f32, size: TileSize) {
-    draw_standing_base(x, y, size);
+pub fn draw_tile_back_standing(gfx: &mut dyn RenderingServer, x: f32, y: f32, size: TileSize) {
+    draw_standing_base(gfx, x, y, size);
     let fill = Color::new(0.55, 0.32, 0.20, 1.0);
     let edge = Color::new(0.35, 0.20, 0.12, 1.0);
-    draw_rectangle(x, y, size.w, size.h, fill);
-    draw_rectangle_lines(x, y, size.w, size.h, 1.5, edge);
+    gfx.draw_rect(Rect::new(x, y, size.w, size.h), fill);
+    gfx.draw_rect_outline(Rect::new(x, y, size.w, size.h), 1.5, edge);
     let inset = 4.0;
-    draw_rectangle_lines(
-        x + inset,
-        y + inset,
-        size.w - inset * 2.0,
-        size.h - inset * 2.0,
+    gfx.draw_rect_outline(
+        Rect::new(
+            x + inset,
+            y + inset,
+            size.w - inset * 2.0,
+            size.h - inset * 2.0,
+        ),
         1.0,
         edge,
     );
 }
 
-fn draw_standing_base(x: f32, y: f32, size: TileSize) {
+fn draw_standing_base(gfx: &mut dyn RenderingServer, x: f32, y: f32, size: TileSize) {
     let depth = (size.h * 0.10).clamp(4.0, 9.0);
     let skew = (size.w * 0.05).clamp(1.5, 3.5);
 
     let s = shadow_offset();
-    draw_rectangle(
-        x + s.x,
-        y + depth + s.y,
-        size.w,
-        size.h + depth,
+    gfx.draw_rect(
+        Rect::new(x + s.x, y + depth + s.y, size.w, size.h + depth),
         Color::new(0.0, 0.0, 0.0, 0.28),
     );
 
@@ -235,12 +245,27 @@ fn draw_standing_base(x: f32, y: f32, size: TileSize) {
     let br = Vec2::new(x + size.w + skew, y + size.h + depth);
     let bl = Vec2::new(x - skew, y + size.h + depth);
 
-    draw_triangle(tl, tr, br, depth_color);
-    draw_triangle(tl, br, bl, depth_color);
+    gfx.draw_triangle(tl, tr, br, depth_color);
+    gfx.draw_triangle(tl, br, bl, depth_color);
 
-    draw_line(bl.x, bl.y, br.x, br.y, 1.0, depth_edge);
-    draw_line(tl.x, tl.y, bl.x, bl.y, 1.0, depth_edge);
-    draw_line(tr.x, tr.y, br.x, br.y, 1.0, depth_edge);
+    gfx.draw_line(
+        Vec2::new(bl.x, bl.y),
+        Vec2::new(br.x, br.y),
+        1.0,
+        depth_edge,
+    );
+    gfx.draw_line(
+        Vec2::new(tl.x, tl.y),
+        Vec2::new(bl.x, bl.y),
+        1.0,
+        depth_edge,
+    );
+    gfx.draw_line(
+        Vec2::new(tr.x, tr.y),
+        Vec2::new(br.x, br.y),
+        1.0,
+        depth_edge,
+    );
 }
 
 fn shadow_offset() -> Vec2 {
@@ -249,25 +274,39 @@ fn shadow_offset() -> Vec2 {
 
 // ─── Tile face ────────────────────────────────────────────────────────────
 
-fn draw_tile_face(tile: Tile, x: f32, y: f32, size: TileSize, font: &TileFont) {
-    draw_rank_corner(tile.rank, x, y, size);
+fn draw_tile_face(
+    gfx: &mut dyn RenderingServer,
+    tile: Tile,
+    x: f32,
+    y: f32,
+    size: TileSize,
+    font: &TileFont,
+) {
+    draw_rank_corner(gfx, tile.rank, x, y, size);
     match tile.suit {
-        Suit::Wan => draw_wan(tile.rank, x, y, size, font),
-        Suit::Tiao => draw_tiao(tile.rank, x, y, size, font),
-        Suit::Tong => draw_tong(tile.rank, x, y, size, font),
+        Suit::Wan => draw_wan(gfx, tile.rank, x, y, size, font),
+        Suit::Tiao => draw_tiao(gfx, tile.rank, x, y, size, font),
+        Suit::Tong => draw_tong(gfx, tile.rank, x, y, size, font),
     }
 }
 
-fn draw_rank_corner(rank: u8, x: f32, y: f32, size: TileSize) {
+fn draw_rank_corner(gfx: &mut dyn RenderingServer, rank: u8, x: f32, y: f32, size: TileSize) {
     let text = rank.to_string();
     let fs = corner_font_size(size);
     let pad = corner_padding_top(fs);
-    let dim = measure_text(&text, None, fs as u16, 1.0);
+    let dim = gfx.measure_text(&text, fs);
     let baseline = y + pad + dim.offset_y.abs();
-    draw_text(&text, x + 4.0, baseline, fs, RANK_RED);
+    gfx.draw_text(&text, Vec2::new(x + 4.0, baseline), fs, RANK_RED);
 }
 
-fn draw_suit_corner(suit: Suit, x: f32, y: f32, size: TileSize, font: &TileFont) {
+fn draw_suit_corner(
+    gfx: &mut dyn RenderingServer,
+    suit: Suit,
+    x: f32,
+    y: f32,
+    size: TileSize,
+    font: &TileFont,
+) {
     if !font.is_available() {
         return;
     }
@@ -278,22 +317,28 @@ fn draw_suit_corner(suit: Suit, x: f32, y: f32, size: TileSize, font: &TileFont)
     };
     let fs = corner_font_size(size);
     let pad = corner_padding_top(fs);
-    let dim = font.measure(ch, fs);
+    let dim = font.measure(gfx, ch, fs);
     let baseline = y + pad + dim.offset_y.abs();
-    font.draw(ch, x + size.w - dim.width - 4.0, baseline, fs, color);
+    font.draw(gfx, ch, x + size.w - dim.width - 4.0, baseline, fs, color);
 }
 
 // ─── WAN ──────────────────────────────────────────────────────────────────
 
-fn draw_wan(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
+fn draw_wan(
+    gfx: &mut dyn RenderingServer,
+    rank: u8,
+    x: f32,
+    y: f32,
+    size: TileSize,
+    font: &TileFont,
+) {
     if !font.is_available() {
         let digit = rank.to_string();
         let big = (size.h * 0.42).max(12.0);
-        let dim = measure_text(&digit, None, big as u16, 1.0);
-        draw_text(
+        let dim = gfx.measure_text(&digit, big);
+        gfx.draw_text(
             &digit,
-            x + (size.w - dim.width) * 0.5,
-            y + size.h * 0.52,
+            Vec2::new(x + (size.w - dim.width) * 0.5, y + size.h * 0.52),
             big,
             WAN_RED,
         );
@@ -301,7 +346,7 @@ fn draw_wan(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
         let bar_h = (size.h * 0.13).max(3.5);
         let bar_x = x + (size.w - bar_w) * 0.5;
         let bar_y = y + size.h * 0.72;
-        draw_rectangle(bar_x, bar_y, bar_w, bar_h, WAN_RED);
+        gfx.draw_rect(Rect::new(bar_x, bar_y, bar_w, bar_h), WAN_RED);
         return;
     }
 
@@ -310,14 +355,21 @@ fn draw_wan(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
     let small = size.h * 0.32;
 
     let top_y = y + size.h * 0.50;
-    font.draw_centered(numeral, x + size.w * 0.5, top_y, big, BLACK);
+    font.draw_centered(gfx, numeral, x + size.w * 0.5, top_y, big, BLACK);
     let bot_y = y + size.h * 0.86;
-    font.draw_centered("萬", x + size.w * 0.5, bot_y, small, WAN_RED);
+    font.draw_centered(gfx, "萬", x + size.w * 0.5, bot_y, small, WAN_RED);
 }
 
 // ─── TIAO (bamboo + chicken for 1) ────────────────────────────────────────
 
-fn draw_tiao(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
+fn draw_tiao(
+    gfx: &mut dyn RenderingServer,
+    rank: u8,
+    x: f32,
+    y: f32,
+    size: TileSize,
+    font: &TileFont,
+) {
     let pad_x = size.w * 0.12;
     let pad_y_top = size.h * 0.30;
     let pad_y_bot = size.h * 0.08;
@@ -327,7 +379,7 @@ fn draw_tiao(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
     let py = y + pad_y_top;
 
     if rank == 1 {
-        draw_tiao_chicken(px, py, pattern_w, pattern_h);
+        draw_tiao_chicken(gfx, px, py, pattern_w, pattern_h);
     } else if rank == 8 {
         let cols: [f32; 2] = [0.35, 0.65];
         let rows: [f32; 4] = [0.12, 0.37, 0.62, 0.87];
@@ -342,7 +394,7 @@ fn draw_tiao(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
                 };
                 let cx = px + xf * pattern_w;
                 let cy = py + yf * pattern_h;
-                draw_bamboo_bar(cx, cy, bar_w, bar_h, color);
+                draw_bamboo_bar(gfx, cx, cy, bar_w, bar_h, color);
             }
         }
     } else {
@@ -355,11 +407,11 @@ fn draw_tiao(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
             let color = if i % 2 == 0 { TIAO_GREEN } else { TIAO_RED };
             let cx = px + *col as f32 * cell_w + cell_w * 0.5;
             let cy = py + *row as f32 * cell_h + cell_h * 0.5;
-            draw_bamboo_bar(cx, cy, bar_w, bar_h, color);
+            draw_bamboo_bar(gfx, cx, cy, bar_w, bar_h, color);
         }
     }
 
-    draw_suit_corner(Suit::Tiao, x, y, size, font);
+    draw_suit_corner(gfx, Suit::Tiao, x, y, size, font);
 }
 
 /// Draws the 1 Tiao as a stylized chicken, facing right.
@@ -372,7 +424,7 @@ fn draw_tiao(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
 /// All coordinates are relative to the pattern box `(px, py, pw, ph)`
 /// and scale with `s = min(pw, ph)`, so the bird stays proportional
 /// on hand tiles (56×84), river tiles (30×46), and mini tiles (22×32).
-fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
+fn draw_tiao_chicken(gfx: &mut dyn RenderingServer, px: f32, py: f32, pw: f32, ph: f32) {
     let s = pw.min(ph);
     let outline_t = (s * 0.030).max(0.6);
 
@@ -388,11 +440,9 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
     let ground_y = py + ph * 0.96;
 
     // ─── 1. Ground shadow (behind everything) ────────────────────
-    draw_ellipse(
-        px + pw * 0.50,
-        ground_y,
-        pw * 0.36,
-        s * 0.045,
+    gfx.draw_ellipse(
+        Vec2::new(px + pw * 0.50, ground_y),
+        Vec2::new(pw * 0.36, s * 0.045),
         0.0,
         CHK_GROUND,
     );
@@ -405,48 +455,48 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
     let leg1_x = body_cx - body_r * 0.30;
     let leg2_x = body_cx + body_r * 0.28;
 
-    draw_line(
-        leg1_x,
-        leg_top_y,
-        leg1_x,
-        leg_bot_y,
+    gfx.draw_line(
+        Vec2::new(leg1_x, leg_top_y),
+        Vec2::new(leg1_x, leg_bot_y),
         leg_w + outline_t,
         CHK_OUTLINE,
     );
-    draw_line(
-        leg2_x,
-        leg_top_y,
-        leg2_x,
-        leg_bot_y,
+    gfx.draw_line(
+        Vec2::new(leg2_x, leg_top_y),
+        Vec2::new(leg2_x, leg_bot_y),
         leg_w + outline_t,
         CHK_OUTLINE,
     );
-    draw_line(leg1_x, leg_top_y, leg1_x, leg_bot_y, leg_w, CHK_ORANGE);
-    draw_line(leg2_x, leg_top_y, leg2_x, leg_bot_y, leg_w, CHK_ORANGE);
+    gfx.draw_line(
+        Vec2::new(leg1_x, leg_top_y),
+        Vec2::new(leg1_x, leg_bot_y),
+        leg_w,
+        CHK_ORANGE,
+    );
+    gfx.draw_line(
+        Vec2::new(leg2_x, leg_top_y),
+        Vec2::new(leg2_x, leg_bot_y),
+        leg_w,
+        CHK_ORANGE,
+    );
 
     let toe_len = s * 0.075;
     for &leg_x in &[leg1_x, leg2_x] {
-        draw_line(
-            leg_x,
-            leg_bot_y,
-            leg_x + toe_len * 0.8,
-            leg_bot_y + toe_len * 0.15,
+        gfx.draw_line(
+            Vec2::new(leg_x, leg_bot_y),
+            Vec2::new(leg_x + toe_len * 0.8, leg_bot_y + toe_len * 0.15),
             leg_w,
             CHK_ORANGE_DARK,
         );
-        draw_line(
-            leg_x,
-            leg_bot_y,
-            leg_x - toe_len * 0.8,
-            leg_bot_y + toe_len * 0.15,
+        gfx.draw_line(
+            Vec2::new(leg_x, leg_bot_y),
+            Vec2::new(leg_x - toe_len * 0.8, leg_bot_y + toe_len * 0.15),
             leg_w,
             CHK_ORANGE_DARK,
         );
-        draw_line(
-            leg_x,
-            leg_bot_y,
-            leg_x,
-            leg_bot_y + toe_len * 0.30,
+        gfx.draw_line(
+            Vec2::new(leg_x, leg_bot_y),
+            Vec2::new(leg_x, leg_bot_y + toe_len * 0.30),
             leg_w,
             CHK_ORANGE_DARK,
         );
@@ -464,6 +514,7 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
             tail_base.y - plume_len * rad.sin(),
         );
         draw_tail_plume(
+            gfx,
             tail_base,
             tip,
             plume_half_width,
@@ -473,10 +524,26 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
     }
 
     // ─── 4. Body (with outline) ──────────────────────────────────
-    outlined_circle(body_cx, body_cy, body_r, outline_t, CHK_BODY, CHK_OUTLINE);
+    outlined_circle(
+        gfx,
+        body_cx,
+        body_cy,
+        body_r,
+        outline_t,
+        CHK_BODY,
+        CHK_OUTLINE,
+    );
 
     // ─── 5. Head (with outline) ──────────────────────────────────
-    outlined_circle(head_cx, head_cy, head_r, outline_t, CHK_BODY, CHK_OUTLINE);
+    outlined_circle(
+        gfx,
+        head_cx,
+        head_cy,
+        head_r,
+        outline_t,
+        CHK_BODY,
+        CHK_OUTLINE,
+    );
 
     // ─── 6. Comb — 3 red lobes on top of the head ────────────────
     let comb_lobes: [(f32, f32, f32); 3] = [
@@ -497,8 +564,8 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
         ),
     ];
     for &(lx, ly, lr) in &comb_lobes {
-        draw_circle(lx, ly, lr + outline_t * 0.45, CHK_RED_DARK);
-        draw_circle(lx, ly, lr, CHK_RED);
+        gfx.draw_circle(Vec2::new(lx, ly), lr + outline_t * 0.45, CHK_RED_DARK);
+        gfx.draw_circle(Vec2::new(lx, ly), lr, CHK_RED);
     }
 
     // ─── 7. Beak — orange triangle pointing right ────────────────
@@ -509,13 +576,13 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
     let beak_tip_y = head_cy + head_r * 0.12;
 
     let o = outline_t * 0.7;
-    draw_triangle(
+    gfx.draw_triangle(
         Vec2::new(beak_base_x - o, beak_base_y_top - o),
         Vec2::new(beak_tip_x + o, beak_tip_y),
         Vec2::new(beak_base_x - o, beak_base_y_bot + o),
         CHK_ORANGE_DARK,
     );
-    draw_triangle(
+    gfx.draw_triangle(
         Vec2::new(beak_base_x, beak_base_y_top),
         Vec2::new(beak_tip_x, beak_tip_y),
         Vec2::new(beak_base_x, beak_base_y_bot),
@@ -526,13 +593,12 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
     let wattle_cx = head_cx + head_r * 0.68;
     let wattle_cy = head_cy + head_r * 0.68;
     let wattle_r = head_r * 0.42;
-    draw_circle(
-        wattle_cx,
-        wattle_cy,
+    gfx.draw_circle(
+        Vec2::new(wattle_cx, wattle_cy),
         wattle_r + outline_t * 0.45,
         CHK_RED_DARK,
     );
-    draw_circle(wattle_cx, wattle_cy, wattle_r, CHK_RED);
+    gfx.draw_circle(Vec2::new(wattle_cx, wattle_cy), wattle_r, CHK_RED);
 
     // ─── 9. Eye — big cartoon eye (only on large enough tiles) ───
     if head_r >= 3.5 {
@@ -540,18 +606,21 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
         let eye_cy = head_cy - head_r * 0.18;
         let eye_r = head_r * 0.44;
 
-        draw_circle(eye_cx, eye_cy, eye_r + outline_t * 0.35, CHK_OUTLINE);
-        draw_circle(eye_cx, eye_cy, eye_r, CHK_WHITE);
+        gfx.draw_circle(
+            Vec2::new(eye_cx, eye_cy),
+            eye_r + outline_t * 0.35,
+            CHK_OUTLINE,
+        );
+        gfx.draw_circle(Vec2::new(eye_cx, eye_cy), eye_r, CHK_WHITE);
 
         let pupil_cx = eye_cx + eye_r * 0.22;
         let pupil_cy = eye_cy + eye_r * 0.05;
         let pupil_r = eye_r * 0.58;
-        draw_circle(pupil_cx, pupil_cy, pupil_r, CHK_BLACK);
+        gfx.draw_circle(Vec2::new(pupil_cx, pupil_cy), pupil_r, CHK_BLACK);
 
         if eye_r >= 3.0 {
-            draw_circle(
-                pupil_cx - pupil_r * 0.35,
-                pupil_cy - pupil_r * 0.40,
+            gfx.draw_circle(
+                Vec2::new(pupil_cx - pupil_r * 0.35, pupil_cy - pupil_r * 0.40),
                 pupil_r * 0.32,
                 CHK_WHITE,
             );
@@ -560,19 +629,28 @@ fn draw_tiao_chicken(px: f32, py: f32, pw: f32, ph: f32) {
 }
 
 /// Filled circle with a uniform outline of thickness `t`.
-fn outlined_circle(cx: f32, cy: f32, r: f32, t: f32, fill: Color, stroke: Color) {
+fn outlined_circle(
+    gfx: &mut dyn RenderingServer,
+    cx: f32,
+    cy: f32,
+    r: f32,
+    t: f32,
+    fill: Color,
+    stroke: Color,
+) {
     if r <= 0.1 {
         return;
     }
     let outer = r + t * 0.5;
     let inner = (r - t * 0.5).max(0.05);
-    draw_circle(cx, cy, outer, stroke);
-    draw_circle(cx, cy, inner, fill);
+    gfx.draw_circle(Vec2::new(cx, cy), outer, stroke);
+    gfx.draw_circle(Vec2::new(cx, cy), inner, fill);
 }
 
 /// Draws a single tail feather as a **pointed plume**: wide at the
 /// base (on the body), tapering to a sharp tip.
 fn draw_tail_plume(
+    gfx: &mut dyn RenderingServer,
     base: Vec2,
     tip: Vec2,
     base_half_width: f32,
@@ -595,27 +673,44 @@ fn draw_tail_plume(
     let base_r_o = base - perp * (base_half_width + outline_t);
     let tip_o = tip + dir * outline_t;
 
-    draw_triangle(base_l_o, base_r_o, tip_o, stroke);
-    draw_triangle(base_l, base_r, tip, fill);
+    gfx.draw_triangle(base_l_o, base_r_o, tip_o, stroke);
+    gfx.draw_triangle(base_l, base_r, tip, fill);
 }
 
 /// Draws a bamboo stick: a filled bar with two subtle horizontal
 /// joints when the bar is tall enough (bamboo is segmented).
-fn draw_bamboo_bar(cx: f32, cy: f32, w: f32, h: f32, color: Color) {
-    draw_rectangle(cx - w * 0.5, cy - h * 0.5, w, h, color);
+fn draw_bamboo_bar(gfx: &mut dyn RenderingServer, cx: f32, cy: f32, w: f32, h: f32, color: Color) {
+    gfx.draw_rect(Rect::new(cx - w * 0.5, cy - h * 0.5, w, h), color);
     if h >= 10.0 {
         let joint = Color::new(0.0, 0.0, 0.0, 0.30);
         let half_w = w * 0.5;
         let y_top = cy - h * 0.18;
         let y_bot = cy + h * 0.18;
-        draw_line(cx - half_w, y_top, cx + half_w, y_top, 1.0, joint);
-        draw_line(cx - half_w, y_bot, cx + half_w, y_bot, 1.0, joint);
+        gfx.draw_line(
+            Vec2::new(cx - half_w, y_top),
+            Vec2::new(cx + half_w, y_top),
+            1.0,
+            joint,
+        );
+        gfx.draw_line(
+            Vec2::new(cx - half_w, y_bot),
+            Vec2::new(cx + half_w, y_bot),
+            1.0,
+            joint,
+        );
     }
 }
 
 // ─── TONG (coins) ─────────────────────────────────────────────────────────
 
-fn draw_tong(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
+fn draw_tong(
+    gfx: &mut dyn RenderingServer,
+    rank: u8,
+    x: f32,
+    y: f32,
+    size: TileSize,
+    font: &TileFont,
+) {
     let pad_x = size.w * 0.12;
     let pad_y_top = size.h * 0.30;
     let pad_y_bot = size.h * 0.08;
@@ -633,7 +728,7 @@ fn draw_tong(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
                 for &xf in &cols {
                     let cx = px + xf * pattern_w;
                     let cy = py + yf * pattern_h;
-                    draw_coin(cx, cy, r, TONG_BLACK);
+                    draw_coin(gfx, cx, cy, r, TONG_BLACK);
                 }
             }
         }
@@ -643,9 +738,9 @@ fn draw_tong(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
             let cx = px + cell_w * 1.5;
             let cy = py + cell_h * 1.5;
             let r_big = (cell_w.min(cell_h) * 0.46).max(3.5);
-            draw_circle(cx, cy, r_big, TONG_BLUE);
-            draw_circle(cx, cy, r_big * 0.62, colors_white());
-            draw_circle(cx, cy, r_big * 0.30, TONG_RED);
+            gfx.draw_circle(Vec2::new(cx, cy), r_big, TONG_BLUE);
+            gfx.draw_circle(Vec2::new(cx, cy), r_big * 0.62, colors_white());
+            gfx.draw_circle(Vec2::new(cx, cy), r_big * 0.30, TONG_RED);
         }
         _ => {
             let positions = grid_positions(rank as usize);
@@ -657,19 +752,19 @@ fn draw_tong(rank: u8, x: f32, y: f32, size: TileSize, font: &TileFont) {
                 let color = if is_center { TONG_RED } else { TONG_BLUE };
                 let cx = px + col as f32 * cell_w + cell_w * 0.5;
                 let cy = py + row as f32 * cell_h + cell_h * 0.5;
-                draw_coin(cx, cy, r, color);
+                draw_coin(gfx, cx, cy, r, color);
             }
         }
     }
 
-    draw_suit_corner(Suit::Tong, x, y, size, font);
+    draw_suit_corner(gfx, Suit::Tong, x, y, size, font);
 }
 
-fn draw_coin(cx: f32, cy: f32, r: f32, color: Color) {
-    draw_circle(cx, cy, r, color);
+fn draw_coin(gfx: &mut dyn RenderingServer, cx: f32, cy: f32, r: f32, color: Color) {
+    gfx.draw_circle(Vec2::new(cx, cy), r, color);
     if r >= 4.5 {
         let highlight = Color::new(1.0, 1.0, 1.0, 0.35);
-        draw_circle_lines(cx, cy, r * 0.62, 1.0, highlight);
+        gfx.draw_circle_outline(Vec2::new(cx, cy), r * 0.62, 1.0, highlight);
     }
 }
 
@@ -728,7 +823,15 @@ fn grid_positions(n: usize) -> Vec<(usize, usize)> {
 
 // ─── Wall ─────────────────────────────────────────────────────────────────
 
-pub fn draw_wall(x: f32, y: f32, w: f32, h: f32, count: usize, colors: &Colors) {
+pub fn draw_wall(
+    gfx: &mut dyn RenderingServer,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    count: usize,
+    colors: &Colors,
+) {
     const TILES: usize = 4;
     let gap = 3.0;
     let tile_h = h;
@@ -739,33 +842,31 @@ pub fn draw_wall(x: f32, y: f32, w: f32, h: f32, count: usize, colors: &Colors) 
     let text_cx = x + text_w * 0.5;
 
     let label = "WALL";
-    let dim = measure_text(label, None, 12, 1.0);
-    draw_text(
+    let dim = gfx.measure_text(label, 12.0);
+    gfx.draw_text(
         label,
-        text_cx - dim.width * 0.5,
-        y + h * 0.42,
+        Vec2::new(text_cx - dim.width * 0.5, y + h * 0.42),
         12.0,
         colors.wall_gold,
     );
 
     let count_str = format!("{count}");
-    let dim = measure_text(&count_str, None, 26, 1.0);
+    let dim = gfx.measure_text(&count_str, 26.0);
     let cx = text_cx - dim.width * 0.5;
     let cy = y + h * 0.94;
-    draw_text(
+    gfx.draw_text(
         &count_str,
-        cx + 1.5,
-        cy + 1.5,
+        Vec2::new(cx + 1.5, cy + 1.5),
         26.0,
         Color::new(0.0, 0.0, 0.0, 0.65),
     );
-    draw_text(&count_str, cx, cy, 26.0, colors.tile_face);
+    gfx.draw_text(&count_str, Vec2::new(cx, cy), 26.0, colors.tile_face);
 
     let tiles_x = x + text_w + 10.0;
     let size = TileSize::new(tile_w, tile_h);
     for i in 0..TILES {
         let tx = tiles_x + i as f32 * (tile_w + gap);
-        draw_tile_back_standing(tx, y, size);
+        draw_tile_back_standing(gfx, tx, y, size);
     }
 }
 

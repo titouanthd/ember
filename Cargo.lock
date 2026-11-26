@@ -1124,10 +1124,12 @@ dependencies = [
 name = "zhuo-ji"
 version = "0.1.0"
 dependencies = [
+ "ember",
  "ember-core",
+ "ember-input",
+ "ember-servers",
  "ember-stdlib",
  "glam",
- "macroquad",
 ]
 
 [[package]]

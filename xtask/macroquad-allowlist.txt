@@ -24,4 +24,3 @@ games/accretion/
 games/bore-inc/
 games/ember-wars/
 games/jade-garden/
-games/zhuo-ji/
