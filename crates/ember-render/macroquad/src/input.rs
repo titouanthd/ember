@@ -73,6 +73,8 @@ const KEYS: &[(KeyCode, Key)] = &[
     (KeyCode::F11, Key::F11),
     (KeyCode::F12, Key::F12),
     (KeyCode::Semicolon, Key::Semicolon),
+    (KeyCode::LeftShift, Key::LeftShift),
+    (KeyCode::RightShift, Key::RightShift),
 ];
 
 /// Build this frame's `Input`. macroquad has no gamepad support, so the
