@@ -24,7 +24,7 @@ mod run;
 pub use ember_servers as servers;
 pub use input::poll_input;
 pub use renderer::MacroquadRenderer;
-pub use run::{run, run_window};
+pub use run::{WindowConfig, WindowIcon, run, run_window, run_window_with};
 
 // Re-export macroquad so games don't need their own dependency (until
 // Phase 13 removes the last `use macroquad::` from game code — then
