@@ -126,3 +126,52 @@ fn without_a_virtual_resolution_nothing_changes() {
     l.draw();
     assert!(l.rendering().calls().is_empty());
 }
+
+fn plain(seen: &Arc<Mutex<Vec<(Vec2, Rect)>>>) -> SceneLoop<MockRenderer, MockAudio> {
+    let tree = NodeTree::with_root(Probe {
+        name: "Probe".into(),
+        seen: seen.clone(),
+    });
+    SceneLoop::new(
+        tree,
+        MockRenderer::new(),
+        MockAudio::new(),
+        Rect::new(0.0, 0.0, 1440.0, 900.0),
+    )
+}
+
+fn seen_viewport_after_resize(
+    mut l: SceneLoop<MockRenderer, MockAudio>,
+    seen: &Arc<Mutex<Vec<(Vec2, Rect)>>>,
+) -> Rect {
+    assert!(l.init());
+    l.resize(1200.0, 700.0);
+    l.draw();
+    l.process(1.0 / 60.0);
+    seen.lock().unwrap()[0].1
+}
+
+#[test]
+fn by_default_the_viewport_ignores_the_window() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let viewport = seen_viewport_after_resize(plain(&seen), &seen);
+    assert_eq!(viewport, Rect::new(0.0, 0.0, 1440.0, 900.0));
+}
+
+#[test]
+fn a_viewport_following_the_window_takes_its_size() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let l = plain(&seen).with_viewport_following_window();
+    let viewport = seen_viewport_after_resize(l, &seen);
+    assert_eq!(viewport, Rect::new(0.0, 0.0, 1200.0, 700.0));
+}
+
+#[test]
+fn a_virtual_resolution_wins_over_following_the_window() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let l = plain(&seen)
+        .with_viewport_following_window()
+        .with_virtual_resolution(800.0, 600.0);
+    let viewport = seen_viewport_after_resize(l, &seen);
+    assert_eq!(viewport, Rect::new(0.0, 0.0, 800.0, 600.0));
+}

@@ -28,6 +28,8 @@ pub struct SceneLoop<R: RenderingServer, A: AudioServer> {
     virtual_resolution: Option<VirtualResolution>,
     /// Last size from `MainLoop::resize`; the viewport size until then.
     window: Vec2,
+    /// Set by `with_viewport_following_window`.
+    viewport_follows_window: bool,
 }
 
 impl<R: RenderingServer, A: AudioServer> SceneLoop<R, A> {
@@ -42,7 +44,18 @@ impl<R: RenderingServer, A: AudioServer> SceneLoop<R, A> {
             quit: false,
             virtual_resolution: None,
             window: Vec2::new(viewport.w, viewport.h),
+            viewport_follows_window: false,
         }
+    }
+
+    /// Make the viewport track the window: each `resize` sets it to
+    /// `(0, 0, width, height)`, so a game that lays itself out on the
+    /// window size reads that size from `RenderingServer::viewport` (from
+    /// the next frame on). Ignored while a virtual resolution is set,
+    /// whose canvas stays the viewport.
+    pub fn with_viewport_following_window(mut self) -> Self {
+        self.viewport_follows_window = true;
+        self
     }
 
     /// Draw on a fixed `width` × `height` canvas, letterboxed into the
@@ -167,6 +180,9 @@ impl<R: RenderingServer, A: AudioServer> MainLoop for SceneLoop<R, A> {
 
     fn resize(&mut self, width: f32, height: f32) {
         self.window = Vec2::new(width, height);
+        if self.viewport_follows_window && self.virtual_resolution.is_none() {
+            self.viewport = Rect::new(0.0, 0.0, width, height);
+        }
     }
 }
 
