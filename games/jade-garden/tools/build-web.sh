@@ -9,8 +9,7 @@
 #   dist/web/  — ready to zip and upload as an HTML5 game on itch.io
 #     ├── index.html
 #     ├── mq_js_bundle.js
-#     ├── jade-garden.wasm
-#     └── assets/
+#     └── jade-garden.wasm   (fonts, levels and music are built in)
 #
 # Usage:
 #     chmod +x tools/build-web.sh
@@ -97,13 +96,8 @@ fi
 # 6. Copy the HTML shell.
 cp "$CRATE_DIR/web/index.html" "$OUT/index.html"
 
-# 7. Copy assets (clean of dev files).
-cp -R "$CRATE_DIR/assets" "$OUT/assets"
-rm -f "$OUT/assets/.env"
-rm -f "$OUT/assets/progress.ron"
-rm -f "$OUT/assets/NotoSansSC-Regular.otf"
-rm -f "$OUT/assets/NotoSansSC-Regular.ttf"
-rm -f "$OUT/assets/icon-256.png"
+# 7. No assets to copy: the fonts, levels and music are built into the
+#    wasm binary (include_bytes! / include_str!).
 
 # 8. Optimize the wasm binary if wasm-opt is available.
 if command -v wasm-opt >/dev/null 2>&1; then

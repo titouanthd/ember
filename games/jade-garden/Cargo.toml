@@ -6,13 +6,14 @@ edition.workspace = true
 [dependencies]
 ember-core.workspace = true
 ember-stdlib.workspace = true
-macroquad.workspace = true
+ember.workspace = true
+ember-input.workspace = true
+ember-servers.workspace = true
 glam.workspace = true
 serde.workspace = true
 ron.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-soloud = "1.1"
 dotenvy.workspace = true
 image = { version = "0.25", default-features = false, features = ["png"] }
 

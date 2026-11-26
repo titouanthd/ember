@@ -1,181 +1,216 @@
-//! Background music: hybrid player.
+//! Background music and the Halloween teaser's two shrieks.
 //!
-//! **Native** (macOS, Linux, Windows):
-//! 1. **soloud** (bundled, dlopens the system audio library).
-//! 2. **OS-native player subprocess** (`afplay`, `ffplay`, `mpv`).
+//! **Music** plays through the engine's `AudioServer` (ADR-043): each
+//! track is a clip played on a loop, and [`MusicPlayer`] moves through
+//! the playlist on a timer (an intro once, then the other tracks in a
+//! loop). The tracks are MP3s; the native backend decodes them and the
+//! browser decodes them itself. Native reads them from `assets/`; the web
+//! build has them built in. (Was soloud or an OS player natively and
+//! `macroquad::audio` on the web.)
 //!
-//! **Web** (WASM):
-//! Uses `macroquad::audio` (backed by quad-snd → WebAudio).
-//! Tracks are preloaded asynchronously before the main loop via
-//! [`MusicPlayer::preload`] — required because on web
-//! `macroquad::audio::load_sound` fetches the file. Playback is then
-//! synchronous (`play_sound` / `stop_sound`).
-//!
-//! No `wasm-bindgen`-based crates are used: miniquad (via macroquad)
-//! has its own import system, incompatible with wasm-bindgen's
-//! `__wbindgen_placeholder__` imports.
-//!
-//! Playlist logic (intro, loop, timed advance) lives in
-//! `ember_stdlib::music`; this file only supplies the native backend.
-//! Time tracking: the native backend keeps its own `Instant` clock; on
-//! wasm (no `Instant`) the player accumulates `dt` itself.
+//! **The teaser's shrieks** are native-only one-shots played by an OS
+//! player subprocess (`afplay`, `ffplay`, `mpv`), as before: the scare
+//! falls back to a macOS system sound in AIFF, which the engine does not
+//! read.
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::PathBuf;
-
-// ─── Shared ────────────────────────────────────────────────────────
+use ember_servers::{AudioClipId, AudioServer, SoundId};
 
 /// Volume applied to every track (0.0–1.0).
 const MUSIC_VOLUME: f32 = 0.4;
 
-pub use ember_stdlib::music::{MacroquadMusic, MusicBackend, MusicPlayer as Player, TrackSpec};
+/// One playlist entry (was `ember_stdlib::music::TrackSpec`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TrackSpec {
+    /// File name under `assets/`.
+    pub path: &'static str,
+    /// Seconds before moving to the next track.
+    pub duration: f32,
+    /// Played once at the start, then skipped when the playlist loops.
+    pub is_intro: bool,
+}
 
-// ─── Native backend ────────────────────────────────────────────────
+/// What `start` / `stop` asked for, applied on the next `tick`, which has
+/// the audio server. Lets the app's state machine stay audio-free.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Request {
+    Start,
+    Stop,
+}
+
+/// The playlist, on the engine's audio (was `ember_stdlib::music`).
+pub struct MusicPlayer {
+    tracks: Vec<TrackSpec>,
+    clips: Vec<Option<AudioClipId>>,
+    current: usize,
+    elapsed: f32,
+    playing: bool,
+    /// The current track's clip is still decoding (the web); it starts,
+    /// and its timer runs, once it is ready.
+    waiting: bool,
+    sound: Option<SoundId>,
+    request: Option<Request>,
+}
+
+impl MusicPlayer {
+    /// A player for `tracks`; nothing is loaded until [`load`](Self::load).
+    pub fn new(tracks: Vec<TrackSpec>) -> Self {
+        Self {
+            tracks,
+            clips: Vec::new(),
+            current: 0,
+            elapsed: 0.0,
+            playing: false,
+            waiting: false,
+            sound: None,
+            request: None,
+        }
+    }
+
+    /// Load every track's clip. A track that fails is skipped with a
+    /// warning, and the playlist stops when it reaches it, as before.
+    pub fn load(&mut self, audio: &mut dyn AudioServer) {
+        self.clips = self
+            .tracks
+            .iter()
+            .map(|t| match track_bytes(t.path) {
+                Some(bytes) => match audio.load_clip(&bytes) {
+                    Ok(clip) => Some(clip),
+                    Err(e) => {
+                        eprintln!("⚠️  music: failed to load {}: {e}", t.path);
+                        None
+                    }
+                },
+                None => {
+                    eprintln!("⚠️  Music file not found: {}", t.path);
+                    None
+                }
+            })
+            .collect();
+    }
+
+    /// Start from the first track (on the next `tick`).
+    pub fn start(&mut self) {
+        self.request = Some(Request::Start);
+    }
+
+    /// Stop the music (on the next `tick`).
+    pub fn stop(&mut self) {
+        self.request = Some(Request::Stop);
+    }
+
+    pub fn is_playing(&self) -> bool {
+        match self.request {
+            Some(Request::Start) => true,
+            Some(Request::Stop) => false,
+            None => self.playing,
+        }
+    }
+
+    /// The track playing now, if any.
+    pub fn current_track(&self) -> Option<usize> {
+        (self.playing && !self.waiting).then_some(self.current)
+    }
+
+    /// Apply `start` / `stop`, then move the playlist on by `dt`.
+    pub fn tick(&mut self, dt: f32, audio: &mut dyn AudioServer) {
+        match self.request.take() {
+            Some(Request::Start) if !self.tracks.is_empty() => {
+                self.current = 0;
+                self.playing = true;
+                self.play_current(audio);
+            }
+            Some(Request::Stop) => {
+                self.silence(audio);
+                self.playing = false;
+                self.waiting = false;
+            }
+            _ => {}
+        }
+        if !self.playing || self.tracks.is_empty() {
+            return;
+        }
+        if self.waiting {
+            self.resume(audio);
+            if self.waiting {
+                return;
+            }
+        }
+        self.elapsed += dt;
+        let duration = self.tracks[self.current].duration;
+        if duration > 0.0 && self.elapsed >= duration {
+            let loop_start = self.tracks.iter().position(|t| !t.is_intro).unwrap_or(0);
+            self.current = if self.current + 1 < self.tracks.len() {
+                self.current + 1
+            } else {
+                loop_start
+            };
+            self.play_current(audio);
+        }
+    }
+
+    fn play_current(&mut self, audio: &mut dyn AudioServer) {
+        self.silence(audio);
+        self.elapsed = 0.0;
+        self.waiting = false;
+        match self.clips.get(self.current).copied().flatten() {
+            Some(_) => {
+                self.waiting = true;
+                self.resume(audio);
+            }
+            None => {
+                let path = self.tracks[self.current].path;
+                eprintln!("[music] track {} unavailable: {path}", self.current);
+                self.playing = false;
+            }
+        }
+    }
+
+    /// Start the waiting track if its clip is ready.
+    fn resume(&mut self, audio: &mut dyn AudioServer) {
+        if let Some(clip) = self.clips.get(self.current).copied().flatten()
+            && audio.is_clip_ready(clip)
+        {
+            self.sound = Some(audio.play_looped(clip, MUSIC_VOLUME));
+            self.waiting = false;
+        }
+    }
+
+    fn silence(&mut self, audio: &mut dyn AudioServer) {
+        if let Some(sound) = self.sound.take() {
+            audio.stop(sound);
+        }
+    }
+}
+
+/// A track's bytes: read from `assets/` natively.
+#[cfg(not(target_arch = "wasm32"))]
+fn track_bytes(path: &str) -> Option<Vec<u8>> {
+    std::fs::read(crate::paths::asset(path)).ok()
+}
+
+/// A track's bytes: built in on the web, which has no file system.
+#[cfg(target_arch = "wasm32")]
+fn track_bytes(path: &str) -> Option<Vec<u8>> {
+    let bytes: &[u8] = match path {
+        "sonican-modern-chinese-trip-asian-music-loop-499913.mp3" => {
+            include_bytes!("../assets/sonican-modern-chinese-trip-asian-music-loop-499913.mp3")
+        }
+        "sonican-modern-trip-asian-phonk-loop-507321.mp3" => {
+            include_bytes!("../assets/sonican-modern-trip-asian-phonk-loop-507321.mp3")
+        }
+        "sonican-asian-phonk-loop-2-modern-trip-508779.mp3" => {
+            include_bytes!("../assets/sonican-asian-phonk-loop-2-modern-trip-508779.mp3")
+        }
+        _ => return None,
+    };
+    Some(bytes.to_vec())
+}
+
+// ─── OS player (native shrieks only) ────────────────────────────────
 
 #[cfg(not(target_arch = "wasm32"))]
-mod backend {
-    use super::*;
-    use soloud::*;
+mod os_player {
     use std::process::{Child, Command, Stdio};
-    use std::time::Instant;
-
-    enum Backend {
-        Soloud {
-            soloud: Soloud,
-            loaded: Option<audio::Wav>,
-        },
-        Subprocess {
-            player: &'static str,
-            child: Option<Child>,
-        },
-    }
-
-    pub struct NativeMusic {
-        inner: Backend,
-        started_at: Instant,
-    }
-
-    impl NativeMusic {
-        pub fn new() -> Self {
-            match Soloud::default() {
-                Ok(soloud) => {
-                    eprintln!("🎵 Music backend: soloud (native)");
-                    Self {
-                        inner: Backend::Soloud {
-                            soloud,
-                            loaded: None,
-                        },
-                        started_at: Instant::now(),
-                    }
-                }
-                Err(e) => {
-                    eprintln!("⚠️  soloud unavailable ({e:?}), trying OS player...");
-                    match detect_player() {
-                        Some(player) => {
-                            eprintln!("🎵 Music backend: {player} (subprocess)");
-                            Self {
-                                inner: Backend::Subprocess {
-                                    player,
-                                    child: None,
-                                },
-                                started_at: Instant::now(),
-                            }
-                        }
-                        None => {
-                            eprintln!("⚠️  No audio backend available. Music disabled.");
-                            Self {
-                                inner: Backend::Subprocess {
-                                    player: "",
-                                    child: None,
-                                },
-                                started_at: Instant::now(),
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        fn play_file(&mut self, path: &PathBuf) -> bool {
-            match &mut self.inner {
-                Backend::Soloud { soloud, loaded } => {
-                    soloud.stop_all();
-                    *loaded = None;
-                    let mut wav = audio::Wav::default();
-                    if let Err(e) = wav.load(path) {
-                        eprintln!("⚠️  soloud: failed to load {path:?}: {e:?}");
-                        return false;
-                    }
-                    soloud.set_global_volume(MUSIC_VOLUME);
-                    soloud.play(&wav);
-                    *loaded = Some(wav);
-                    self.started_at = Instant::now();
-                    true
-                }
-                Backend::Subprocess { player, child } => {
-                    if let Some(mut c) = child.take() {
-                        let _ = c.kill();
-                        let _ = c.wait();
-                    }
-                    match spawn_player(player, path) {
-                        Some(c) => {
-                            *child = Some(c);
-                            self.started_at = Instant::now();
-                            true
-                        }
-                        None => {
-                            eprintln!("⚠️  {player} failed to start for {path:?}");
-                            false
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    impl MusicBackend for NativeMusic {
-        /// Loading is lazy: done by `play`.
-        fn play(&mut self, _idx: usize, track: &TrackSpec) -> bool {
-            let full = crate::paths::asset(track.path);
-            if !full.exists() {
-                eprintln!("⚠️  Music file not found: {full:?}");
-                return false;
-            }
-            self.play_file(&full)
-        }
-
-        fn stop(&mut self) {
-            match &mut self.inner {
-                Backend::Soloud { soloud, loaded } => {
-                    soloud.stop_all();
-                    *loaded = None;
-                }
-                Backend::Subprocess { child, .. } => {
-                    if let Some(mut c) = child.take() {
-                        let _ = c.kill();
-                        let _ = c.wait();
-                    }
-                }
-            }
-        }
-
-        /// Native keeps its own wall clock (audio keeps playing even if
-        /// frames stall).
-        fn elapsed(&self) -> Option<f32> {
-            Some(self.started_at.elapsed().as_secs_f32())
-        }
-    }
-
-    impl Drop for NativeMusic {
-        fn drop(&mut self) {
-            if let Backend::Subprocess { child, .. } = &mut self.inner
-                && let Some(mut c) = child.take()
-            {
-                let _ = c.kill();
-                let _ = c.wait();
-            }
-        }
-    }
 
     pub fn detect_player() -> Option<&'static str> {
         #[cfg(target_os = "macos")]
@@ -224,26 +259,6 @@ mod backend {
     }
 }
 
-// ─── Public player ─────────────────────────────────────────────────
-
-/// Native: soloud or OS player. Web: `macroquad::audio` (WebAudio).
-#[cfg(not(target_arch = "wasm32"))]
-type Backend = backend::NativeMusic;
-#[cfg(target_arch = "wasm32")]
-type Backend = MacroquadMusic;
-
-pub type MusicPlayer = Player<Backend>;
-
-/// Build the music player for `specs`. On web, `preload().await` must
-/// run before `start()`.
-pub fn new_player(specs: Vec<TrackSpec>) -> MusicPlayer {
-    #[cfg(not(target_arch = "wasm32"))]
-    let backend = backend::NativeMusic::new();
-    #[cfg(target_arch = "wasm32")]
-    let backend = MacroquadMusic::new(MUSIC_VOLUME, crate::paths::asset_str);
-    Player::new(backend, specs)
-}
-
 // ─── SFX (teaser Halloween) ────────────────────────────────────────
 
 /// Plays a piercing one-shot scare sound for the Halloween teaser.
@@ -281,8 +296,8 @@ pub fn play_scare() {
         };
 
         let Some(path) = target else { return };
-        if let Some(player) = backend::detect_player() {
-            let _ = backend::spawn_player(player, &path);
+        if let Some(player) = os_player::detect_player() {
+            let _ = os_player::spawn_player(player, &path);
         }
     }
 }
@@ -318,8 +333,8 @@ pub fn play_scream() {
         };
 
         let Some(path) = target else { return };
-        if let Some(player) = backend::detect_player() {
-            let _ = backend::spawn_player(player, &path);
+        if let Some(player) = os_player::detect_player() {
+            let _ = os_player::spawn_player(player, &path);
         }
     }
 }

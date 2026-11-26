@@ -34,11 +34,11 @@
 //!   emerald.
 //!
 //! The `height_*`, `hash_u32`, `build_peaks` and `ridge_height_at`
-//! functions are pure and testable. The `draw_*` functions use
-//! macroquad and are not tested.
+//! functions are pure and testable. The `draw_*` functions draw
+//! through the `RenderingServer` and are not tested.
 
+use ember::prelude::*;
 use glam::Vec2;
-use macroquad::prelude::*;
 
 // ---------- Fixed rendering constants ----------
 
@@ -264,8 +264,8 @@ pub fn ridge_height_at(peaks: &[Peak], t: f32, half_width: f32) -> f32 {
 // ---------- Rendering ----------
 
 /// Draws the vertical gradient sky for the given palette.
-pub fn draw_sky(ground_y: f32, palette: Palette) {
-    let vw = screen_width();
+pub fn draw_sky(gfx: &mut dyn RenderingServer, ground_y: f32, palette: Palette) {
+    let vw = gfx.viewport().w;
     let strip_h = (ground_y / SKY_STRIPS as f32).max(1.0);
     let top = palette.paper_top;
     let bottom = palette.paper_bottom;
@@ -278,7 +278,7 @@ pub fn draw_sky(ground_y: f32, palette: Palette) {
             top.b * (1.0 - t) + bottom.b * t,
             1.0,
         );
-        draw_rectangle(0.0, i as f32 * strip_h, vw, strip_h + 1.0, c);
+        gfx.draw_rect(Rect::new(0.0, i as f32 * strip_h, vw, strip_h + 1.0), c);
     }
 }
 
@@ -298,8 +298,14 @@ struct MountainLayer {
 }
 
 /// Draws one layer of stylised shan shui mountains.
-fn draw_mountain_layer(cam_x: f32, ground_y: f32, seed: u32, layer: MountainLayer) {
-    let vw = screen_width();
+fn draw_mountain_layer(
+    gfx: &mut dyn RenderingServer,
+    cam_x: f32,
+    ground_y: f32,
+    seed: u32,
+    layer: MountainLayer,
+) {
+    let vw = gfx.viewport().w;
     let layer_x = cam_x * layer.parallax;
     let first = (layer_x / layer.chunk_w).floor() as i32 - 1;
     let last = ((layer_x + vw) / layer.chunk_w).ceil() as i32 + 1;
@@ -319,7 +325,7 @@ fn draw_mountain_layer(cam_x: f32, ground_y: f32, seed: u32, layer: MountainLaye
                 continue;
             }
             let x = base_x + s as f32 * strip_w;
-            draw_rectangle(x, ground_y - h, strip_w + 0.6, h, layer.color);
+            gfx.draw_rect(Rect::new(x, ground_y - h, strip_w + 0.6, h), layer.color);
         }
 
         // Pines on some peaks of the near layer.
@@ -343,16 +349,23 @@ fn draw_mountain_layer(cam_x: f32, ground_y: f32, seed: u32, layer: MountainLaye
                 }
                 let px = base_x + x_frac * layer.chunk_w;
                 let py = ground_y - h_peak;
-                draw_pine(px, py, h_peak * 0.22, pine_color);
+                draw_pine(gfx, px, py, h_peak * 0.22, pine_color);
             }
         }
     }
 }
 
 /// Draws the three mountain layers plus interleaved mist.
-pub fn draw_mountains(cam_x: f32, ground_y: f32, seed: u32, palette: Palette) {
+pub fn draw_mountains(
+    gfx: &mut dyn RenderingServer,
+    cam_x: f32,
+    ground_y: f32,
+    seed: u32,
+    palette: Palette,
+) {
     // Distant layer — many small rounded peaks, no pines.
     draw_mountain_layer(
+        gfx,
         cam_x,
         ground_y,
         seed,
@@ -367,10 +380,11 @@ pub fn draw_mountains(cam_x: f32, ground_y: f32, seed: u32, palette: Palette) {
         },
     );
 
-    draw_mist(ground_y, 0.45, palette.mist);
+    draw_mist(gfx, ground_y, 0.45, palette.mist);
 
     // Mid layer — fewer, slightly taller peaks.
     draw_mountain_layer(
+        gfx,
         cam_x,
         ground_y,
         seed,
@@ -385,10 +399,11 @@ pub fn draw_mountains(cam_x: f32, ground_y: f32, seed: u32, palette: Palette) {
         },
     );
 
-    draw_mist(ground_y, 0.70, palette.mist);
+    draw_mist(gfx, ground_y, 0.70, palette.mist);
 
     // Near layer — 3 distinct peaks per chunk, occasional pines.
     draw_mountain_layer(
+        gfx,
         cam_x,
         ground_y,
         seed,
@@ -406,8 +421,8 @@ pub fn draw_mountains(cam_x: f32, ground_y: f32, seed: u32, palette: Palette) {
 
 /// Draws a horizontal band of mist with a soft bell-shaped alpha
 /// gradient (transparent at the top and bottom edges).
-fn draw_mist(ground_y: f32, height_frac: f32, color: Color) {
-    let vw = screen_width();
+fn draw_mist(gfx: &mut dyn RenderingServer, ground_y: f32, height_frac: f32, color: Color) {
+    let vw = gfx.viewport().w;
     let band_h = 140.0 * height_frac;
     let y0 = ground_y - band_h * 0.55;
     let strip_h = band_h / MIST_STRIPS as f32;
@@ -417,15 +432,21 @@ fn draw_mist(ground_y: f32, height_frac: f32, color: Color) {
         // Bell curve: 0 at the edges, 1 in the middle.
         let bell = (1.0 - (2.0 * t - 1.0).abs()).powf(0.7);
         let c = Color::new(color.r, color.g, color.b, color.a * bell);
-        draw_rectangle(0.0, y0 + i as f32 * strip_h, vw, strip_h + 0.5, c);
+        gfx.draw_rect(
+            Rect::new(0.0, y0 + i as f32 * strip_h, vw, strip_h + 0.5),
+            c,
+        );
     }
 }
 
 /// Draws a stylised pine (trunk + 3 stacked triangles).
-pub fn draw_pine(x: f32, y: f32, h: f32, color: Color) {
+pub fn draw_pine(gfx: &mut dyn RenderingServer, x: f32, y: f32, h: f32, color: Color) {
     let trunk_w = h * 0.08;
     let trunk_h = h * 0.20;
-    draw_rectangle(x - trunk_w * 0.5, y - trunk_h, trunk_w, trunk_h, color);
+    gfx.draw_rect(
+        Rect::new(x - trunk_w * 0.5, y - trunk_h, trunk_w, trunk_h),
+        color,
+    );
 
     let base_y = y - trunk_h;
     for i in 0..3 {
@@ -435,7 +456,7 @@ pub fn draw_pine(x: f32, y: f32, h: f32, color: Color) {
         let p1 = Vec2::new(x - layer_w * 0.5, layer_y);
         let p2 = Vec2::new(x, layer_y - layer_h);
         let p3 = Vec2::new(x + layer_w * 0.5, layer_y);
-        draw_triangle(p1, p2, p3, color);
+        gfx.draw_triangle(p1, p2, p3, color);
     }
 }
 

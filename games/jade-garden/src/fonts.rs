@@ -1,39 +1,42 @@
-//! Font loading.
+//! Fonts: DejaVu Sans Mono as the default font, and a subset of Noto
+//! Sans SC for the poem's Chinese characters.
 //!
-//! - **DejaVu Sans Mono**: the default font. Contains French accents,
-//!   the stars ★☆, and Unicode punctuation.
-//! - **Noto Sans SC (subset)**: only the CJK glyphs of the poem, its
-//!   title, the author, and the jade names.
-//!
-//! Loading is async on every target because on the web the font files
-//! are fetched via HTTP. On native the same API resolves synchronously
-//! under the hood.
+//! Both are built into the binary and installed through the
+//! `RenderingServer` in the root node's `ready`, so native and web load
+//! them the same way (was `load_ttf_font` from `assets/`).
 
-use crate::paths;
-use macroquad::prelude::*;
+use ember::prelude::*;
+use ember_servers::{FontId, TextMetrics};
 
-/// Loads DejaVu Sans Mono and sets it as the default font.
-pub async fn load_default_font() -> Option<Font> {
-    let path = paths::asset_str("DejaVuSansMono.ttf");
-    ember_stdlib::fonts::load_and_set_default(&path).await
+const DEFAULT_FONT_BYTES: &[u8] = include_bytes!("../assets/DejaVuSansMono.ttf");
+const POEM_FONT_BYTES: &[u8] = include_bytes!("../assets/NotoSansSC-JadeGarden.otf");
+
+/// Install DejaVu Sans Mono as the default font. A font that does not
+/// parse is non-fatal: the backend's built-in font stays.
+pub fn load_default_font(gfx: &mut dyn RenderingServer) -> Option<FontId> {
+    match gfx.create_font(DEFAULT_FONT_BYTES) {
+        Ok(font) => {
+            gfx.set_default_font(Some(font));
+            Some(font)
+        }
+        Err(e) => {
+            eprintln!("⚠️  Failed to load DejaVuSansMono.ttf: {e}");
+            None
+        }
+    }
 }
 
-/// The poem's CJK font. Loaded once at startup and passed explicitly
-/// to rendering functions that need it.
 pub struct PoemFont {
-    font: Option<Font>,
+    font: Option<FontId>,
 }
 
 impl PoemFont {
-    /// Loads the CJK subset from `assets/NotoSansSC-JadeGarden.otf`.
-    /// If the file is missing, returns a fallback instance.
-    pub async fn load() -> Self {
-        let path = paths::asset_str("NotoSansSC-JadeGarden.otf");
-        match load_ttf_font(&path).await {
+    pub fn load(gfx: &mut dyn RenderingServer) -> Self {
+        match gfx.create_font(POEM_FONT_BYTES) {
             Ok(font) => Self { font: Some(font) },
             Err(e) => {
                 eprintln!(
-                    "⚠️  Failed to load CJK font {path}: {e}. \
+                    "⚠️  Failed to load CJK font NotoSansSC-JadeGarden.otf: {e}. \
                      CJK chars will fall back to the default font. \
                      Run games/jade-garden/subset_font.sh to generate it."
                 );
@@ -42,7 +45,6 @@ impl PoemFont {
         }
     }
 
-    /// Hermetic instance (no font) — handy for tests.
     pub fn hermetic() -> Self {
         Self { font: None }
     }
@@ -51,39 +53,42 @@ impl PoemFont {
         self.font.is_some()
     }
 
-    /// Draws `text` at `(x, y)` — `y` is the baseline.
-    pub fn draw(&self, text: &str, x: f32, y: f32, size: f32, color: Color) {
-        match &self.font {
-            Some(f) => {
-                draw_text_ex(
-                    text,
-                    x,
-                    y,
-                    TextParams {
-                        font: Some(f),
-                        font_size: size as u16,
-                        color,
-                        ..Default::default()
-                    },
-                );
-            }
-            None => {
-                draw_text(text, x, y, size, color);
-            }
+    /// Draw `text` at `(x, y)`; `y` is the baseline.
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        text: &str,
+        x: f32,
+        y: f32,
+        size: f32,
+        color: Color,
+    ) {
+        let pos = Vec2::new(x, y);
+        match self.font {
+            Some(f) => gfx.draw_text_with_font(f, text, pos, size, color),
+            None => gfx.draw_text(text, pos, size, color),
         }
     }
 
-    /// Measures `text`.
-    pub fn measure(&self, text: &str, size: f32) -> TextDimensions {
-        match &self.font {
-            Some(f) => measure_text(text, Some(f), size as u16, 1.0),
-            None => measure_text(text, None, size as u16, 1.0),
+    pub fn measure(&self, gfx: &dyn RenderingServer, text: &str, size: f32) -> TextMetrics {
+        match self.font {
+            Some(f) => gfx.measure_text_with_font(f, text, size),
+            None => gfx.measure_text(text, size),
         }
     }
 
-    pub fn draw_centered(&self, text: &str, cx: f32, y: f32, size: f32, color: Color) {
-        let dim = self.measure(text, size);
-        self.draw(text, cx - dim.width * 0.5, y, size, color);
+    pub fn draw_centered(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        text: &str,
+        cx: f32,
+        y: f32,
+        size: f32,
+        color: Color,
+    ) {
+        let dim = self.measure(gfx, text, size);
+        self.draw(gfx, text, cx - dim.width * 0.5, y, size, color);
     }
 }
 

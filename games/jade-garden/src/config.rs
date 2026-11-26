@@ -6,12 +6,25 @@
 use std::path::Path;
 
 #[cfg(not(target_arch = "wasm32"))]
-use ember_stdlib::config::{env_color, load_dotenv_once};
+use ember_stdlib::config::{env_f32, load_dotenv_once};
 
-use macroquad::prelude::*;
+use ember_core::Color;
 
 use crate::components::{GRID_H, GRID_W};
 use crate::tile_render::{TILE_GAP, TILE_SIZE, TILE_STRIDE};
+
+/// `<PREFIX>_R`, `_G`, `_B`, `_A` from the environment, each falling back
+/// to `default`. Local twin of `ember_stdlib::config::env_color`, which
+/// returns a macroquad colour.
+#[cfg(not(target_arch = "wasm32"))]
+fn env_color(prefix: &str, default: Color) -> Color {
+    Color::new(
+        env_f32(&format!("{prefix}_R"), default.r),
+        env_f32(&format!("{prefix}_G"), default.g),
+        env_f32(&format!("{prefix}_B"), default.b),
+        env_f32(&format!("{prefix}_A"), default.a),
+    )
+}
 
 #[derive(Debug, Clone)]
 pub struct Colors {
@@ -90,23 +103,21 @@ impl GameContext {
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
         load_dotenv_once(manifest_dir, "jade-garden");
 
-        let vw = screen_width();
-        let vh = screen_height();
+        // The viewport is the window's, set by the scene each frame.
         Self {
             colors: Colors::from_env(),
-            viewport_w: vw,
-            viewport_h: vh,
+            viewport_w: 0.0,
+            viewport_h: 0.0,
         }
     }
 
     #[cfg(target_arch = "wasm32")]
     pub fn from_env() -> Self {
-        let vw = screen_width();
-        let vh = screen_height();
+        // The viewport is the window's, set by the scene each frame.
         Self {
             colors: Colors::defaults(),
-            viewport_w: vw,
-            viewport_h: vh,
+            viewport_w: 0.0,
+            viewport_h: 0.0,
         }
     }
 

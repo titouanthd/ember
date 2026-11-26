@@ -7,7 +7,7 @@
 //! title, a fixed footer band with the close hint, and a scrollable
 //! content area in between. Scroll with the wheel or the arrow keys.
 
-use macroquad::prelude::*;
+use ember::prelude::*;
 
 use crate::components::Jade;
 use crate::config::GameContext;
@@ -54,132 +54,130 @@ const OVERLAY: Color = Color::new(0.0, 0.0, 0.0, 0.78);
 
 // ---------- Public entry point ----------
 
-/// Renders the help modal on top of whatever is currently on screen.
-///
-/// Mutates `scroll_y` based on wheel / arrow-key input, and clamps it
-/// to the valid scroll range. The caller owns the scroll state so it
-/// survives across frames.
-pub fn draw(ctx: &GameContext, poem_font: &PoemFont, scroll_y: &mut f32) {
-    let vw = screen_width();
-    let vh = screen_height();
-
-    let visible_h = MODAL_H - HEADER_BAND_H - FOOTER_BAND_H;
-    let content_h = content_height();
-    let max_scroll = (content_h - visible_h).max(0.0);
-
-    // ─── Input ───
+/// Scrolls the help modal from wheel / arrow-key input, and clamps
+/// `scroll_y` to the valid scroll range. The caller owns the scroll
+/// state so it survives across frames. (Was the input half of `draw`;
+/// `dt` was macroquad's `get_frame_time`.)
+pub fn scroll(input: &Input, dt: f32, scroll_y: &mut f32) {
+    let max_scroll = max_scroll();
     if max_scroll > 0.0 {
-        let (_, wy) = mouse_wheel();
+        let wy = input.mouse_wheel.y;
         if wy.abs() > 0.0 {
             *scroll_y = (*scroll_y - wy * 50.0).clamp(0.0, max_scroll);
         }
-        if is_key_down(KeyCode::Down) {
-            *scroll_y = (*scroll_y + 600.0 * get_frame_time()).min(max_scroll);
+        if input.is_key_down(Key::Down) {
+            *scroll_y = (*scroll_y + 600.0 * dt).min(max_scroll);
         }
-        if is_key_down(KeyCode::Up) {
-            *scroll_y = (*scroll_y - 600.0 * get_frame_time()).max(0.0);
+        if input.is_key_down(Key::Up) {
+            *scroll_y = (*scroll_y - 600.0 * dt).max(0.0);
         }
     } else {
         *scroll_y = 0.0;
     }
+}
+
+fn max_scroll() -> f32 {
+    let visible_h = MODAL_H - HEADER_BAND_H - FOOTER_BAND_H;
+    (content_height() - visible_h).max(0.0)
+}
+
+/// Renders the help modal on top of whatever is currently on screen,
+/// scrolled by `scroll_y` (see [`scroll`]).
+pub fn draw(gfx: &mut dyn RenderingServer, ctx: &GameContext, poem_font: &PoemFont, scroll_y: f32) {
+    let vw = gfx.viewport().w;
+    let vh = gfx.viewport().h;
+
+    let visible_h = MODAL_H - HEADER_BAND_H - FOOTER_BAND_H;
+    let content_h = content_height();
+    let max_scroll = max_scroll();
     let scroll = scroll_y.clamp(0.0, max_scroll);
 
     let x = (vw - MODAL_W) * 0.5;
     let y = (vh - MODAL_H) * 0.5;
 
     // ─── 1. Dim overlay ───
-    draw_rectangle(0.0, 0.0, vw, vh, OVERLAY);
+    gfx.draw_rect(Rect::new(0.0, 0.0, vw, vh), OVERLAY);
 
     // ─── 2. Modal background ───
-    draw_rectangle(x, y, MODAL_W, MODAL_H, MODAL_BG);
+    gfx.draw_rect(Rect::new(x, y, MODAL_W, MODAL_H), MODAL_BG);
 
     // ─── 3. Scrollable content, clipped to the modal's content band ───
     //
-    // Real clipping (via scissor test), not mask rectangles: content
+    // Real clipping (a clip rect, i.e. a scissor test), not mask rectangles: content
     // that scrolls out of the band is simply not rasterised, so
     // nothing bleeds into the surrounding overlay.
     let content_top = y + HEADER_BAND_H;
     let content_band_h = MODAL_H - HEADER_BAND_H - FOOTER_BAND_H;
 
-    {
-        let gl = unsafe { get_internal_gl() };
-        gl.quad_gl.scissor(Some((
-            x as i32,
-            content_top as i32,
-            MODAL_W as i32,
-            content_band_h as i32,
-        )));
-    }
-
-    draw_content(x + PAD, content_top - scroll, ctx.colors.gold, poem_font);
-
-    {
-        let gl = unsafe { get_internal_gl() };
-        gl.quad_gl.scissor(None);
-    }
+    gfx.push_clip_rect(Rect::new(x, content_top, MODAL_W, content_band_h));
+    draw_content(
+        gfx,
+        x + PAD,
+        content_top - scroll,
+        ctx.colors.gold,
+        poem_font,
+    );
+    gfx.pop_clip_rect();
 
     // ─── 4. Header masks ───
     // 4a. Inside the modal: mask with MODAL_BG so the header band
     //     stays part of the modal, not the overlay.
-    draw_rectangle(x, y, MODAL_W, HEADER_BAND_H, MODAL_BG);
+    gfx.draw_rect(Rect::new(x, y, MODAL_W, HEADER_BAND_H), MODAL_BG);
     // 4b. Above the modal: mask with OVERLAY so it blends perfectly
     //     with the dim layer behind the modal. Uses the modal's
     //     x-range only, so the surrounding overlay stays untouched.
     if y > 0.0 {
-        draw_rectangle(x, 0.0, MODAL_W, y, OVERLAY);
+        gfx.draw_rect(Rect::new(x, 0.0, MODAL_W, y), OVERLAY);
     }
 
     // ─── 5. Footer masks ───
     let footer_top = y + MODAL_H - FOOTER_BAND_H;
     let modal_bottom = y + MODAL_H;
     // 5a. Inside the modal.
-    draw_rectangle(x, footer_top, MODAL_W, FOOTER_BAND_H, MODAL_BG);
+    gfx.draw_rect(Rect::new(x, footer_top, MODAL_W, FOOTER_BAND_H), MODAL_BG);
     // 5b. Below the modal.
     if modal_bottom < vh {
-        draw_rectangle(x, modal_bottom, MODAL_W, vh - modal_bottom, OVERLAY);
+        gfx.draw_rect(
+            Rect::new(x, modal_bottom, MODAL_W, vh - modal_bottom),
+            OVERLAY,
+        );
     }
 
     // ─── 6. Separators between bands and content ───
     let sep_top = y + HEADER_BAND_H;
     let sep_bot = y + MODAL_H - FOOTER_BAND_H;
-    draw_line(
-        x + 20.0,
-        sep_top,
-        x + MODAL_W - 20.0,
-        sep_top,
+    gfx.draw_line(
+        Vec2::new(x + 20.0, sep_top),
+        Vec2::new(x + MODAL_W - 20.0, sep_top),
         1.0,
         MODAL_SEPARATOR,
     );
-    draw_line(
-        x + 20.0,
-        sep_bot,
-        x + MODAL_W - 20.0,
-        sep_bot,
+    gfx.draw_line(
+        Vec2::new(x + 20.0, sep_bot),
+        Vec2::new(x + MODAL_W - 20.0, sep_bot),
         1.0,
         MODAL_SEPARATOR,
     );
 
     // ─── 7. Frame ───
-    draw_frame(x, y, MODAL_W, MODAL_H, ctx.colors.panel_border);
+    draw_frame(gfx, x, y, MODAL_W, MODAL_H, ctx.colors.panel_border);
 
     // ─── 8. Title ───
     let title = "HELP";
-    let tw = measure_text(title, None, 32, 1.0).width;
-    draw_text(
+    let tw = gfx.measure_text(title, 32.0).width;
+    gfx.draw_text(
         title,
-        x + (MODAL_W - tw) * 0.5,
-        y + TITLE_BASELINE,
+        Vec2::new(x + (MODAL_W - tw) * 0.5, y + TITLE_BASELINE),
         32.0,
         ctx.colors.gold,
     );
 
     // Small gold diamond under the title.
-    draw_poly(
-        x + MODAL_W * 0.5,
-        y + TITLE_BASELINE + 20.0,
+    gfx.draw_regular_polygon(
+        Vec2::new(x + MODAL_W * 0.5, y + TITLE_BASELINE + 20.0),
         4,
         5.0,
-        0.0,
+        0.0_f32.to_radians(),
         ctx.colors.gold,
     );
 
@@ -189,18 +187,17 @@ pub fn draw(ctx: &GameContext, poem_font: &PoemFont, scroll_y: &mut f32) {
     } else {
         "[Tab] or [F1] to close"
     };
-    let hw = measure_text(hint, None, 13, 1.0).width;
-    draw_text(
+    let hw = gfx.measure_text(hint, 13.0).width;
+    gfx.draw_text(
         hint,
-        x + (MODAL_W - hw) * 0.5,
-        y + MODAL_H - 20.0,
+        Vec2::new(x + (MODAL_W - hw) * 0.5, y + MODAL_H - 20.0),
         13.0,
         DIM,
     );
 
     // ─── 10. Scroll indicator ───
     if max_scroll > 0.0 {
-        draw_scroll_indicator(x, y, scroll, max_scroll, visible_h, content_h);
+        draw_scroll_indicator(gfx, x, y, scroll, max_scroll, visible_h, content_h);
     }
 }
 
@@ -225,10 +222,16 @@ fn content_height() -> f32 {
 
 // ---------- Content rendering ----------
 
-fn draw_content(left: f32, content_top: f32, gold: Color, poem_font: &PoemFont) {
+fn draw_content(
+    gfx: &mut dyn RenderingServer,
+    left: f32,
+    content_top: f32,
+    gold: Color,
+    poem_font: &PoemFont,
+) {
     // ── Section: The Six Jades ──
     let mut py = content_top + CONTENT_TOP_PAD + HEADER_LINE_H;
-    section_header(left, py, "THE SIX JADES");
+    section_header(gfx, left, py, "THE SIX JADES");
     py += HEADER_TO_CONTENT;
     let first_row_center = py;
 
@@ -240,14 +243,14 @@ fn draw_content(left: f32, content_top: f32, gold: Color, poem_font: &PoemFont) 
     let col2_x = left + (MODAL_W - 2.0 * PAD) * 0.5 + 24.0;
     for (i, (j_left, j_right)) in jade_rows.iter().enumerate() {
         let row_center = first_row_center + i as f32 * JADE_ROW_STRIDE;
-        draw_jade_entry(*j_left, left, row_center, poem_font);
-        draw_jade_entry(*j_right, col2_x, row_center, poem_font);
+        draw_jade_entry(gfx, *j_left, left, row_center, poem_font);
+        draw_jade_entry(gfx, *j_right, col2_x, row_center, poem_font);
     }
     py = first_row_center + 2.0 * JADE_ROW_STRIDE + JADE_ROW_BOTTOM;
 
     // ── Section: How to Play ──
     py += CONTENT_TO_HEADER;
-    section_header(left, py, "HOW TO PLAY");
+    section_header(gfx, left, py, "HOW TO PLAY");
     py += HEADER_TO_CONTENT;
     let rules = [
         "Click a jade, then click an adjacent jade to swap them.",
@@ -256,14 +259,14 @@ fn draw_content(left: f32, content_top: f32, gold: Color, poem_font: &PoemFont) 
         "cascades multiply your score.",
     ];
     for line in rules {
-        draw_text(line, left, py, 15.0, IVORY);
+        gfx.draw_text(line, Vec2::new(left, py), 15.0, IVORY);
         py += LINE_STRIDE;
     }
     py -= LINE_STRIDE;
 
     // ── Section: Objectives ──
     py += CONTENT_TO_HEADER;
-    section_header(left, py, "OBJECTIVES");
+    section_header(gfx, left, py, "OBJECTIVES");
     py += HEADER_TO_CONTENT;
     let objectives = [
         ("Score N", "reach N points"),
@@ -271,14 +274,14 @@ fn draw_content(left: f32, content_top: f32, gold: Color, poem_font: &PoemFont) 
         ("Trigger N cascades", "chain N cascade reactions"),
     ];
     for (label, desc) in objectives {
-        draw_key_value(left, py, label, desc, gold);
+        draw_key_value(gfx, left, py, label, desc, gold);
         py += LINE_STRIDE;
     }
     py -= LINE_STRIDE;
 
     // ── Section: Controls ──
     py += CONTENT_TO_HEADER;
-    section_header(left, py, "CONTROLS");
+    section_header(gfx, left, py, "CONTROLS");
     py += HEADER_TO_CONTENT;
     let controls = [
         ("Click", "select / swap a jade"),
@@ -287,40 +290,62 @@ fn draw_content(left: f32, content_top: f32, gold: Color, poem_font: &PoemFont) 
         ("Esc", "back to menu"),
     ];
     for (key, desc) in controls {
-        draw_key_value(left, py, key, desc, gold);
+        draw_key_value(gfx, left, py, key, desc, gold);
         py += LINE_STRIDE;
     }
 }
 
-fn section_header(x: f32, y: f32, label: &str) {
-    draw_text(label, x, y, HEADER_LINE_H, SEPIA);
+fn section_header(gfx: &mut dyn RenderingServer, x: f32, y: f32, label: &str) {
+    gfx.draw_text(label, Vec2::new(x, y), HEADER_LINE_H, SEPIA);
 }
 
-fn draw_key_value(x: f32, y: f32, label: &str, desc: &str, label_color: Color) {
-    draw_text(label, x, y, 15.0, label_color);
-    let lw = measure_text(label, None, 15, 1.0).width;
-    draw_text(desc, x + lw + 24.0, y, 15.0, IVORY);
+fn draw_key_value(
+    gfx: &mut dyn RenderingServer,
+    x: f32,
+    y: f32,
+    label: &str,
+    desc: &str,
+    label_color: Color,
+) {
+    gfx.draw_text(label, Vec2::new(x, y), 15.0, label_color);
+    let lw = gfx.measure_text(label, 15.0).width;
+    gfx.draw_text(desc, Vec2::new(x + lw + 24.0, y), 15.0, IVORY);
 }
 
-fn draw_jade_entry(jade: Jade, x: f32, y: f32, poem_font: &PoemFont) {
+fn draw_jade_entry(
+    gfx: &mut dyn RenderingServer,
+    jade: Jade,
+    x: f32,
+    y: f32,
+    poem_font: &PoemFont,
+) {
     let icon_size = 56.0;
     let seed = 100 + jade.index() as u32 * 7;
-    draw_tile(jade, x, y - icon_size * 0.5, icon_size, 1.0, 1.0, seed);
+    draw_tile(gfx, jade, x, y - icon_size * 0.5, icon_size, 1.0, 1.0, seed);
 
     let text_x = x + icon_size + 18.0;
-    poem_font.draw(jade.chinese_name(), text_x, y + 6.0, 24.0, IVORY);
+    poem_font.draw(gfx, jade.chinese_name(), text_x, y + 6.0, 24.0, IVORY);
 
-    let cw = poem_font.measure(jade.chinese_name(), 24.0).width;
-    draw_text(jade.latin_name(), text_x + cw + 14.0, y + 6.0, 18.0, SEPIA);
+    let cw = poem_font.measure(gfx, jade.chinese_name(), 24.0).width;
+    gfx.draw_text(
+        jade.latin_name(),
+        Vec2::new(text_x + cw + 14.0, y + 6.0),
+        18.0,
+        SEPIA,
+    );
 
-    draw_text(meaning_of(jade), text_x, y + 28.0, 14.0, SEPIA);
+    gfx.draw_text(meaning_of(jade), Vec2::new(text_x, y + 28.0), 14.0, SEPIA);
 }
 
-fn draw_frame(x: f32, y: f32, w: f32, h: f32, gold: Color) {
+fn draw_frame(gfx: &mut dyn RenderingServer, x: f32, y: f32, w: f32, h: f32, gold: Color) {
     // Outer thick line
-    draw_rectangle_lines(x, y, w, h, 2.0, gold);
+    gfx.draw_rect_outline(Rect::new(x, y, w, h), 2.0, gold);
     // Inner thin line
-    draw_rectangle_lines(x + 8.0, y + 8.0, w - 16.0, h - 16.0, 1.0, MODAL_INNER_FRAME);
+    gfx.draw_rect_outline(
+        Rect::new(x + 8.0, y + 8.0, w - 16.0, h - 16.0),
+        1.0,
+        MODAL_INNER_FRAME,
+    );
     // Corner diamonds at the inner frame corners
     let size = 6.0;
     for (cx, cy) in [
@@ -329,11 +354,12 @@ fn draw_frame(x: f32, y: f32, w: f32, h: f32, gold: Color) {
         (x + 8.0, y + h - 8.0),
         (x + w - 8.0, y + h - 8.0),
     ] {
-        draw_poly(cx, cy, 4, size, 0.0, gold);
+        gfx.draw_regular_polygon(Vec2::new(cx, cy), 4, size, 0.0_f32.to_radians(), gold);
     }
 }
 
 fn draw_scroll_indicator(
+    gfx: &mut dyn RenderingServer,
     modal_x: f32,
     modal_y: f32,
     scroll: f32,
@@ -350,13 +376,16 @@ fn draw_scroll_indicator(
     }
 
     // Track
-    draw_rectangle(track_x, track_top, 2.0, track_h, MODAL_INNER_FRAME);
+    gfx.draw_rect(
+        Rect::new(track_x, track_top, 2.0, track_h),
+        MODAL_INNER_FRAME,
+    );
 
     // Thumb
     let thumb_h = (visible_h / content_h) * track_h;
     let thumb_y = track_top + (scroll / max_scroll) * (track_h - thumb_h);
     let thumb_color = Color::new(0.65, 0.55, 0.35, 0.9);
-    draw_rectangle(track_x - 2.0, thumb_y, 6.0, thumb_h, thumb_color);
+    gfx.draw_rect(Rect::new(track_x - 2.0, thumb_y, 6.0, thumb_h), thumb_color);
 }
 
 /// One-line meaning per jade.

@@ -20,11 +20,11 @@
 //! 7. White rim.
 //! 8. Specular sparkle at the top-left.
 //!
-//! All `draw_*` functions use macroquad and are not unit-tested.
+//! All `draw_*` functions draw through the `RenderingServer` and are not unit-tested.
 //! Pure helpers are testable headless.
 
+use ember::prelude::*;
 use glam::Vec2;
-use macroquad::prelude::*;
 
 use crate::components::{Jade, JadeShape};
 use crate::util::hash_u32;
@@ -41,7 +41,7 @@ pub const VEINS_PER_TILE: usize = 3;
 /// Number of points per vein (quadratic Bézier: 3 points).
 pub const VEIN_POINTS: usize = 3;
 
-/// Converts a base colour (0-255) into a macroquad `Color`.
+/// Converts a base colour (0-255) into a `Color`.
 pub fn jade_color_base(jade: Jade) -> Color {
     let (r, g, b) = jade.base_rgb();
     Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0)
@@ -121,7 +121,17 @@ pub fn generate_veins(seed: u32, size: f32) -> Vec<[Vec2; VEIN_POINTS]> {
 /// - `scale`: size multiplier (1.0 = normal, 0.0 = invisible).
 /// - `alpha`: global opacity.
 /// - `vein_seed`: deterministic seed for facet/vein details.
-pub fn draw_tile(jade: Jade, x: f32, y: f32, size: f32, scale: f32, alpha: f32, vein_seed: u32) {
+#[allow(clippy::too_many_arguments)]
+pub fn draw_tile(
+    gfx: &mut dyn RenderingServer,
+    jade: Jade,
+    x: f32,
+    y: f32,
+    size: f32,
+    scale: f32,
+    alpha: f32,
+    vein_seed: u32,
+) {
     if scale <= 0.01 || alpha <= 0.01 {
         return;
     }
@@ -142,23 +152,21 @@ pub fn draw_tile(jade: Jade, x: f32, y: f32, size: f32, scale: f32, alpha: f32, 
         let f = i as f32;
         let off = s * (0.035 + f * 0.025);
         let a = 0.30 * alpha * (1.0 - f * 0.28);
-        draw_poly(
-            cx + off,
-            cy + off,
+        gfx.draw_regular_polygon(
+            Vec2::new(cx + off, cy + off),
             sides,
             r * (1.01 + f * 0.015),
-            rot,
+            f32::to_radians(rot),
             Color::new(0.0, 0.0, 0.0, a),
         );
     }
 
     // 2. Deep rim (near-black copy of the shape).
-    draw_poly(
-        cx,
-        cy,
+    gfx.draw_regular_polygon(
+        Vec2::new(cx, cy),
         sides,
         r,
-        rot,
+        f32::to_radians(rot),
         Color::new(deep.r, deep.g, deep.b, alpha),
     );
 
@@ -175,52 +183,55 @@ pub fn draw_tile(jade: Jade, x: f32, y: f32, size: f32, scale: f32, alpha: f32, 
             dark.b * (1.0 - t) + base.b * t,
             alpha,
         );
-        draw_poly(cx, cy + dy, sides, rr, rot, c);
+        gfx.draw_regular_polygon(Vec2::new(cx, cy + dy), sides, rr, f32::to_radians(rot), c);
     }
 
     // 4. Top sheen — a small bright polygon near the top of the body.
     let sheen = Color::new(light.r, light.g, light.b, 0.55 * alpha);
-    draw_poly(cx - r * 0.05, cy - r * 0.30, sides, r * 0.36, rot, sheen);
+    gfx.draw_regular_polygon(
+        Vec2::new(cx - r * 0.05, cy - r * 0.30),
+        sides,
+        r * 0.36,
+        f32::to_radians(rot),
+        sheen,
+    );
 
     // 5. Soft inner glow — a very faint, larger bright polygon just
     //    inside the body, gives the "polished" feel.
-    draw_poly(
-        cx,
-        cy - r * 0.04,
+    gfx.draw_regular_polygon(
+        Vec2::new(cx, cy - r * 0.04),
         sides,
         r * 0.86,
-        rot,
+        f32::to_radians(rot),
         Color::new(1.0, 1.0, 1.0, 0.06 * alpha),
     );
 
     // 6. Pulsing core glow (subtle).
-    let t_anim = get_time() as f32;
+    let t_anim = crate::clock::time() as f32;
     let phase = (vein_seed & 0xFF) as f32 * 0.05;
     let core_r = r * 0.32 * (0.85 + 0.15 * (t_anim * 2.4 + phase).sin());
     let core_a = 0.16 * alpha * (0.7 + 0.3 * (t_anim * 1.8 + phase).sin());
-    draw_circle(cx, cy, core_r, Color::new(1.0, 1.0, 1.0, core_a));
+    gfx.draw_circle(Vec2::new(cx, cy), core_r, Color::new(1.0, 1.0, 1.0, core_a));
 
     // 7. Shape-specific facets and patterns.
-    draw_jade_inner_lines(jade, cx, cy, r, sides, rot, light, alpha, vein_seed);
+    draw_jade_inner_lines(gfx, jade, cx, cy, r, sides, rot, light, alpha, vein_seed);
 
     // 8. Inner light rim (thin, just inside the shape edge).
-    draw_poly_lines(
-        cx,
-        cy - r * 0.03,
+    gfx.draw_regular_polygon_outline(
+        Vec2::new(cx, cy - r * 0.03),
         sides,
         r * 0.90,
-        rot,
+        f32::to_radians(rot),
         1.0,
         Color::new(light.r, light.g, light.b, 0.35 * alpha),
     );
 
     // 9. Bright thin outer rim.
-    draw_poly_lines(
-        cx,
-        cy,
+    gfx.draw_regular_polygon_outline(
+        Vec2::new(cx, cy),
         sides,
         r,
-        rot,
+        f32::to_radians(rot),
         1.3 * scale,
         Color::new(1.0, 1.0, 1.0, 0.45 * alpha),
     );
@@ -229,26 +240,27 @@ pub fn draw_tile(jade: Jade, x: f32, y: f32, size: f32, scale: f32, alpha: f32, 
     let sparkle_r = r * 0.11;
     let sx = cx - r * 0.30;
     let sy = cy - r * 0.36;
-    draw_circle(
-        sx,
-        sy,
+    gfx.draw_circle(
+        Vec2::new(sx, sy),
         sparkle_r * 2.2,
         Color::new(1.0, 1.0, 1.0, 0.12 * alpha),
     );
-    draw_circle(
-        sx,
-        sy,
+    gfx.draw_circle(
+        Vec2::new(sx, sy),
         sparkle_r * 1.3,
         Color::new(1.0, 1.0, 1.0, 0.35 * alpha),
     );
-    draw_circle(sx, sy, sparkle_r, Color::new(1.0, 1.0, 1.0, 0.95 * alpha));
+    gfx.draw_circle(
+        Vec2::new(sx, sy),
+        sparkle_r,
+        Color::new(1.0, 1.0, 1.0, 0.95 * alpha),
+    );
 
     // 11. Secondary sparkle — faint, bottom-right.
     let s2x = cx + r * 0.34;
     let s2y = cy + r * 0.30;
-    draw_circle(
-        s2x,
-        s2y,
+    gfx.draw_circle(
+        Vec2::new(s2x, s2y),
         sparkle_r * 0.55,
         Color::new(1.0, 1.0, 1.0, 0.45 * alpha),
     );
@@ -257,6 +269,7 @@ pub fn draw_tile(jade: Jade, x: f32, y: f32, size: f32, scale: f32, alpha: f32, 
 /// Draws the shape-specific facet lines / veins / patterns.
 #[allow(clippy::too_many_arguments)]
 fn draw_jade_inner_lines(
+    gfx: &mut dyn RenderingServer,
     jade: Jade,
     cx: f32,
     cy: f32,
@@ -273,8 +286,22 @@ fn draw_jade_inner_lines(
     match jade.shape() {
         JadeShape::Round => {
             // Concentric inner rings + a soft curved vein.
-            draw_poly_lines(cx, cy, sides, r * 0.60, rot, 1.0, c_soft);
-            draw_poly_lines(cx, cy, sides, r * 0.30, rot, 1.0, c_soft);
+            gfx.draw_regular_polygon_outline(
+                Vec2::new(cx, cy),
+                sides,
+                r * 0.60,
+                f32::to_radians(rot),
+                1.0,
+                c_soft,
+            );
+            gfx.draw_regular_polygon_outline(
+                Vec2::new(cx, cy),
+                sides,
+                r * 0.30,
+                f32::to_radians(rot),
+                1.0,
+                c_soft,
+            );
             let veins = generate_veins(vein_seed, r * 2.0);
             for vein in &veins {
                 let [start, ctrl, end] = *vein;
@@ -290,7 +317,7 @@ fn draw_jade_inner_lines(
                         om * om * s_pt.x + 2.0 * om * t * c_pt.x + t * t * e_pt.x,
                         om * om * s_pt.y + 2.0 * om * t * c_pt.y + t * t * e_pt.y,
                     );
-                    draw_line(prev.x, prev.y, p.x, p.y, 1.0, c_soft);
+                    gfx.draw_line(Vec2::new(prev.x, prev.y), Vec2::new(p.x, p.y), 1.0, c_soft);
                     prev = p;
                 }
             }
@@ -300,11 +327,9 @@ fn draw_jade_inner_lines(
             for i in 0..3u8 {
                 let a = rot + (i as f32) * std::f32::consts::TAU / 6.0;
                 let (sin_a, cos_a) = a.sin_cos();
-                draw_line(
-                    cx + cos_a * r * 0.86,
-                    cy + sin_a * r * 0.86,
-                    cx - cos_a * r * 0.86,
-                    cy - sin_a * r * 0.86,
+                gfx.draw_line(
+                    Vec2::new(cx + cos_a * r * 0.86, cy + sin_a * r * 0.86),
+                    Vec2::new(cx - cos_a * r * 0.86, cy - sin_a * r * 0.86),
                     1.0,
                     c,
                 );
@@ -315,22 +340,39 @@ fn draw_jade_inner_lines(
             for i in 0..4u8 {
                 let a = (i as f32) * std::f32::consts::FRAC_PI_2;
                 let (sin_a, cos_a) = a.sin_cos();
-                draw_line(cx, cy, cx + cos_a * r * 0.80, cy + sin_a * r * 0.80, 1.2, c);
+                gfx.draw_line(
+                    Vec2::new(cx, cy),
+                    Vec2::new(cx + cos_a * r * 0.80, cy + sin_a * r * 0.80),
+                    1.2,
+                    c,
+                );
             }
             // Small bright centre star.
-            draw_poly_lines(cx, cy, 4, r * 0.18, 0.0, 1.0, c_soft);
+            gfx.draw_regular_polygon_outline(
+                Vec2::new(cx, cy),
+                4,
+                r * 0.18,
+                0.0_f32.to_radians(),
+                1.0,
+                c_soft,
+            );
         }
         JadeShape::Octagon => {
             // Inner ring + 4 cardinal accents.
-            draw_poly_lines(cx, cy, sides, r * 0.68, rot, 1.0, c);
+            gfx.draw_regular_polygon_outline(
+                Vec2::new(cx, cy),
+                sides,
+                r * 0.68,
+                f32::to_radians(rot),
+                1.0,
+                c,
+            );
             for i in 0..4u8 {
                 let a = rot + (i as f32) * std::f32::consts::FRAC_PI_2;
                 let (sin_a, cos_a) = a.sin_cos();
-                draw_line(
-                    cx + cos_a * r * 0.68,
-                    cy + sin_a * r * 0.68,
-                    cx + cos_a * r * 0.88,
-                    cy + sin_a * r * 0.88,
+                gfx.draw_line(
+                    Vec2::new(cx + cos_a * r * 0.68, cy + sin_a * r * 0.68),
+                    Vec2::new(cx + cos_a * r * 0.88, cy + sin_a * r * 0.88),
                     1.2,
                     c,
                 );
@@ -341,31 +383,39 @@ fn draw_jade_inner_lines(
             for i in 0..5u8 {
                 let a = rot + (i as f32) * std::f32::consts::TAU / 5.0;
                 let (sin_a, cos_a) = a.sin_cos();
-                draw_line(cx, cy, cx + cos_a * r * 0.80, cy + sin_a * r * 0.80, 1.0, c);
+                gfx.draw_line(
+                    Vec2::new(cx, cy),
+                    Vec2::new(cx + cos_a * r * 0.80, cy + sin_a * r * 0.80),
+                    1.0,
+                    c,
+                );
             }
             // Small inner hexagon (like a coin stamp).
-            draw_poly_lines(cx, cy, 6, r * 0.16, 0.0, 1.0, c_soft);
+            gfx.draw_regular_polygon_outline(
+                Vec2::new(cx, cy),
+                6,
+                r * 0.16,
+                0.0_f32.to_radians(),
+                1.0,
+                c_soft,
+            );
         }
         JadeShape::Square => {
             // Inkstone: subtle horizontal striations.
             let h = vein_seed as f32 * 0.0017;
             for i in 0..3u8 {
                 let y_off = r * (-0.30 + i as f32 * 0.30 + h.sin() * 0.05);
-                draw_line(
-                    cx - r * 0.62,
-                    cy + y_off,
-                    cx + r * 0.62,
-                    cy + y_off + h.cos() * r * 0.06,
+                gfx.draw_line(
+                    Vec2::new(cx - r * 0.62, cy + y_off),
+                    Vec2::new(cx + r * 0.62, cy + y_off + h.cos() * r * 0.06),
                     0.9,
                     c_soft,
                 );
             }
             // One bright diagonal accent.
-            draw_line(
-                cx - r * 0.38,
-                cy - r * 0.38,
-                cx + r * 0.38,
-                cy + r * 0.38,
+            gfx.draw_line(
+                Vec2::new(cx - r * 0.38, cy - r * 0.38),
+                Vec2::new(cx + r * 0.38, cy + r * 0.38),
                 1.1,
                 c,
             );
@@ -374,7 +424,14 @@ fn draw_jade_inner_lines(
 }
 
 /// Draws a shape-matched golden halo behind the tile (selection).
-pub fn draw_tile_glow(jade: Jade, x: f32, y: f32, size: f32, intensity: f32) {
+pub fn draw_tile_glow(
+    gfx: &mut dyn RenderingServer,
+    jade: Jade,
+    x: f32,
+    y: f32,
+    size: f32,
+    intensity: f32,
+) {
     if intensity <= 0.01 {
         return;
     }
@@ -382,26 +439,30 @@ pub fn draw_tile_glow(jade: Jade, x: f32, y: f32, size: f32, intensity: f32) {
     let cy = y + size * 0.5;
     let (sides, rot) = jade_shape_params(jade);
 
-    draw_poly(
-        cx,
-        cy,
+    gfx.draw_regular_polygon(
+        Vec2::new(cx, cy),
         sides,
         size * 0.68,
-        rot,
+        f32::to_radians(rot),
         Color::new(1.0, 0.92, 0.55, 0.15 * intensity),
     );
-    draw_poly(
-        cx,
-        cy,
+    gfx.draw_regular_polygon(
+        Vec2::new(cx, cy),
         sides,
         size * 0.56,
-        rot,
+        f32::to_radians(rot),
         Color::new(1.0, 0.92, 0.55, 0.32 * intensity),
     );
 }
 
 /// Draws a selection indicator: 4 accented corners around the tile.
-pub fn draw_selection_corners(x: f32, y: f32, size: f32, intensity: f32) {
+pub fn draw_selection_corners(
+    gfx: &mut dyn RenderingServer,
+    x: f32,
+    y: f32,
+    size: f32,
+    intensity: f32,
+) {
     if intensity <= 0.01 {
         return;
     }
@@ -409,25 +470,41 @@ pub fn draw_selection_corners(x: f32, y: f32, size: f32, intensity: f32) {
     let thickness = 2.5;
     let c = Color::new(1.0, 0.95, 0.55, 0.85 * intensity);
 
-    draw_line(x, y, x + corner_len, y, thickness, c);
-    draw_line(x, y, x, y + corner_len, thickness, c);
-    draw_line(x + size, y, x + size - corner_len, y, thickness, c);
-    draw_line(x + size, y, x + size, y + corner_len, thickness, c);
-    draw_line(x, y + size, x + corner_len, y + size, thickness, c);
-    draw_line(x, y + size, x, y + size - corner_len, thickness, c);
-    draw_line(
-        x + size,
-        y + size,
-        x + size - corner_len,
-        y + size,
+    gfx.draw_line(Vec2::new(x, y), Vec2::new(x + corner_len, y), thickness, c);
+    gfx.draw_line(Vec2::new(x, y), Vec2::new(x, y + corner_len), thickness, c);
+    gfx.draw_line(
+        Vec2::new(x + size, y),
+        Vec2::new(x + size - corner_len, y),
         thickness,
         c,
     );
-    draw_line(
-        x + size,
-        y + size,
-        x + size,
-        y + size - corner_len,
+    gfx.draw_line(
+        Vec2::new(x + size, y),
+        Vec2::new(x + size, y + corner_len),
+        thickness,
+        c,
+    );
+    gfx.draw_line(
+        Vec2::new(x, y + size),
+        Vec2::new(x + corner_len, y + size),
+        thickness,
+        c,
+    );
+    gfx.draw_line(
+        Vec2::new(x, y + size),
+        Vec2::new(x, y + size - corner_len),
+        thickness,
+        c,
+    );
+    gfx.draw_line(
+        Vec2::new(x + size, y + size),
+        Vec2::new(x + size - corner_len, y + size),
+        thickness,
+        c,
+    );
+    gfx.draw_line(
+        Vec2::new(x + size, y + size),
+        Vec2::new(x + size, y + size - corner_len),
         thickness,
         c,
     );

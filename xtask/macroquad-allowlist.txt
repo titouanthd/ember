@@ -23,4 +23,3 @@ crates/ember-stdlib/src/ui/
 games/accretion/
 games/bore-inc/
 games/ember-wars/
-games/jade-garden/

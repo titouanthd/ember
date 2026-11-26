@@ -8,8 +8,8 @@
 //! Layout: 4 chapters × 3 levels, scrollable. Right side is an info
 //! panel for the hovered level. All user-facing strings are English.
 
+use ember::prelude::*;
 use glam::Vec2;
-use macroquad::prelude::*;
 
 use crate::config::GameContext;
 use crate::fonts::PoemFont;
@@ -20,7 +20,7 @@ use crate::util::fmt_time;
 // ---------- Local palette (does not depend on .env) ----------
 
 mod palette {
-    use macroquad::prelude::*;
+    use ember::prelude::*;
 
     // Dark lacquer background gradient.
     pub const BG_TOP: Color = Color::new(0.105, 0.080, 0.055, 1.0);
@@ -69,6 +69,10 @@ pub struct Menu {
     hovered: Option<usize>,
     scroll_y: f32,
     max_scroll: f32,
+    /// The pointer and Ctrl state of the last `tick`, for drawing the
+    /// debug buttons (was read straight from macroquad in `draw`).
+    mouse: Vec2,
+    ctrl_down: bool,
 }
 
 impl Menu {
@@ -80,28 +84,37 @@ impl Menu {
             hovered: None,
             scroll_y: 0.0,
             max_scroll: 0.0,
+            mouse: Vec2::ZERO,
+            ctrl_down: false,
         }
     }
 
     // ---------- Public API ----------
 
-    pub fn tick(&mut self, _dt: f32, mouse: Vec2, click: bool) -> Option<MenuAction> {
-        let vw = screen_width();
-        let vh = screen_height();
+    /// `viewport` is the window size (was macroquad's `screen_width` /
+    /// `screen_height`); `dt` drives the arrow-key scroll (was
+    /// `get_frame_time`).
+    pub fn tick(&mut self, dt: f32, input: &Input, viewport: Vec2) -> Option<MenuAction> {
+        let (vw, vh) = (viewport.x, viewport.y);
+        let mouse = input.mouse_pos;
+        let click = input.mouse_left_pressed;
+        self.mouse = mouse;
+        self.ctrl_down =
+            input.is_key_down(Key::LeftControl) || input.is_key_down(Key::RightControl);
 
         let content_h = self.total_height();
         let visible_h = (vh - FOOTER_H - CONTENT_BOTTOM_RESERVE - CONTENT_TOP).max(1.0);
         self.max_scroll = (content_h - visible_h).max(0.0);
 
-        let (_, wy) = mouse_wheel();
+        let wy = input.mouse_wheel.y;
         if wy.abs() > 0.0 {
             self.scroll_y = (self.scroll_y - wy * 40.0).clamp(0.0, self.max_scroll);
         }
-        let step = 500.0 * get_frame_time();
-        if is_key_down(KeyCode::Down) {
+        let step = 500.0 * dt;
+        if input.is_key_down(Key::Down) {
             self.scroll_y = (self.scroll_y + step).min(self.max_scroll);
         }
-        if is_key_down(KeyCode::Up) {
+        if input.is_key_down(Key::Up) {
             self.scroll_y = (self.scroll_y - step).max(0.0);
         }
 
@@ -126,9 +139,7 @@ impl Menu {
         // Debug-only buttons (visible only while Ctrl is held).
         #[cfg(debug_assertions)]
         {
-            let debug_visible =
-                is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
-            if debug_visible {
+            if self.ctrl_down {
                 let scare = debug_scare_button_rect(vw, vh);
                 if click && rect_contains(scare, mouse.x, mouse.y) {
                     return Some(MenuAction::DebugHalloween);
@@ -159,22 +170,35 @@ impl Menu {
     ///   3. Info panel (right side, within content region)
     ///   4. Header bar (opaque, drawn LAST to cover any bleed)
     ///   5. Footer bar (opaque, drawn LAST to cover any bleed)
-    pub fn draw(&self, _ctx: &GameContext, _poem_font: &PoemFont) {
-        let vw = screen_width();
-        let vh = screen_height();
+    pub fn draw(&self, gfx: &mut dyn RenderingServer, _ctx: &GameContext, _poem_font: &PoemFont) {
+        let vw = gfx.viewport().w;
+        let vh = gfx.viewport().h;
 
-        draw_background(vw, vh);
+        draw_background(gfx, vw, vh);
 
         let base_y = CONTENT_TOP - self.scroll_y;
-        self.draw_chapters(vw, base_y);
-        self.draw_info_panel(vw, vh);
+        self.draw_chapters(gfx, vw, base_y);
+        self.draw_info_panel(gfx, vw, vh);
 
         // Opaque header & footer drawn LAST so nothing bleeds.
-        self.draw_header(vw);
-        self.draw_footer(vw, vh);
+        self.draw_header(gfx, vw);
+        self.draw_footer(gfx, vw, vh);
     }
 
     // ---------- Unlock logic ----------
+
+    /// Where level `level_idx`'s card sits at the current scroll, for a
+    /// `viewport`-sized window (the rect `tick` hit-tests).
+    pub fn level_card_rect(&self, level_idx: usize, viewport: Vec2) -> Option<Rect> {
+        let base_y = CONTENT_TOP - self.scroll_y;
+        (0..self.chapters.len()).find_map(|ci| {
+            let row = self
+                .levels_of_chapter(ci)
+                .iter()
+                .position(|&li| li == level_idx)?;
+            Some(level_rect(row, viewport.x, self.chapter_top_y(ci, base_y)))
+        })
+    }
 
     pub fn is_level_unlocked(&self, level_idx: usize) -> bool {
         if level_idx >= self.levels.len() {
@@ -232,11 +256,11 @@ impl Menu {
 
     // ---------- Drawing ----------
 
-    fn draw_chapters(&self, vw: f32, base_y: f32) {
+    fn draw_chapters(&self, gfx: &mut dyn RenderingServer, vw: f32, base_y: f32) {
         for ci in 0..self.chapters.len() {
             let ch_y = self.chapter_top_y(ci, base_y);
             let chapter_levels = self.levels_of_chapter(ci);
-            self.draw_chapter_header(ci, ch_y, vw);
+            self.draw_chapter_header(gfx, ci, ch_y, vw);
 
             for (row, &li) in chapter_levels.iter().enumerate() {
                 let r = level_rect(row, vw, ch_y);
@@ -245,12 +269,18 @@ impl Menu {
                 let stars = self.progress.level_stars(&level.id);
                 let best = self.progress.level_best_score(&level.id);
                 let hovered = self.hovered == Some(li) && unlocked;
-                self.draw_level_card(level, r, stars, best, unlocked, hovered, li);
+                self.draw_level_card(gfx, level, r, stars, best, unlocked, hovered, li);
             }
         }
     }
 
-    fn draw_chapter_header(&self, chapter_idx: usize, y: f32, vw: f32) {
+    fn draw_chapter_header(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        chapter_idx: usize,
+        y: f32,
+        vw: f32,
+    ) {
         use palette::*;
 
         let cx = content_origin_x(vw);
@@ -259,43 +289,46 @@ impl Menu {
         let unlocked = self.is_chapter_unlocked(chapter_idx);
 
         // "CHAPTER N" eyebrow.
-        draw_text(
-            format!("CHAPTER {}", chapter_idx + 1),
-            cx,
-            y + 22.0,
+        gfx.draw_text(
+            &format!("CHAPTER {}", chapter_idx + 1),
+            Vec2::new(cx, y + 22.0),
             11.0,
             if unlocked { SEPIA } else { SEPIA_DIM },
         );
 
         // Chapter name — large and proud.
-        draw_text(
+        gfx.draw_text(
             &chapter.name,
-            cx,
-            y + 66.0,
+            Vec2::new(cx, y + 66.0),
             30.0,
             if unlocked { GOLD } else { SEPIA_DIM },
         );
 
         // Subtitle below.
-        draw_text(
+        gfx.draw_text(
             &chapter.subtitle,
-            cx,
-            y + 98.0,
+            Vec2::new(cx, y + 98.0),
             12.0,
             if unlocked { SEPIA } else { SEPIA_DIM },
         );
 
         // Separator with a small gold diamond at the left.
         let sep_y = y + 122.0;
-        draw_line(cx + 12.0, sep_y, cx + lw, sep_y, 1.0, PANEL_INNER);
+        gfx.draw_line(
+            Vec2::new(cx + 12.0, sep_y),
+            Vec2::new(cx + lw, sep_y),
+            1.0,
+            PANEL_INNER,
+        );
         if unlocked {
-            draw_rectangle(cx - 3.0, sep_y - 3.0, 6.0, 6.0, GOLD);
+            gfx.draw_rect(Rect::new(cx - 3.0, sep_y - 3.0, 6.0, 6.0), GOLD);
         }
     }
 
     #[allow(clippy::too_many_arguments)]
     fn draw_level_card(
         &self,
+        gfx: &mut dyn RenderingServer,
         level: &LevelConfig,
         r: Rect,
         stars: u8,
@@ -307,7 +340,7 @@ impl Menu {
         use palette::*;
 
         let pulse = if hovered {
-            0.72 + 0.28 * (get_time() as f32 * 3.5).sin()
+            0.72 + 0.28 * (crate::clock::time() as f32 * 3.5).sin()
         } else {
             1.0
         };
@@ -326,24 +359,22 @@ impl Menu {
             (CARD_BG, CARD_BORDER, SEPIA_DIM)
         };
 
-        draw_rectangle(r.x, r.y, r.w, r.h, bg);
-        draw_rectangle(r.x, r.y, 3.0, r.h, accent);
-        draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.0, border);
+        gfx.draw_rect(Rect::new(r.x, r.y, r.w, r.h), bg);
+        gfx.draw_rect(Rect::new(r.x, r.y, 3.0, r.h), accent);
+        gfx.draw_rect_outline(Rect::new(r.x, r.y, r.w, r.h), 1.0, border);
 
         // Level index "01".
-        draw_text(
-            format!("{:02}", global_idx + 1),
-            r.x + 20.0,
-            r.y + 36.0,
+        gfx.draw_text(
+            &format!("{:02}", global_idx + 1),
+            Vec2::new(r.x + 20.0, r.y + 36.0),
             13.0,
             if unlocked { GOLD_SOFT } else { SEPIA_DIM },
         );
 
         // Level name.
-        draw_text(
+        gfx.draw_text(
             &level.name,
-            r.x + 60.0,
-            r.y + 38.0,
+            Vec2::new(r.x + 60.0, r.y + 38.0),
             20.0,
             if unlocked { IVORY } else { SEPIA_DIM },
         );
@@ -354,44 +385,43 @@ impl Menu {
             objective_label(level.objective),
             level.moves,
         );
-        draw_text(
-            meta,
-            r.x + 60.0,
-            r.y + 64.0,
+        gfx.draw_text(
+            &meta,
+            Vec2::new(r.x + 60.0, r.y + 64.0),
             13.0,
             if unlocked { SEPIA } else { SEPIA_DIM },
         );
 
         // Stars + thresholds, top-right.
-        draw_star_rating_with_thresholds(r, stars, unlocked, level);
+        draw_star_rating_with_thresholds(gfx, r, stars, unlocked, level);
 
         // Best score, bottom-right.
         if unlocked && best > 0 {
             let txt = format!("BEST {}", best);
-            let dim = measure_text(&txt, None, 12, 1.0);
-            draw_text(
-                txt,
-                r.x + r.w - 24.0 - dim.width,
-                r.y + r.h - 14.0,
+            let dim = gfx.measure_text(&txt, 12.0);
+            gfx.draw_text(
+                &txt,
+                Vec2::new(r.x + r.w - 24.0 - dim.width, r.y + r.h - 14.0),
                 12.0,
                 GOLD_SOFT,
             );
         }
     }
 
-    fn draw_info_panel(&self, vw: f32, vh: f32) {
+    fn draw_info_panel(&self, gfx: &mut dyn RenderingServer, vw: f32, vh: f32) {
         use palette::*;
 
         let panel = info_panel_rect(vw, vh);
 
         // Panel background + double gold frame (traditional mount).
-        draw_rectangle(panel.x, panel.y, panel.w, panel.h, PANEL_BG);
-        draw_rectangle_lines(panel.x, panel.y, panel.w, panel.h, 1.5, PANEL_FRAME);
-        draw_rectangle_lines(
-            panel.x + 5.0,
-            panel.y + 5.0,
-            panel.w - 10.0,
-            panel.h - 10.0,
+        gfx.draw_rect(Rect::new(panel.x, panel.y, panel.w, panel.h), PANEL_BG);
+        gfx.draw_rect_outline(
+            Rect::new(panel.x, panel.y, panel.w, panel.h),
+            1.5,
+            PANEL_FRAME,
+        );
+        gfx.draw_rect_outline(
+            Rect::new(panel.x + 5.0, panel.y + 5.0, panel.w - 10.0, panel.h - 10.0),
             1.0,
             PANEL_INNER,
         );
@@ -402,7 +432,7 @@ impl Menu {
         let level_idx = match self.hovered {
             Some(i) => i,
             None => {
-                draw_text("Hover a mission", x, panel.y + 44.0, 14.0, SEPIA);
+                gfx.draw_text("Hover a mission", Vec2::new(x, panel.y + 44.0), 14.0, SEPIA);
                 return;
             }
         };
@@ -416,30 +446,29 @@ impl Menu {
         let mut y = panel.y + 38.0;
 
         // Eyebrow.
-        draw_text(
-            format!("CHAPTER {} — {}", level.chapter + 1, chapter.name),
-            x,
-            y,
+        gfx.draw_text(
+            &format!("CHAPTER {} — {}", level.chapter + 1, chapter.name),
+            Vec2::new(x, y),
             11.0,
             SEPIA,
         );
         y += 32.0;
 
         // Level name — big, ivory.
-        draw_text(&level.name, x, y, 22.0, IVORY);
+        gfx.draw_text(&level.name, Vec2::new(x, y), 22.0, IVORY);
         y += 22.0;
-        draw_line(x, y, x + w, y, 1.0, PANEL_INNER);
+        gfx.draw_line(Vec2::new(x, y), Vec2::new(x + w, y), 1.0, PANEL_INNER);
         y += 28.0;
 
         // Section: Objective.
-        draw_section(x, y, "OBJECTIVE", &objective_label(level.objective));
+        draw_section(gfx, x, y, "OBJECTIVE", &objective_label(level.objective));
         y += 62.0;
 
         // Section: Moves.
-        draw_section(x, y, "MOVES", &format!("{}", level.moves));
+        draw_section(gfx, x, y, "MOVES", &format!("{}", level.moves));
         y += 62.0;
 
-        draw_line(x, y, x + w, y, 1.0, PANEL_INNER);
+        gfx.draw_line(Vec2::new(x, y), Vec2::new(x + w, y), 1.0, PANEL_INNER);
         y += 28.0;
 
         // Section: Stars — one line per tier.
@@ -448,7 +477,7 @@ impl Menu {
         // the actual requirement is completing the objective, not
         // reaching the numeric star_target (which only gates tiers 2
         // and 3). Tiers 2 and 3 are always score thresholds.
-        draw_text("STARS", x, y, 10.0, SEPIA);
+        gfx.draw_text("STARS", Vec2::new(x, y), 10.0, SEPIA);
         y += 26.0;
 
         for tier in 1..=3u8 {
@@ -467,10 +496,10 @@ impl Menu {
 
             let label = star_tier_label(level, tier);
 
-            draw_text(&star_str, x, y, 16.0, star_color);
-            draw_text(&label, x + 62.0, y, 14.0, thr_color);
+            gfx.draw_text(&star_str, Vec2::new(x, y), 16.0, star_color);
+            gfx.draw_text(&label, Vec2::new(x + 62.0, y), 14.0, thr_color);
             if is_achieved {
-                draw_text("✓", x + 130.0, y, 14.0, GOLD);
+                gfx.draw_text("✓", Vec2::new(x + 130.0, y), 14.0, GOLD);
             }
             y += 22.0;
         }
@@ -478,14 +507,14 @@ impl Menu {
 
         // Best score + its time.
         if unlocked && best > 0 {
-            draw_text("BEST SCORE", x, y, 10.0, SEPIA);
+            gfx.draw_text("BEST SCORE", Vec2::new(x, y), 10.0, SEPIA);
             y += 20.0;
             let score_line = if let Some(t) = self.progress.best_time_for_score(&level.id) {
                 format!("{best}   ·   {}", fmt_time(t))
             } else {
                 format!("{best}")
             };
-            draw_text(&score_line, x, y, 16.0, GOLD);
+            gfx.draw_text(&score_line, Vec2::new(x, y), 16.0, GOLD);
             y += 26.0;
 
             // Star times, if we have any.
@@ -494,48 +523,72 @@ impl Menu {
                     || times.time_2_star.is_some()
                     || times.time_3_star.is_some();
                 if has_any {
-                    draw_text("BEST TIMES", x, y, 10.0, SEPIA);
+                    gfx.draw_text("BEST TIMES", Vec2::new(x, y), 10.0, SEPIA);
                     y += 18.0;
                     if let Some(s) = times.time_1_star {
-                        draw_text(format!("★    {}", fmt_time(s)), x, y, 13.0, GOLD_SOFT);
+                        gfx.draw_text(
+                            &format!("★    {}", fmt_time(s)),
+                            Vec2::new(x, y),
+                            13.0,
+                            GOLD_SOFT,
+                        );
                         y += 16.0;
                     }
                     if let Some(s) = times.time_2_star {
-                        draw_text(format!("★★   {}", fmt_time(s)), x, y, 13.0, GOLD_SOFT);
+                        gfx.draw_text(
+                            &format!("★★   {}", fmt_time(s)),
+                            Vec2::new(x, y),
+                            13.0,
+                            GOLD_SOFT,
+                        );
                         y += 16.0;
                     }
                     if let Some(s) = times.time_3_star {
-                        draw_text(format!("★★★  {}", fmt_time(s)), x, y, 13.0, GOLD_SOFT);
+                        gfx.draw_text(
+                            &format!("★★★  {}", fmt_time(s)),
+                            Vec2::new(x, y),
+                            13.0,
+                            GOLD_SOFT,
+                        );
                     }
                 }
             }
         }
 
         if !unlocked {
-            draw_text(
+            gfx.draw_text(
                 "Complete the previous mission",
-                x,
-                panel.y + panel.h - 28.0,
+                Vec2::new(x, panel.y + panel.h - 28.0),
                 12.0,
                 CINNABAR,
             );
         }
     }
 
-    fn draw_header(&self, vw: f32) {
+    fn draw_header(&self, gfx: &mut dyn RenderingServer, vw: f32) {
         use palette::*;
 
         // Opaque bar.
-        draw_rectangle(0.0, 0.0, vw, HEADER_H, BAR_BG);
-        draw_line(0.0, HEADER_H, vw, HEADER_H, 1.5, BAR_BORDER);
+        gfx.draw_rect(Rect::new(0.0, 0.0, vw, HEADER_H), BAR_BG);
+        gfx.draw_line(
+            Vec2::new(0.0, HEADER_H),
+            Vec2::new(vw, HEADER_H),
+            1.5,
+            BAR_BORDER,
+        );
 
         let cx = content_origin_x(vw);
 
         // Title + underline.
-        draw_text("JADE GARDEN", cx, 50.0, 30.0, GOLD);
-        let dim_title = measure_text("JADE GARDEN", None, 30, 1.0);
-        draw_line(cx, 58.0, cx + dim_title.width, 58.0, 1.0, GOLD_SOFT);
-        draw_text("CAMPAIGN", cx, 76.0, 11.0, SEPIA);
+        gfx.draw_text("JADE GARDEN", Vec2::new(cx, 50.0), 30.0, GOLD);
+        let dim_title = gfx.measure_text("JADE GARDEN", 30.0);
+        gfx.draw_line(
+            Vec2::new(cx, 58.0),
+            Vec2::new(cx + dim_title.width, 58.0),
+            1.0,
+            GOLD_SOFT,
+        );
+        gfx.draw_text("CAMPAIGN", Vec2::new(cx, 76.0), 11.0, SEPIA);
 
         // Right side: poem progress.
         let poem_txt = format!(
@@ -543,32 +596,50 @@ impl Menu {
             self.progress.poem_fragments,
             crate::poem::TOTAL_CHARS
         );
-        let dim_p = measure_text(&poem_txt, None, 15, 1.0);
-        draw_text(poem_txt, vw - PAD_X - dim_p.width, 46.0, 15.0, IVORY);
+        let dim_p = gfx.measure_text(&poem_txt, 15.0);
+        gfx.draw_text(
+            &poem_txt,
+            Vec2::new(vw - PAD_X - dim_p.width, 46.0),
+            15.0,
+            IVORY,
+        );
 
         let stars_txt = format!("★ {} earned", self.progress.total_stars());
-        let dim_s = measure_text(&stars_txt, None, 12, 1.0);
-        draw_text(stars_txt, vw - PAD_X - dim_s.width, 70.0, 12.0, GOLD_SOFT);
+        let dim_s = gfx.measure_text(&stars_txt, 12.0);
+        gfx.draw_text(
+            &stars_txt,
+            Vec2::new(vw - PAD_X - dim_s.width, 70.0),
+            12.0,
+            GOLD_SOFT,
+        );
     }
 
-    fn draw_footer(&self, vw: f32, vh: f32) {
+    fn draw_footer(&self, gfx: &mut dyn RenderingServer, vw: f32, vh: f32) {
         use palette::*;
 
         // Opaque bar.
-        draw_rectangle(0.0, vh - FOOTER_H, vw, FOOTER_H, BAR_BG);
-        draw_line(0.0, vh - FOOTER_H, vw, vh - FOOTER_H, 1.5, BAR_BORDER);
+        gfx.draw_rect(Rect::new(0.0, vh - FOOTER_H, vw, FOOTER_H), BAR_BG);
+        gfx.draw_line(
+            Vec2::new(0.0, vh - FOOTER_H),
+            Vec2::new(vw, vh - FOOTER_H),
+            1.5,
+            BAR_BORDER,
+        );
 
         let hint = "Click a mission   |   Scroll ↑↓ or wheel   |   [Tab] Help   |   [Esc] Quit";
-        let dim = measure_text(hint, None, 14, 1.0);
-        draw_text(hint, vw * 0.5 - dim.width * 0.5, vh - 16.0, 14.0, SEPIA);
+        let dim = gfx.measure_text(hint, 14.0);
+        gfx.draw_text(
+            hint,
+            Vec2::new(vw * 0.5 - dim.width * 0.5, vh - 16.0),
+            14.0,
+            SEPIA,
+        );
 
         #[cfg(debug_assertions)]
         {
-            let debug_visible =
-                is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
-            if debug_visible {
+            if self.ctrl_down {
                 use palette::*;
-                let mouse = Vec2::new(mouse_position().0, mouse_position().1);
+                let mouse = self.mouse;
 
                 // Epilogue button.
                 let r1 = debug_epilogue_button_rect(vw, vh);
@@ -578,14 +649,13 @@ impl Menu {
                 } else {
                     Color::new(0.18, 0.11, 0.06, 1.0)
                 };
-                draw_rectangle(r1.x, r1.y, r1.w, r1.h, bg1);
-                draw_rectangle_lines(r1.x, r1.y, r1.w, r1.h, 1.0, GOLD_SOFT);
+                gfx.draw_rect(Rect::new(r1.x, r1.y, r1.w, r1.h), bg1);
+                gfx.draw_rect_outline(Rect::new(r1.x, r1.y, r1.w, r1.h), 1.0, GOLD_SOFT);
                 let t1 = "▶ Epilogue";
-                let d1 = measure_text(t1, None, 11, 1.0);
-                draw_text(
+                let d1 = gfx.measure_text(t1, 11.0);
+                gfx.draw_text(
                     t1,
-                    r1.x + (r1.w - d1.width) * 0.5,
-                    r1.y + 15.0,
+                    Vec2::new(r1.x + (r1.w - d1.width) * 0.5, r1.y + 15.0),
                     11.0,
                     Color::new(1.0, 0.85, 0.60, 1.0),
                 );
@@ -598,14 +668,13 @@ impl Menu {
                 } else {
                     Color::new(0.28, 0.06, 0.05, 1.0)
                 };
-                draw_rectangle(r2.x, r2.y, r2.w, r2.h, bg2);
-                draw_rectangle_lines(r2.x, r2.y, r2.w, r2.h, 1.0, CINNABAR);
+                gfx.draw_rect(Rect::new(r2.x, r2.y, r2.w, r2.h), bg2);
+                gfx.draw_rect_outline(Rect::new(r2.x, r2.y, r2.w, r2.h), 1.0, CINNABAR);
                 let t2 = "☠ Scare";
-                let d2 = measure_text(t2, None, 11, 1.0);
-                draw_text(
+                let d2 = gfx.measure_text(t2, 11.0);
+                gfx.draw_text(
                     t2,
-                    r2.x + (r2.w - d2.width) * 0.5,
-                    r2.y + 15.0,
+                    Vec2::new(r2.x + (r2.w - d2.width) * 0.5, r2.y + 15.0),
                     11.0,
                     Color::new(1.0, 0.80, 0.55, 1.0),
                 );
@@ -617,7 +686,7 @@ impl Menu {
 // ---------- Free functions ----------
 
 /// Draw the vertical gradient background (covers the entire viewport).
-fn draw_background(vw: f32, vh: f32) {
+fn draw_background(gfx: &mut dyn RenderingServer, vw: f32, vh: f32) {
     use palette::*;
     const STRIPS: usize = 32;
     let strip_h = vh / STRIPS as f32;
@@ -629,14 +698,14 @@ fn draw_background(vw: f32, vh: f32) {
             BG_TOP.b * (1.0 - t) + BG_BOTTOM.b * t,
             1.0,
         );
-        draw_rectangle(0.0, i as f32 * strip_h, vw, strip_h + 1.0, c);
+        gfx.draw_rect(Rect::new(0.0, i as f32 * strip_h, vw, strip_h + 1.0), c);
     }
 }
 
-fn draw_section(x: f32, y: f32, label: &str, value: &str) {
+fn draw_section(gfx: &mut dyn RenderingServer, x: f32, y: f32, label: &str, value: &str) {
     use palette::*;
-    draw_text(label, x, y, 10.0, SEPIA);
-    draw_text(value, x, y + 22.0, 15.0, IVORY);
+    gfx.draw_text(label, Vec2::new(x, y), 10.0, SEPIA);
+    gfx.draw_text(value, Vec2::new(x, y + 22.0), 15.0, IVORY);
 }
 
 fn rect_contains(r: Rect, x: f32, y: f32) -> bool {
@@ -680,7 +749,13 @@ fn debug_epilogue_button_rect(vw: f32, vh: f32) -> Rect {
 /// under each star. The label is either a numeric score threshold
 /// (for Score levels, and for tiers 2-3 of every level) or "obj" for
 /// tier 1 of ClearJade / FillPoem levels.
-fn draw_star_rating_with_thresholds(r: Rect, stars: u8, unlocked: bool, level: &LevelConfig) {
+fn draw_star_rating_with_thresholds(
+    gfx: &mut dyn RenderingServer,
+    r: Rect,
+    stars: u8,
+    unlocked: bool,
+    level: &LevelConfig,
+) {
     use palette::*;
 
     let star_y = r.y + 30.0;
@@ -690,7 +765,7 @@ fn draw_star_rating_with_thresholds(r: Rect, stars: u8, unlocked: bool, level: &
     let total_w = 3.0 * star_size + 2.0 * gap;
     let start_x = r.x + r.w - 22.0 - total_w;
 
-    let t = get_time() as f32;
+    let t = crate::clock::time() as f32;
 
     for i in 0..3u8 {
         let tier = i + 1;
@@ -716,13 +791,18 @@ fn draw_star_rating_with_thresholds(r: Rect, stars: u8, unlocked: bool, level: &
 
         if filled {
             let glow = Color::new(GOLD.r, GOLD.g, GOLD.b, 0.25);
-            draw_text(glyph, x - 2.0, star_y + y_off - 1.5, size + 4.0, glow);
+            gfx.draw_text(
+                glyph,
+                Vec2::new(x - 2.0, star_y + y_off - 1.5),
+                size + 4.0,
+                glow,
+            );
         }
-        draw_text(glyph, x, star_y + y_off, size, color);
+        gfx.draw_text(glyph, Vec2::new(x, star_y + y_off), size, color);
 
         // Tier label below the star.
         let label = star_tier_label(level, tier);
-        let dim = measure_text(&label, None, 10, 1.0);
+        let dim = gfx.measure_text(&label, 10.0);
         let tx = x + (star_size - dim.width) * 0.5;
         let tc = if !unlocked {
             SEPIA_DIM
@@ -731,7 +811,7 @@ fn draw_star_rating_with_thresholds(r: Rect, stars: u8, unlocked: bool, level: &
         } else {
             SEPIA
         };
-        draw_text(&label, tx, star_y + 16.0, 10.0, tc);
+        gfx.draw_text(&label, Vec2::new(tx, star_y + 16.0), 10.0, tc);
     }
 }
 

@@ -4,7 +4,9 @@
 //! The player restores the jades and recomposes a Tang poem.
 
 pub mod animation;
+pub mod app;
 pub mod audio;
+pub mod clock;
 pub mod components;
 pub mod config;
 pub mod effects;
@@ -17,6 +19,7 @@ pub mod menu;
 pub mod paths;
 pub mod poem;
 pub mod progress;
+pub mod scene;
 pub mod scoring;
 pub mod scroll_painting;
 pub mod systems;

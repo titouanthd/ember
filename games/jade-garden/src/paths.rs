@@ -45,9 +45,8 @@ pub fn asset(relative: &str) -> PathBuf {
     assets_dir().join(relative)
 }
 
-/// Returns the asset path as a plain string, ready to be passed to
-/// `macroquad::file::load_string`, `load_ttf_font`, etc. On native
-/// this is a filesystem path; on web it's a URL relative to the page.
+/// Returns the asset path as a plain string. On native this is a
+/// filesystem path; on web it's a URL relative to the page.
 pub fn asset_str(relative: &str) -> String {
     asset(relative).to_string_lossy().into_owned()
 }

@@ -1,9 +1,8 @@
 //! Jade Garden feedback: radial rays and the vignette pulse, layered on top
-//! of the shared `ember_stdlib::juice::Juice`.
+//! of the shared `ember_stdlib::fx::Juice` (ADR-046).
 
-use ember_stdlib::juice::{Juice, JuiceConfig, Particle};
-use glam::Vec2;
-use macroquad::prelude::*;
+use ember::prelude::*;
+use ember_stdlib::fx::{Juice, JuiceConfig, Particle};
 use std::ops::{Deref, DerefMut};
 
 pub const DEATH_PARTICLE_LIFE: f32 = 0.65;
@@ -156,7 +155,7 @@ impl Effects {
 
 // ---------- Drawing ----------
 
-pub fn draw_radial_rays(juice: &Effects, shake: Vec2) {
+pub fn draw_radial_rays(gfx: &mut dyn RenderingServer, juice: &Effects, shake: Vec2) {
     for r in &juice.rays {
         let t = 1.0 - (r.life / r.max_life).clamp(0.0, 1.0);
         let alpha = (1.0 - t).powf(1.2) * r.color.a;
@@ -164,25 +163,23 @@ pub fn draw_radial_rays(juice: &Effects, shake: Vec2) {
         let dx = r.angle.cos() * len;
         let dy = r.angle.sin() * len;
         let c = Color::new(r.color.r, r.color.g, r.color.b, alpha);
-        draw_line(
-            r.pos.x + shake.x,
-            r.pos.y + shake.y,
-            r.pos.x + shake.x + dx,
-            r.pos.y + shake.y + dy,
+        gfx.draw_line(
+            Vec2::new(r.pos.x + shake.x, r.pos.y + shake.y),
+            Vec2::new(r.pos.x + shake.x + dx, r.pos.y + shake.y + dy),
             2.0,
             c,
         );
     }
 }
 
-pub fn draw_vignette(juice: &Effects) {
+pub fn draw_vignette(gfx: &mut dyn RenderingServer, juice: &Effects) {
     let Some(v) = &juice.vignette else {
         return;
     };
     let t = (v.life / v.max_life).clamp(0.0, 1.0);
     let intensity = v.intensity * t;
-    let vw = screen_width();
-    let vh = screen_height();
+    let vw = gfx.viewport().w;
+    let vh = gfx.viewport().h;
 
     const BANDS: usize = 8;
     let max_band = vh * 0.28;
@@ -197,19 +194,22 @@ pub fn draw_vignette(juice: &Effects) {
         let y_top = i as f32 * band_h;
         let y_bot = vh - (i as f32 + 1.0) * band_h;
 
-        draw_rectangle(0.0, y_top, vw, band_h + 0.5, c);
-        draw_rectangle(0.0, y_bot, vw, band_h + 0.5, c);
+        gfx.draw_rect(Rect::new(0.0, y_top, vw, band_h + 0.5), c);
+        gfx.draw_rect(Rect::new(0.0, y_bot, vw, band_h + 0.5), c);
 
         let x_left = i as f32 * band_h;
         let x_right = vw - (i as f32 + 1.0) * band_h;
-        draw_rectangle(x_left, 0.0, band_h + 0.5, vh, c);
-        draw_rectangle(x_right, 0.0, band_h + 0.5, vh, c);
+        gfx.draw_rect(Rect::new(x_left, 0.0, band_h + 0.5, vh), c);
+        gfx.draw_rect(Rect::new(x_right, 0.0, band_h + 0.5, vh), c);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// macroquad's `WHITE`, which the tests used.
+    const WHITE: Color = Color::WHITE;
 
     #[test]
     fn jade_shatter_creates_particles() {

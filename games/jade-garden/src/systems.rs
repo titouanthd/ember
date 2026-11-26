@@ -2,9 +2,9 @@
 //!
 //! Cycle: idle → swap → resolution → cascade → idle.
 
+use ember_core::Color;
 use ember_core::rng::Rng;
 use glam::Vec2;
-use macroquad::prelude::*;
 
 use crate::components::{GRID_H, GRID_W};
 use crate::config::GameContext;
@@ -90,6 +90,9 @@ pub struct Game {
     pub crossed_3_star: Option<f32>,
     pub peak_score: u32,
     pub peak_score_time: f32,
+    /// The viewport of the last `tick` (was macroquad's screen size),
+    /// for placing effects on the grid.
+    viewport: Vec2,
 }
 
 impl Game {
@@ -139,10 +142,12 @@ impl Game {
             crossed_3_star: None,
             peak_score: 0,
             peak_score_time: 0.0,
+            viewport: Vec2::ZERO,
         }
     }
 
     pub fn tick(&mut self, ctx: &GameContext, dt: f32, mouse_pos: Vec2, mouse_left_pressed: bool) {
+        self.viewport = Vec2::new(ctx.viewport_w, ctx.viewport_h);
         self.time += dt;
         self.elapsed += dt;
         self.juice.tick(dt);
@@ -560,8 +565,7 @@ impl Game {
         use crate::tile_render::{TILE_GAP, TILE_STRIDE};
         let grid_w = GRID_W as f32 * TILE_STRIDE - TILE_GAP;
         let grid_h = GRID_H as f32 * TILE_STRIDE - TILE_GAP;
-        let vw = screen_width();
-        let vh = screen_height();
+        let (vw, vh) = (self.viewport.x, self.viewport.y);
         ((vw - grid_w) * 0.5, (vh - grid_h) * 0.5)
     }
 

@@ -1,13 +1,13 @@
 //! Level and chapter loading from `assets/*.ron`.
 //!
-//! Loading is async because on the web target the assets are fetched
-//! via HTTP (`macroquad::file::load_string`). On native the same API
-//! resolves to a fast synchronous read under the hood, so the only
-//! visible change is an `.await` at the call site.
+//! Loading is synchronous: native reads the files, the web build has
+//! them built in. `load_levels` / `load_chapters` keep their async
+//! signatures for the tests.
 
 use serde::Deserialize;
 
 use crate::components::Jade;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::paths;
 
 /// Objective for a level.
@@ -60,34 +60,45 @@ pub struct ChapterConfig {
 //
 // Two implementations to keep `level.rs` testable in isolation:
 //
-// - Native: `std::fs::read_to_string`, no macroquad context needed.
-//   Tests can call `load_levels().await` without a window.
-// - Web: `macroquad::file::load_string`, which fetches the file
-//   through the browser. Requires a macroquad context, but on web
-//   the tests are not run anyway.
+// - Native: `std::fs::read_to_string`, so a modder can point
+//   `JADE_GARDEN_ASSETS` at edited files. Tests can call
+//   `load_levels().await` without a window.
+// - Web: the files are built into the binary (`include_str!`), as the
+//   browser has no file system (was `macroquad::file::load_string`).
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn read_asset(relative: &str) -> Result<String, String> {
+fn read_asset(relative: &str) -> Result<String, String> {
     let path = paths::asset(relative);
     std::fs::read_to_string(&path).map_err(|e| format!("load {path:?}: {e}"))
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn read_asset(relative: &str) -> Result<String, String> {
-    let path = paths::asset_str(relative);
-    macroquad::file::load_string(&path)
-        .await
-        .map_err(|e| format!("load {path}: {e}"))
+fn read_asset(relative: &str) -> Result<String, String> {
+    match relative {
+        "levels.ron" => Ok(include_str!("../assets/levels.ron").to_owned()),
+        "chapitres.ron" => Ok(include_str!("../assets/chapitres.ron").to_owned()),
+        other => Err(format!("load {other}: not built in")),
+    }
 }
 
-pub async fn load_levels() -> Result<Vec<LevelConfig>, String> {
-    let text = read_asset("levels.ron").await?;
+/// The campaign's levels, read now (no async loading is needed any
+/// more; `load_levels` stays for the tests).
+pub fn levels() -> Result<Vec<LevelConfig>, String> {
+    let text = read_asset("levels.ron")?;
     ron::from_str(&text).map_err(|e| format!("parse levels.ron: {e}"))
 }
 
-pub async fn load_chapters() -> Result<Vec<ChapterConfig>, String> {
-    let text = read_asset("chapitres.ron").await?;
+pub fn chapters() -> Result<Vec<ChapterConfig>, String> {
+    let text = read_asset("chapitres.ron")?;
     ron::from_str(&text).map_err(|e| format!("parse chapitres.ron: {e}"))
+}
+
+pub async fn load_levels() -> Result<Vec<LevelConfig>, String> {
+    levels()
+}
+
+pub async fn load_chapters() -> Result<Vec<ChapterConfig>, String> {
+    chapters()
 }
 
 /// Display label for an objective.
