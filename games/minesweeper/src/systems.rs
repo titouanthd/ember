@@ -11,7 +11,6 @@ use crate::difficulties::{DifficultyData, load_difficulties};
 use crate::persistence::{self, BestTimes};
 use ember_core::app::GameState;
 use ember_core::rng::Rng;
-use ember_stdlib::ui::button::Button;
 
 // ============================================================================
 // Game — top-level state for one Minesweeper session
@@ -41,18 +40,11 @@ pub struct Game {
     /// Typed handle to `best_times.ron`.
     pub best_handle: BestTimes,
     pub was_new_best: bool,
-
-    // Widgets — persisted so update() and draw() share the same instance
-    // and hover/pressed states stay consistent.
-    // (Piège documenté : un Button recréé chaque frame perd son event Clicked.)
-    pub start_btn: Button,
-    pub restart_btn: Button,
-    pub menu_btn: Button,
+    // Buttons live in the UI tree now (`scene`), not here.
 }
 
 impl Game {
     pub fn new() -> Self {
-        let ctx = load_config();
         let difficulties = load_difficulties();
         let best_handle = persistence::default();
         let best_times = best_handle.load_or(HashMap::new());
@@ -69,13 +61,8 @@ impl Game {
             best_times,
             best_handle,
             was_new_best: false,
-            // Placeholder rect — immediately overwritten by update_menu_layout.
-            start_btn: Button::new(0.0, 0.0, 200.0, 50.0, "START"),
-            restart_btn: Button::new(ctx.window_w - 220.0, 10.0, 100.0, 30.0, "Restart"),
-            menu_btn: Button::new(ctx.window_w - 110.0, 10.0, 100.0, 30.0, "Menu"),
         };
         g.update_layout();
-        g.update_menu_layout(&ctx);
         g
     }
 
@@ -103,21 +90,6 @@ impl Game {
         let w = self.board.width as f32 * self.cell_size;
         let h = self.board.height as f32 * self.cell_size;
         self.grid_origin = ctx.grid_origin(w, h);
-    }
-
-    /// Recompute the START button rect. Called once at startup; the layout
-    /// only depends on `difficulties.len()`, which is fixed for the process.
-    pub fn update_menu_layout(&mut self, ctx: &GameContext) {
-        let cx = ctx.window_w * 0.5;
-
-        let btn_h = 60.0;
-        let gap = 16.0;
-        let n = self.difficulties.len() as f32;
-        let total_h = n * btn_h + (n - 1.0).max(0.0) * gap;
-        let first_y = ctx.window_h * 0.5 - total_h * 0.5 + 40.0;
-
-        let start_y = first_y + total_h + 30.0;
-        self.start_btn.rect = (cx - 100.0, start_y, 200.0, 50.0);
     }
 
     pub fn cell_at(&self, mouse: Vec2) -> Option<(usize, usize)> {
