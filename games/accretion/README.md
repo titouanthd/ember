@@ -29,11 +29,11 @@ cd dist/web && python3 -m http.server 8080
 # → http://localhost:8080
 ```
 
-The web build is meant to save to `localStorage["accretion:save"]` through
-`tools/localStorage_plugin.js`, but that plugin is written for Emscripten and
-does not load with macroquad's `mq_js_bundle.js`, so **web saves do nothing
-today** (the game runs; see the migration guide §5.16). The font is built into
-the wasm, so the bundle needs no `assets/` folder.
+The web build saves to `localStorage["accretion:save"]` (a RON string)
+through `tools/localStorage_plugin.js`, a miniquad JS plugin
+(`miniquad_add_plugin`) that `index.html` loads after `mq_js_bundle.js`.
+Reloading the page offers Continue. The font is built into the wasm, so the
+bundle needs no `assets/` folder.
 
 ## Controls
 

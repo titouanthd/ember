@@ -1,50 +1,90 @@
 // tools/localStorage_plugin.js
 //
-// Miniquad plugin exposing `localStorage` to Rust without wasm-bindgen.
-// Must be loaded AFTER mq_js_bundle.js (it extends LibraryManager.library).
+// Miniquad JS plugin exposing `localStorage` to Rust without wasm-bindgen.
+// Must be loaded AFTER mq_js_bundle.js (it calls `miniquad_add_plugin`)
+// and BEFORE `load("accretion.wasm")` (plugins register their imports then).
 //
-// See DESIGN.md §17 and BROWSER_BUILD.md §2.D.
+// Imports provided (see src/save.rs, all strings are null-terminated UTF-8):
+//   ember_storage_get(key, out_buf, out_len) -> i32  bytes written, -1 on error
+//   ember_storage_set(key, value)            -> i32  0 on success, -1 on error
+//   ember_storage_remove(key)                -> i32  0 on success, -1 on error
+//
+// Memory goes through the bundle's `wasm_memory`. A fresh view is taken on
+// every call because growing the wasm memory detaches old ArrayBuffers.
 
 (function () {
-    if (typeof mergeInto !== 'function') {
+    if (typeof miniquad_add_plugin !== 'function') {
         console.error('localStorage_plugin.js must be loaded AFTER mq_js_bundle.js');
         return;
     }
 
-    mergeInto(LibraryManager.library, {
-        ember_storage_get: function (key_ptr, out_buf_ptr, out_buf_len) {
-            const key = UTF8ToString(key_ptr);
-            try {
-                const value = localStorage.getItem(key) || '';
-                const bytes = new TextEncoder().encode(value);
-                const n = Math.min(bytes.length, out_buf_len - 1);
-                HEAPU8.set(bytes.subarray(0, n), out_buf_ptr);
-                HEAPU8[out_buf_ptr + n] = 0; // null terminator
-                return n;
-            } catch (e) {
-                console.error('ember_storage_get failed:', e);
-                return -1;
-            }
-        },
-        ember_storage_set: function (key_ptr, val_ptr) {
-            const key = UTF8ToString(key_ptr);
-            const value = UTF8ToString(val_ptr);
-            try {
-                localStorage.setItem(key, value);
+    const decoder = new TextDecoder('utf-8');
+    const encoder = new TextEncoder();
+
+    function heap() {
+        return new Uint8Array(wasm_memory.buffer);
+    }
+
+    // Decodes the null-terminated UTF-8 string starting at `ptr`.
+    function cString(ptr) {
+        const mem = heap();
+        let end = ptr;
+        while (end < mem.length && mem[end] !== 0) {
+            end++;
+        }
+        return decoder.decode(mem.subarray(ptr, end));
+    }
+
+    function ember_storage_get(key_ptr, out_buf_ptr, out_buf_len) {
+        try {
+            const value = localStorage.getItem(cString(key_ptr));
+            if (value === null || out_buf_len === 0) {
                 return 0;
-            } catch (e) {
-                console.error('ember_storage_set failed:', e);
+            }
+            const bytes = encoder.encode(value);
+            if (bytes.length > out_buf_len - 1) {
+                console.error('ember_storage_get: value (' + bytes.length +
+                    ' bytes) exceeds the buffer (' + out_buf_len + ' bytes)');
                 return -1;
             }
+            const mem = heap();
+            mem.set(bytes, out_buf_ptr);
+            mem[out_buf_ptr + bytes.length] = 0;
+            return bytes.length;
+        } catch (e) {
+            console.error('ember_storage_get failed:', e);
+            return -1;
+        }
+    }
+
+    function ember_storage_set(key_ptr, val_ptr) {
+        try {
+            localStorage.setItem(cString(key_ptr), cString(val_ptr));
+            return 0;
+        } catch (e) {
+            console.error('ember_storage_set failed:', e);
+            return -1;
+        }
+    }
+
+    function ember_storage_remove(key_ptr) {
+        try {
+            localStorage.removeItem(cString(key_ptr));
+            return 0;
+        } catch (e) {
+            console.error('ember_storage_remove failed:', e);
+            return -1;
+        }
+    }
+
+    miniquad_add_plugin({
+        register_plugin: function (importObject) {
+            importObject.env.ember_storage_get = ember_storage_get;
+            importObject.env.ember_storage_set = ember_storage_set;
+            importObject.env.ember_storage_remove = ember_storage_remove;
         },
-        ember_storage_remove: function (key_ptr) {
-            const key = UTF8ToString(key_ptr);
-            try {
-                localStorage.removeItem(key);
-                return 0;
-            } catch (e) {
-                return -1;
-            }
-        },
+        // Checked against the wasm export `ember_storage_crate_version`.
+        version: 1,
+        name: 'ember_storage',
     });
 })();
