@@ -3,10 +3,22 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
+use ember_core::Color;
 use ember_core::io::load_from_file;
-use ember_stdlib::config::{env_color, env_f32, load_dotenv_once};
-use ember_stdlib::juice::JuiceConfig;
-use macroquad::prelude::Color;
+use ember_stdlib::config::{env_f32, load_dotenv_once};
+use ember_stdlib::fx::JuiceConfig;
+
+/// `<PREFIX>_R`, `_G`, `_B`, `_A` from the environment, each falling back
+/// to `default`. Local twin of `ember_stdlib::config::env_color`, which
+/// returns a macroquad colour.
+fn env_color(prefix: &str, default: Color) -> Color {
+    Color::new(
+        env_f32(&format!("{prefix}_R"), default.r),
+        env_f32(&format!("{prefix}_G"), default.g),
+        env_f32(&format!("{prefix}_B"), default.b),
+        env_f32(&format!("{prefix}_A"), default.a),
+    )
+}
 use serde::Deserialize;
 
 /// Durée du flash blanc sur une unité touchée.
@@ -18,7 +30,7 @@ pub const DEATH_PARTICLE_LIFE: f32 = 0.55;
 /// Taille de police des textes flottants.
 pub const FLOATING_TEXT_SIZE: f32 = 16.0;
 
-/// Réglages du juice partagé (`ember_stdlib::juice`).
+/// Réglages du juice partagé (`ember_stdlib::fx`, ADR-046).
 pub const JUICE_CONFIG: JuiceConfig = JuiceConfig {
     particle_gravity: 280.0,
     particle_drag: 2.0,

@@ -3,10 +3,10 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
+use ember_core::Color;
 use ember_core::io::load_from_file;
 use ember_stdlib::time::Cooldown;
 use glam::Vec2;
-use macroquad::prelude::Color;
 use serde::Deserialize;
 
 use crate::components::{Shape, Team, Unit, UnitIdGen, rgba};

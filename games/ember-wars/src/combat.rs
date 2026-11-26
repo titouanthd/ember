@@ -1,7 +1,7 @@
 //! Targeting, attaques, projectiles, dégâts, juice.
 
+use ember_core::Color;
 use glam::Vec2;
-use macroquad::prelude::Color;
 
 use crate::catapult::{CATAPULT_HITBOX_H, Catapult};
 use crate::components::{
@@ -9,7 +9,7 @@ use crate::components::{
 };
 use crate::config::{DEATH_PARTICLE_LIFE, FLOATING_TEXT_SIZE, HIT_FLASH_DURATION};
 use crate::units::{UnitStats, unit_stats};
-use ember_stdlib::juice::Juice;
+use ember_stdlib::fx::Juice;
 
 pub const MAX_PROJECTILES: usize = 200;
 pub const HEALER_MIDLINE_MARGIN: f32 = 300.0;
@@ -1258,7 +1258,7 @@ mod tests {
             team: Team::Player,
             kind: ProjectileKind::Basic,
             pierce_remaining: 0,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let mut units = vec![];
         let mut pt = mk_tower(Team::Player, -100.0);
@@ -1289,7 +1289,7 @@ mod tests {
             team: Team::Player,
             kind: ProjectileKind::Basic,
             pierce_remaining: 0,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let e = mk_unit(0, "grunt", Team::Enemy, 10.0);
         let mut units = vec![e];
@@ -1322,7 +1322,7 @@ mod tests {
             team: Team::Player,
             kind: ProjectileKind::Basic,
             pierce_remaining: 0,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let e = mk_unit(0, "grunt", Team::Enemy, 10.0);
         let mut units = vec![e];
@@ -1354,7 +1354,7 @@ mod tests {
             team: Team::Enemy,
             kind: ProjectileKind::Basic,
             pierce_remaining: 0,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let e = mk_unit(0, "grunt", Team::Player, 10.0);
         let mut units = vec![e];
@@ -1386,7 +1386,7 @@ mod tests {
             team: Team::Player,
             kind: ProjectileKind::Basic,
             pierce_remaining: 0,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let ally = mk_unit(0, "grunt", Team::Player, 10.0);
         let mut units = vec![ally];
@@ -1420,7 +1420,7 @@ mod tests {
             team: Team::Player,
             kind: ProjectileKind::Basic,
             pierce_remaining: 3,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let e1 = mk_unit(0, "grunt", Team::Enemy, 10.0);
         let e2 = mk_unit(1, "grunt", Team::Enemy, 60.0);
@@ -1479,7 +1479,7 @@ mod tests {
             team: Team::Player,
             kind: ProjectileKind::Basic,
             pierce_remaining: 0,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let mut units = vec![];
         let mut pt = mk_tower(Team::Player, -1000.0);
@@ -1513,7 +1513,7 @@ mod tests {
             team: Team::Enemy,
             kind: ProjectileKind::Archer,
             pierce_remaining: 0,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let mut units = vec![];
         let mut pt = mk_tower(Team::Player, -1000.0);
@@ -1548,7 +1548,7 @@ mod tests {
             team: Team::Player,
             kind: ProjectileKind::Archer,
             pierce_remaining: 0,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let mut units = vec![];
         let mut pt = mk_tower(Team::Player, -1000.0);
@@ -1582,7 +1582,7 @@ mod tests {
             team: Team::Player,
             kind: ProjectileKind::Explosive,
             pierce_remaining: 0,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let e1 = mk_unit(0, "grunt", Team::Enemy, 10.0);
         let e2 = mk_unit(1, "grunt", Team::Enemy, 25.0);
@@ -1616,7 +1616,7 @@ mod tests {
             team: Team::Player,
             kind: ProjectileKind::Basic,
             pierce_remaining: 0,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let mut units = vec![];
         let mut pt = mk_tower(Team::Player, -1000.0);
@@ -1647,7 +1647,7 @@ mod tests {
             team: Team::Player,
             kind: ProjectileKind::Basic,
             pierce_remaining: 0,
-            color: macroquad::prelude::WHITE,
+            color: ember_core::Color::WHITE,
         }];
         let mut units = vec![];
         let mut pt = mk_tower(Team::Player, -1000.0);

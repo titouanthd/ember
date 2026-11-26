@@ -1,8 +1,7 @@
 //! Menu principal — sélection linéaire de niveaux + accès à l'arbre.
 
-use macroquad::prelude::*;
-
-use ember_stdlib::ui::hit;
+use crate::frame::{get_frame_time, get_time, mouse_position, screen_height, screen_width};
+use ember::prelude::*;
 
 use crate::config::{self, ChapterConfig, GameContext, Objective};
 use crate::fonts;
@@ -134,21 +133,27 @@ fn scrollbar_x(vw: f32) -> f32 {
 
 // ---------- Main draw ----------
 
-pub fn draw_menu(ctx: &GameContext, state: &MenuState, progress: &Progress) {
+pub fn draw_menu(
+    gfx: &mut dyn RenderingServer,
+    ctx: &GameContext,
+    state: &MenuState,
+    progress: &Progress,
+) {
     let vw = screen_width();
     let vh = screen_height();
     let base_y = CONTENT_TOP - state.scroll_y;
 
     // Ordre : chapitres (peuvent déborder) → scrollbar → panneau d'info
     // → header/footer opaques par-dessus pour masquer la superposition.
-    draw_chapters(ctx, state, progress, vw, vh, base_y);
-    draw_scrollbar(ctx, state, vw, vh);
-    draw_info_panel(ctx, state, progress, vw, vh);
-    draw_header(ctx, progress, vw);
-    draw_footer(ctx, vw, vh);
+    draw_chapters(gfx, ctx, state, progress, vw, vh, base_y);
+    draw_scrollbar(gfx, ctx, state, vw, vh);
+    draw_info_panel(gfx, ctx, state, progress, vw, vh);
+    draw_header(gfx, ctx, progress, vw);
+    draw_footer(gfx, ctx, vw, vh);
 }
 
 fn draw_chapters(
+    gfx: &mut dyn RenderingServer,
     ctx: &GameContext,
     state: &MenuState,
     progress: &Progress,
@@ -170,7 +175,7 @@ fn draw_chapters(
         let chapter_unlocked = progress.is_chapter_unlocked(ci);
 
         if chapter_y + CHAPTER_HEADER_H >= CONTENT_TOP {
-            draw_chapter_header(ctx, ci, chapter, chapter_y, chapter_unlocked, vw);
+            draw_chapter_header(gfx, ctx, ci, chapter, chapter_y, chapter_unlocked, vw);
         }
 
         for (li, level) in chapter.levels.iter().enumerate() {
@@ -184,12 +189,13 @@ fn draw_chapters(
             let stars = progress.stars_for(&level.id);
             let hovered = state.hovered_level.as_deref() == Some(level.id.as_str()) && unlocked;
 
-            draw_level_card(ctx, (ci, li), level, r, stars, unlocked, hovered);
+            draw_level_card(gfx, ctx, (ci, li), level, r, stars, unlocked, hovered);
         }
     }
 }
 
 fn draw_chapter_header(
+    gfx: &mut dyn RenderingServer,
     ctx: &GameContext,
     chapter_idx: usize,
     chapter: &ChapterConfig,
@@ -200,6 +206,7 @@ fn draw_chapter_header(
     let lw = level_w(vw);
 
     fonts::draw_text_regular(
+        gfx,
         &format!("CHAPTER {}", chapter_idx + 1),
         PAD_X,
         y + 22.0,
@@ -212,27 +219,34 @@ fn draw_chapter_header(
     } else {
         Color::new(0.42, 0.42, 0.46, 1.0)
     };
-    fonts::draw_text_bold(&chapter.name, PAD_X, y + 58.0, 34.0, name_color);
+    fonts::draw_text_bold(gfx, &chapter.name, PAD_X, y + 58.0, 34.0, name_color);
 
     let sub_color = if unlocked {
         Color::new(0.66, 0.68, 0.72, 1.0)
     } else {
         Color::new(0.38, 0.38, 0.42, 1.0)
     };
-    fonts::draw_text_regular(&chapter.subtitle, PAD_X + 280.0, y + 58.0, 17.0, sub_color);
+    fonts::draw_text_regular(
+        gfx,
+        &chapter.subtitle,
+        PAD_X + 280.0,
+        y + 58.0,
+        17.0,
+        sub_color,
+    );
 
     let sep_y = y + CHAPTER_HEADER_H - CHAPTER_SEP_OFFSET;
-    draw_line(
-        PAD_X,
-        sep_y,
-        PAD_X + lw,
-        sep_y,
+    gfx.draw_line(
+        Vec2::new(PAD_X, sep_y),
+        Vec2::new(PAD_X + lw, sep_y),
         1.5,
         Color::new(0.20, 0.22, 0.28, 1.0),
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_level_card(
+    gfx: &mut dyn RenderingServer,
     ctx: &GameContext,
     idx: (usize, usize),
     level: &config::LevelConfig,
@@ -271,11 +285,11 @@ fn draw_level_card(
         bg
     };
 
-    draw_rectangle(r.x, r.y, r.w, r.h, bg);
-    draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5, border);
+    gfx.draw_rect(Rect::new(r.x, r.y, r.w, r.h), bg);
+    gfx.draw_rect_outline(Rect::new(r.x, r.y, r.w, r.h), 1.5, border);
 
     if unlocked && stars > 0 {
-        draw_rectangle(r.x, r.y, 4.0, r.h, accent);
+        gfx.draw_rect(Rect::new(r.x, r.y, 4.0, r.h), accent);
     }
 
     let num_txt = format!("{}-{}", chapter_idx + 1, level_idx + 1);
@@ -284,14 +298,14 @@ fn draw_level_card(
     } else {
         Color::new(0.35, 0.35, 0.40, 1.0)
     };
-    fonts::draw_text_regular(&num_txt, r.x + 24.0, r.y + 26.0, 14.0, num_color);
+    fonts::draw_text_regular(gfx, &num_txt, r.x + 24.0, r.y + 26.0, 14.0, num_color);
 
     let name_color = if unlocked {
         ctx.colors.text
     } else {
         Color::new(0.40, 0.40, 0.45, 1.0)
     };
-    fonts::draw_text_bold(&level.name, r.x + 24.0, r.y + 54.0, 22.0, name_color);
+    fonts::draw_text_bold(gfx, &level.name, r.x + 24.0, r.y + 54.0, 22.0, name_color);
 
     let obj_txt = match &level.objective {
         Objective::Destroy => "Destroy the enemy tower".to_string(),
@@ -302,18 +316,19 @@ fn draw_level_card(
     } else {
         Color::new(0.32, 0.32, 0.36, 1.0)
     };
-    fonts::draw_text_regular(&obj_txt, r.x + 24.0, r.y + 76.0, 13.0, obj_color);
+    fonts::draw_text_regular(gfx, &obj_txt, r.x + 24.0, r.y + 76.0, 13.0, obj_color);
 
-    draw_star_rating(r, stars, unlocked);
+    draw_star_rating(gfx, r, stars, unlocked);
 
     let reward = format!("+{:.0}g", level.reward_gold);
-    let dim = fonts::measure_bold(&reward, 15.0);
+    let dim = fonts::measure_bold(gfx, &reward, 15.0);
     let reward_color = if unlocked {
         ctx.colors.gold
     } else {
         Color::new(0.38, 0.38, 0.42, 1.0)
     };
     fonts::draw_text_bold(
+        gfx,
         &reward,
         r.x + r.w - 22.0 - dim.width,
         r.y + r.h - 14.0,
@@ -322,7 +337,7 @@ fn draw_level_card(
     );
 }
 
-fn draw_star_rating(r: Rect, stars: u8, unlocked: bool) {
+fn draw_star_rating(gfx: &mut dyn RenderingServer, r: Rect, stars: u8, unlocked: bool) {
     let star_y = r.y + 34.0;
     let star_x_end = r.x + r.w - 22.0;
     let gap = 8.0;
@@ -355,7 +370,7 @@ fn draw_star_rating(r: Rect, stars: u8, unlocked: bool) {
         let size = 28.0 * scale;
         let y_off = (28.0 - size) * 0.5;
         let glyph = if filled { "★" } else { "☆" };
-        fonts::draw_text_bold(glyph, x, star_y + y_off, size, color);
+        fonts::draw_text_bold(gfx, glyph, x, star_y + y_off, size, color);
     }
 }
 
@@ -372,7 +387,13 @@ pub fn scroll_fraction(scroll_y: f32, viewport_h: f32) -> Option<f32> {
     Some((scroll_y / max_scroll).clamp(0.0, 1.0))
 }
 
-fn draw_scrollbar(ctx: &GameContext, state: &MenuState, vw: f32, vh: f32) {
+fn draw_scrollbar(
+    gfx: &mut dyn RenderingServer,
+    ctx: &GameContext,
+    state: &MenuState,
+    vw: f32,
+    vh: f32,
+) {
     let Some(frac) = scroll_fraction(state.scroll_y, vh) else {
         return;
     };
@@ -384,11 +405,8 @@ fn draw_scrollbar(ctx: &GameContext, state: &MenuState, vw: f32, vh: f32) {
     let bar_x = scrollbar_x(vw);
     let bar_y = CONTENT_TOP;
 
-    draw_rectangle(
-        bar_x,
-        bar_y,
-        SCROLLBAR_W,
-        track_h,
+    gfx.draw_rect(
+        Rect::new(bar_x, bar_y, SCROLLBAR_W, track_h),
         Color::new(0.10, 0.11, 0.14, 1.0),
     );
 
@@ -398,26 +416,27 @@ fn draw_scrollbar(ctx: &GameContext, state: &MenuState, vw: f32, vh: f32) {
 
     let accent = ctx.colors.accent;
     let thumb_color = Color::new(accent.r, accent.g, accent.b, 0.75);
-    draw_rectangle(bar_x, thumb_y, SCROLLBAR_W, thumb_h, thumb_color);
+    gfx.draw_rect(Rect::new(bar_x, thumb_y, SCROLLBAR_W, thumb_h), thumb_color);
 }
 
 // ---------- Info panel ----------
 
-fn draw_info_panel(ctx: &GameContext, state: &MenuState, progress: &Progress, vw: f32, vh: f32) {
+fn draw_info_panel(
+    gfx: &mut dyn RenderingServer,
+    ctx: &GameContext,
+    state: &MenuState,
+    progress: &Progress,
+    vw: f32,
+    vh: f32,
+) {
     let panel = info_panel_rect(vw, vh);
 
-    draw_rectangle(
-        panel.x,
-        panel.y,
-        panel.w,
-        panel.h,
+    gfx.draw_rect(
+        Rect::new(panel.x, panel.y, panel.w, panel.h),
         Color::new(0.06, 0.07, 0.09, 0.75),
     );
-    draw_rectangle_lines(
-        panel.x,
-        panel.y,
-        panel.w,
-        panel.h,
+    gfx.draw_rect_outline(
+        Rect::new(panel.x, panel.y, panel.w, panel.h),
         1.0,
         Color::new(0.18, 0.20, 0.24, 1.0),
     );
@@ -429,6 +448,7 @@ fn draw_info_panel(ctx: &GameContext, state: &MenuState, progress: &Progress, vw
         Some(id) => id,
         None => {
             fonts::draw_text_regular(
+                gfx,
                 "Hover a mission",
                 x,
                 panel.y + 40.0,
@@ -460,6 +480,7 @@ fn draw_info_panel(ctx: &GameContext, state: &MenuState, progress: &Progress, vw
             .position(|x| x.id == c.id)
             .unwrap_or(0);
         fonts::draw_text_regular(
+            gfx,
             &format!("CHAPTER {} — {}", chapter_idx + 1, c.name),
             x,
             y,
@@ -469,25 +490,42 @@ fn draw_info_panel(ctx: &GameContext, state: &MenuState, progress: &Progress, vw
         y += 28.0;
     }
 
-    fonts::draw_text_bold(&level.name, x, y + 12.0, 26.0, ctx.colors.text);
+    fonts::draw_text_bold(gfx, &level.name, x, y + 12.0, 26.0, ctx.colors.text);
     y += 40.0;
 
-    draw_line(x, y, x + w, y, 1.0, Color::new(0.22, 0.24, 0.30, 1.0));
+    gfx.draw_line(
+        Vec2::new(x, y),
+        Vec2::new(x + w, y),
+        1.0,
+        Color::new(0.22, 0.24, 0.30, 1.0),
+    );
     y += 22.0;
 
-    fonts::draw_text_regular("OBJECTIVE", x, y, 11.0, Color::new(0.50, 0.52, 0.58, 1.0));
+    fonts::draw_text_regular(
+        gfx,
+        "OBJECTIVE",
+        x,
+        y,
+        11.0,
+        Color::new(0.50, 0.52, 0.58, 1.0),
+    );
     y += 20.0;
     let obj_txt = match &level.objective {
         Objective::Destroy => "Destroy the enemy tower".to_string(),
         Objective::Survive(s) => format!("Survive {:.0} seconds", s),
     };
-    fonts::draw_text_regular(&obj_txt, x, y, 15.0, ctx.colors.text);
+    fonts::draw_text_regular(gfx, &obj_txt, x, y, 15.0, ctx.colors.text);
     y += 32.0;
 
-    draw_line(x, y, x + w, y, 1.0, Color::new(0.22, 0.24, 0.30, 1.0));
+    gfx.draw_line(
+        Vec2::new(x, y),
+        Vec2::new(x + w, y),
+        1.0,
+        Color::new(0.22, 0.24, 0.30, 1.0),
+    );
     y += 22.0;
 
-    fonts::draw_text_regular("STARS", x, y, 11.0, Color::new(0.50, 0.52, 0.58, 1.0));
+    fonts::draw_text_regular(gfx, "STARS", x, y, 11.0, Color::new(0.50, 0.52, 0.58, 1.0));
     y += 28.0;
 
     let (star_str, star_color) = if !level_unlocked {
@@ -504,13 +542,14 @@ fn draw_info_panel(ctx: &GameContext, state: &MenuState, progress: &Progress, vw
         }
         (s, star_tier_color(stars))
     };
-    fonts::draw_text_bold(&star_str, x, y, 32.0, star_color);
+    fonts::draw_text_bold(gfx, &star_str, x, y, 32.0, star_color);
     y += 38.0;
 
     if level_unlocked {
-        fonts::draw_text_regular("REWARD", x, y, 11.0, Color::new(0.50, 0.52, 0.58, 1.0));
+        fonts::draw_text_regular(gfx, "REWARD", x, y, 11.0, Color::new(0.50, 0.52, 0.58, 1.0));
         y += 20.0;
         fonts::draw_text_bold(
+            gfx,
             &format!("+{:.0} gold", level.reward_gold),
             x,
             y,
@@ -526,6 +565,7 @@ fn draw_info_panel(ctx: &GameContext, state: &MenuState, progress: &Progress, vw
             "Complete the previous mission"
         };
         fonts::draw_text_regular(
+            gfx,
             notice,
             x,
             panel.y + panel.h - 28.0,
@@ -537,23 +577,22 @@ fn draw_info_panel(ctx: &GameContext, state: &MenuState, progress: &Progress, vw
 
 // ---------- Header / Footer ----------
 
-fn draw_header(ctx: &GameContext, progress: &Progress, vw: f32) {
-    draw_rectangle(0.0, 0.0, vw, HEADER_H, ctx.colors.bg);
+fn draw_header(gfx: &mut dyn RenderingServer, ctx: &GameContext, progress: &Progress, vw: f32) {
+    gfx.draw_rect(Rect::new(0.0, 0.0, vw, HEADER_H), ctx.colors.bg);
 
-    draw_line(
-        0.0,
-        HEADER_H - 1.0,
-        vw,
-        HEADER_H - 1.0,
+    gfx.draw_line(
+        Vec2::new(0.0, HEADER_H - 1.0),
+        Vec2::new(vw, HEADER_H - 1.0),
         1.0,
         Color::new(0.18, 0.20, 0.24, 1.0),
     );
 
     let title = "EMBER WARS";
-    let dim = fonts::measure_bold(title, 38.0);
-    fonts::draw_text_bold(title, PAD_X, 58.0, 38.0, ctx.colors.accent);
+    let dim = fonts::measure_bold(gfx, title, 38.0);
+    fonts::draw_text_bold(gfx, title, PAD_X, 58.0, 38.0, ctx.colors.accent);
 
     fonts::draw_text_regular(
+        gfx,
         "CAMPAIGN",
         PAD_X + dim.width + 22.0,
         58.0,
@@ -562,8 +601,9 @@ fn draw_header(ctx: &GameContext, progress: &Progress, vw: f32) {
     );
 
     let gold_txt = format!("GOLD  {:.0}", progress.tree.gold);
-    let dim_g = fonts::measure_bold(&gold_txt, 22.0);
+    let dim_g = fonts::measure_bold(gfx, &gold_txt, 22.0);
     fonts::draw_text_bold(
+        gfx,
         &gold_txt,
         vw - PAD_X - dim_g.width,
         50.0,
@@ -572,8 +612,9 @@ fn draw_header(ctx: &GameContext, progress: &Progress, vw: f32) {
     );
 
     let hint = "[Tab]  Upgrades";
-    let dim_h = fonts::measure_regular(hint, 14.0);
+    let dim_h = fonts::measure_regular(gfx, hint, 14.0);
     fonts::draw_text_regular(
+        gfx,
         hint,
         vw - PAD_X - dim_h.width,
         76.0,
@@ -582,21 +623,20 @@ fn draw_header(ctx: &GameContext, progress: &Progress, vw: f32) {
     );
 }
 
-fn draw_footer(ctx: &GameContext, vw: f32, vh: f32) {
-    draw_rectangle(0.0, vh - FOOTER_H, vw, FOOTER_H, ctx.colors.bg);
+fn draw_footer(gfx: &mut dyn RenderingServer, ctx: &GameContext, vw: f32, vh: f32) {
+    gfx.draw_rect(Rect::new(0.0, vh - FOOTER_H, vw, FOOTER_H), ctx.colors.bg);
 
-    draw_line(
-        0.0,
-        vh - FOOTER_H + 1.0,
-        vw,
-        vh - FOOTER_H + 1.0,
+    gfx.draw_line(
+        Vec2::new(0.0, vh - FOOTER_H + 1.0),
+        Vec2::new(vw, vh - FOOTER_H + 1.0),
         1.0,
         Color::new(0.18, 0.20, 0.24, 1.0),
     );
 
     let hint = "Click a mission   |   Scroll ↑↓ or wheel   |   [Tab] Upgrades   |   [Esc] Quit";
-    let dim = fonts::measure_regular(hint, 14.0);
+    let dim = fonts::measure_regular(gfx, hint, 14.0);
     fonts::draw_text_regular(
+        gfx,
         hint,
         vw * 0.5 - dim.width * 0.5,
         vh - 16.0,
@@ -607,7 +647,11 @@ fn draw_footer(ctx: &GameContext, vw: f32, vh: f32) {
 
 // ---------- Input ----------
 
-pub fn handle_menu_input(state: &mut MenuState, progress: &Progress) -> Option<String> {
+pub fn handle_menu_input(
+    keys: &Input,
+    state: &mut MenuState,
+    progress: &Progress,
+) -> Option<String> {
     let vw = screen_width();
     let vh = screen_height();
     let mouse = Vec2::new(mouse_position().0, mouse_position().1);
@@ -616,15 +660,15 @@ pub fn handle_menu_input(state: &mut MenuState, progress: &Progress) -> Option<S
     let visible_h = (vh - CONTENT_BOTTOM_RESERVE - CONTENT_TOP).max(1.0);
     state.max_scroll = (content_h - visible_h).max(0.0);
 
-    let (_wx, wy) = mouse_wheel();
+    let (_wx, wy) = (keys.mouse_wheel.x, keys.mouse_wheel.y);
     if wy.abs() > 0.0 {
         state.scroll_y = (state.scroll_y - wy * 40.0).clamp(0.0, state.max_scroll);
     }
 
-    if is_key_down(KeyCode::Down) {
+    if keys.is_key_down(Key::Down) {
         state.scroll_y = (state.scroll_y + 500.0 * get_frame_time()).min(state.max_scroll);
     }
-    if is_key_down(KeyCode::Up) {
+    if keys.is_key_down(Key::Up) {
         state.scroll_y = (state.scroll_y - 500.0 * get_frame_time()).max(0.0);
     }
 
@@ -641,18 +685,18 @@ pub fn handle_menu_input(state: &mut MenuState, progress: &Progress) -> Option<S
                 if r.y + r.h < CONTENT_TOP || r.y > bottom_limit {
                     continue;
                 }
-                if hit::contains(r, mouse) {
+                if r.contains(mouse) {
                     state.hovered_level = Some(level.id.clone());
                 }
             }
         }
     }
 
-    if is_mouse_button_pressed(MouseButton::Left) {
+    if keys.mouse_left_pressed {
         if mouse.y < CONTENT_TOP || mouse.y > vh - CONTENT_BOTTOM_RESERVE {
             return None;
         }
-        if hit::contains(info_panel_rect(vw, vh), mouse) {
+        if info_panel_rect(vw, vh).contains(mouse) {
             return None;
         }
 
@@ -667,7 +711,7 @@ pub fn handle_menu_input(state: &mut MenuState, progress: &Progress) -> Option<S
                 if r.y + r.h < CONTENT_TOP || r.y > bottom_limit {
                     continue;
                 }
-                if hit::contains(r, mouse) && progress.is_level_unlocked(&level.id) {
+                if r.contains(mouse) && progress.is_level_unlocked(&level.id) {
                     return Some(level.id.clone());
                 }
             }

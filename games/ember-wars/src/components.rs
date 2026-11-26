@@ -1,8 +1,8 @@
 //! Types de base du jeu : équipes, formes, identifiants, entités.
 
+use ember_core::Color;
 use ember_stdlib::time::Cooldown;
 use glam::Vec2;
-use macroquad::prelude::Color;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]

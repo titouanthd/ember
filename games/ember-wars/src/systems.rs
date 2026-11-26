@@ -2,10 +2,10 @@
 
 use std::collections::HashMap;
 
+use ember_core::Color;
 use ember_stdlib::Rng;
 use ember_stdlib::time::Cooldown;
 use glam::Vec2;
-use macroquad::prelude::Color;
 
 use crate::ai;
 use crate::camera::Camera2D;
@@ -21,7 +21,7 @@ use crate::progress::Progress;
 use crate::textures::{self, Palette};
 use crate::units::{can_spawn, spawn_unit, unit_stats};
 use crate::upgrades::UpgradeTree;
-use ember_stdlib::juice::Juice;
+use ember_stdlib::fx::Juice;
 
 pub const TOWER_OFFSET_X: f32 = 60.0;
 pub const UNIT_SPAWN_OFFSET_X: f32 = 40.0;

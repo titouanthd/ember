@@ -268,7 +268,7 @@ impl Catapult {
                 team,
                 kind,
                 pierce_remaining: pierce,
-                color: macroquad::prelude::Color::new(0.95, 0.70, 0.35, 1.0),
+                color: ember_core::Color::new(0.95, 0.70, 0.35, 1.0),
             });
         }
 
