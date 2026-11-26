@@ -477,10 +477,31 @@ persistence API lands.
 - Logic unchanged, quirks included: the ball is drawn as a circle centred
   on `transform.position`, while its AABB treats that point as a corner.
 
-### 5.13 zhuo-ji
+### 5.13 zhuo-ji — **migrated** (`614cf30`, 2026-11-26)
 
-- Custom rendering. The migration reveals any gaps in
-  `RenderingServer`'s primitive coverage.
+- 188 unit + 10 scenario tests, unchanged except mechanically
+  (`ember_input::Input` / `Key` for the stdlib `Input` / `KeyCode`,
+  `empty_input()` is `Input::default()`), plus 6 new headless `SceneLoop`
+  tests (`tests/scene.rs`).
+- Shape: one root node, `ZhuoJi` (`src/scene.rs`). The old loop's
+  drawing and hit tests moved from `main.rs` to `src/table.rs`
+  (`draw_game` is the game screen); `main.rs` is 5 lines.
+- **No virtual resolution:** the table lays itself out on the window
+  size, so the loop runs `with_viewport_following_window` (ADR-041
+  amendment, `bebe16d`) and the node builds `TableLayout` from the
+  viewport.
+- No gaps in `RenderingServer`: the corner diamonds are
+  `draw_regular_polygon(_outline)` and the chicken's shadow
+  `draw_ellipse` (ADR-042); `draw_text_ex` with the CJK subset became
+  `draw_text_with_font`, the font created in `ready`.
+- Local twins until Phase 8: `ui::centered_rect`, `ui::draw_centered`,
+  `ui::draw_right`, `config::env_color`, `config::WHITE`;
+  `hit::contains_xywh` became `Rect::contains` (same inclusive edges).
+- `get_time()` (the menu's pulse) became the node's own time counter.
+- Every drawing function takes the renderer (`gfx`) first; the change
+  was scripted, so the drawing code is the old code call for call.
+- The window no longer asks for `high_dpi` (`run_window` has no such
+  option), so text may look softer on Retina screens.
 
 ### 5.14 bore-inc
 

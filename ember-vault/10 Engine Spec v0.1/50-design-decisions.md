@@ -1785,6 +1785,24 @@ no render targets, and `SceneLoop` never learned the window size.
   `ember_ui` clipping containers do not line up under a virtual
   resolution yet. No game needs both today.
 
+### Amendment (2026-11-26, zhuo-ji round): window-sized games
+
+Zhuo-ji lays its table out on the window size (`TableLayout::new(w, h)`)
+rather than on a fixed canvas, so a letterbox would change how it looks.
+`SceneLoop::with_viewport_following_window()` (`bebe16d`) makes each
+`resize` set the viewport to the window; the root node reads it from
+`RenderingServer::viewport` (the previous frame's, so the opening size
+stands until the first frame is drawn).
+
+- **Opt-in, not the default:** `UiRoot` lays its anchored widgets out on
+  the viewport, so following the window by default would move the
+  buttons of memory, freecell, minesweeper and simon while their boards
+  stay put.
+- **A virtual resolution wins:** with both, the canvas stays the viewport.
+- **Rejected: a viewport on `NodeContext` / `Servers`.** It touches every
+  constructor (tests, editor) for one game; the renderer already holds
+  the frame's viewport.
+
 ## ADR-042: Polygon, arc and ellipse shapes
 
 **Status:** accepted (2026-11-26) — M2 of [[Next Phase Plan — Migration Close & Editor v2]]

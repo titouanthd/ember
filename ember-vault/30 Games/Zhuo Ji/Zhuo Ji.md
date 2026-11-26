@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/zhuo-ji` (`cargo run -p zhuo-ji`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | 108 tiles, 4-player turn-based, shanten, claims, Dou/Ji scoring, CJK tiles |
-| **Engine migration (Phase 7)** | ⬜ not migrated · needs shapes (ADR-042), fonts, `layout` / `ui::hit` — see [[Next Phase Plan — Migration Close & Editor v2]] |
+| **Engine migration (Phase 7)** | ✅ `614cf30` — one root node; the table follows the window size (ADR-041 amendment) — see [[41-migration-guide#5.13 zhuo-ji — **migrated** (`614cf30`, 2026-11-26)|§5.13]] |
 
 ## Documents
 

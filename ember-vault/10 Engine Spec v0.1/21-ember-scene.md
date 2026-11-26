@@ -541,8 +541,16 @@ impl<R, A> SceneLoop<R, A> {
     pub fn set_virtual_resolution(&mut self, v: Option<VirtualResolution>);
     pub fn window_size(&self) -> Vec2;
     pub fn screen_camera(&self) -> Camera2d;
+    // ADR-041 amendment: window-sized games (zhuo-ji)
+    pub fn with_viewport_following_window(self) -> Self;
 }
 ```
+
+With `with_viewport_following_window`, each `MainLoop::resize` sets the
+viewport to `(0, 0, width, height)`; nodes read it from
+`RenderingServer::viewport` from the next frame on (it is the rect the
+last `begin_frame` received). Off by default, so the `ember_ui` games keep
+their fixed viewport; a virtual resolution wins over it.
 
 Implements `ember_core::MainLoop` and `ember_input::InputSink`. `draw` =
 `begin_frame`, `tree.draw`, `end_frame`, `audio.flush`; `finalize` clears

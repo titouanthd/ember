@@ -51,7 +51,7 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 038 | [[50-design-decisions#ADR-038: Font and audio loaders; hot reload by polling\|Font/audio loaders; polling hot reload]] | ✅ `a048f66` |
 | 039 | [[50-design-decisions#ADR-039: How a game plugs into the editor\|How a game plugs into the editor]] | ✅ `6aaf9a0` |
 | 040 | [[50-design-decisions#ADR-040: Camera transform (offset + zoom)\|Camera transform (offset + zoom)]] | ✅ `dfa8b04` |
-| 041 | [[50-design-decisions#ADR-041: Virtual resolution with letterbox\|Virtual resolution with letterbox]] | ✅ `ef68ce5` |
+| 041 | [[50-design-decisions#ADR-041: Virtual resolution with letterbox\|Virtual resolution with letterbox]] | ✅ `ef68ce5` · amended `bebe16d` (viewport following the window) |
 | 042 | [[50-design-decisions#ADR-042: Polygon, arc and ellipse shapes\|Polygon, arc and ellipse shapes]] | ✅ `20a1c21` |
 | 046 | [[50-design-decisions#ADR-046: `ember_stdlib` may use `ember_servers`; engine-typed juice (`fx`)\|stdlib may use servers; `fx`]] | ✅ `9fa73de` |
 

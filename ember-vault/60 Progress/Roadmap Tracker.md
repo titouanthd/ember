@@ -22,7 +22,7 @@ gantt
   P5 UI (done)           :done, p5, 2026-11-22, 3d
   P6 Editor (done)       :done, p6, 2026-11-24, 1d
   section Application
-  P7 Migration (10/17)    :active, p7, 2026-11-18, 13d
+  P7 Migration (13/17)    :active, p7, 2026-11-18, 13d
   P8 Cleanup (10%)       :p8, after p7, 2d
   section Editor v2
   P9 Editor v2 (0%)      :p9, after p7, 4d
@@ -97,7 +97,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] bullet-hell *(`8b27a11`: root node, keyboard only; `main.rs` 5 lines; no macroquad; tests untouched; 6 `SceneLoop` tests)*
 - [x] pagoda *(`980dc1e`: root node on a virtual resolution; native + web; `main.rs` 5 lines; no macroquad; 105 unit + 6 `SceneLoop` tests)*
 - [x] taiji *(`60ba747`: root node on a virtual resolution (ADR-041); `main.rs` 5 lines; no macroquad; 7 scenario + 4 `SceneLoop` tests)*
-- [ ] zhuo-ji
+- [x] zhuo-ji *(`614cf30`: root node; viewport follows the window (ADR-041 amendment, `bebe16d`); `main.rs` 5 lines; no macroquad; 188 unit + 10 scenario + 6 `SceneLoop` tests)*
 - [ ] bore-inc
 - [ ] jade-garden
 - [ ] accretion
