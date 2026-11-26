@@ -29,7 +29,6 @@ games/bullet-hell/
 games/ember-wars/
 games/freecell/
 games/jade-garden/
-games/memory/
 games/minesweeper/
 games/pagoda/
 # pong: on NodeTree already; only macroquad::Color left (config, components, scene)
