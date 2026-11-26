@@ -31,6 +31,9 @@ pub use input::Input;
 
 pub mod juice;
 
+// Engine-typed juice, drawn through a RenderingServer (pagoda round).
+pub mod fx;
+
 pub mod ui;
 
 pub mod persistence;

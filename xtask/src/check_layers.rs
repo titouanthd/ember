@@ -57,7 +57,9 @@ const ALLOWED: &[(&str, &[&str])] = &[
     ("ember-audio-macroquad", &["ember-servers", "ember-core"]),
     ("ember-servers", &["ember-core"]),
     ("ember-macros", &[]), // ADR-016 (Phase 4): proc-macro hygiene
-    ("ember-stdlib", &["ember-core"]),
+    // ADR-046 (pagoda round): stdlib's engine-typed helpers (`fx`) draw
+    // through RenderingServer.
+    ("ember-stdlib", &["ember-core", "ember-servers"]),
     ("ember-core", &[]),
 ];
 

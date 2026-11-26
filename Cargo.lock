@@ -347,6 +347,7 @@ version = "0.1.0"
 dependencies = [
  "dotenvy",
  "ember-core",
+ "ember-servers",
  "glam",
  "macroquad",
  "ron",

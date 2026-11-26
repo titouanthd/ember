@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 ember-core.workspace = true
+ember-servers.workspace = true
 glam.workspace = true
 macroquad.workspace = true
 serde.workspace = true
