@@ -289,6 +289,13 @@ persistence API lands.
   `color()` bridge is gone), local `env_color` and `Sprite` twins until
   Phase 8, `ember_core::GameState`, `main.rs` → `scene::run()`; off the
   macroquad allowlist. Tests unchanged.
+- Scene file in `f866d2e` (M1.2): `scenes/pong.escene` with four
+  `#[derive(Node)]` classes (`Pong`, `Paddle`, `Ball`, `Scoreboard`).
+  `Pong::ready` reads its children into `GameContext` and the entities,
+  and `process` copies positions back so the children draw themselves.
+  `.env` only overrides. `build_tree(cfg, seed)` loads the file, then writes
+  every `cfg` value into it (the tests' hermetic path). The only change to
+  game logic: `reset_match` centres each paddle on its own height.
 - Order in §3 has pong 2nd but it was migrated first.
 
 ### 5.3 simon — **migrated** (`1d0dc87`, 2026-11-24)

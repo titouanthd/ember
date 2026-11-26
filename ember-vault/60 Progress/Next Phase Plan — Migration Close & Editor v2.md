@@ -69,7 +69,13 @@ Rounds keep the current rhythm: **one game or one engine feature per round**. I 
 - Drop `ember_stdlib::app::GameState` for `ember_core::GameState`.
 - Off the allowlist. The tracker line becomes ✅.
 
-### M1.2 Pong as data (1 session)
+### M1.2 Pong as data (1 session) — ✅ `f866d2e`
+> [!note] As built
+> - `Paddle` exports `position` instead of `side` (the editor preview needs a position; `ai` already picks the side). Only `x` matters in play: `y` is centred at each serve, on each paddle's own height.
+> - `Ball` and `Scoreboard` also export `position`, and `Pong` exports `court` (the window size), so the preview can draw the scene before `ready`.
+> - `Pong` reads its children in `ready`, and copies the entities' positions back to them each frame. The children draw themselves.
+> - `.env` is now all comments. Its values moved into `pong.escene`, so play is unchanged, and a variable you set there overrides the scene. Without that change, `.env`'s `PADDLE_HEIGHT` would have hidden any size edited in the editor.
+> - Engine: an `f32` export now saves as its shortest decimal (`0.08`, not `0.07999999821186066`).
 - The nodes become editable classes with `#[derive(Node)]` and `#[export]`:
   - `Pong` (root): match rules such as the score to win and the ball speed.
   - `Paddle` ×2: `side`, `size`, `speed`, `color`, `ai`.
