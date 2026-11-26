@@ -192,5 +192,15 @@ mod real_file {
         // Longer than a minute of audio.
         let seconds = (w.len() - 44) as f32 / (rate as f32 * channels as f32 * 2.0);
         assert!(seconds > 60.0, "{seconds} s");
+
+        // quad-snd reads clips with audrey (and unwraps): it must accept
+        // this WAV and see the same format.
+        let mut reader = audrey::Reader::new(std::io::Cursor::new(&w)).expect("audrey reads it");
+        let d = reader.description();
+        assert_eq!(
+            (d.channel_count(), d.sample_rate()),
+            (channels as u32, rate)
+        );
+        assert!(reader.samples::<f32>().take(1000).all(|s| s.is_ok()));
     }
 }

@@ -11,3 +11,7 @@ futures.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 symphonia = { version = "0.6.1", default-features = false, features = ["mp3"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+# quad-snd's own WAV reader, to prove it accepts the WAV mp3.rs writes.
+audrey = { version = "0.3", default-features = false, features = ["wav"] }
