@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 41 — Migration Guide
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; 8 of 17 games (pong, simon, snake, memory, minesweeper, freecell, breakout, asteroids) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
+> **Status:** 🟡 partial — reviewed 2026-11-19; 9 of 17 games (pong, simon, snake, memory, minesweeper, freecell, breakout, asteroids, air-hockey) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [[40-roadmap]], [[21-ember-scene]]
 
@@ -397,10 +397,27 @@ persistence API lands.
 - Gotcha found here: macroquad's named `RED` / `GREEN` / `YELLOW` are not
   pure RGB. Copy the macroquad values (`8a1d7d9` fixed breakout).
 
-### 5.9 air-hockey
+### 5.9 air-hockey — **migrated** (`66987a2`, 2026-11-26)
 
-- 58 unit + 10 scenario.
-- Physics-heavy. Good stress test of `PhysicsServer::raycast`.
+- 58 unit + 10 scenario + 6 headless `SceneLoop` tests
+  (`games/air-hockey/tests/scene.rs`).
+- Result: `src/scene.rs`, one `AirHockeyGame` root node (keyboard only).
+  The game's own physics (`physics.rs`) is kept as is; it does not use
+  `PhysicsServer` — that stress test is left for later.
+- Input: `Game::update` took the stdlib `Input` (macroquad `KeyCode`);
+  it now takes the engine `Input` / `Key`. Tests changed mechanically
+  only: `KeyCode` → `Key`, and `..Input::default()` in the hand-built
+  `empty_input` (the engine `Input` has more fields).
+- Audio: `SoundBank` holds `AudioClipId`s loaded through
+  `AudioServer::load_clip` in `ready`; `on_event` returns the clip and
+  volume, and the node plays it. No `.wav` ships in git, so the game is
+  silent from a fresh checkout, as before.
+- Font: DejaVu Sans Mono via `create_font` / `set_default_font` (as
+  freecell, §5.6). The countdown's `draw_text_ex` scale is a size
+  multiplier (`120 × scale`).
+- Dropped: the frame-time text — it was drawn before `clear_background`,
+  so it never showed. `high_dpi` is not configurable through
+  `run_window`.
 
 ### 5.10 bullet-hell
 

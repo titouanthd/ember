@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/air-hockey` (`cargo run -p air-hockey`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | PvP/PvAI, goalkeeper AI, hitstop guard, countdown |
-| **Engine migration (Phase 7)** | ⬜ not migrated · has audio.rs |
+| **Engine migration (Phase 7)** | ✅ migrated `66987a2` — `src/scene.rs`: `AirHockeyGame` root node; engine `Input` / `Key`, sounds through the `AudioServer`, font via `create_font`; no macroquad |
 
 ## Documents
 
