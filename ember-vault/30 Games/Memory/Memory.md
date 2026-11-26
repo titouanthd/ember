@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/memory` (`cargo run -p memory`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | Grid<T> clicking, 2-step selection, best time persistence |
-| **Engine migration (Phase 7)** | ⬜ not migrated |
+| **Engine migration (Phase 7)** | ✅ migrated `8b08c5d` — `src/scene.rs`: `MemoryGame` root node drawing through the `RenderingServer`, START / Restart / Menu as `ember_ui` Buttons; no macroquad |
 
 ## Documents
 

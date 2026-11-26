@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 41 — Migration Guide
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; 3 of 17 games (pong, simon, snake) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
+> **Status:** 🟡 partial — reviewed 2026-11-19; 4 of 17 games (pong, simon, snake, memory) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [[40-roadmap]], [[21-ember-scene]]
 
@@ -312,10 +312,23 @@ persistence API lands.
   flash lights the pad next frame (same as before); the best score
   still goes through `ember_stdlib::persistence` (step 7 deferred).
 
-### 5.4 memory
+### 5.4 memory — **migrated** (`8b08c5d`, 2026-11-26)
 
-- 20 unit + 4 scenario.
-- Card grid — good test of grid layout (`VBox`/`HBox`).
+- 20 unit + 4 scenario (unchanged) + 8 headless `SceneLoop` tests
+  (`games/memory/tests/scene.rs`).
+- Result: `src/scene.rs`. `MemoryGame` (root) owns the `Game`, handles
+  keys and card / menu clicks, and draws menu, board, header and banner.
+  START / Restart / Menu are `ember_ui` `Button`s under a themed
+  `UiRoot`; a click becomes `ButtonClicked`, applied on the next process.
+- Logic touched: `Game` lost its three `ember_stdlib` `Button` fields and
+  `update_menu_layout` (UI state, now in the scene); `Rect` / `Color`
+  come from `ember_core`.
+- Lessons: the card grid stayed drawn by hand — a 64-card board is data
+  in one node, not 64 controls (same call as minesweeper, §5.5). A
+  clicked button keeps focus and would then react to Space / Enter, so
+  the game drops focus after each click (`UiRoot::request_focus(None)`).
+  `draw` has no input: hover effects read the pointer position saved in
+  `process`.
 
 ### 5.5 minesweeper
 
