@@ -481,6 +481,11 @@ pub enum RecordedAudioCall {
         pitch: f32,
         sound: SoundId,
     },
+    PlayLooped {
+        clip: AudioClipId,
+        volume: f32,
+        sound: SoundId,
+    },
     Stop(SoundId),
     StopAll,
     SetMasterVolume(f32),
@@ -496,6 +501,8 @@ pub struct MockAudio {
     next_sound: u64,
     master_volume: f32,
     capabilities: HashSet<AudioFeature>,
+    /// Clips `is_clip_ready` reports as still decoding.
+    decoding: HashSet<AudioClipId>,
 }
 
 impl MockAudio {
@@ -506,6 +513,7 @@ impl MockAudio {
             next_sound: 0,
             master_volume: 1.0,
             capabilities: HashSet::new(),
+            decoding: HashSet::new(),
         }
     }
 
@@ -519,6 +527,16 @@ impl MockAudio {
 
     pub fn grant(&mut self, feature: AudioFeature) {
         self.capabilities.insert(feature);
+    }
+
+    /// Make `is_clip_ready(clip)` report `ready`, as a backend decoding
+    /// in the background would. Clips are ready by default.
+    pub fn set_clip_ready(&mut self, clip: AudioClipId, ready: bool) {
+        if ready {
+            self.decoding.remove(&clip);
+        } else {
+            self.decoding.insert(clip);
+        }
     }
 }
 
@@ -539,6 +557,21 @@ impl crate::AudioServer for MockAudio {
             sound,
         });
         sound
+    }
+
+    fn play_looped(&mut self, clip: AudioClipId, volume: f32) -> SoundId {
+        self.next_sound += 1;
+        let sound = SoundId::new(self.next_sound);
+        self.calls.push(RecordedAudioCall::PlayLooped {
+            clip,
+            volume,
+            sound,
+        });
+        sound
+    }
+
+    fn is_clip_ready(&self, clip: AudioClipId) -> bool {
+        !self.decoding.contains(&clip)
     }
 
     fn stop(&mut self, sound: SoundId) {

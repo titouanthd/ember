@@ -88,12 +88,46 @@ impl MacroquadAudio {
         Ok(id)
     }
 
-    /// Native: decoding finishes immediately.
+    /// Native: decoding finishes immediately. quad-snd reads only WAV
+    /// and Ogg Vorbis and panics on anything else, so the container is
+    /// checked first and MP3 is turned into WAV (ADR-043).
     #[cfg(not(target_arch = "wasm32"))]
     fn decode(&mut self, bytes: &[u8]) -> Result<AudioClipId, ServerError> {
+        use crate::mp3::{Container, sniff, to_wav};
+        let wav;
+        let bytes = match sniff(bytes) {
+            Container::Wav | Container::Ogg => bytes,
+            Container::Mp3 => {
+                wav = to_wav(bytes).map_err(ServerError::Backend)?;
+                &wav[..]
+            }
+            Container::Unknown => {
+                return Err(ServerError::Backend(
+                    "audio: not a WAV, Ogg Vorbis or MP3 clip".into(),
+                ));
+            }
+        };
         let sound = futures::executor::block_on(load_sound_from_bytes(bytes))
             .map_err(|e| ServerError::Backend(format!("audio parse: {e}")))?;
         Ok(self.adopt_clip(sound))
+    }
+
+    /// `play` and `play_looped`; a clip still decoding is skipped.
+    fn start(&mut self, clip: AudioClipId, volume: f32, looped: bool) -> SoundId {
+        self.adopt_decoded();
+        self.next_sound += 1;
+        let sound_id = SoundId::new(self.next_sound);
+        if let Some(sound) = self.clips.get(&clip) {
+            play_sound(
+                sound,
+                PlaySoundParams {
+                    looped,
+                    volume: volume.clamp(0.0, 1.0) * self.master_volume,
+                },
+            );
+            self.sound_to_clip.insert(sound_id, clip);
+        }
+        sound_id
     }
 
     /// Adopt a sound loaded externally (e.g., before the loop on wasm).
@@ -114,21 +148,15 @@ impl Default for MacroquadAudio {
 
 impl AudioServer for MacroquadAudio {
     fn play(&mut self, clip: AudioClipId, volume: f32, _pitch: f32) -> SoundId {
-        self.adopt_decoded();
-        self.next_sound += 1;
-        let sound_id = SoundId::new(self.next_sound);
+        self.start(clip, volume, false)
+    }
 
-        if let Some(sound) = self.clips.get(&clip) {
-            play_sound(
-                sound,
-                PlaySoundParams {
-                    looped: false,
-                    volume: volume.clamp(0.0, 1.0) * self.master_volume,
-                },
-            );
-            self.sound_to_clip.insert(sound_id, clip);
-        }
-        sound_id
+    fn play_looped(&mut self, clip: AudioClipId, volume: f32) -> SoundId {
+        self.start(clip, volume, true)
+    }
+
+    fn is_clip_ready(&self, clip: AudioClipId) -> bool {
+        self.clips.contains_key(&clip)
     }
 
     fn stop(&mut self, sound: SoundId) {

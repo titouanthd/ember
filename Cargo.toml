@@ -50,3 +50,19 @@ dotenvy   = "0.15"
 
 futures = "0.3"
 slotmap = "1"
+
+# Audio decoding is ~30x slower unoptimised; a debug `cargo run` would
+# spend seconds decoding music at start (ADR-043). Optimise only the
+# decoders, so game code keeps fast debug builds.
+[profile.dev.package.symphonia-core]
+opt-level = 3
+[profile.dev.package.symphonia-bundle-mp3]
+opt-level = 3
+[profile.dev.package.hound]
+opt-level = 3
+[profile.dev.package.lewton]
+opt-level = 3
+[profile.dev.package.audrey]
+opt-level = 3
+[profile.dev.package.quad-snd]
+opt-level = 3

@@ -3,6 +3,8 @@
 //! See `crates/ember-audio/macroquad/src/audio.rs` for behaviour notes.
 
 mod audio;
+#[cfg(not(target_arch = "wasm32"))]
+mod mp3;
 
 pub use audio::MacroquadAudio;
 pub use ember_servers as servers;

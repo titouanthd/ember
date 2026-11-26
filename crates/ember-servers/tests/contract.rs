@@ -243,6 +243,31 @@ fn audio_stop_records_the_sound() {
 }
 
 #[test]
+fn audio_play_looped_is_recorded_with_its_own_sound() {
+    let mut a = MockAudio::new();
+    let clip = a.load_clip(b"fake").unwrap();
+    let once = a.play(clip, 1.0, 1.0);
+    let music = a.play_looped(clip, 0.4);
+    assert_ne!(once, music);
+    assert!(a.calls().iter().any(|c| matches!(
+        c,
+        RecordedAudioCall::PlayLooped { clip: c2, volume, sound }
+            if *c2 == clip && *volume == 0.4 && *sound == music
+    )));
+}
+
+#[test]
+fn audio_clips_are_ready_unless_held_back() {
+    let mut a = MockAudio::new();
+    let clip = a.load_clip(b"fake").unwrap();
+    assert!(a.is_clip_ready(clip));
+    a.set_clip_ready(clip, false);
+    assert!(!a.is_clip_ready(clip));
+    a.set_clip_ready(clip, true);
+    assert!(a.is_clip_ready(clip));
+}
+
+#[test]
 fn every_recorded_variant_is_constructible() {
     // Compile-time assertion that each variant ember_scene / ember_ui
     // will match against in Phases 6–9 exists with its expected shape.
