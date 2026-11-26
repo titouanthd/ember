@@ -49,5 +49,6 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 036 | [[50-design-decisions#ADR-036: `UiRoot` routes input and emits control signals\|UiRoot routes input and emits control signals]] | ✅ `45e44da` |
 | 037 | [[50-design-decisions#ADR-037: Exported properties live on `NodeName`; scenes are written from live trees\|Exported properties on NodeName; scene writer]] | ✅ `f3eedef` `d057b2c` |
 | 038 | [[50-design-decisions#ADR-038: Font and audio loaders; hot reload by polling\|Font/audio loaders; polling hot reload]] | ✅ `a048f66` |
+| 039 | [[50-design-decisions#ADR-039: How a game plugs into the editor\|How a game plugs into the editor]] | ✅ `6aaf9a0` |
 
 New ADRs: copy [[ADR Template]].

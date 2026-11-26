@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/pong` (`cargo run -p pong`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | AABB collisions, simple AI, match state |
-| **Engine migration (Phase 7)** | ✅ `09dd9b8` — on `NodeTree` + `SceneLoop` + `PointScored` signal; no macroquad, `main.rs` 5 lines. Described as `scenes/pong.escene` (`f866d2e`; `.env` only overrides). Next: open it in the editor — the **editor proof** (M1 in [[Next Phase Plan — Migration Close & Editor v2]]) |
+| **Engine migration (Phase 7)** | ✅ `09dd9b8` — on `NodeTree` + `SceneLoop` + `PointScored` signal; no macroquad, `main.rs` 5 lines. Described as `scenes/pong.escene` (`f866d2e`; `.env` only overrides). Opens in the editor with `make edit GAME=pong` (`6aaf9a0`, ADR-039). Next: preview at 800 × 600, scaled (ADR-040) — the **editor proof** (M1 in [[Next Phase Plan — Migration Close & Editor v2]]) |
 
 ## Documents
 

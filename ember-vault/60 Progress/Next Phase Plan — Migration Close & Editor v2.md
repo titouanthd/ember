@@ -90,7 +90,9 @@ Rounds keep the current rhythm: **one game or one engine feature per round**. I 
   - The existing pong tests stay green.
 - Risk: `.escene` cannot express the `PointScored` connection yet (Phase 3 open item). Keep connecting in `ready` for now; it gets solved in M4.1.
 
-### M1.3 Editor as a library + game plug-in (1 session) · **ADR-039 "How a game plugs into the editor"**
+### M1.3 Editor as a library + game plug-in (1 session) · **ADR-039 "How a game plugs into the editor"** — ✅ `6aaf9a0`
+> [!note] As built
+> `make edit` edits `games/<game>/scenes/<game>.escene` **in place**, not on a scratch copy. The proof checklist needs Save to reach `cargo run -p pong`, and the file is tracked by git. The headless `games/pong/tests/editor.rs` landed here too.
 - Layers forbid `ember-editor` from depending on games, so the dependency points the other way:
   - `ember_editor::run(EditorConfig { classes, scene, viewport })` becomes a library entry point.
   - Each game that wants editing gets an `examples/edit.rs` (3 lines) calling it with its own `classes()`.
@@ -109,7 +111,7 @@ Rounds keep the current rhythm: **one game or one engine feature per round**. I 
 - [ ] selecting `PlayerPaddle` shows `size`, `speed`, `color`; changing `size` to `16, 160` updates the preview
 - [ ] Save writes `pong.escene`; reopening it shows the change
 - [ ] `cargo run -p pong` with the saved scene plays with the taller paddle
-- [ ] headless test: `games/pong/tests/editor.rs` opens `pong.escene` in `ember_editor::Document`, edits, saves and reloads
+- [x] headless test: `games/pong/tests/editor.rs` opens `pong.escene` in `ember_editor::Document`, edits, saves and reloads *(`6aaf9a0`)*
 
 ---
 

@@ -115,10 +115,10 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 ## Phase 9 — Editor v2 (new, see [[Next Phase Plan — Migration Close & Editor v2]])
 **Proof — the editor opens Pong (M1):**
 - [x] pong described as `games/pong/scenes/pong.escene`; `build_tree` instantiates it *(`f866d2e`: 4 classes, `.env` = overrides only; 6 tests in `tests/scene_file.rs`)*
-- [ ] editor as a library; a game plugs its `ClassDB` in (ADR-039); `make edit GAME=pong`
+- [x] editor as a library; a game plugs its `ClassDB` in (ADR-039); `make edit GAME=pong` *(`6aaf9a0`)*
 - [ ] preview at the scene's real resolution, scaled (camera zoom, ADR-040)
 - [ ] edit `PlayerPaddle.size` → preview updates → Save → `cargo run -p pong` plays the change
-- [ ] headless `games/pong/tests/editor.rs`
+- [x] headless `games/pong/tests/editor.rs` *(`6aaf9a0`: 4 tests)*
 
 **Editor v2 (M4):**
 - [ ] lossless save: connections, ext resources, unknown properties; scene-declared connections wired (closes Phase 3)

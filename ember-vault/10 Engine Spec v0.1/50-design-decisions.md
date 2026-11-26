@@ -1630,6 +1630,55 @@ on the main thread with the servers at hand.
 - One `stat` per live asset per call; fine for v0.1 asset counts.
 - Code hot-reload stays out of scope (spec §10.3).
 
+## ADR-039: How a game plugs into the editor
+
+**Status:** accepted (2026-11-26) — M1.3 of [[Next Phase Plan — Migration Close & Editor v2]]
+
+### Context
+
+The Phase 6 editor only knew its own `Player` / `Sprite` classes, and it
+was a binary. To open `pong.escene` it needs Pong's classes. Layers
+(`check-layers`) forbid `ember-editor` from depending on games.
+
+### Decision (`6aaf9a0`)
+
+- **The editor is a library.** `ember_editor::run(EditorConfig)`, where
+  `EditorConfig { classes: ClassDB, scene: PathBuf, viewport:
+  Option<Vec2>, print: bool }`. `EditorConfig::from_args(classes)` parses
+  `<scene> [--print]`; `with_viewport(w, h)` sets the game's resolution,
+  which the preview frames.
+- **The dependency points from the game to the editor.** A game that
+  wants editing adds `ember-editor` as a **dev-dependency** and an
+  `examples/edit.rs` of a few lines that passes its own
+  `scene::classes()`. The game binary does not link the editor.
+- **`make edit GAME=<game>`** runs `cargo run -p <game> --example edit --
+  games/<game>/scenes/<game>.escene`. It fails with a message if the game
+  has no `examples/edit.rs`.
+- **It edits the game's scene in place**, not a scratch copy. A game
+  scene is a source file tracked by git (`git diff` / `git checkout`
+  undo it), and the proof needs `cargo run -p <game>` to play what was
+  saved. `make editor` keeps its scratch copy, because it edits a
+  **test fixture**.
+- The `ember-editor` binary stays the demo: it calls `run` with
+  `nodes::classes()`.
+
+### Alternatives
+
+- **A registry crate the editor depends on, listing every game's
+  classes:** the editor would rebuild with every game, and the layering
+  is still wrong. Rejected.
+- **Dynamic loading (plugins as `cdylib`):** an unstable Rust ABI, and
+  far more work than v0.1 needs. Rejected.
+- **An `edit` feature on the game's binary:** it puts editor code into
+  the game's build graph. The dev-only example keeps it out. Rejected.
+
+### Consequences
+
+- Each editable game costs one example and one dev-dependency.
+- The editor cannot list "all games". It opens whichever game started it.
+- The preview frames the resolution but does not scale it yet: Pong's
+  800 × 600 is clipped by the panel until ADR-040 (M1.4).
+
 ## How to add an ADR
 
 1. Copy the template:
