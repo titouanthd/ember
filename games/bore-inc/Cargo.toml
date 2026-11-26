@@ -6,7 +6,11 @@ edition.workspace = true
 [dependencies]
 ember-core.workspace = true
 ember-stdlib.workspace = true
-macroquad.workspace = true
+ember.workspace = true
+ember-input.workspace = true
+ember-servers.workspace = true
+# Decodes the built-in sprite sheet (PNG only; macroquad already uses it).
+image = { version = "0.25", default-features = false, features = ["png"] }
 glam.workspace = true
 serde.workspace = true
 ron.workspace = true

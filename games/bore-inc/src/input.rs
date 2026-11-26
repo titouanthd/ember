@@ -5,10 +5,9 @@
 //! or set fields directly.
 //!
 //! This is separate from the menu/title input helpers in `systems.rs`
-//! (which need a macroquad context and are used for screen
-//! transitions, not simulation).
+//! (used for screen transitions, not simulation).
 
-use macroquad::prelude::*;
+use ember_input::{Input, Key};
 
 /// Direction Archie is facing — and therefore mining toward.
 ///
@@ -56,16 +55,14 @@ pub struct GameInput {
 }
 
 impl GameInput {
-    /// Snapshot the current keyboard state. Call once per frame.
-    ///
-    /// **Not unit-testable** — macroquad's input functions require an
-    /// active context. Tests construct `GameInput::default()` or fill
-    /// fields directly.
-    pub fn from_keyboard() -> Self {
-        let up = is_key_down(KeyCode::Up);
-        let down = is_key_down(KeyCode::Down);
-        let left = is_key_down(KeyCode::Left);
-        let right = is_key_down(KeyCode::Right);
+    /// Read this frame's keyboard state from the engine's `Input` (was
+    /// `from_keyboard`, which read macroquad's globals). Tests may also
+    /// construct `GameInput::default()` or fill fields directly.
+    pub fn from_input(keys: &Input) -> Self {
+        let up = keys.is_key_down(Key::Up);
+        let down = keys.is_key_down(Key::Down);
+        let left = keys.is_key_down(Key::Left);
+        let right = keys.is_key_down(Key::Right);
 
         let horizontal = match (left, right) {
             (true, false) => -1.0,
@@ -90,10 +87,10 @@ impl GameInput {
             facing_held,
             // Accept both physical positions so the same key works on
             // QWERTY and AZERTY:
-            //  - QWERTY: KeyCode::A = labeled `A`, KeyCode::Q = labeled `Q`
-            //  - AZERTY: KeyCode::A = labeled `Q`, KeyCode::Q = labeled `A`
-            mine_held: is_key_down(KeyCode::A) || is_key_down(KeyCode::Q),
-            jump_pressed: is_key_pressed(KeyCode::Space),
+            //  - QWERTY: Key::A = labeled `A`, Key::Q = labeled `Q`
+            //  - AZERTY: Key::A = labeled `Q`, Key::Q = labeled `A`
+            mine_held: keys.is_key_down(Key::A) || keys.is_key_down(Key::Q),
+            jump_pressed: keys.is_key_pressed(Key::Space),
         }
     }
 }

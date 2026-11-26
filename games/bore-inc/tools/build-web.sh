@@ -5,8 +5,7 @@
 #   dist/web/
 #     ├── index.html
 #     ├── mq_js_bundle.js
-#     ├── bore-inc.wasm
-#     └── assets/
+#     └── bore-inc.wasm   (the font and sprite sheet are built in)
 #
 # Usage:
 #     chmod +x tools/build-web.sh
@@ -92,12 +91,9 @@ fi
 # ─── 5. HTML shell ───
 cp "$CRATE_DIR/web/index.html" "$OUT/index.html"
 
-# ─── 6. Assets (clean of dev files) ───
-if [ -d "$CRATE_DIR/assets" ]; then
-    cp -R "$CRATE_DIR/assets" "$OUT/assets"
-    rm -f "$OUT/assets/.env"
-    rm -f "$OUT/assets/progress.ron"
-fi
+# ─── 6. Assets ───
+# None to copy: the font and sprite sheet are built into the wasm binary
+# (include_bytes!). Music tracks, once there are any, must be built in too.
 
 # ─── 7. wasm-opt (optional) ───
 if command -v wasm-opt >/dev/null 2>&1; then

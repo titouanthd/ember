@@ -9,7 +9,8 @@
 
 use std::collections::HashMap;
 
-use macroquad::prelude::*;
+use ember::prelude::*;
+use ember_servers::{TextureFilter, TextureId};
 
 use crate::pixel::Canvas;
 
@@ -141,7 +142,7 @@ impl Default for AtlasBuilder {
 // Baked (CPU-side) atlas
 // ---------------------------------------------------------------------------
 
-/// A CPU-side atlas, ready to be uploaded as a `Texture2D`.
+/// A CPU-side atlas, ready to be uploaded as a texture.
 #[derive(Debug, Clone)]
 pub struct BakedAtlas {
     pub width: u16,
@@ -151,16 +152,19 @@ pub struct BakedAtlas {
 }
 
 impl BakedAtlas {
-    /// Upload to the GPU. **Requires a macroquad context.**
-    pub fn upload(self) -> Atlas {
-        let texture = Texture2D::from_rgba8(self.width, self.height, &self.pixels);
-        texture.set_filter(FilterMode::Nearest);
-        Atlas {
+    /// Upload through the renderer, nearest-filtered (pixel art).
+    pub fn upload(self, gfx: &mut dyn RenderingServer) -> Result<Atlas, String> {
+        let image =
+            ember_core::Image::from_rgba8(self.width as u32, self.height as u32, self.pixels)
+                .ok_or("atlas pixels do not match its size")?;
+        let texture = gfx.create_texture(&image).map_err(|e| e.to_string())?;
+        gfx.set_texture_filter(texture, TextureFilter::Nearest);
+        Ok(Atlas {
             texture,
             width: self.width,
             height: self.height,
             rects: self.rects,
-        }
+        })
     }
 }
 
@@ -170,7 +174,7 @@ impl BakedAtlas {
 
 /// A loaded atlas texture plus a name → rect lookup.
 pub struct Atlas {
-    pub texture: Texture2D,
+    pub texture: TextureId,
     pub width: u16,
     pub height: u16,
     pub rects: HashMap<String, SpriteRect>,
@@ -186,55 +190,53 @@ impl Atlas {
     }
 
     /// Draw a sprite at native size, top-left anchored.
-    pub fn draw(&self, name: &str, x: f32, y: f32) {
-        if let Some(r) = self.rect(name) {
-            draw_texture_ex(
-                &self.texture,
-                x,
-                y,
-                WHITE,
-                DrawTextureParams {
-                    source: Some(r.as_rect()),
-                    ..Default::default()
-                },
-            );
-        }
+    pub fn draw(&self, gfx: &mut dyn RenderingServer, name: &str, x: f32, y: f32) {
+        self.draw_scaled_tinted(gfx, name, x, y, 1.0, WHITE);
     }
 
     /// Draw with a colour tint (multiplied against the source).
-    pub fn draw_tinted(&self, name: &str, x: f32, y: f32, tint: Color) {
-        if let Some(r) = self.rect(name) {
-            draw_texture_ex(
-                &self.texture,
-                x,
-                y,
-                tint,
-                DrawTextureParams {
-                    source: Some(r.as_rect()),
-                    ..Default::default()
-                },
-            );
-        }
+    pub fn draw_tinted(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        name: &str,
+        x: f32,
+        y: f32,
+        tint: Color,
+    ) {
+        self.draw_scaled_tinted(gfx, name, x, y, 1.0, tint);
     }
 
     /// Draw scaled. `scale = 2.0` doubles size; pixel art looks best
     /// with integer scales.
-    pub fn draw_scaled(&self, name: &str, x: f32, y: f32, scale: f32) {
+    pub fn draw_scaled(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        name: &str,
+        x: f32,
+        y: f32,
+        scale: f32,
+    ) {
+        self.draw_scaled_tinted(gfx, name, x, y, scale, WHITE);
+    }
+
+    fn draw_scaled_tinted(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        name: &str,
+        x: f32,
+        y: f32,
+        scale: f32,
+        tint: Color,
+    ) {
         if let Some(r) = self.rect(name) {
-            draw_texture_ex(
-                &self.texture,
-                x,
-                y,
-                WHITE,
-                DrawTextureParams {
-                    dest_size: Some(Vec2::new(r.w as f32 * scale, r.h as f32 * scale)),
-                    source: Some(r.as_rect()),
-                    ..Default::default()
-                },
-            );
+            let dst = Rect::new(x, y, r.w as f32 * scale, r.h as f32 * scale);
+            gfx.draw_sprite(self.texture, dst, Some(r.as_rect()), tint);
         }
     }
 }
+
+/// macroquad's `WHITE`: an untinted draw.
+const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
 
 // ---------------------------------------------------------------------------
 // Tests

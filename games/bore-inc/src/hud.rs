@@ -7,7 +7,7 @@
 //! the jam restriction is on input, not on rendering, but a fixed
 //! corner HUD would still feel like a break from the world.
 
-use macroquad::prelude::*;
+use ember::prelude::*;
 
 use crate::bag::Bag;
 use crate::components::ResourceKind;
@@ -33,7 +33,13 @@ const GAP_ABOVE: f32 = 12.0;
 /// coordinates with the same `sx` / `sy` closures used for the sprite.
 ///
 /// Draws nothing if the bag is empty.
-pub fn draw_bag_readout(bag: &Bag, center_x: f32, top_y: f32, ctx: &GameContext) {
+pub fn draw_bag_readout(
+    gfx: &mut dyn RenderingServer,
+    bag: &Bag,
+    center_x: f32,
+    top_y: f32,
+    ctx: &GameContext,
+) {
     let entries = bag.contents_in_order();
     if entries.is_empty() {
         return;
@@ -42,9 +48,9 @@ pub fn draw_bag_readout(bag: &Bag, center_x: f32, top_y: f32, ctx: &GameContext)
     // Width of the widest row: chip + gap + longest name + gap + widest count.
     let mut max_row_w = 0.0_f32;
     for (res, count) in &entries {
-        let name_w = measure_text(res.name(), None, TEXT_SIZE as u16, 1.0).width;
+        let name_w = gfx.measure_text(res.name(), TEXT_SIZE).width;
         let count_str = format!("x{count}");
-        let count_w = measure_text(&count_str, None, TEXT_SIZE as u16, 1.0).width;
+        let count_w = gfx.measure_text(&count_str, TEXT_SIZE).width;
         let w = CHIP + GAP + name_w + GAP + count_w;
         if w > max_row_w {
             max_row_w = w;
@@ -59,7 +65,10 @@ pub fn draw_bag_readout(bag: &Bag, center_x: f32, top_y: f32, ctx: &GameContext)
     let py = (top_y - panel_h - GAP_ABOVE).max(8.0);
 
     // Panel background — dark, warm, no outline.
-    draw_rectangle(px, py, panel_w, panel_h, Color::new(0.06, 0.04, 0.02, 0.78));
+    gfx.draw_rect(
+        Rect::new(px, py, panel_w, panel_h),
+        Color::new(0.06, 0.04, 0.02, 0.78),
+    );
 
     for (i, (res, count)) in entries.iter().enumerate() {
         let row_y = py + PAD + (i as f32) * ROW_H;
@@ -67,32 +76,27 @@ pub fn draw_bag_readout(bag: &Bag, center_x: f32, top_y: f32, ctx: &GameContext)
         // Chip.
         let (r, g, b) = resource_color(*res);
         let chip_y = row_y + (TEXT_SIZE - CHIP) * 0.5;
-        draw_rectangle(
-            px + PAD,
-            chip_y,
-            CHIP,
-            CHIP,
+        gfx.draw_rect(
+            Rect::new(px + PAD, chip_y, CHIP, CHIP),
             Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0),
         );
 
         // Name.
         let name_x = px + PAD + CHIP + GAP;
-        draw_text(
+        gfx.draw_text(
             res.name(),
-            name_x,
-            row_y + TEXT_SIZE - 2.0,
+            Vec2::new(name_x, row_y + TEXT_SIZE - 2.0),
             TEXT_SIZE,
             ctx.colors.text,
         );
 
         // Count, right-aligned.
         let count_str = format!("x{count}");
-        let count_w = measure_text(&count_str, None, TEXT_SIZE as u16, 1.0).width;
+        let count_w = gfx.measure_text(&count_str, TEXT_SIZE).width;
         let count_x = px + panel_w - PAD - count_w;
-        draw_text(
+        gfx.draw_text(
             &count_str,
-            count_x,
-            row_y + TEXT_SIZE - 2.0,
+            Vec2::new(count_x, row_y + TEXT_SIZE - 2.0),
             TEXT_SIZE,
             ctx.colors.gold,
         );

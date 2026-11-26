@@ -6,8 +6,8 @@
 
 use std::collections::HashMap;
 
+use ember::prelude::*;
 use glam::Vec2;
-use macroquad::prelude::*;
 
 use crate::atlas::Atlas;
 use crate::components::{ResourceKind, TILE_SIZE, Tile, TileKind};
@@ -249,14 +249,15 @@ impl HqState {
 
     pub fn draw(
         &self,
+        gfx: &mut dyn RenderingServer,
         ctx: &GameContext,
         atlas: &Atlas,
         sprites: &ArchieSprites,
         progress: &Progress,
     ) {
-        let vw = screen_width();
-        let vh = screen_height();
-        clear_background(ctx.colors.bg_bottom);
+        let vw = gfx.viewport().w;
+        let vh = gfx.viewport().h;
+        gfx.set_clear_color(ctx.colors.bg_bottom);
 
         let scale = integer_scale(vw, vh);
         let virt_w = VIRTUAL_W * scale;
@@ -286,7 +287,10 @@ impl HqState {
         // HQ sky: a flat band above the surface. Cozy, not the
         // outdoor zone backdrop — the HQ is indoors-ish.
         let horizon_screen_y = screen_oy + (HQ_SURFACE_ROW as f32 * TILE_SIZE - cam_y) * scale;
-        draw_rectangle(0.0, 0.0, vw, horizon_screen_y, ctx.colors.sky_top);
+        gfx.draw_rect(
+            Rect::new(0.0, 0.0, vw, horizon_screen_y),
+            ctx.colors.sky_top,
+        );
 
         // Tiles.
         let col_min = ((cam_x / TILE_SIZE).floor() as i32 - 2).max(0);
@@ -309,11 +313,13 @@ impl HqState {
                 };
                 let (r, g, b) = tile.kind.color();
                 let base = Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0);
-                draw_rectangle(
-                    sx(col as f32 * TILE_SIZE),
-                    sy(row as f32 * TILE_SIZE),
-                    TILE_SIZE * scale,
-                    TILE_SIZE * scale,
+                gfx.draw_rect(
+                    Rect::new(
+                        sx(col as f32 * TILE_SIZE),
+                        sy(row as f32 * TILE_SIZE),
+                        TILE_SIZE * scale,
+                        TILE_SIZE * scale,
+                    ),
                     base,
                 );
             }
@@ -338,11 +344,8 @@ impl HqState {
             } else {
                 0.55 + 0.35 * (self.archie.pos.x * 0.01).sin().abs()
             };
-            draw_rectangle(
-                pad_x,
-                pad_y - pad_h,
-                pad_w,
-                pad_h,
+            gfx.draw_rect(
+                Rect::new(pad_x, pad_y - pad_h, pad_w, pad_h),
                 Color::new(
                     ctx.colors.gold.r,
                     ctx.colors.gold.g,
@@ -351,10 +354,9 @@ impl HqState {
                 ),
             );
 
-            draw_text(
+            gfx.draw_text(
                 "SELL",
-                pad_x + 8.0,
-                pad_y - pad_h - 10.0,
+                Vec2::new(pad_x + 8.0, pad_y - pad_h - 10.0),
                 22.0,
                 ctx.colors.gold,
             );
@@ -366,11 +368,13 @@ impl HqState {
             let alpha = t.clamp(0.0, 1.0);
             let rise = (1.0 - t) * 36.0;
             let text = format!("+${}", self.last_sale_earned);
-            let d = measure_text(&text, None, 30, 1.0);
-            draw_text(
+            let d = gfx.measure_text(&text, 30.0);
+            gfx.draw_text(
                 &text,
-                pad_left_sx + pad_w_sx * 0.5 - d.width * 0.5,
-                pad_top_sy - 30.0 - rise,
+                Vec2::new(
+                    pad_left_sx + pad_w_sx * 0.5 - d.width * 0.5,
+                    pad_top_sy - 30.0 - rise,
+                ),
                 30.0,
                 Color::new(
                     ctx.colors.gold.r,
@@ -383,7 +387,7 @@ impl HqState {
 
         // Upgrade blocks.
         for block in &self.blocks {
-            draw_upgrade_block(block, &sx, &sy, scale, ctx, progress);
+            draw_upgrade_block(gfx, block, &sx, &sy, scale, ctx, progress);
         }
 
         // Parked truck.
@@ -393,19 +397,16 @@ impl HqState {
             let tw = TRUCK_W_TILES * TILE_SIZE * scale;
             let th = TRUCK_H_TILES * TILE_SIZE * scale;
 
-            draw_rectangle(truck_x, truck_y, tw, th, Color::new(0.62, 0.32, 0.14, 1.0));
-            draw_rectangle(
-                truck_x,
-                truck_y,
-                tw,
-                th * 0.4,
+            gfx.draw_rect(
+                Rect::new(truck_x, truck_y, tw, th),
+                Color::new(0.62, 0.32, 0.14, 1.0),
+            );
+            gfx.draw_rect(
+                Rect::new(truck_x, truck_y, tw, th * 0.4),
                 Color::new(0.42, 0.28, 0.18, 1.0),
             );
-            draw_rectangle_lines(
-                truck_x,
-                truck_y,
-                tw,
-                th,
+            gfx.draw_rect_outline(
+                Rect::new(truck_x, truck_y, tw, th),
                 1.5,
                 Color::new(0.15, 0.10, 0.06, 1.0),
             );
@@ -416,11 +417,13 @@ impl HqState {
                 self.cargo_total() as f32 / self.initial_cargo as f32
             };
             if fill > 0.0 {
-                draw_rectangle(
-                    truck_x + 2.0 * scale,
-                    truck_y + th - 4.0 * scale,
-                    (tw - 4.0 * scale) * fill,
-                    2.0 * scale,
+                gfx.draw_rect(
+                    Rect::new(
+                        truck_x + 2.0 * scale,
+                        truck_y + th - 4.0 * scale,
+                        (tw - 4.0 * scale) * fill,
+                        2.0 * scale,
+                    ),
                     ctx.colors.gold,
                 );
             }
@@ -432,14 +435,14 @@ impl HqState {
             let sprite_wy = self.archie.pos.y + sprites.offset.1;
 
             let bag_frame = bag_frame_name(&self.archie, sprites);
-            atlas.draw_scaled(&bag_frame, sx(sprite_wx), sy(sprite_wy), scale);
+            atlas.draw_scaled(gfx, &bag_frame, sx(sprite_wx), sy(sprite_wy), scale);
 
             let frame = archie_frame(self, sprites);
-            atlas.draw_scaled(&frame, sx(sprite_wx), sy(sprite_wy), scale);
+            atlas.draw_scaled(gfx, &frame, sx(sprite_wx), sy(sprite_wy), scale);
 
             let center_x = sx(sprite_wx + crate::sprites::archie::SHEET_CELL as f32 * 0.5);
             let top_y = sy(sprite_wy);
-            crate::hud::draw_bag_readout(&self.archie.bag, center_x, top_y, ctx);
+            crate::hud::draw_bag_readout(gfx, &self.archie.bag, center_x, top_y, ctx);
         }
 
         // Upgrade floaters, drawn above everything else.
@@ -447,34 +450,31 @@ impl HqState {
             let t = f.timer / UPGRADE_FLOATER_DURATION;
             let alpha = t.clamp(0.0, 1.0);
             let rise = (1.0 - t) * 24.0;
-            let d = measure_text(&f.text, None, 22, 1.0);
+            let d = gfx.measure_text(&f.text, 22.0);
             let fx = sx(f.x) - d.width * 0.5;
             let fy = sy(f.y) - rise;
-            draw_text(
+            gfx.draw_text(
                 &f.text,
-                fx,
-                fy,
+                Vec2::new(fx, fy),
                 22.0,
                 Color::new(f.color.r, f.color.g, f.color.b, alpha),
             );
         }
 
         // HUD.
-        draw_text(
-            format!("Dollars: ${}", progress.dollars),
-            20.0,
-            34.0,
+        gfx.draw_text(
+            &format!("Dollars: ${}", progress.dollars),
+            Vec2::new(20.0, 34.0),
             24.0,
             ctx.colors.gold,
         );
-        draw_text(
-            format!(
+        gfx.draw_text(
+            &format!(
                 "cargo {}   sold this visit ${}",
                 self.cargo_total(),
                 self.total_sold_this_visit
             ),
-            20.0,
-            60.0,
+            Vec2::new(20.0, 60.0),
             18.0,
             ctx.colors.text_dim,
         );
@@ -484,7 +484,7 @@ impl HqState {
         } else {
             "walk right to the SELL pad"
         };
-        draw_text(hint, 20.0, vh - 20.0, 16.0, ctx.colors.text_dim);
+        gfx.draw_text(hint, Vec2::new(20.0, vh - 20.0), 16.0, ctx.colors.text_dim);
     }
 }
 
@@ -500,6 +500,7 @@ const BLOCK_COLORS: &[(u8, u8, u8)] = &[
 ];
 
 fn draw_upgrade_block(
+    gfx: &mut dyn RenderingServer,
     block: &UpgradeBlock,
     sx: &impl Fn(f32) -> f32,
     sy: &impl Fn(f32) -> f32,
@@ -523,22 +524,24 @@ fn draw_upgrade_block(
         let plate_h = bh * 0.4;
         let plate_y = by + bh - plate_h;
 
-        draw_rectangle(bx, plate_y, bw, plate_h, Color::new(0.25, 0.20, 0.15, 1.0));
-        draw_rectangle_lines(
-            bx,
-            plate_y,
-            bw,
-            plate_h,
+        gfx.draw_rect(
+            Rect::new(bx, plate_y, bw, plate_h),
+            Color::new(0.25, 0.20, 0.15, 1.0),
+        );
+        gfx.draw_rect_outline(
+            Rect::new(bx, plate_y, bw, plate_h),
             scale.max(1.0),
             Color::new(0.15, 0.10, 0.06, 1.0),
         );
 
         let label = "MAX";
-        let d = measure_text(label, None, (14.0 * scale / 4.0) as u16, 1.0);
-        draw_text(
+        let d = gfx.measure_text(label, 14.0 * scale / 4.0);
+        gfx.draw_text(
             label,
-            bx + bw * 0.5 - d.width * 0.5,
-            plate_y + plate_h * 0.5 + d.height * 0.35,
+            Vec2::new(
+                bx + bw * 0.5 - d.width * 0.5,
+                plate_y + plate_h * 0.5 + d.height * 0.35,
+            ),
             14.0 * scale / 4.0,
             ctx.colors.gold,
         );
@@ -546,12 +549,9 @@ fn draw_upgrade_block(
     }
 
     // Full block body.
-    draw_rectangle(bx, by, bw, bh, base);
-    draw_rectangle_lines(
-        bx,
-        by,
-        bw,
-        bh,
+    gfx.draw_rect(Rect::new(bx, by, bw, bh), base);
+    gfx.draw_rect_outline(
+        Rect::new(bx, by, bw, bh),
         (scale * 0.75).max(2.0),
         Color::new(0.15, 0.10, 0.06, 1.0),
     );
@@ -559,17 +559,22 @@ fn draw_upgrade_block(
     // Flash overlay on purchase.
     if block.flash_timer > 0.0 {
         let a = (block.flash_timer / BLOCK_FLASH_DURATION).clamp(0.0, 1.0);
-        draw_rectangle(bx, by, bw, bh, Color::new(1.0, 1.0, 1.0, a * 0.85));
+        gfx.draw_rect(
+            Rect::new(bx, by, bw, bh),
+            Color::new(1.0, 1.0, 1.0, a * 0.85),
+        );
     }
 
     // "N/MAX" text near the top.
     let lvl_text = format!("{}/{}", block.level, def.max_level);
     let font_size = 16.0 * scale / 4.0;
-    let d = measure_text(&lvl_text, None, font_size as u16, 1.0);
-    draw_text(
+    let d = gfx.measure_text(&lvl_text, font_size);
+    gfx.draw_text(
         &lvl_text,
-        bx + bw * 0.5 - d.width * 0.5,
-        by + font_size + 4.0 * scale / 4.0,
+        Vec2::new(
+            bx + bw * 0.5 - d.width * 0.5,
+            by + font_size + 4.0 * scale / 4.0,
+        ),
         font_size,
         ctx.colors.text,
     );
@@ -577,11 +582,10 @@ fn draw_upgrade_block(
     // Label near the bottom.
     let ldef = &UPGRADES[block.def_index];
     let label = ldef.label;
-    let d = measure_text(label, None, font_size as u16, 1.0);
-    draw_text(
+    let d = gfx.measure_text(label, font_size);
+    gfx.draw_text(
         label,
-        bx + bw * 0.5 - d.width * 0.5,
-        by + bh - 4.0 * scale / 4.0,
+        Vec2::new(bx + bw * 0.5 - d.width * 0.5, by + bh - 4.0 * scale / 4.0),
         font_size,
         ctx.colors.text_dim,
     );
@@ -589,11 +593,13 @@ fn draw_upgrade_block(
     // Cost below the block, small and dim.
     if let Some(cost) = upgrade::cost_for(def, block.level) {
         let cost_text = format!("${cost}");
-        let d = measure_text(&cost_text, None, font_size as u16, 1.0);
-        draw_text(
+        let d = gfx.measure_text(&cost_text, font_size);
+        gfx.draw_text(
             &cost_text,
-            bx + bw * 0.5 - d.width * 0.5,
-            by + bh + font_size + 4.0 * scale / 4.0,
+            Vec2::new(
+                bx + bw * 0.5 - d.width * 0.5,
+                by + bh + font_size + 4.0 * scale / 4.0,
+            ),
             font_size,
             ctx.colors.gold,
         );

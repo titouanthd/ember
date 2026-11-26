@@ -19,8 +19,6 @@
 //! `bag_r` / `bag_l` so `Game::draw` can find it next to the cat
 //! sprites without extra plumbing.
 
-use macroquad::texture::Image;
-
 use crate::atlas::{AtlasBuilder, SpriteRect};
 use crate::pixel::Canvas;
 use crate::sprites::bag;
@@ -57,12 +55,40 @@ pub struct ArchieSprites {
 
 // ---------- Sheet loading ----------
 
-/// Load `assets/<filename>` into an `Image`. Async on wasm (fetch).
-pub async fn load_sheet(filename: &str) -> Result<Image, String> {
-    let path = crate::paths::asset_str(filename);
-    macroquad::texture::load_image(&path)
-        .await
-        .map_err(|e| format!("{e:?}"))
+/// The sprite sheet, built into the binary so native and web read it the
+/// same way (was fetched from `assets/` with macroquad's `load_image`).
+const SHEET_PNG: &[u8] = include_bytes!("../../assets/archie.png");
+
+/// A decoded RGBA image, shaped like macroquad's `Image` (which the
+/// sheet code and its tests were written against).
+#[derive(Debug, Clone)]
+pub struct Image {
+    pub bytes: Vec<u8>,
+    pub width: u16,
+    pub height: u16,
+}
+
+impl Image {
+    pub fn width(&self) -> usize {
+        self.width as usize
+    }
+
+    pub fn height(&self) -> usize {
+        self.height as usize
+    }
+}
+
+/// Decode the built-in sheet (`assets/archie.png`).
+pub fn load_sheet() -> Result<Image, String> {
+    let rgba = image::load_from_memory_with_format(SHEET_PNG, image::ImageFormat::Png)
+        .map_err(|e| format!("{e}"))?
+        .to_rgba8();
+    let (w, h) = rgba.dimensions();
+    Ok(Image {
+        width: u16::try_from(w).map_err(|_| format!("sheet too wide: {w}"))?,
+        height: u16::try_from(h).map_err(|_| format!("sheet too tall: {h}"))?,
+        bytes: rgba.into_raw(),
+    })
 }
 
 /// Extract one 32×32 cell from `image` at `(col, row)`.

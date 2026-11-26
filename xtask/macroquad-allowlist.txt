@@ -20,5 +20,4 @@ crates/ember-stdlib/src/sprite.rs
 crates/ember-stdlib/src/ui/
 
 # --- games (Phase 7: remove each line as the game migrates) ---------
-games/bore-inc/
 games/ember-wars/

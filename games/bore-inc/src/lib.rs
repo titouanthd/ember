@@ -21,6 +21,7 @@ pub mod pixel;
 pub mod player;
 pub mod progress;
 pub mod rng;
+pub mod scene;
 pub mod sprites;
 pub mod systems;
 pub mod truck;

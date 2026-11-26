@@ -2,7 +2,7 @@
 //! gameplay simulation), the screen enum, and the screen-level input
 //! dispatch.
 
-use macroquad::prelude::*;
+use ember::prelude::*;
 
 use crate::atlas::Atlas;
 use crate::audio::MusicPlayer;
@@ -132,7 +132,7 @@ impl AppState {
         self.current_level = kind;
     }
 
-    pub fn tick(&mut self, _ctx: &GameContext, dt: f32) -> AppAction {
+    pub fn tick(&mut self, keys: &Input, _ctx: &GameContext, dt: f32) -> AppAction {
         self.time += dt;
         self.screen_elapsed += dt;
         self.audio.tick(dt);
@@ -140,51 +140,51 @@ impl AppState {
 
         #[cfg(debug_assertions)]
         {
-            if is_key_pressed(KeyCode::F1) {
+            if keys.is_key_pressed(Key::F1) {
                 self.debug_open = !self.debug_open;
             }
-            if self.screen == AppScreen::Hq && is_key_pressed(KeyCode::F2) {
+            if self.screen == AppScreen::Hq && keys.is_key_pressed(Key::F2) {
                 self.progress.add_dollars(500);
                 self.progress_dirty = true;
                 println!("[debug] +$500 (total ${})", self.progress.dollars);
             }
             if self.debug_open {
-                self.tick_debug();
+                self.tick_debug(keys);
                 return AppAction::Continue;
             }
             if self.screen == AppScreen::Game
-                && is_key_pressed(KeyCode::T)
+                && keys.is_key_pressed(Key::T)
                 && let Some(game) = self.game.as_mut()
             {
                 game.teleport_truck_to_finish();
             }
-            if let Some(target) = self.dev_shortcut() {
+            if let Some(target) = self.dev_shortcut(keys) {
                 self.goto(target);
                 return AppAction::Continue;
             }
         }
 
         match self.screen {
-            AppScreen::WebStart => self.tick_webstart(),
-            AppScreen::Title => self.tick_title(),
-            AppScreen::Intro => self.tick_intro(),
-            AppScreen::Game => self.tick_game(dt),
-            AppScreen::Hq => self.tick_hq(dt),
-            AppScreen::Map => self.tick_map(),
+            AppScreen::WebStart => self.tick_webstart(keys),
+            AppScreen::Title => self.tick_title(keys),
+            AppScreen::Intro => self.tick_intro(keys),
+            AppScreen::Game => self.tick_game(keys, dt),
+            AppScreen::Hq => self.tick_hq(keys, dt),
+            AppScreen::Map => self.tick_map(keys),
         }
     }
 
     #[cfg(debug_assertions)]
-    fn tick_debug(&mut self) {
-        if is_key_pressed(KeyCode::Up) || is_key_pressed(KeyCode::Down) {
+    fn tick_debug(&mut self, keys: &Input) {
+        if keys.is_key_pressed(Key::Up) || keys.is_key_pressed(Key::Down) {
             self.debug_level = self.debug_level.cycle();
         }
 
-        if is_key_pressed(KeyCode::R) {
+        if keys.is_key_pressed(Key::R) {
             self.debug_seed = (self.time * 1_000_000.0) as u32;
         }
 
-        if is_key_pressed(KeyCode::Enter) {
+        if keys.is_key_pressed(Key::Enter) {
             self.progress
                 .set_level_seed(self.debug_level.id(), self.debug_seed);
             self.progress_dirty = true;
@@ -194,14 +194,14 @@ impl AppState {
             self.debug_open = false;
         }
 
-        if is_key_pressed(KeyCode::Escape) {
+        if keys.is_key_pressed(Key::Escape) {
             self.debug_open = false;
         }
     }
 
-    fn tick_webstart(&mut self) -> AppAction {
-        let any_key = get_last_key_pressed().is_some();
-        let clicked = is_mouse_button_pressed(MouseButton::Left);
+    fn tick_webstart(&mut self, keys: &Input) -> AppAction {
+        let any_key = !keys.keys_pressed.is_empty();
+        let clicked = keys.mouse_left_pressed;
         if any_key || clicked {
             self.audio.start();
             self.goto(AppScreen::Title);
@@ -209,22 +209,22 @@ impl AppState {
         AppAction::Continue
     }
 
-    fn tick_title(&mut self) -> AppAction {
-        if movement_key_pressed() {
+    fn tick_title(&mut self, keys: &Input) -> AppAction {
+        if movement_key_pressed(keys) {
             self.goto(AppScreen::Intro);
         }
         AppAction::Continue
     }
 
-    fn tick_intro(&mut self) -> AppAction {
-        if movement_key_pressed() {
+    fn tick_intro(&mut self, keys: &Input) -> AppAction {
+        if movement_key_pressed(keys) {
             self.goto(AppScreen::Game);
         }
         AppAction::Continue
     }
 
-    fn tick_game(&mut self, dt: f32) -> AppAction {
-        if is_key_pressed(KeyCode::R) {
+    fn tick_game(&mut self, keys: &Input, dt: f32) -> AppAction {
+        if keys.is_key_pressed(Key::R) {
             let seed = (self.time * 1000.0) as u32;
             let kind = self.current_level;
             self.progress.set_level_seed(kind.id(), seed);
@@ -233,7 +233,7 @@ impl AppState {
             return AppAction::Continue;
         }
 
-        let input = GameInput::from_keyboard();
+        let input = GameInput::from_input(keys);
         if let Some(game) = self.game.as_mut() {
             game.tick(dt, input);
         }
@@ -274,84 +274,82 @@ impl AppState {
             return AppAction::Continue;
         }
 
-        if is_key_pressed(KeyCode::Escape) {
+        if keys.is_key_pressed(Key::Escape) {
             self.goto(AppScreen::Title);
         }
         AppAction::Continue
     }
 
-    fn tick_hq(&mut self, dt: f32) -> AppAction {
-        let input = GameInput::from_keyboard();
+    fn tick_hq(&mut self, keys: &Input, dt: f32) -> AppAction {
+        let input = GameInput::from_input(keys);
         if let Some(hq) = self.hq.as_mut() {
             hq.tick(dt, input, &mut self.progress);
         }
-        if is_key_pressed(KeyCode::Escape) {
+        if keys.is_key_pressed(Key::Escape) {
             self.goto(AppScreen::Title);
         }
         AppAction::Continue
     }
 
-    fn tick_map(&mut self) -> AppAction {
-        if is_key_pressed(KeyCode::Escape) {
+    fn tick_map(&mut self, keys: &Input) -> AppAction {
+        if keys.is_key_pressed(Key::Escape) {
             self.goto(AppScreen::Title);
         }
         AppAction::Continue
     }
 
     #[cfg(debug_assertions)]
-    fn dev_shortcut(&self) -> Option<AppScreen> {
+    fn dev_shortcut(&self, keys: &Input) -> Option<AppScreen> {
         if self.screen == AppScreen::WebStart {
             return None;
         }
-        if is_key_pressed(KeyCode::Key1) {
+        if keys.is_key_pressed(Key::Num1) {
             Some(AppScreen::Title)
-        } else if is_key_pressed(KeyCode::Key2) {
+        } else if keys.is_key_pressed(Key::Num2) {
             Some(AppScreen::Game)
-        } else if is_key_pressed(KeyCode::Key3) {
+        } else if keys.is_key_pressed(Key::Num3) {
             Some(AppScreen::Hq)
-        } else if is_key_pressed(KeyCode::Key4) {
+        } else if keys.is_key_pressed(Key::Num4) {
             Some(AppScreen::Map)
         } else {
             None
         }
     }
 
-    pub fn draw(&self, ctx: &GameContext) {
+    pub fn draw(&self, gfx: &mut dyn RenderingServer, ctx: &GameContext) {
         match self.screen {
-            AppScreen::WebStart => self.draw_webstart(ctx),
-            AppScreen::Title => self.draw_title(ctx),
-            AppScreen::Intro => self.draw_placeholder(ctx, "INTRO", "TODO"),
-            AppScreen::Game => self.draw_game(ctx),
-            AppScreen::Hq => self.draw_hq(ctx),
-            AppScreen::Map => self.draw_placeholder(ctx, "MAP", "TODO"),
+            AppScreen::WebStart => self.draw_webstart(gfx, ctx),
+            AppScreen::Title => self.draw_title(gfx, ctx),
+            AppScreen::Intro => self.draw_placeholder(gfx, ctx, "INTRO", "TODO"),
+            AppScreen::Game => self.draw_game(gfx, ctx),
+            AppScreen::Hq => self.draw_hq(gfx, ctx),
+            AppScreen::Map => self.draw_placeholder(gfx, ctx, "MAP", "TODO"),
         }
 
         #[cfg(debug_assertions)]
-        self.draw_debug(ctx);
+        self.draw_debug(gfx, ctx);
     }
 
-    fn draw_webstart(&self, ctx: &GameContext) {
-        let vw = screen_width();
-        let vh = screen_height();
-        clear_background(Color::new(0.04, 0.03, 0.016, 1.0));
+    fn draw_webstart(&self, gfx: &mut dyn RenderingServer, ctx: &GameContext) {
+        let vw = gfx.viewport().w;
+        let vh = gfx.viewport().h;
+        gfx.set_clear_color(Color::new(0.04, 0.03, 0.016, 1.0));
 
         let title = "BORE INC.";
-        let d = measure_text(title, None, 56, 1.0);
-        draw_text(
+        let d = gfx.measure_text(title, 56.0);
+        gfx.draw_text(
             title,
-            vw * 0.5 - d.width * 0.5,
-            vh * 0.42,
+            Vec2::new(vw * 0.5 - d.width * 0.5, vh * 0.42),
             56.0,
             ctx.colors.gold,
         );
 
         let prompt = "Click anywhere to begin";
-        let d = measure_text(prompt, None, 20, 1.0);
+        let d = gfx.measure_text(prompt, 20.0);
         let pulse = 0.55 + 0.45 * (self.time * 2.0).sin().abs();
-        draw_text(
+        gfx.draw_text(
             prompt,
-            vw * 0.5 - d.width * 0.5,
-            vh * 0.72,
+            Vec2::new(vw * 0.5 - d.width * 0.5, vh * 0.72),
             20.0,
             Color::new(
                 ctx.colors.gold.r,
@@ -362,39 +360,36 @@ impl AppState {
         );
     }
 
-    fn draw_title(&self, ctx: &GameContext) {
-        let vw = screen_width();
-        let vh = screen_height();
-        clear_background(ctx.colors.bg_bottom);
-        draw_rectangle(0.0, 0.0, vw, vh * 0.65, ctx.colors.bg_top);
+    fn draw_title(&self, gfx: &mut dyn RenderingServer, ctx: &GameContext) {
+        let vw = gfx.viewport().w;
+        let vh = gfx.viewport().h;
+        gfx.set_clear_color(ctx.colors.bg_bottom);
+        gfx.draw_rect(Rect::new(0.0, 0.0, vw, vh * 0.65), ctx.colors.bg_top);
 
         let title = "BORE INC.";
-        let d = measure_text(title, None, 72, 1.0);
-        draw_text(
+        let d = gfx.measure_text(title, 72.0);
+        gfx.draw_text(
             title,
-            vw * 0.5 - d.width * 0.5,
-            vh * 0.36,
+            Vec2::new(vw * 0.5 - d.width * 0.5, vh * 0.36),
             72.0,
             ctx.colors.gold,
         );
 
         let sub = "An incremental mining game";
-        let d = measure_text(sub, None, 20, 1.0);
-        draw_text(
+        let d = gfx.measure_text(sub, 20.0);
+        gfx.draw_text(
             sub,
-            vw * 0.5 - d.width * 0.5,
-            vh * 0.36 + 38.0,
+            Vec2::new(vw * 0.5 - d.width * 0.5, vh * 0.36 + 38.0),
             20.0,
             ctx.colors.text_dim,
         );
 
         let prompt = "Press any movement key to begin";
-        let d = measure_text(prompt, None, 18, 1.0);
+        let d = gfx.measure_text(prompt, 18.0);
         let pulse = 0.55 + 0.45 * (self.time * 2.0).sin().abs();
-        draw_text(
+        gfx.draw_text(
             prompt,
-            vw * 0.5 - d.width * 0.5,
-            vh * 0.72,
+            Vec2::new(vw * 0.5 - d.width * 0.5, vh * 0.72),
             18.0,
             Color::new(
                 ctx.colors.text.r,
@@ -405,54 +400,57 @@ impl AppState {
         );
     }
 
-    fn draw_placeholder(&self, ctx: &GameContext, big: &str, small: &str) {
-        let vw = screen_width();
-        let vh = screen_height();
-        clear_background(ctx.colors.bg_bottom);
-        draw_rectangle(0.0, 0.0, vw, vh * 0.65, ctx.colors.bg_top);
+    fn draw_placeholder(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        ctx: &GameContext,
+        big: &str,
+        small: &str,
+    ) {
+        let vw = gfx.viewport().w;
+        let vh = gfx.viewport().h;
+        gfx.set_clear_color(ctx.colors.bg_bottom);
+        gfx.draw_rect(Rect::new(0.0, 0.0, vw, vh * 0.65), ctx.colors.bg_top);
 
-        let d = measure_text(big, None, 64, 1.0);
-        draw_text(
+        let d = gfx.measure_text(big, 64.0);
+        gfx.draw_text(
             big,
-            vw * 0.5 - d.width * 0.5,
-            vh * 0.44,
+            Vec2::new(vw * 0.5 - d.width * 0.5, vh * 0.44),
             64.0,
             ctx.colors.gold,
         );
 
-        let d = measure_text(small, None, 18, 1.0);
-        draw_text(
+        let d = gfx.measure_text(small, 18.0);
+        gfx.draw_text(
             small,
-            vw * 0.5 - d.width * 0.5,
-            vh * 0.44 + 34.0,
+            Vec2::new(vw * 0.5 - d.width * 0.5, vh * 0.44 + 34.0),
             18.0,
             ctx.colors.text_dim,
         );
 
         let meta = format!("tile = {TILE_SIZE}px");
-        let d = measure_text(&meta, None, 12, 1.0);
-        draw_text(
+        let d = gfx.measure_text(&meta, 12.0);
+        gfx.draw_text(
             &meta,
-            vw * 0.5 - d.width * 0.5,
-            vh * 0.44 + 64.0,
+            Vec2::new(vw * 0.5 - d.width * 0.5, vh * 0.44 + 64.0),
             12.0,
             ctx.colors.text_dim,
         );
 
         let hint = "[Esc] Title";
-        let d = measure_text(hint, None, 14, 1.0);
-        draw_text(
+        let d = gfx.measure_text(hint, 14.0);
+        gfx.draw_text(
             hint,
-            vw * 0.5 - d.width * 0.5,
-            vh - 32.0,
+            Vec2::new(vw * 0.5 - d.width * 0.5, vh - 32.0),
             14.0,
             ctx.colors.text_dim,
         );
     }
 
-    fn draw_game(&self, ctx: &GameContext) {
+    fn draw_game(&self, gfx: &mut dyn RenderingServer, ctx: &GameContext) {
         if let Some(game) = self.game.as_ref() {
             game.draw(
+                gfx,
                 ctx,
                 &self.atlas,
                 &self.archie_sprites,
@@ -460,72 +458,83 @@ impl AppState {
                 &self.background,
             );
         } else {
-            self.draw_placeholder(ctx, "GAME", "no game — press R");
+            self.draw_placeholder(gfx, ctx, "GAME", "no game — press R");
         }
     }
 
-    fn draw_hq(&self, ctx: &GameContext) {
+    fn draw_hq(&self, gfx: &mut dyn RenderingServer, ctx: &GameContext) {
         if let Some(hq) = self.hq.as_ref() {
-            hq.draw(ctx, &self.atlas, &self.archie_sprites, &self.progress);
+            hq.draw(gfx, ctx, &self.atlas, &self.archie_sprites, &self.progress);
         } else {
-            self.draw_placeholder(ctx, "HQ", "no HQ state");
+            self.draw_placeholder(gfx, ctx, "HQ", "no HQ state");
         }
     }
 
     #[cfg(debug_assertions)]
-    fn draw_debug(&self, ctx: &GameContext) {
+    fn draw_debug(&self, gfx: &mut dyn RenderingServer, ctx: &GameContext) {
         if !self.debug_open {
             return;
         }
-        let vw = screen_width();
+        let vw = gfx.viewport().w;
         let panel_w = 290.0;
         let panel_h = 170.0;
         let px = vw - panel_w - 20.0;
         let py = 20.0;
 
-        draw_rectangle(px, py, panel_w, panel_h, Color::new(0.0, 0.0, 0.0, 0.85));
-        draw_rectangle_lines(px, py, panel_w, panel_h, 2.0, ctx.colors.gold);
+        gfx.draw_rect(
+            Rect::new(px, py, panel_w, panel_h),
+            Color::new(0.0, 0.0, 0.0, 0.85),
+        );
+        gfx.draw_rect_outline(Rect::new(px, py, panel_w, panel_h), 2.0, ctx.colors.gold);
 
         let tx = px + 14.0;
         let mut ty = py + 28.0;
 
-        draw_text("DEBUG", tx, ty, 20.0, ctx.colors.gold);
+        gfx.draw_text("DEBUG", Vec2::new(tx, ty), 20.0, ctx.colors.gold);
         ty += 28.0;
 
         let level_name = self.debug_level.label();
-        draw_text(
-            format!("[Up/Down] Level: {level_name}"),
-            tx,
-            ty,
+        gfx.draw_text(
+            &format!("[Up/Down] Level: {level_name}"),
+            Vec2::new(tx, ty),
             16.0,
             ctx.colors.text,
         );
         ty += 22.0;
 
-        draw_text(
-            format!("[R]       Seed: {}", self.debug_seed),
-            tx,
-            ty,
+        gfx.draw_text(
+            &format!("[R]       Seed: {}", self.debug_seed),
+            Vec2::new(tx, ty),
             16.0,
             ctx.colors.text,
         );
         ty += 22.0;
 
-        draw_text("[Enter]   load level", tx, ty, 16.0, ctx.colors.gold);
+        gfx.draw_text(
+            "[Enter]   load level",
+            Vec2::new(tx, ty),
+            16.0,
+            ctx.colors.gold,
+        );
         ty += 22.0;
 
-        draw_text("[F1/Esc]  close", tx, ty, 16.0, ctx.colors.text_dim);
+        gfx.draw_text(
+            "[F1/Esc]  close",
+            Vec2::new(tx, ty),
+            16.0,
+            ctx.colors.text_dim,
+        );
     }
 }
 
-pub fn movement_key_pressed() -> bool {
-    is_key_pressed(KeyCode::Left)
-        || is_key_pressed(KeyCode::Right)
-        || is_key_pressed(KeyCode::Up)
-        || is_key_pressed(KeyCode::Down)
-        || is_key_pressed(KeyCode::A)
-        || is_key_pressed(KeyCode::Q)
-        || is_key_pressed(KeyCode::Space)
+pub fn movement_key_pressed(keys: &Input) -> bool {
+    keys.is_key_pressed(Key::Left)
+        || keys.is_key_pressed(Key::Right)
+        || keys.is_key_pressed(Key::Up)
+        || keys.is_key_pressed(Key::Down)
+        || keys.is_key_pressed(Key::A)
+        || keys.is_key_pressed(Key::Q)
+        || keys.is_key_pressed(Key::Space)
 }
 
 // =========================================================================
@@ -780,15 +789,16 @@ impl Game {
 
     pub fn draw(
         &self,
+        gfx: &mut dyn RenderingServer,
         ctx: &GameContext,
         atlas: &Atlas,
         archie_sprites: &ArchieSprites,
         truck_sprites: &crate::sprites::truck::TruckSprites,
         background: &Background,
     ) {
-        let vw = screen_width();
-        let vh = screen_height();
-        clear_background(ctx.colors.bg_bottom);
+        let vw = gfx.viewport().w;
+        let vh = gfx.viewport().h;
+        gfx.set_clear_color(ctx.colors.bg_bottom);
 
         let scale = integer_scale(vw, vh);
         let virt_w = VIRTUAL_W * scale;
@@ -810,6 +820,7 @@ impl Game {
         );
 
         draw_sky_gradient(
+            gfx,
             screen_oy,
             virt_h,
             self.world.surface_row as f32 * TILE_SIZE,
@@ -823,7 +834,7 @@ impl Game {
         let horizon_screen_y =
             screen_oy + (self.world.surface_row as f32 * TILE_SIZE - cam_y) * scale;
 
-        background.draw(cam_x, horizon_screen_y, screen_ox, vw, scale);
+        background.draw(gfx, cam_x, horizon_screen_y, screen_ox, vw, scale);
 
         let sx = |wx: f32| -> f32 { (screen_ox + (wx - cam_x) * scale).floor() };
         let sy = |wy: f32| -> f32 { (screen_oy + (wy - cam_y) * scale).floor() };
@@ -851,17 +862,28 @@ impl Game {
                 let x = sx(col as f32 * TILE_SIZE);
                 let y = sy(row as f32 * TILE_SIZE);
                 let s = TILE_SIZE * scale;
-                draw_rectangle(x, y, s, s, base);
+                gfx.draw_rect(Rect::new(x, y, s, s), base);
 
                 // Grass tufts on exposed dirt tops.
                 if tile.kind == TileKind::Dirt && ru > 0 && self.world.tile(cu, ru - 1).is_none() {
-                    draw_grass_tufts(x, y, s, cu, ru, self.world.seed, ctx.colors.grass, scale);
+                    draw_grass_tufts(
+                        gfx,
+                        x,
+                        y,
+                        s,
+                        cu,
+                        ru,
+                        self.world.seed,
+                        ctx.colors.grass,
+                        scale,
+                    );
                 }
 
                 // Damage chips + crack overlay, only for damaged tiles.
                 let stage = tile.crack_stage();
                 if stage > 0 {
                     draw_tile_damage_chips(
+                        gfx,
                         x,
                         y,
                         s,
@@ -873,16 +895,26 @@ impl Game {
                         scale,
                     );
                     let a = 0.10 + 0.06 * stage as f32;
-                    draw_rectangle(x, y, s, s, Color::new(0.0, 0.0, 0.0, a));
+                    gfx.draw_rect(Rect::new(x, y, s, s), Color::new(0.0, 0.0, 0.0, a));
                 }
 
                 // Corner chamfers: soften exposed corners so the
                 // terrain reads as slopes, not staircase.
-                draw_corner_chamfers(x, y, s, scale, &self.world, cu, ru, ctx.colors.bg_bottom);
+                draw_corner_chamfers(
+                    gfx,
+                    x,
+                    y,
+                    s,
+                    scale,
+                    &self.world,
+                    cu,
+                    ru,
+                    ctx.colors.bg_bottom,
+                );
             }
         }
 
-        draw_hq_sign(&sx, &sy, scale, self.world.surface_row, ctx);
+        draw_hq_sign(gfx, &sx, &sy, scale, self.world.surface_row, ctx);
 
         {
             let finish_col = self.world.finish_col();
@@ -891,18 +923,12 @@ impl Game {
             let y_bot = screen_oy + virt_h;
             let pulse = 0.35 + 0.15 * (self.time * 3.0).sin().abs();
 
-            draw_rectangle(
-                finish_x,
-                y_top,
-                TILE_SIZE * scale,
-                y_bot - y_top,
+            gfx.draw_rect(
+                Rect::new(finish_x, y_top, TILE_SIZE * scale, y_bot - y_top),
                 Color::new(0.83, 0.65, 0.31, pulse * 0.4),
             );
-            draw_rectangle(
-                finish_x,
-                y_top,
-                (2.0 * scale).max(2.0),
-                y_bot - y_top,
+            gfx.draw_rect(
+                Rect::new(finish_x, y_top, (2.0 * scale).max(2.0), y_bot - y_top),
                 Color::new(1.0, 0.85, 0.4, pulse),
             );
         }
@@ -911,11 +937,13 @@ impl Game {
             let (r, g, b) = drop_color(d.resource);
             let c = Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0);
             let r_px = crate::drop::DROP_RADIUS;
-            draw_rectangle(
-                sx(d.pos.x - r_px),
-                sy(d.pos.y - r_px),
-                r_px * 2.0 * scale,
-                r_px * 2.0 * scale,
+            gfx.draw_rect(
+                Rect::new(
+                    sx(d.pos.x - r_px),
+                    sy(d.pos.y - r_px),
+                    r_px * 2.0 * scale,
+                    r_px * 2.0 * scale,
+                ),
                 c,
             );
         }
@@ -942,7 +970,7 @@ impl Game {
             // Draw via atlas.
             if let Some(rect) = atlas.rect(&name) {
                 let _ = sprite;
-                atlas.draw_scaled(&name, tx, ty, sprite_scale);
+                atlas.draw_scaled(gfx, &name, tx, ty, sprite_scale);
                 let _ = rect;
             }
 
@@ -952,19 +980,20 @@ impl Game {
                 let bar_w = tw * fill;
                 let bar_h = (2.0 * scale).max(2.0);
                 let bar_y = ty - bar_h - 2.0 * scale;
-                draw_rectangle(
-                    tx + 2.0 * scale,
-                    bar_y,
-                    (tw - 4.0 * scale).max(1.0),
-                    bar_h,
+                gfx.draw_rect(
+                    Rect::new(tx + 2.0 * scale, bar_y, (tw - 4.0 * scale).max(1.0), bar_h),
                     Color::new(0.0, 0.0, 0.0, 0.55),
                 );
-                draw_rectangle(tx + 2.0 * scale, bar_y, bar_w, bar_h, ctx.colors.gold);
+                gfx.draw_rect(
+                    Rect::new(tx + 2.0 * scale, bar_y, bar_w, bar_h),
+                    ctx.colors.gold,
+                );
             }
 
             // Directional blocked arrow.
             if let Some(reason) = t.blocked {
                 draw_block_arrow(
+                    gfx,
                     t.facing_right,
                     reason,
                     tx,
@@ -982,14 +1011,14 @@ impl Game {
             let sprite_wy = self.archie.pos.y + archie_sprites.offset.1;
 
             let bag_frame = bag_frame_name(&self.archie, archie_sprites);
-            atlas.draw_scaled(&bag_frame, sx(sprite_wx), sy(sprite_wy), scale);
+            atlas.draw_scaled(gfx, &bag_frame, sx(sprite_wx), sy(sprite_wy), scale);
 
             let frame = archie_frame_name(self, archie_sprites);
-            atlas.draw_scaled(&frame, sx(sprite_wx), sy(sprite_wy), scale);
+            atlas.draw_scaled(gfx, &frame, sx(sprite_wx), sy(sprite_wy), scale);
 
             let center_x = sx(sprite_wx + crate::sprites::archie::SHEET_CELL as f32 * 0.5);
             let top_y = sy(sprite_wy);
-            crate::hud::draw_bag_readout(&self.archie.bag, center_x, top_y, ctx);
+            crate::hud::draw_bag_readout(gfx, &self.archie.bag, center_x, top_y, ctx);
         }
 
         let state = if self.archie.on_ground {
@@ -1015,32 +1044,39 @@ impl Game {
             self.truck.storage_used(),
             self.truck.storage_capacity,
         );
-        draw_text(&line, 20.0, 30.0, 22.0, ctx.colors.text);
+        gfx.draw_text(&line, Vec2::new(20.0, 30.0), 22.0, ctx.colors.text);
 
         let hint = if self.archie_in_truck {
             "arrows drive   Space exit   [R] rebuild   [T] tp   [F1] debug   [Esc] title"
         } else {
             "arrows move / aim   A mine   Space jump   push into truck   [F1] debug"
         };
-        draw_text(hint, 20.0, vh - 20.0, 16.0, ctx.colors.text_dim);
+        gfx.draw_text(hint, Vec2::new(20.0, vh - 20.0), 16.0, ctx.colors.text_dim);
 
         if let Some(reason) = self.exit {
             let cy = vh * 0.45;
-            draw_rectangle(0.0, cy - 50.0, vw, 100.0, Color::new(0.0, 0.0, 0.0, 0.72));
+            gfx.draw_rect(
+                Rect::new(0.0, cy - 50.0, vw, 100.0),
+                Color::new(0.0, 0.0, 0.0, 0.72),
+            );
 
             let title = match reason {
                 LevelExit::FinishLine => "LEVEL COMPLETE",
                 LevelExit::ReturnToHq => "HEADED HOME",
             };
-            let d = measure_text(title, None, 44, 1.0);
-            draw_text(title, vw * 0.5 - d.width * 0.5, cy, 44.0, ctx.colors.gold);
+            let d = gfx.measure_text(title, 44.0);
+            gfx.draw_text(
+                title,
+                Vec2::new(vw * 0.5 - d.width * 0.5, cy),
+                44.0,
+                ctx.colors.gold,
+            );
 
             let sub = "returning to HQ…";
-            let d = measure_text(sub, None, 18, 1.0);
-            draw_text(
+            let d = gfx.measure_text(sub, 18.0);
+            gfx.draw_text(
                 sub,
-                vw * 0.5 - d.width * 0.5,
-                cy + 32.0,
+                Vec2::new(vw * 0.5 - d.width * 0.5, cy + 32.0),
                 18.0,
                 ctx.colors.text_dim,
             );
@@ -1114,6 +1150,7 @@ fn drop_color(r: crate::components::ResourceKind) -> (u8, u8, u8) {
 /// crumbling surface.
 #[allow(clippy::too_many_arguments)]
 fn draw_tile_damage_chips(
+    gfx: &mut dyn RenderingServer,
     x: f32,
     y: f32,
     s: f32,
@@ -1168,11 +1205,8 @@ fn draw_tile_damage_chips(
             3 => (tile_px - 1, pos),
             _ => (0, 0),
         };
-        draw_rectangle(
-            x + cx as f32 * scale,
-            y + cy as f32 * scale,
-            scale,
-            scale,
+        gfx.draw_rect(
+            Rect::new(x + cx as f32 * scale, y + cy as f32 * scale, scale, scale),
             chip,
         );
     }
@@ -1183,6 +1217,7 @@ fn draw_tile_damage_chips(
 /// staircase silhouette into a softer slope.
 #[allow(clippy::too_many_arguments)]
 fn draw_corner_chamfers(
+    gfx: &mut dyn RenderingServer,
     x: f32,
     y: f32,
     s: f32,
@@ -1206,7 +1241,7 @@ fn draw_corner_chamfers(
     let yb = y + s;
 
     if top_air && left_air {
-        draw_triangle(
+        gfx.draw_triangle(
             Vec2::new(x, y),
             Vec2::new(x + cs, y),
             Vec2::new(x, y + cs),
@@ -1214,7 +1249,7 @@ fn draw_corner_chamfers(
         );
     }
     if top_air && right_air {
-        draw_triangle(
+        gfx.draw_triangle(
             Vec2::new(xr, y),
             Vec2::new(xr - cs, y),
             Vec2::new(xr, y + cs),
@@ -1222,7 +1257,7 @@ fn draw_corner_chamfers(
         );
     }
     if bot_air && left_air {
-        draw_triangle(
+        gfx.draw_triangle(
             Vec2::new(x, yb),
             Vec2::new(x + cs, yb),
             Vec2::new(x, yb - cs),
@@ -1230,7 +1265,7 @@ fn draw_corner_chamfers(
         );
     }
     if bot_air && right_air {
-        draw_triangle(
+        gfx.draw_triangle(
             Vec2::new(xr, yb),
             Vec2::new(xr - cs, yb),
             Vec2::new(xr, yb - cs),
@@ -1244,6 +1279,7 @@ fn draw_corner_chamfers(
 // =========================================================================
 
 fn draw_hq_sign(
+    gfx: &mut dyn RenderingServer,
     sx: &impl Fn(f32) -> f32,
     sy: &impl Fn(f32) -> f32,
     scale: f32,
@@ -1258,11 +1294,8 @@ fn draw_hq_sign(
     let post_h = 14.0;
     let post_sx = sx(base_wx) - (post_w * s * 0.5).round();
     let post_sy = sy(base_wy) - (post_h * s).round();
-    draw_rectangle(
-        post_sx,
-        post_sy,
-        (post_w * s).max(2.0),
-        post_h * s,
+    gfx.draw_rect(
+        Rect::new(post_sx, post_sy, (post_w * s).max(2.0), post_h * s),
         Color::new(0.35, 0.22, 0.13, 1.0),
     );
 
@@ -1272,18 +1305,12 @@ fn draw_hq_sign(
     let board_sx = sx(base_wx) - (board_w * s * 0.5).round();
     let board_sy = post_sy - (board_h * s).round() - (gap * s).round();
 
-    draw_rectangle(
-        board_sx,
-        board_sy,
-        board_w * s,
-        board_h * s,
+    gfx.draw_rect(
+        Rect::new(board_sx, board_sy, board_w * s, board_h * s),
         Color::new(0.55, 0.38, 0.22, 1.0),
     );
-    draw_rectangle_lines(
-        board_sx,
-        board_sy,
-        board_w * s,
-        board_h * s,
+    gfx.draw_rect_outline(
+        Rect::new(board_sx, board_sy, board_w * s, board_h * s),
         s.max(1.0),
         Color::new(0.20, 0.12, 0.06, 1.0),
     );
@@ -1298,10 +1325,10 @@ fn draw_hq_sign(
 
     let shaft_sx = arrow_cx - shaft_w * 0.5;
     let shaft_sy = arrow_cy - shaft_h * 0.5;
-    draw_rectangle(shaft_sx, shaft_sy, shaft_w, shaft_h, arrow);
+    gfx.draw_rect(Rect::new(shaft_sx, shaft_sy, shaft_w, shaft_h), arrow);
 
     let tip_x = shaft_sx;
-    draw_triangle(
+    gfx.draw_triangle(
         Vec2::new(tip_x, arrow_cy),
         Vec2::new(tip_x + tip_size, arrow_cy - tip_size),
         Vec2::new(tip_x + tip_size, arrow_cy + tip_size),
@@ -1318,6 +1345,7 @@ fn draw_hq_sign(
 /// banding even at large scales.
 #[allow(clippy::too_many_arguments)]
 fn draw_sky_gradient(
+    gfx: &mut dyn RenderingServer,
     screen_oy: f32,
     virt_h: f32,
     surface_wy: f32,
@@ -1327,8 +1355,8 @@ fn draw_sky_gradient(
     sky_bottom: Color,
     below: Color,
 ) {
-    let vw = screen_width();
-    let vh = screen_height();
+    let vw = gfx.viewport().w;
+    let vh = gfx.viewport().h;
 
     let surface_screen_y = screen_oy + (surface_wy - cam_y) * scale;
     let sky_end = surface_screen_y.clamp(screen_oy, screen_oy + virt_h);
@@ -1347,18 +1375,22 @@ fn draw_sky_gradient(
                 sky_top.b + (sky_bottom.b - sky_top.b) * t,
                 1.0,
             );
-            draw_rectangle(0.0, screen_oy + i as f32 * step, vw, step + 1.0, c);
+            gfx.draw_rect(
+                Rect::new(0.0, screen_oy + i as f32 * step, vw, step + 1.0),
+                c,
+            );
         }
     }
 
     let below_y = screen_oy + sky_h;
     if below_y < vh {
-        draw_rectangle(0.0, below_y, vw, vh - below_y, below);
+        gfx.draw_rect(Rect::new(0.0, below_y, vw, vh - below_y), below);
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn draw_grass_tufts(
+    gfx: &mut dyn RenderingServer,
     x: f32,
     y: f32,
     s: f32,
@@ -1387,11 +1419,13 @@ fn draw_grass_tufts(
     while x_off < tile_px {
         let tuft_w = 1 + (next(0) % 3) as i32;
         let tuft_h = 2 + (next(1) % 5) as i32;
-        draw_rectangle(
-            x + x_off as f32 * scale,
-            y,
-            tuft_w as f32 * scale,
-            tuft_h as f32 * scale,
+        gfx.draw_rect(
+            Rect::new(
+                x + x_off as f32 * scale,
+                y,
+                tuft_w as f32 * scale,
+                tuft_h as f32 * scale,
+            ),
             color,
         );
         x_off += tuft_w;
@@ -1403,6 +1437,7 @@ fn draw_grass_tufts(
 /// and `SteepStep` point up.
 #[allow(clippy::too_many_arguments)]
 fn draw_block_arrow(
+    gfx: &mut dyn RenderingServer,
     facing_right: bool,
     reason: crate::truck::BlockReason,
     tx: f32,
@@ -1422,7 +1457,7 @@ fn draw_block_arrow(
         BlockReason::Wall | BlockReason::HoleAhead => {
             // Points in the direction the truck is trying to move.
             let s = if facing_right { 1.0 } else { -1.0 };
-            draw_triangle(
+            gfx.draw_triangle(
                 Vec2::new(cx + s * r, cy),
                 Vec2::new(cx - s * r * 0.5, cy - r),
                 Vec2::new(cx - s * r * 0.5, cy + r),
@@ -1431,7 +1466,7 @@ fn draw_block_arrow(
         }
         BlockReason::LowCeiling | BlockReason::SteepStep => {
             // Points up.
-            draw_triangle(
+            gfx.draw_triangle(
                 Vec2::new(cx, cy - r),
                 Vec2::new(cx - r, cy + r * 0.5),
                 Vec2::new(cx + r, cy + r * 0.5),

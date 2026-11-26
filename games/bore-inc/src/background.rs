@@ -13,7 +13,8 @@
 //! blue-grey, and every layer's top edge fades to alpha 0 so trees
 //! and hills dissolve into the sky instead of ending in a hard line.
 
-use macroquad::prelude::*;
+use ember::prelude::*;
+use ember_servers::{TextureFilter, TextureId};
 
 use crate::pixel::{Canvas, Rgba};
 use crate::rng::Rng;
@@ -181,19 +182,26 @@ impl BackgroundData {
         }
     }
 
-    pub fn upload(self) -> Background {
+    /// Upload the layers through the renderer, nearest-filtered (pixel
+    /// art). A layer that fails to upload is left out.
+    pub fn upload(self, gfx: &mut dyn RenderingServer) -> Background {
         let layers = self
             .layers
             .into_iter()
             .zip(LAYER_SPECS.iter())
-            .map(|(canvas, spec)| {
-                let texture = Texture2D::from_rgba8(canvas.width, canvas.height, &canvas.pixels);
-                texture.set_filter(FilterMode::Nearest);
-                UploadedLayer {
+            .filter_map(|(canvas, spec)| {
+                let image = ember_core::Image::from_rgba8(
+                    canvas.width as u32,
+                    canvas.height as u32,
+                    canvas.pixels,
+                )?;
+                let texture = gfx.create_texture(&image).ok()?;
+                gfx.set_texture_filter(texture, TextureFilter::Nearest);
+                Some(UploadedLayer {
                     texture,
                     parallax: spec.parallax,
                     phase: spec.phase,
-                }
+                })
             })
             .collect();
 
@@ -218,7 +226,7 @@ pub struct Background {
 }
 
 struct UploadedLayer {
-    texture: Texture2D,
+    texture: TextureId,
     parallax: f32,
     phase: f32,
 }
@@ -278,30 +286,35 @@ impl Background {
         }
     }
 
-    pub fn draw(&self, cam_x: f32, horizon_screen_y: f32, screen_ox: f32, vw: f32, scale: f32) {
-        draw_sun_glow(&self.sun, horizon_screen_y, screen_ox, scale);
+    pub fn draw(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        cam_x: f32,
+        horizon_screen_y: f32,
+        screen_ox: f32,
+        vw: f32,
+        scale: f32,
+    ) {
+        draw_sun_glow(gfx, &self.sun, horizon_screen_y, screen_ox, scale);
 
         for c in &self.clouds {
             let cx = screen_ox + (c.x - cam_x * 0.04) * scale;
             let cy = horizon_screen_y + c.y * scale;
-            draw_rectangle(
-                cx,
-                cy,
-                c.w * scale,
-                c.h * scale,
+            gfx.draw_rect(
+                Rect::new(cx, cy, c.w * scale, c.h * scale),
                 Color::new(1.0, 1.0, 1.0, c.alpha),
             );
         }
 
         for layer in &self.layers {
-            self.draw_layer(layer, cam_x, horizon_screen_y, screen_ox, vw, scale);
+            self.draw_layer(gfx, layer, cam_x, horizon_screen_y, screen_ox, vw, scale);
         }
 
         let sxp = |wx: f32| -> f32 { (screen_ox + wx * scale).floor() };
         for b in &self.birds {
             let sky_x = (b.x - cam_x * 0.30).rem_euclid(LAYER_W as f32);
             let sky_y = horizon_screen_y + b.y * scale;
-            draw_bird(sxp(sky_x), sky_y, (b.size * scale).max(2.0), b.phase);
+            draw_bird(gfx, sxp(sky_x), sky_y, (b.size * scale).max(2.0), b.phase);
         }
 
         for w in &self.winds {
@@ -309,18 +322,17 @@ impl Background {
             let sky_x = (w.x - cam_x * 0.55).rem_euclid(range) - w.len;
             let sky_y = horizon_screen_y + w.y * scale;
             let thickness = (0.5 * scale).max(1.0);
-            draw_rectangle(
-                sxp(sky_x),
-                sky_y,
-                w.len * scale,
-                thickness,
+            gfx.draw_rect(
+                Rect::new(sxp(sky_x), sky_y, w.len * scale, thickness),
                 Color::new(1.0, 1.0, 1.0, w.alpha),
             );
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_layer(
         &self,
+        gfx: &mut dyn RenderingServer,
         layer: &UploadedLayer,
         cam_x: f32,
         horizon_screen_y: f32,
@@ -336,15 +348,11 @@ impl Background {
 
         let mut x = start_sx;
         while x < screen_ox + vw {
-            draw_texture_ex(
-                &layer.texture,
-                x,
-                horizon_screen_y - h_scaled,
-                WHITE,
-                DrawTextureParams {
-                    dest_size: Some(Vec2::new(w_scaled, h_scaled)),
-                    ..Default::default()
-                },
+            gfx.draw_sprite(
+                layer.texture,
+                Rect::new(x, horizon_screen_y - h_scaled, w_scaled, h_scaled),
+                None,
+                Color::WHITE,
             );
             x += w_scaled;
         }
@@ -465,7 +473,13 @@ fn draw_pine(c: &mut Canvas, cx: i32, base_y: i32, w: i32, h: i32, color: Rgba) 
     }
 }
 
-fn draw_sun_glow(sun: &Sun, horizon_screen_y: f32, screen_ox: f32, scale: f32) {
+fn draw_sun_glow(
+    gfx: &mut dyn RenderingServer,
+    sun: &Sun,
+    horizon_screen_y: f32,
+    screen_ox: f32,
+    scale: f32,
+) {
     let cx = screen_ox + sun.x * scale;
     let cy = horizon_screen_y + sun.y * scale;
     let r = sun.radius * scale;
@@ -473,21 +487,30 @@ fn draw_sun_glow(sun: &Sun, horizon_screen_y: f32, screen_ox: f32, scale: f32) {
     for i in (0..steps).rev() {
         let rr = r * (i as f32 + 1.0) / steps as f32;
         let a = sun.color.a * (1.0 - i as f32 / steps as f32) * 0.12;
-        draw_circle(
-            cx,
-            cy,
+        gfx.draw_circle(
+            Vec2::new(cx, cy),
             rr,
             Color::new(sun.color.r, sun.color.g, sun.color.b, a),
         );
     }
 }
 
-fn draw_bird(cx: f32, cy: f32, size: f32, phase: f32) {
+fn draw_bird(gfx: &mut dyn RenderingServer, cx: f32, cy: f32, size: f32, phase: f32) {
     let flap = phase.sin() * size * 0.35;
     let color = Color::new(0.12, 0.10, 0.09, 0.85);
     let thickness = (size / 2.0).max(1.0);
-    draw_line(cx, cy, cx - size, cy - size * 0.6 - flap, thickness, color);
-    draw_line(cx, cy, cx + size, cy - size * 0.6 - flap, thickness, color);
+    gfx.draw_line(
+        Vec2::new(cx, cy),
+        Vec2::new(cx - size, cy - size * 0.6 - flap),
+        thickness,
+        color,
+    );
+    gfx.draw_line(
+        Vec2::new(cx, cy),
+        Vec2::new(cx + size, cy - size * 0.6 - flap),
+        thickness,
+        color,
+    );
 }
 
 #[cfg(test)]

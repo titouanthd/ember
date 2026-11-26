@@ -105,10 +105,13 @@ name = "bore-inc"
 version = "0.1.0"
 dependencies = [
  "dotenvy",
+ "ember",
  "ember-core",
+ "ember-input",
+ "ember-servers",
  "ember-stdlib",
  "glam",
- "macroquad",
+ "image 0.25.10",
  "pollster",
  "ron",
  "serde",
