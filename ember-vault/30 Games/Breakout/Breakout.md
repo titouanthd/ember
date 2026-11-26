@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/breakout` (`cargo run -p breakout`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | RON levels, substepping, angular bounce |
-| **Engine migration (Phase 7)** | ⬜ not migrated |
+| **Engine migration (Phase 7)** | ✅ migrated `ee84048` — `src/scene.rs`: `BreakoutGame` root node drawing bricks, paddle and ball through the `RenderingServer`; no macroquad |
 
 ## Documents
 

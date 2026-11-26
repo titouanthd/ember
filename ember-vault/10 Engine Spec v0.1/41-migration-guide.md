@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 41 — Migration Guide
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; 6 of 17 games (pong, simon, snake, memory, minesweeper, freecell) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
+> **Status:** 🟡 partial — reviewed 2026-11-19; 7 of 17 games (pong, simon, snake, memory, minesweeper, freecell, breakout) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [[40-roadmap]], [[21-ember-scene]]
 
@@ -364,12 +364,19 @@ persistence API lands.
   `Game` (`start_btn` was never drawn); `Rect` / `Color` come from
   `ember_core`; `hit::contains` became `Rect::contains`.
 
-### 5.7 breakout
+### 5.7 breakout — **migrated** (`ee84048`, 2026-11-26)
 
-- 17 unit + 1 scenario.
-- Bricks are a natural node tree, but the game currently models them as
-  a grid. Migrating to nodes might be slower than keeping the grid —
-  test both if needed.
+- 17 unit + 1 scenario (body unchanged) + 6 headless `SceneLoop` tests
+  (`games/breakout/tests/scene.rs`).
+- Result: `src/scene.rs`, one `BreakoutGame` root node, same shape as
+  snake (keyboard only, no UI subtree). Bricks stay a `Vec<Brick>` drawn
+  by the root node — no node per brick.
+- The per-run `GameContext` lives in the node: the ball speeds up 10 %
+  per level and R reloads the config, as before.
+- `ember_stdlib::Sprite` holds a macroquad `Color`, so breakout has a
+  local `Sprite` twin (same fields and `hide` / `show`). The scenario
+  test's `use macroquad::prelude::Color` became `use ember_core::Color`
+  (one import line).
 
 ### 5.8 asteroids
 
