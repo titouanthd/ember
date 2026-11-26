@@ -41,6 +41,35 @@ pub enum RecordedCall {
         color: Color,
         z: f32,
     },
+    DrawRegularPolygon {
+        center: Vec2,
+        sides: u8,
+        radius: f32,
+        rotation: f32,
+        /// `None` when filled.
+        thickness: Option<f32>,
+        color: Color,
+        z: f32,
+    },
+    DrawArc {
+        center: Vec2,
+        radius: f32,
+        start: f32,
+        sweep: f32,
+        thickness: f32,
+        segments: u8,
+        color: Color,
+        z: f32,
+    },
+    DrawEllipse {
+        center: Vec2,
+        radii: Vec2,
+        rotation: f32,
+        /// `None` when filled.
+        thickness: Option<f32>,
+        color: Color,
+        z: f32,
+    },
     DrawCircle {
         center: Vec2,
         radius: f32,
@@ -240,6 +269,101 @@ impl RenderingServer for MockRenderer {
             thickness,
             color,
             z: self.current_z,
+        });
+    }
+
+    fn draw_regular_polygon(
+        &mut self,
+        center: Vec2,
+        sides: u8,
+        radius: f32,
+        rotation: f32,
+        color: Color,
+    ) {
+        let z = self.current_z;
+        self.calls.push(RecordedCall::DrawRegularPolygon {
+            center,
+            sides,
+            radius,
+            rotation,
+            thickness: None,
+            color,
+            z,
+        });
+    }
+
+    fn draw_regular_polygon_outline(
+        &mut self,
+        center: Vec2,
+        sides: u8,
+        radius: f32,
+        rotation: f32,
+        thickness: f32,
+        color: Color,
+    ) {
+        let z = self.current_z;
+        self.calls.push(RecordedCall::DrawRegularPolygon {
+            center,
+            sides,
+            radius,
+            rotation,
+            thickness: Some(thickness),
+            color,
+            z,
+        });
+    }
+
+    fn draw_arc(
+        &mut self,
+        center: Vec2,
+        radius: f32,
+        start: f32,
+        sweep: f32,
+        thickness: f32,
+        segments: u8,
+        color: Color,
+    ) {
+        let z = self.current_z;
+        self.calls.push(RecordedCall::DrawArc {
+            center,
+            radius,
+            start,
+            sweep,
+            thickness,
+            segments,
+            color,
+            z,
+        });
+    }
+
+    fn draw_ellipse(&mut self, center: Vec2, radii: Vec2, rotation: f32, color: Color) {
+        let z = self.current_z;
+        self.calls.push(RecordedCall::DrawEllipse {
+            center,
+            radii,
+            rotation,
+            thickness: None,
+            color,
+            z,
+        });
+    }
+
+    fn draw_ellipse_outline(
+        &mut self,
+        center: Vec2,
+        radii: Vec2,
+        rotation: f32,
+        thickness: f32,
+        color: Color,
+    ) {
+        let z = self.current_z;
+        self.calls.push(RecordedCall::DrawEllipse {
+            center,
+            radii,
+            rotation,
+            thickness: Some(thickness),
+            color,
+            z,
         });
     }
 

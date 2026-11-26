@@ -192,6 +192,78 @@ impl RenderingServer for MacroquadRenderer {
         draw_circle_lines(c.x, c.y, r, t, color_to_mq(color));
     }
 
+    fn draw_regular_polygon(
+        &mut self,
+        center: Vec2,
+        sides: u8,
+        radius: f32,
+        rotation: f32,
+        color: Color,
+    ) {
+        let c = self.camera.world_to_screen(center);
+        let r = self.camera.length(radius);
+        draw_poly(
+            c.x,
+            c.y,
+            sides,
+            r,
+            rotation.to_degrees(),
+            color_to_mq(color),
+        );
+    }
+
+    fn draw_regular_polygon_outline(
+        &mut self,
+        center: Vec2,
+        sides: u8,
+        radius: f32,
+        rotation: f32,
+        thickness: f32,
+        color: Color,
+    ) {
+        let c = self.camera.world_to_screen(center);
+        let (r, t) = (self.camera.length(radius), self.camera.length(thickness));
+        let deg = rotation.to_degrees();
+        draw_poly_lines(c.x, c.y, sides, r, deg, t, color_to_mq(color));
+    }
+
+    fn draw_arc(
+        &mut self,
+        center: Vec2,
+        radius: f32,
+        start: f32,
+        sweep: f32,
+        thickness: f32,
+        segments: u8,
+        color: Color,
+    ) {
+        let c = self.camera.world_to_screen(center);
+        let (r, t) = (self.camera.length(radius), self.camera.length(thickness));
+        let (from, arc) = (start.to_degrees(), sweep.to_degrees());
+        draw_arc(c.x, c.y, segments, r, from, t, arc, color_to_mq(color));
+    }
+
+    fn draw_ellipse(&mut self, center: Vec2, radii: Vec2, rotation: f32, color: Color) {
+        let c = self.camera.world_to_screen(center);
+        let r = radii * self.camera.zoom;
+        let deg = rotation.to_degrees();
+        draw_ellipse(c.x, c.y, r.x, r.y, deg, color_to_mq(color));
+    }
+
+    fn draw_ellipse_outline(
+        &mut self,
+        center: Vec2,
+        radii: Vec2,
+        rotation: f32,
+        thickness: f32,
+        color: Color,
+    ) {
+        let c = self.camera.world_to_screen(center);
+        let (r, t) = (radii * self.camera.zoom, self.camera.length(thickness));
+        let deg = rotation.to_degrees();
+        draw_ellipse_lines(c.x, c.y, r.x, r.y, deg, t, color_to_mq(color));
+    }
+
     fn draw_line(&mut self, a: Vec2, b: Vec2, thickness: f32, color: Color) {
         let (a, b) = (
             self.camera.world_to_screen(a),

@@ -42,6 +42,17 @@ fn full_frame_cycle_does_not_panic() {
     );
     r.draw_sprite(tex, Rect::new(0.0, 0.0, 20.0, 20.0), None, Color::WHITE);
     r.draw_text("hello", Vec2::new(5.0, 5.0), 16.0, Color::WHITE);
+    r.draw_regular_polygon(Vec2::new(5.0, 5.0), 6, 4.0, 0.3, Color::RED);
+    r.draw_regular_polygon_outline(Vec2::new(5.0, 5.0), 6, 4.0, 0.3, 1.0, Color::WHITE);
+    r.draw_arc(Vec2::new(5.0, 5.0), 6.0, -0.8, 1.7, 1.6, 14, Color::WHITE);
+    r.draw_ellipse(Vec2::new(5.0, 5.0), Vec2::new(4.0, 2.0), 0.0, Color::BLUE);
+    r.draw_ellipse_outline(
+        Vec2::new(5.0, 5.0),
+        Vec2::new(4.0, 2.0),
+        0.0,
+        1.0,
+        Color::GREEN,
+    );
     r.end_frame();
 
     r.destroy_texture(tex);

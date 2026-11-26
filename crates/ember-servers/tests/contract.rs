@@ -345,3 +345,67 @@ fn every_recorded_variant_is_constructible() {
     let _ = RecordedAudioCall::LoadClip(AudioClipId::new(0));
     let _ = RecordedAudioCall::DestroyClip(AudioClipId::new(0));
 }
+
+#[test]
+fn shapes_are_recorded_with_their_parameters() {
+    let mut r = MockRenderer::new();
+    r.begin_frame(Rect::new(0.0, 0.0, 800.0, 600.0));
+    r.set_z(2.0);
+    let c = Vec2::new(10.0, 20.0);
+    r.draw_regular_polygon(c, 6, 5.0, 0.5, Color::RED);
+    r.draw_regular_polygon_outline(c, 3, 5.0, 0.0, 1.5, Color::WHITE);
+    r.draw_arc(c, 12.0, -0.8, 1.7, 1.6, 14, Color::WHITE);
+    r.draw_ellipse(c, Vec2::new(8.0, 4.0), 0.25, Color::BLUE);
+    r.draw_ellipse_outline(c, Vec2::new(8.0, 4.0), 0.0, 2.0, Color::GREEN);
+    r.end_frame();
+    let calls: Vec<_> = r.calls().iter().skip(1).cloned().collect();
+    assert_eq!(
+        calls,
+        [
+            RecordedCall::DrawRegularPolygon {
+                center: c,
+                sides: 6,
+                radius: 5.0,
+                rotation: 0.5,
+                thickness: None,
+                color: Color::RED,
+                z: 2.0
+            },
+            RecordedCall::DrawRegularPolygon {
+                center: c,
+                sides: 3,
+                radius: 5.0,
+                rotation: 0.0,
+                thickness: Some(1.5),
+                color: Color::WHITE,
+                z: 2.0
+            },
+            RecordedCall::DrawArc {
+                center: c,
+                radius: 12.0,
+                start: -0.8,
+                sweep: 1.7,
+                thickness: 1.6,
+                segments: 14,
+                color: Color::WHITE,
+                z: 2.0
+            },
+            RecordedCall::DrawEllipse {
+                center: c,
+                radii: Vec2::new(8.0, 4.0),
+                rotation: 0.25,
+                thickness: None,
+                color: Color::BLUE,
+                z: 2.0
+            },
+            RecordedCall::DrawEllipse {
+                center: c,
+                radii: Vec2::new(8.0, 4.0),
+                rotation: 0.0,
+                thickness: Some(2.0),
+                color: Color::GREEN,
+                z: 2.0
+            },
+        ]
+    );
+}

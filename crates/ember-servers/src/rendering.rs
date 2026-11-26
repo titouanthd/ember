@@ -79,6 +79,52 @@ pub trait RenderingServer {
     fn draw_rect_rotated(&mut self, rect: Rect, rotation_radians: f32, color: Color);
     fn draw_circle(&mut self, center: Vec2, radius: f32, color: Color);
     fn draw_circle_outline(&mut self, center: Vec2, radius: f32, thickness: f32, color: Color);
+
+    // --- Shapes (ADR-042). Angles in radians, clockwise on screen. ---
+
+    /// A filled regular polygon with `sides` corners on a circle of
+    /// `radius`; `rotation` turns it about `center` (0 puts a corner on
+    /// +x).
+    fn draw_regular_polygon(
+        &mut self,
+        center: Vec2,
+        sides: u8,
+        radius: f32,
+        rotation: f32,
+        color: Color,
+    );
+    fn draw_regular_polygon_outline(
+        &mut self,
+        center: Vec2,
+        sides: u8,
+        radius: f32,
+        rotation: f32,
+        thickness: f32,
+        color: Color,
+    );
+    /// A stroked arc from angle `start` sweeping `sweep`, drawn with
+    /// `segments` straight pieces per full turn.
+    #[allow(clippy::too_many_arguments)]
+    fn draw_arc(
+        &mut self,
+        center: Vec2,
+        radius: f32,
+        start: f32,
+        sweep: f32,
+        thickness: f32,
+        segments: u8,
+        color: Color,
+    );
+    /// A filled ellipse with semi-axes `radii`, turned by `rotation`.
+    fn draw_ellipse(&mut self, center: Vec2, radii: Vec2, rotation: f32, color: Color);
+    fn draw_ellipse_outline(
+        &mut self,
+        center: Vec2,
+        radii: Vec2,
+        rotation: f32,
+        thickness: f32,
+        color: Color,
+    );
     fn draw_line(&mut self, a: Vec2, b: Vec2, thickness: f32, color: Color);
     fn draw_triangle(&mut self, a: Vec2, b: Vec2, c: Vec2, color: Color);
 
