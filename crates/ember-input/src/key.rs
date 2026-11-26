@@ -85,6 +85,10 @@ pub enum Key {
     F11,
     F12,
 
+    /// Punctuation. `Semicolon` is the physical key right of `L` on a
+    /// US layout (where `M` sits on AZERTY).
+    Semicolon,
+
     // Backend-specific key, for keys this enum does not model.
     // Backends pass their own code through; games rarely use this.
     Unknown(u32),
