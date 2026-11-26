@@ -12,6 +12,7 @@
 //! uses them. See `tests/contract.rs` for the trait-shape verification.
 
 pub mod audio;
+pub mod camera;
 pub mod clip;
 pub mod error;
 pub mod mock;
@@ -20,6 +21,7 @@ pub mod rendering;
 pub mod types;
 
 pub use audio::AudioServer;
+pub use camera::Camera2d;
 pub use clip::ClipStack;
 pub use error::ServerError;
 pub use mock::{MockAudio, MockRenderer, RecordedAudioCall, RecordedCall};

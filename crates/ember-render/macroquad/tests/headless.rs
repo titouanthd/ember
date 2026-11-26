@@ -7,7 +7,7 @@
 use ember_core::math::Rect;
 use ember_core::{Color, Image};
 use ember_render_macroquad::MacroquadRenderer;
-use ember_servers::{RenderFeature, RenderingServer};
+use ember_servers::{Camera2d, RenderFeature, RenderingServer};
 use glam::Vec2;
 
 #[test]
@@ -26,7 +26,7 @@ fn full_frame_cycle_does_not_panic() {
 
     r.begin_frame(Rect::new(0.0, 0.0, 100.0, 100.0));
     r.set_clear_color(Color::BLACK);
-    r.set_camera(Vec2::new(10.0, 20.0));
+    r.set_camera(Camera2d::at(Vec2::new(10.0, 20.0)).with_zoom(0.5));
     r.set_z(1.0);
     r.draw_rect(Rect::new(0.0, 0.0, 10.0, 10.0), Color::RED);
     r.draw_rect_outline(Rect::new(0.0, 0.0, 10.0, 10.0), 2.0, Color::WHITE);

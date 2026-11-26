@@ -19,7 +19,7 @@
 //! - `draw_rect_rotated` — Pagoda's falling slice pieces (juice) rotate
 //!   as they fall.
 
-use crate::{FontId, RenderFeature, ServerError, TextMetrics, TextureId};
+use crate::{Camera2d, FontId, RenderFeature, ServerError, TextMetrics, TextureId};
 use ember_core::math::Rect;
 use ember_core::{Color, Image};
 use glam::Vec2;
@@ -42,11 +42,12 @@ pub trait RenderingServer {
 
     // --- Camera ---
 
-    /// World position shown at the screen's top-left, for all subsequent
-    /// draws until changed: a shape at world `p` lands at `p - offset` on
-    /// screen (`DrawContext::world_to_screen`). Clip rects ignore it.
-    fn set_camera(&mut self, offset: Vec2);
-    fn camera_offset(&self) -> Vec2;
+    /// The camera for all subsequent draws until changed (ADR-040): a
+    /// point at world `p` lands at `(p - offset) * zoom` on screen, and
+    /// sizes, radii, thicknesses and font sizes scale by `zoom`
+    /// (`Camera2d::world_to_screen`). Clip rects ignore it.
+    fn set_camera(&mut self, camera: Camera2d);
+    fn camera(&self) -> Camera2d;
 
     // --- Z ordering ---
 

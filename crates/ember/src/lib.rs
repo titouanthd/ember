@@ -12,7 +12,7 @@ pub mod prelude {
     pub use ember_macros::Node;
     pub use ember_render_macroquad::{MacroquadRenderer, run, run_window};
     pub use ember_scene::prelude::*;
-    pub use ember_servers::{AudioServer, RenderingServer};
+    pub use ember_servers::{AudioServer, Camera2d, RenderingServer};
     pub use ember_ui::prelude::*;
     pub use glam::Vec2;
 }

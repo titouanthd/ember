@@ -16,8 +16,9 @@ use crate::Document;
 use crate::value;
 use ember_core::Color;
 use ember_core::math::Rect;
-use ember_input::Key;
-use ember_scene::{DrawContext, Node, NodeContext, NodeId, NodeName, NodeTree};
+use ember_input::{Input, Key};
+use ember_scene::{DrawContext, Node, NodeContext, NodeId, NodeName, NodeTree, Servers};
+use ember_servers::{Camera2d, LinearPhysics, MockAudio};
 use ember_ui::prelude::*;
 use glam::Vec2;
 
@@ -31,6 +32,22 @@ const KEY_W: f32 = 84.0;
 pub const MAX_PROPERTIES: usize = 16;
 /// Scene origin inside the preview.
 const PREVIEW_MARGIN: f32 = 20.0;
+
+/// The camera that fits a scene into the preview (ADR-040). With the
+/// game's `viewport`, the whole resolution is scaled down to fit (never
+/// up) and centred; without, the scene's origin sits near the top-left
+/// at zoom 1.
+pub fn preview_camera(viewport: Option<Vec2>) -> Camera2d {
+    let area = preview_rect();
+    let corner = Vec2::new(area.x, area.y);
+    let Some(size) = viewport.filter(|s| s.x > 0.0 && s.y > 0.0) else {
+        return Camera2d::placing_origin_at(corner + Vec2::splat(PREVIEW_MARGIN), 1.0);
+    };
+    let room = Vec2::new(area.w, area.h) - Vec2::splat(2.0 * PREVIEW_MARGIN);
+    let zoom = (room.x / size.x).min(room.y / size.y).min(1.0);
+    let origin = corner + (Vec2::new(area.w, area.h) - size * zoom) / 2.0;
+    Camera2d::placing_origin_at(origin, zoom)
+}
 
 /// The preview area: between the outline and the inspector.
 pub fn preview_rect() -> Rect {
@@ -75,6 +92,11 @@ pub struct EditorApp {
     ui: Option<Widgets>,
     /// The game's resolution, framed in the preview (ADR-039).
     pub viewport: Option<Vec2>,
+    // The preview's own servers for the scene's `ready`: silent audio,
+    // no physics shared with the editor, no input.
+    preview_audio: MockAudio,
+    preview_physics: LinearPhysics,
+    preview_input: Input,
 }
 
 impl EditorApp {
@@ -90,6 +112,9 @@ impl EditorApp {
             quit_armed: false,
             ui: None,
             viewport: None,
+            preview_audio: MockAudio::new(),
+            preview_physics: LinearPhysics::default(),
+            preview_input: Input::default(),
         }
     }
 
@@ -277,6 +302,13 @@ impl Node for EditorApp {
                 });
             }
         });
+        let mut servers = Servers {
+            rendering: ctx.render(),
+            audio: &mut self.preview_audio,
+            physics: &mut self.preview_physics,
+            input: &self.preview_input,
+        };
+        self.doc.ready(&mut servers);
         self.sync(ctx.tree());
     }
 
@@ -304,9 +336,8 @@ impl Node for EditorApp {
         let r = ctx.render();
         r.draw_rect(area, Color::new(0.06, 0.06, 0.08, 1.0));
         r.push_clip_rect(area);
-        let camera = r.camera_offset();
-        // screen = world - offset: the scene's (0, 0) lands here.
-        r.set_camera(-Vec2::new(area.x + PREVIEW_MARGIN, area.y + PREVIEW_MARGIN));
+        let camera = r.camera();
+        r.set_camera(preview_camera(self.viewport));
         if let Some(size) = self.viewport {
             r.draw_rect(Rect::new(0.0, 0.0, size.x, size.y), Color::BLACK);
         }

@@ -96,3 +96,108 @@ fn the_edit_example_parses_its_arguments() {
     let c = c.with_viewport(800.0, 600.0);
     assert_eq!(c.viewport, Some(Vec2::new(800.0, 600.0)));
 }
+
+// --- The editor window on Pong (M1.4 preview) -------------------------
+
+mod window {
+    use super::*;
+    use ember_editor::app::{EditorApp, build_app_tree, preview_camera, preview_rect};
+    use ember_servers::{Camera2d, RecordedCall};
+
+    type Editor = SceneLoop<MockRenderer, MockAudio>;
+
+    fn editor(test: &str) -> Editor {
+        let doc = Document::open(scratch(test), scene::classes()).unwrap();
+        let app = EditorApp::new(doc).with_viewport(Some(Vec2::new(800.0, 600.0)));
+        let mut e = SceneLoop::new(
+            build_app_tree(app),
+            MockRenderer::new(),
+            MockAudio::new(),
+            Rect::new(0.0, 0.0, 1100.0, 700.0),
+        );
+        assert!(e.init());
+        e
+    }
+
+    fn app_mut(e: &mut Editor) -> &mut EditorApp {
+        let root = e.tree.root().unwrap();
+        e.tree
+            .get_mut(root)
+            .unwrap()
+            .as_any_mut()
+            .downcast_mut::<EditorApp>()
+            .unwrap()
+    }
+
+    /// The rects drawn while the preview camera was set.
+    fn preview_rects(e: &mut Editor) -> Vec<Rect> {
+        e.rendering_mut().clear_calls();
+        e.draw();
+        let mut inside = false;
+        let mut out = Vec::new();
+        for call in e.rendering().calls() {
+            match call {
+                RecordedCall::SetCamera(c) => inside = c.zoom != 1.0,
+                RecordedCall::DrawRect { rect, .. } if inside => out.push(*rect),
+                _ => {}
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn the_court_is_scaled_into_the_preview_panel() {
+        let camera = preview_camera(Some(Vec2::new(800.0, 600.0)));
+        let area = preview_rect();
+        let court = camera.rect_to_screen(Rect::new(0.0, 0.0, 800.0, 600.0));
+        assert!(camera.zoom < 1.0);
+        assert!(court.x >= area.x && court.x + court.w <= area.x + area.w);
+        assert!(court.y >= area.y && court.y + court.h <= area.y + area.h);
+        // Without a viewport the POC placement is unchanged.
+        assert_eq!(
+            preview_camera(None),
+            Camera2d::placing_origin_at(Vec2::new(area.x + 20.0, area.y + 20.0), 1.0)
+        );
+    }
+
+    #[test]
+    fn the_preview_ran_ready_and_draws_the_paddles() {
+        let mut e = editor("ready");
+        let app = app_mut(&mut e);
+        let root = app.doc.root();
+        let pong = app
+            .doc
+            .tree()
+            .get(root)
+            .unwrap()
+            .as_any()
+            .downcast_ref::<Pong>()
+            .unwrap();
+        assert_eq!(pong.player().transform.scale, Vec2::new(15.0, 80.0));
+        assert!(!app.doc.is_dirty(), "ready does not dirty the document");
+
+        let rects = preview_rects(&mut e);
+        assert!(rects.contains(&Rect::new(0.0, 0.0, 800.0, 600.0)), "court");
+        assert!(
+            rects.contains(&Rect::new(30.0, 260.0, 15.0, 80.0)),
+            "player paddle"
+        );
+        assert!(
+            rects.contains(&Rect::new(755.0, 260.0, 15.0, 80.0)),
+            "AI paddle"
+        );
+    }
+
+    #[test]
+    fn a_size_edit_shows_in_the_next_preview_frame() {
+        let mut e = editor("edit-preview");
+        let doc = &mut app_mut(&mut e).doc;
+        let paddle = doc.find("PlayerPaddle").unwrap();
+        doc.set_property_text(paddle, "size", "16, 160").unwrap();
+        let rects = preview_rects(&mut e);
+        assert!(
+            rects.contains(&Rect::new(30.0, 260.0, 16.0, 160.0)),
+            "{rects:?}"
+        );
+    }
+}

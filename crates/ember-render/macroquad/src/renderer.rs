@@ -22,7 +22,8 @@ use std::collections::HashMap;
 use ember_core::math::Rect;
 use ember_core::{Color, Image};
 use ember_servers::{
-    ClipStack, FontId, RenderFeature, RenderingServer, ServerError, TextMetrics, TextureId,
+    Camera2d, ClipStack, FontId, RenderFeature, RenderingServer, ServerError, TextMetrics,
+    TextureId,
 };
 use glam::Vec2;
 use macroquad::prelude::*;
@@ -31,7 +32,7 @@ use crate::convert::{color_to_mq, rect_to_mq};
 
 pub struct MacroquadRenderer {
     viewport: Rect,
-    camera_offset: Vec2,
+    camera: Camera2d,
     current_z: f32,
     textures: HashMap<TextureId, Texture2D>,
     fonts: HashMap<FontId, Font>,
@@ -46,7 +47,7 @@ impl MacroquadRenderer {
     pub fn new() -> Self {
         Self {
             viewport: Rect::default(),
-            camera_offset: Vec2::ZERO,
+            camera: Camera2d::IDENTITY,
             current_z: 0.0,
             textures: HashMap::new(),
             fonts: HashMap::new(),
@@ -123,12 +124,12 @@ impl RenderingServer for MacroquadRenderer {
         self.viewport
     }
 
-    fn set_camera(&mut self, offset: Vec2) {
-        self.camera_offset = offset;
+    fn set_camera(&mut self, camera: Camera2d) {
+        self.camera = camera;
     }
 
-    fn camera_offset(&self) -> Vec2 {
-        self.camera_offset
+    fn camera(&self) -> Camera2d {
+        self.camera
     }
 
     fn set_z(&mut self, z: f32) {
@@ -154,35 +155,23 @@ impl RenderingServer for MacroquadRenderer {
     }
 
     fn draw_rect(&mut self, rect: Rect, color: Color) {
-        let o = self.camera_offset;
-        draw_rectangle(
-            rect.x - o.x,
-            rect.y - o.y,
-            rect.w,
-            rect.h,
-            color_to_mq(color),
-        );
+        let r = self.camera.rect_to_screen(rect);
+        draw_rectangle(r.x, r.y, r.w, r.h, color_to_mq(color));
     }
 
     fn draw_rect_outline(&mut self, rect: Rect, thickness: f32, color: Color) {
-        let o = self.camera_offset;
-        draw_rectangle_lines(
-            rect.x - o.x,
-            rect.y - o.y,
-            rect.w,
-            rect.h,
-            thickness,
-            color_to_mq(color),
-        );
+        let r = self.camera.rect_to_screen(rect);
+        let t = self.camera.length(thickness);
+        draw_rectangle_lines(r.x, r.y, r.w, r.h, t, color_to_mq(color));
     }
 
     fn draw_rect_rotated(&mut self, rect: Rect, rotation_radians: f32, color: Color) {
-        let o = self.camera_offset;
+        let r = self.camera.rect_to_screen(rect);
         draw_rectangle_ex(
-            rect.x - o.x,
-            rect.y - o.y,
-            rect.w,
-            rect.h,
+            r.x,
+            r.y,
+            r.w,
+            r.h,
             DrawRectangleParams {
                 offset: vec2(0.5, 0.5),
                 rotation: rotation_radians,
@@ -192,39 +181,32 @@ impl RenderingServer for MacroquadRenderer {
     }
 
     fn draw_circle(&mut self, center: Vec2, radius: f32, color: Color) {
-        let o = self.camera_offset;
-        draw_circle(center.x - o.x, center.y - o.y, radius, color_to_mq(color));
+        let c = self.camera.world_to_screen(center);
+        let r = self.camera.length(radius);
+        draw_circle(c.x, c.y, r, color_to_mq(color));
     }
 
     fn draw_circle_outline(&mut self, center: Vec2, radius: f32, thickness: f32, color: Color) {
-        let o = self.camera_offset;
-        draw_circle_lines(
-            center.x - o.x,
-            center.y - o.y,
-            radius,
-            thickness,
-            color_to_mq(color),
-        );
+        let c = self.camera.world_to_screen(center);
+        let (r, t) = (self.camera.length(radius), self.camera.length(thickness));
+        draw_circle_lines(c.x, c.y, r, t, color_to_mq(color));
     }
 
     fn draw_line(&mut self, a: Vec2, b: Vec2, thickness: f32, color: Color) {
-        let o = self.camera_offset;
-        draw_line(
-            a.x - o.x,
-            a.y - o.y,
-            b.x - o.x,
-            b.y - o.y,
-            thickness,
-            color_to_mq(color),
+        let (a, b) = (
+            self.camera.world_to_screen(a),
+            self.camera.world_to_screen(b),
         );
+        let t = self.camera.length(thickness);
+        draw_line(a.x, a.y, b.x, b.y, t, color_to_mq(color));
     }
 
     fn draw_triangle(&mut self, a: Vec2, b: Vec2, c: Vec2, color: Color) {
-        let o = self.camera_offset;
+        let cam = self.camera;
         draw_triangle(
-            vec2(a.x - o.x, a.y - o.y),
-            vec2(b.x - o.x, b.y - o.y),
-            vec2(c.x - o.x, c.y - o.y),
+            cam.world_to_screen(a),
+            cam.world_to_screen(b),
+            cam.world_to_screen(c),
             color_to_mq(color),
         );
     }
@@ -233,8 +215,7 @@ impl RenderingServer for MacroquadRenderer {
         let Ok(tex) = self.texture(texture) else {
             return;
         };
-        let o = self.camera_offset;
-        let dst_mq = Rect::new(dst.x - o.x, dst.y - o.y, dst.w, dst.h);
+        let dst_mq = self.camera.rect_to_screen(dst);
         let src_mq = src.map(rect_to_mq);
         draw_texture_ex(
             tex,
@@ -250,14 +231,15 @@ impl RenderingServer for MacroquadRenderer {
     }
 
     fn draw_text(&mut self, text: &str, pos: Vec2, size: f32, color: Color) {
-        let o = self.camera_offset;
+        let p = self.camera.world_to_screen(pos);
+        let size = self.camera.length(size);
         if let Some(font_id) = self.default_font
             && let Ok(font) = self.font(font_id)
         {
             draw_text_ex(
                 text,
-                pos.x - o.x,
-                pos.y - o.y,
+                p.x,
+                p.y,
                 TextParams {
                     font: Some(font),
                     font_size: size as u16,
@@ -267,7 +249,7 @@ impl RenderingServer for MacroquadRenderer {
             );
             return;
         }
-        draw_text(text, pos.x - o.x, pos.y - o.y, size, color_to_mq(color));
+        draw_text(text, p.x, p.y, size, color_to_mq(color));
     }
 
     fn draw_text_with_font(
@@ -278,14 +260,15 @@ impl RenderingServer for MacroquadRenderer {
         size: f32,
         color: Color,
     ) {
-        let o = self.camera_offset;
+        let p = self.camera.world_to_screen(pos);
+        let size = self.camera.length(size);
         let Ok(font_ref) = self.font(font) else {
             return;
         };
         draw_text_ex(
             text,
-            pos.x - o.x,
-            pos.y - o.y,
+            p.x,
+            p.y,
             TextParams {
                 font: Some(font_ref),
                 font_size: size as u16,

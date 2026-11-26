@@ -2,7 +2,7 @@
 
 use crate::value;
 use ember_core::{ClassDB, Variant};
-use ember_scene::{NodeId, NodeTree, PackedScene, SceneError};
+use ember_scene::{NodeId, NodeTree, PackedScene, SceneError, Servers};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -69,6 +69,15 @@ pub struct Document {
 }
 
 impl Document {
+    /// Run `ready` on the scene's nodes, as a game's first frame does,
+    /// so nodes that set themselves up there (children, fonts) preview
+    /// as they play. Does not mark the document dirty; a node that
+    /// rewrites its own exported fields in `ready` changes what Save
+    /// writes.
+    pub fn ready(&mut self, servers: &mut Servers) {
+        self.tree.flush(servers);
+    }
+
     /// Instantiate `scene` with `classes` (no file attached).
     pub fn from_scene(scene: &PackedScene, classes: ClassDB) -> Result<Self, EditorError> {
         let mut tree = NodeTree::new();

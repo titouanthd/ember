@@ -189,7 +189,7 @@ fn clip_rect_reports_the_active_clip() {
 fn clip_is_not_moved_by_the_camera() {
     let mut r = MockRenderer::new();
     r.begin_frame(Rect::new(0.0, 0.0, 800.0, 600.0));
-    r.set_camera(Vec2::new(300.0, 200.0));
+    r.set_camera(Camera2d::at(Vec2::new(300.0, 200.0)).with_zoom(2.0));
     r.push_clip_rect(Rect::new(10.0, 10.0, 20.0, 20.0));
     assert_eq!(r.clip_rect(), Some(Rect::new(10.0, 10.0, 20.0, 20.0)));
     r.end_frame();
@@ -253,7 +253,7 @@ fn every_recorded_variant_is_constructible() {
     use glam::Vec2;
 
     let _ = RecordedCall::SetClearColor(Color::WHITE);
-    let _ = RecordedCall::SetCamera(Vec2::ZERO);
+    let _ = RecordedCall::SetCamera(Camera2d::IDENTITY);
     let _ = RecordedCall::SetZ(0.0);
     let _ = RecordedCall::SetDefaultFont(None);
     let _ = RecordedCall::DrawRect {

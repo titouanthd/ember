@@ -15,7 +15,7 @@ use std::collections::HashSet;
 #[derive(Debug, Clone, PartialEq)]
 pub enum RecordedCall {
     SetClearColor(Color),
-    SetCamera(Vec2),
+    SetCamera(Camera2d),
     SetZ(f32),
     SetDefaultFont(Option<FontId>),
     /// `rect` as requested; `effective` after intersecting with the parent.
@@ -100,7 +100,7 @@ pub enum RecordedCall {
 pub struct MockRenderer {
     calls: Vec<RecordedCall>,
     viewport: Rect,
-    camera_offset: Vec2,
+    camera: Camera2d,
     current_z: f32,
     default_font: Option<FontId>,
     next_texture: u64,
@@ -165,13 +165,13 @@ impl RenderingServer for MockRenderer {
         self.viewport
     }
 
-    fn set_camera(&mut self, offset: Vec2) {
-        self.camera_offset = offset;
-        self.calls.push(RecordedCall::SetCamera(offset));
+    fn set_camera(&mut self, camera: Camera2d) {
+        self.camera = camera;
+        self.calls.push(RecordedCall::SetCamera(camera));
     }
 
-    fn camera_offset(&self) -> Vec2 {
-        self.camera_offset
+    fn camera(&self) -> Camera2d {
+        self.camera
     }
 
     fn set_z(&mut self, z: f32) {

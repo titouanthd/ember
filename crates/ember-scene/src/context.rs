@@ -5,7 +5,7 @@ use crate::signal::ScopedConnection;
 use crate::{Node, NodeId, NodeTree, Signal};
 use ember_core::math::Rect;
 use ember_input::Input;
-use ember_servers::{AudioServer, PhysicsServer, RenderingServer};
+use ember_servers::{AudioServer, Camera2d, PhysicsServer, RenderingServer};
 use glam::Vec2;
 
 /// The backends a frame runs against. Borrowed from the `MainLoop`.
@@ -197,8 +197,9 @@ impl<'a> DrawContext<'a> {
         self.rendering.viewport()
     }
 
-    pub fn camera_offset(&self) -> Vec2 {
-        self.rendering.camera_offset()
+    /// The renderer's camera (ADR-040).
+    pub fn camera(&self) -> Camera2d {
+        self.rendering.camera()
     }
 
     pub fn current_z(&self) -> f32 {
@@ -206,11 +207,11 @@ impl<'a> DrawContext<'a> {
     }
 
     pub fn world_to_screen(&self, world: Vec2) -> Vec2 {
-        world - self.camera_offset()
+        self.camera().world_to_screen(world)
     }
 
     pub fn screen_to_world(&self, screen: Vec2) -> Vec2 {
-        screen + self.camera_offset()
+        self.camera().screen_to_world(screen)
     }
 }
 
@@ -222,10 +223,10 @@ mod tests {
     #[test]
     fn world_screen_round_trip_through_camera() {
         let mut r = MockRenderer::new();
-        r.set_camera(Vec2::new(10.0, 20.0));
+        r.set_camera(Camera2d::at(Vec2::new(10.0, 20.0)).with_zoom(2.0));
         let ctx = DrawContext::new(&mut r);
         let w = Vec2::new(15.0, 25.0);
-        assert_eq!(ctx.world_to_screen(w), Vec2::new(5.0, 5.0));
+        assert_eq!(ctx.world_to_screen(w), Vec2::new(10.0, 10.0));
         assert_eq!(ctx.screen_to_world(ctx.world_to_screen(w)), w);
     }
 }
