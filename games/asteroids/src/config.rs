@@ -1,6 +1,6 @@
 // games/asteroids/src/config.rs
+use ember_core::Color;
 use ember_stdlib::config::{env_f32, env_u32, load_dotenv_once};
-use macroquad::prelude::Color;
 use std::path::PathBuf;
 
 /// Immutable per-run config, loaded once from `.env`.

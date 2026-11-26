@@ -2,6 +2,7 @@
 pub mod components;
 pub mod config;
 pub mod persistence;
+pub mod scene;
 pub mod systems; // ← celui-ci doit être présent
 
 // Ré-export de GameState du core pour cohérence avec les autres jeux.

@@ -4,10 +4,11 @@
 use crate::components::{Asteroid, Bullet, Ship};
 use crate::persistence::{self, HighScore};
 use ember_core::app::GameState;
+use ember_core::{Color, Rng};
 use ember_stdlib::collider::collides;
 use ember_stdlib::time::Cooldown;
 use glam::Vec2;
-use macroquad::prelude::Color;
+use std::sync::Mutex;
 
 pub use crate::config::GameContext;
 
@@ -182,8 +183,34 @@ pub fn wrap_position(p: Vec2, w: f32, h: f32) -> Vec2 {
     Vec2::new(((p.x % w) + w) % w, ((p.y % h) + h) % h)
 }
 
+/// RNG state for spawns and splits (was macroquad's global `rand`).
+static SPAWN_RNG: Mutex<u32> = Mutex::new(0x0A57_E401);
+
+/// Reseed spawns and splits (the scene seeds it from the clock).
+pub fn seed_rng(seed: u32) {
+    *SPAWN_RNG.lock().unwrap_or_else(|e| e.into_inner()) = Rng::new(seed).state();
+}
+
+fn with_rng<T>(f: impl FnOnce(&mut Rng) -> T) -> T {
+    let mut state = SPAWN_RNG.lock().unwrap_or_else(|e| e.into_inner());
+    let mut rng = Rng::from_state(*state);
+    let v = f(&mut rng);
+    *state = rng.state();
+    v
+}
+
+/// A float in `min..max`, like macroquad's `gen_range` on floats.
+fn gen_range(min: f32, max: f32) -> f32 {
+    with_rng(|r| r.next_f32_range(min, max))
+}
+
+/// An integer in `0..n`.
+fn gen_index(n: usize) -> usize {
+    with_rng(|r| r.next_range(n))
+}
+
 fn random_angle() -> f32 {
-    macroquad::rand::gen_range(0.0, std::f32::consts::TAU)
+    gen_range(0.0, std::f32::consts::TAU)
 }
 
 // ============================================================================
@@ -276,10 +303,8 @@ pub fn asteroid_radius(size: u8) -> f32 {
 }
 
 pub fn spawn_asteroid_wave(asteroids: &mut Vec<Asteroid>, count: u32, ctx: &GameContext) {
-    use macroquad::rand::gen_range;
-
     for _ in 0..count {
-        let (x, y) = match gen_range(0, 4) {
+        let (x, y) = match gen_index(4) {
             0 => (gen_range(0.0, ctx.screen_w), -50.0),
             1 => (gen_range(0.0, ctx.screen_w), ctx.screen_h + 50.0),
             2 => (-50.0, gen_range(0.0, ctx.screen_h)),
@@ -388,7 +413,6 @@ pub fn resolve_ship_asteroid_collision(ship: &Ship, asteroids: &[Asteroid]) -> b
 mod tests {
     use super::*;
     use crate::components::{Asteroid, Bullet, Ship};
-    use macroquad::prelude::Color;
 
     fn ctx() -> GameContext {
         GameContext::default()

@@ -16,8 +16,8 @@
 use asteroids::GameState;
 use asteroids::components::{Asteroid, Bullet, Ship};
 use asteroids::systems::{self, GameContext, GameWorld, ShipInput};
+use ember_core::Color;
 use glam::Vec2;
-use macroquad::prelude::Color;
 
 /// Contexte de test. Nommé `test_ctx` (et non `ctx`) pour éviter toute
 /// collision de nom avec les locals `cx`/`ctx` dans les tests.
