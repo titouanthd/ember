@@ -499,15 +499,18 @@ pub fn packed_scene() -> PackedScene {
 
 /// The tree exactly as `pong.escene` describes it.
 pub fn load_tree(seed: u32) -> NodeTree {
+    tree_from(&packed_scene(), seed).expect("pong.escene instantiates")
+}
+
+/// The tree a Pong scene describes (for example one saved by the editor).
+pub fn tree_from(scene: &PackedScene, seed: u32) -> Result<NodeTree, ember_scene::SceneError> {
     let mut tree = NodeTree::new();
-    let root = packed_scene()
-        .instantiate(&classes(), &mut tree)
-        .expect("pong.escene instantiates");
+    let root = scene.instantiate(&classes(), &mut tree)?;
     tree.set_root(root);
     if let Some(pong) = node_mut::<Pong>(&mut tree, root) {
         pong.seed = seed;
     }
-    tree
+    Ok(tree)
 }
 
 /// The config a tree describes, as `Pong` reads it in `ready`.

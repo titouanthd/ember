@@ -15,3 +15,4 @@ ember-scene.workspace = true
 [dev-dependencies]
 ember-servers.workspace = true
 ember-input.workspace = true
+ember-editor.workspace = true

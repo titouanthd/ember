@@ -830,6 +830,7 @@ dependencies = [
  "dotenvy",
  "ember",
  "ember-core",
+ "ember-editor",
  "ember-input",
  "ember-macros",
  "ember-scene",

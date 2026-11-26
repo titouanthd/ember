@@ -12,7 +12,7 @@ PORT    ?= 8000
 ENGINE_FLAGS := $(addprefix -p ,$(ENGINE))
 
 .DEFAULT_GOAL := help
-.PHONY: help setup hooks build release run run-release example ui-demo editor \
+.PHONY: help setup hooks build release run run-release example ui-demo editor edit \
         test test-engine test-games test-crate test-game test-one test-count \
         check fix fmt fmt-check layers macroquad gates ci pre-push \
         doc web web-serve vault vault-check docs-guard \
@@ -60,6 +60,12 @@ editor: ## Open a scene in the editor: make editor SCENE=path/to/scene.escene
 	@if [ "$(SCENE)" = "target/editor/player.escene" ] && [ ! -f "$(SCENE)" ]; then \
 		mkdir -p target/editor && cp assets/test_fixtures/player.escene $(SCENE); fi
 	$(CARGO) run -p ember-editor -- $(SCENE)
+
+GAME_SCENE ?= games/$(GAME)/scenes/$(GAME).escene
+edit: _need-game ## Edit a game's scene in place (ADR-039): make edit GAME=pong
+	@test -f games/$(GAME)/examples/edit.rs || { echo "$(GAME) has no examples/edit.rs (not editable yet)"; exit 1; }
+	@test -f $(GAME_SCENE) || { echo "no scene at $(GAME_SCENE)"; exit 1; }
+	$(CARGO) run -p $(GAME) --example edit -- $(GAME_SCENE)
 
 ## —— Tests ——————————————————————————————————————————————————————————————
 test: ## All tests, no fail-fast (workspace)

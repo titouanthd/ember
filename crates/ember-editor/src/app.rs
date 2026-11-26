@@ -73,6 +73,8 @@ pub struct EditorApp {
     inspector_stale: bool,
     quit_armed: bool,
     ui: Option<Widgets>,
+    /// The game's resolution, framed in the preview (ADR-039).
+    pub viewport: Option<Vec2>,
 }
 
 impl EditorApp {
@@ -87,7 +89,14 @@ impl EditorApp {
             inspector_stale: true,
             quit_armed: false,
             ui: None,
+            viewport: None,
         }
+    }
+
+    /// Frame the game's resolution in the preview.
+    pub fn with_viewport(mut self, viewport: Option<Vec2>) -> Self {
+        self.viewport = viewport;
+        self
     }
 
     pub fn widgets(&self) -> Option<&Widgets> {
@@ -298,7 +307,17 @@ impl Node for EditorApp {
         let camera = r.camera_offset();
         // screen = world - offset: the scene's (0, 0) lands here.
         r.set_camera(-Vec2::new(area.x + PREVIEW_MARGIN, area.y + PREVIEW_MARGIN));
+        if let Some(size) = self.viewport {
+            r.draw_rect(Rect::new(0.0, 0.0, size.x, size.y), Color::BLACK);
+        }
         self.doc.tree().draw(ctx);
+        if let Some(size) = self.viewport {
+            ctx.render().draw_rect_outline(
+                Rect::new(0.0, 0.0, size.x, size.y),
+                1.0,
+                Color::new(1.0, 1.0, 1.0, 0.25),
+            );
+        }
         if let Some(rect) = self.selected.and_then(|id| selection_rect(&self.doc, id)) {
             ctx.render()
                 .draw_rect_outline(rect, 2.0, Color::new(1.0, 0.8, 0.2, 1.0));
@@ -362,8 +381,14 @@ fn add(tree: &mut NodeTree, parent: NodeId, node: impl Node) -> NodeId {
 
 /// The editor's node tree for `doc`.
 pub fn build_tree(doc: Document) -> NodeTree {
-    let outline_rows = doc.outline();
-    let mut tree = NodeTree::with_root(EditorApp::new(doc));
+    build_app_tree(EditorApp::new(doc))
+}
+
+/// Like [`build_tree`], for an `EditorApp` already configured
+/// (for example [`EditorApp::with_viewport`]).
+pub fn build_app_tree(app: EditorApp) -> NodeTree {
+    let outline_rows = app.doc.outline();
+    let mut tree = NodeTree::with_root(app);
     let root = tree.root().expect("root");
     let ui = add(&mut tree, root, UiRoot::new(Theme::dark()));
     let theme = Theme::dark();
