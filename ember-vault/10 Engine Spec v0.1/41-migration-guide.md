@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 41 — Migration Guide
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; 4 of 17 games (pong, simon, snake, memory) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
+> **Status:** 🟡 partial — reviewed 2026-11-19; 5 of 17 games (pong, simon, snake, memory, minesweeper) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [[40-roadmap]], [[21-ember-scene]]
 
@@ -330,11 +330,20 @@ persistence API lands.
   `draw` has no input: hover effects read the pointer position saved in
   `process`.
 
-### 5.5 minesweeper
+### 5.5 minesweeper — **migrated** (`237243e`, 2026-11-26)
 
-- 28 unit + 8 scenario.
-- Grid game — nodes may not be the right granularity for 16×16 tiles.
-  Consider keeping tiles as a 2D array inside a single `Grid` node.
+- 28 unit + 8 scenario (unchanged) + 7 headless `SceneLoop` tests
+  (`games/minesweeper/tests/scene.rs`).
+- Result: `src/scene.rs`, same shape as memory (§5.4): one
+  `MinesweeperGame` root node and three `ember_ui` buttons. The 16×16 /
+  30×16 board stays a `Grid` drawn by one node, as planned. Left, right
+  and middle clicks come straight from `Input`.
+- Restart / Menu were drawn but inert on the end screens; they are now
+  shown **disabled** there (`Button::set_disabled`), which makes that
+  visible.
+- Logic touched: the three `Button` fields and `update_menu_layout` left
+  `Game`; `Color` comes from `ember_core`.
+
 
 ### 5.6 freecell
 

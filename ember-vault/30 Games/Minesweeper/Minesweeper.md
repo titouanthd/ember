@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/minesweeper` (`cargo run -p minesweeper`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | Grid<T>, mouse input, UI widgets, flood fill, chord, best times |
-| **Engine migration (Phase 7)** | ⬜ not migrated |
+| **Engine migration (Phase 7)** | ✅ migrated `237243e` — `src/scene.rs`: `MinesweeperGame` root node drawing the board through the `RenderingServer`, START / Restart / Menu as `ember_ui` Buttons; no macroquad |
 
 ## Documents
 
