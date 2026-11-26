@@ -268,16 +268,16 @@ persistence API lands.
 - Lesson: a game with no widgets migrates in one node — a second node
   only pays off when another one listens to its signals (pong).
 
-### 5.2 pong — **migrated**
+### 5.2 pong — **migrated** (`09dd9b8`, 2026-11-26)
 
 - 20 unit + 13 scenario + 3 headless `SceneLoop` tests
   (`games/pong/tests/scene.rs`).
 - Result: `src/scene.rs` has two nodes — `Pong` (root; owns the match,
   reads input in `process`, draws via `DrawContext`) and `Scoreboard`
   (child; listens to `PointScored` / `MatchReset` signals emitted via
-  `ctx.emit`). `main.rs` (20 lines) calls `scene::build_tree`, wraps it in
-  `SceneLoop::new(tree, MacroquadRenderer, MacroquadAudio, viewport)` and
-  `run_window`.
+  `ctx.emit`). `main.rs` (5 lines) calls `scene::run()`, which wraps
+  `build_tree` in `SceneLoop::new(tree, MacroquadRenderer, MacroquadAudio,
+  viewport)` and `run_window`.
 - Lessons: pure logic (`systems`, `components`) was untouched; the
   `Node` impls are written by hand (`Object` + `Node`) rather than with
   derive; entities stay plain structs inside one node (steps 5's "one
@@ -285,9 +285,11 @@ persistence API lands.
   `ctx.current_id()` + `tree().get_mut` + downcast; `dt` is capped
   (`MAX_FRAME_DT`) inside the node; tests drive `SceneLoop` with
   `MockRenderer`/`MockAudio`.
-- Deviations from §8: `main.rs` is 20 lines (limit 10) and `pong` still
-  depends on `macroquad` (config colours, `render.rs`, the window
-  backend). Order in §3 has pong 2nd but it was migrated first.
+- Closed in `09dd9b8` (M1.1): `ember_core::Color` everywhere (the
+  `color()` bridge is gone), local `env_color` and `Sprite` twins until
+  Phase 8, `ember_core::GameState`, `main.rs` → `scene::run()`; off the
+  macroquad allowlist. Tests unchanged.
+- Order in §3 has pong 2nd but it was migrated first.
 
 ### 5.3 simon — **migrated** (`1d0dc87`, 2026-11-24)
 
@@ -516,7 +518,7 @@ A migration is done when:
 
 | Criterion | How verified |
 |---|---|
-| `main.rs` is ≤ 10 lines (pong: 20 — target relaxed in practice) | `wc -l games/<game>/src/main.rs` |
+| `main.rs` is ≤ 10 lines | `wc -l games/<game>/src/main.rs` |
 | Game runs a `SceneLoop` (or `impl MainLoop`) | `grep -rn "SceneLoop\|impl MainLoop" games/<game>/src/` |
 | No `use macroquad` in game code | `grep -rn "macroquad" games/<game>/src/` returns 0 hits |
 | No `juice.rs` | `ls games/<game>/src/juice.rs` fails |
@@ -524,8 +526,8 @@ A migration is done when:
 | All tests pass | `cargo test -p <game>` |
 | Visual behavior matches | Manual play-test against pre-migration video |
 
-The first four are grep-able and can be added to CI (none is in CI yet;
-pong still contains macroquad imports). The last one
+The first four are grep-able and can be added to CI (`check-macroquad` already
+enforces the third for every game off the allowlist). The last one
 requires human verification.
 
 ## 9. Cross-references

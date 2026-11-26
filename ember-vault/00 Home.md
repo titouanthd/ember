@@ -11,7 +11,7 @@ updated: "2026-11-26"
 A 2D game engine in Rust (macroquad backend) built on top of **17 games**. **This vault is the only home of the project documentation** — the only docs outside it are the `README.md` files (repo root and 5 games). It also holds generated notes that map the code and evaluate progress.
 
 > [!summary] Where things stand (2026-11-26)
-> Phases 0, 2, 4, 5 (UI) and 6 (editor POC) are **closed**. **10 / 17** games run on the engine (snake, simon, memory, minesweeper, freecell, breakout, asteroids, air-hockey, bullet-hell; pong partly).
+> Phases 0, 2, 4, 5 (UI) and 6 (editor POC) are **closed**. **10 / 17** games run on the engine (snake, simon, memory, minesweeper, freecell, breakout, asteroids, air-hockey, bullet-hell, pong).
 > **Goal now:** every game on the latest engine, then a big editor refactor (Editor v2). The proof is that the editor opens Pong. → [[Next Phase Plan — Migration Close & Editor v2]]
 
 ## Start here

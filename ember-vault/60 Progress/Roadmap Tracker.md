@@ -86,7 +86,7 @@ gantt
 ## Phase 7 — Migration
 Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `macroquad`.
 - [x] snake *(`77d7694`: one root node; `main.rs` 5 lines; no macroquad; 7 `SceneLoop` tests)*
-- [ ] pong *(on NodeTree + signal; `main.rs` 20 lines; still imports macroquad Color → M1.1)*
+- [x] pong *(`09dd9b8`: `Pong` root + `Scoreboard` via signals; `main.rs` 5 lines; no macroquad; 3 `SceneLoop` tests)*
 - [x] simon *(`1d0dc87`: root node + `ember_ui` screens + custom `ColorPad`; `main.rs` 5 lines; no macroquad; 8 `SceneLoop` tests)*
 - [x] memory *(`8b08c5d`: root node + `ember_ui` buttons; `main.rs` 5 lines; no macroquad; 8 `SceneLoop` tests)*
 - [x] minesweeper *(`237243e`: root node + `ember_ui` buttons; `main.rs` 5 lines; no macroquad; 7 `SceneLoop` tests)*

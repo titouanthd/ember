@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/pong` (`cargo run -p pong`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | AABB collisions, simple AI, match state |
-| **Engine migration (Phase 7)** | 🟡 partly — on `NodeTree` + `SceneLoop` + `PointScored` signal; still imports `macroquad::Color`, `main.rs` 20 lines. Next: finish it and describe it as `scenes/pong.escene` — the **editor proof** (M1 in [[Next Phase Plan — Migration Close & Editor v2]]) |
+| **Engine migration (Phase 7)** | ✅ `09dd9b8` — on `NodeTree` + `SceneLoop` + `PointScored` signal; no macroquad, `main.rs` 5 lines. Next: describe it as `scenes/pong.escene` — the **editor proof** (M1 in [[Next Phase Plan — Migration Close & Editor v2]]) |
 
 ## Documents
 

@@ -63,7 +63,7 @@ Rounds keep the current rhythm: **one game or one engine feature per round**. I 
 
 ## M1 — Pong, and the editor opens it (proof first)
 
-### M1.1 Finish Pong (0.5 session)
+### M1.1 Finish Pong (0.5 session) — ✅ `09dd9b8`
 - `macroquad::Color` → `ember_core::Color` in `config.rs`, `components.rs` and `scene.rs` (the `color()` bridge goes away).
 - `main.rs` (20 lines) moves into `scene::run()`, leaving 5 lines.
 - Drop `ember_stdlib::app::GameState` for `ember_core::GameState`.
