@@ -323,10 +323,10 @@ pub fn run() {
         Rect::new(0.0, 0.0, WINDOW_W, WINDOW_H),
     )
     .with_viewport_following_window();
-    run_window(
-        "Zhuo Ji — 贵阳捉鸡麻将",
-        WINDOW_W as i32,
-        WINDOW_H as i32,
+    // As the old window: sharp text on high-density screens.
+    run_window_with(
+        WindowConfig::new("Zhuo Ji — 贵阳捉鸡麻将", WINDOW_W as i32, WINDOW_H as i32)
+            .high_dpi(true),
         game,
     );
 }
