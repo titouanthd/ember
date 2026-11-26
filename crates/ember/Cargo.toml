@@ -14,3 +14,8 @@ ember-render-macroquad.workspace = true
 ember-audio-macroquad.workspace = true
 ember-macros.workspace = true
 glam.workspace = true
+
+# Run hello_scene's headless tests with the workspace (Phase 1 exit criterion).
+[[example]]
+name = "hello_scene"
+test = true

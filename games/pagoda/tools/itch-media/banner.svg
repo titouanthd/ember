@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400">
+  <defs>
+    <linearGradient id="seal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E04A36"/>
+      <stop offset="100%" stop-color="#8E1C14"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#B8862E"/>
+      <stop offset="50%" stop-color="#FFD979"/>
+      <stop offset="100%" stop-color="#9A6E2A"/>
+    </linearGradient>
+    <linearGradient id="lacquer" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8E1E16"/>
+      <stop offset="100%" stop-color="#5A0E0A"/>
+    </linearGradient>
+    <radialGradient id="moonHalo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#FFF2C7" stop-opacity="0.45"/>
+      <stop offset="40%" stop-color="#FFE3A0" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#FFE3A0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="goldGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#FFD140" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#FFD140" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="mist" x="-20%" y="-200%" width="140%" height="500%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <radialGradient id="paper" cx="0.4" cy="0.35" r="0.9">
+      <stop offset="0%" stop-color="#F8EED4"/>
+      <stop offset="55%" stop-color="#EBDCB4"/>
+      <stop offset="100%" stop-color="#D6C297"/>
+    </radialGradient>
+    <radialGradient id="inkWash" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#2A3446" stop-opacity="0.30"/>
+      <stop offset="60%" stop-color="#2A3446" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#2A3446" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Rice paper + ink wash behind the tower -->
+  <rect width="100%" height="100%" fill="url(#paper)"/>
+  <ellipse cx="740" cy="240" rx="300" ry="220" fill="url(#inkWash)"/>
+  <!-- Vermilion sun -->
+  <circle cx="896" cy="70" r="34" fill="#DB3D2B" opacity="0.82"/>
+  <rect x="840" y="66" width="120" height="5" fill="#EBDCB4" opacity="0.55"/>
+  <rect x="856" y="80" width="100" height="3" fill="#EBDCB4" opacity="0.45"/>
+  <!-- Shan-shui ridges -->
+  <polygon points="0,330 34,275 85,292 120,267 178,289 224,311 251,300 301,324 357,311 394,327 458,271 518,281 547,304 592,321 655,301 688,265 721,256 765,286 805,291 840,327 899,311 955,313 960,258 960,400 0,400" fill="#8A93A0" opacity="0.35"/>
+  <polygon points="0,360 35,343 79,346 113,343 145,311 168,338 194,343 242,344 279,339 319,338 344,338 376,320 411,350 450,345 484,349 516,321 550,322 591,331 629,340 667,321 690,313 720,353 745,343 767,340 799,327 832,313 870,344 914,325 960,323 960,400 0,400" fill="#3B4452" opacity="0.55"/>
+  <polygon points="0,384 16,381 40,366 58,381 79,364 97,365 127,380 153,372 177,358 195,383 230,374 250,375 273,359 293,378 321,370 356,362 379,379 412,358 429,365 462,367 482,363 513,379 542,378 558,375 581,374 610,362 646,359 682,363 704,379 732,370 762,382 782,360 810,366 827,374 862,367 898,379 923,363 948,363 960,381 960,400 0,400" fill="#1E2430" opacity="0.85"/>
+  <!-- Plinth -->
+  <rect x="618" y="352" width="244" height="10" fill="#2A2118"/>
+  <!-- Lacquered tiles, ink-outlined -->
+  <g>
+    <rect x="643" y="334" width="200" height="22" fill="#000" opacity="0.30"/>
+    <rect x="640" y="330" width="200" height="22" fill="#5CCCA8"/>
+    <rect x="640" y="330" width="200" height="4.8" fill="#95DEC7"/>
+    <rect x="640" y="347.2" width="200" height="4.8" fill="#32705D"/>
+    <line x1="640" y1="347.2" x2="840" y2="347.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="740.0,335.7 744.8,340.56 740.0,345.4 735.2,340.56" fill="#397E68" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="640" y="330" width="200" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+  </g>
+  <g>
+    <rect x="649" y="312" width="194" height="22" fill="#000" opacity="0.30"/>
+    <rect x="646" y="308" width="194" height="22" fill="#54C5B1"/>
+    <rect x="646" y="308" width="194" height="4.8" fill="#90D9CC"/>
+    <rect x="646" y="325.2" width="194" height="4.8" fill="#2E6C61"/>
+    <line x1="646" y1="325.2" x2="840" y2="325.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="743.0,313.7 747.8,318.56 743.0,323.4 738.2,318.56" fill="#347A6D" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="646" y="308" width="194" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+  </g>
+  <g>
+    <rect x="649" y="290" width="194" height="22" fill="#000" opacity="0.30"/>
+    <rect x="646" y="286" width="194" height="22" fill="#4BBEB9"/>
+    <rect x="646" y="286" width="194" height="4.8" fill="#8AD5D1"/>
+    <rect x="646" y="303.2" width="194" height="4.8" fill="#296966"/>
+    <line x1="646" y1="303.2" x2="840" y2="303.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="743.0,291.7 747.8,296.56 743.0,301.4 738.2,296.56" fill="#2F7673" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="646" y="286" width="194" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+  </g>
+  <g>
+    <rect x="655" y="268" width="188" height="22" fill="#000" opacity="0.30"/>
+    <rect x="652" y="264" width="188" height="22" fill="#43B7C1"/>
+    <rect x="652" y="264" width="188" height="4.8" fill="#85D0D7"/>
+    <rect x="652" y="281.2" width="188" height="4.8" fill="#25656A"/>
+    <line x1="652" y1="281.2" x2="840" y2="281.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="746.0,269.7 750.8,274.56 746.0,279.4 741.2,274.56" fill="#2A7278" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="652" y="264" width="188" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+  </g>
+  <g>
+    <rect x="661" y="246" width="182" height="22" fill="#000" opacity="0.30"/>
+    <rect x="658" y="242" width="182" height="22" fill="#3FADC8"/>
+    <rect x="658" y="242" width="182" height="4.8" fill="#82CADB"/>
+    <rect x="658" y="259.2" width="182" height="4.8" fill="#235F6E"/>
+    <line x1="658" y1="259.2" x2="840" y2="259.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="749.0,247.7 753.8,252.56 749.0,257.4 744.2,252.56" fill="#276C7C" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="658" y="242" width="182" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+  </g>
+  <g>
+    <rect x="661" y="224" width="182" height="22" fill="#000" opacity="0.30"/>
+    <rect x="658" y="220" width="182" height="22" fill="#469CCA"/>
+    <rect x="658" y="220" width="182" height="4.8" fill="#87BFDD"/>
+    <rect x="658" y="237.2" width="182" height="4.8" fill="#27566F"/>
+    <line x1="658" y1="237.2" x2="840" y2="237.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="749.0,225.7 753.8,230.56 749.0,235.4 744.2,230.56" fill="#2B617E" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="658" y="220" width="182" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+  </g>
+  <g>
+    <rect x="667" y="202" width="176" height="22" fill="#000" opacity="0.30"/>
+    <rect x="664" y="198" width="176" height="22" fill="#4D8BCD"/>
+    <rect x="664" y="198" width="176" height="4.8" fill="#8BB4DF"/>
+    <rect x="664" y="215.2" width="176" height="4.8" fill="#2A4C71"/>
+    <line x1="664" y1="215.2" x2="840" y2="215.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="752.0,203.7 756.8,208.56 752.0,213.4 747.2,208.56" fill="#30567F" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="664" y="198" width="176" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+  </g>
+  <g>
+    <rect x="673" y="180" width="170" height="22" fill="#000" opacity="0.30"/>
+    <rect x="670" y="176" width="170" height="22" fill="#547AD0"/>
+    <rect x="670" y="176" width="170" height="4.8" fill="#90A8E0"/>
+    <rect x="670" y="193.2" width="170" height="4.8" fill="#2E4372"/>
+    <line x1="670" y1="193.2" x2="840" y2="193.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="755.0,181.7 759.8,186.56 755.0,191.4 750.2,186.56" fill="#344B81" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="670" y="176" width="170" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+  </g>
+  <g>
+    <rect x="679" y="158" width="164" height="22" fill="#000" opacity="0.30"/>
+    <rect x="676" y="154" width="164" height="22" fill="#6C6AB7"/>
+    <rect x="676" y="154" width="164" height="4.8" fill="#9F9ED0"/>
+    <rect x="676" y="171.2" width="164" height="4.8" fill="#3B3A64"/>
+    <line x1="676" y1="171.2" x2="840" y2="171.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="758.0,159.7 762.8,164.56 758.0,169.4 753.2,164.56" fill="#434271" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="676" y="154" width="164" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+  </g>
+  <g>
+    <rect x="689" y="136" width="154" height="22" fill="#000" opacity="0.30"/>
+    <rect x="686" y="132" width="154" height="22" fill="#905C8A"/>
+    <rect x="686" y="132" width="154" height="4.8" fill="#B795B3"/>
+    <rect x="686" y="149.2" width="154" height="4.8" fill="#4F324C"/>
+    <line x1="686" y1="149.2" x2="840" y2="149.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="763.0,137.7 767.8,142.56 763.0,147.4 758.2,142.56" fill="#593955" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="686" y="132" width="154" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+  </g>
+  <!-- Sliding tile + plumb line -->
+  <line x1="760.0" y1="106" x2="760.0" y2="132" stroke="#B8862E" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <polygon points="763.0,127 768.0,132 763.0,137 758.0,132" fill="#B8862E"/>
+  <g>
+    <rect x="686" y="88" width="154" height="22" fill="#000" opacity="0.30"/>
+    <rect x="683" y="84" width="154" height="22" fill="#B44D5D"/>
+    <rect x="683" y="84" width="154" height="4.8" fill="#CE8B96"/>
+    <rect x="683" y="101.2" width="154" height="4.8" fill="#632A33"/>
+    <line x1="683" y1="101.2" x2="837" y2="101.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="760.0,89.7 764.8,94.56 760.0,99.4 755.2,94.56" fill="#6F303A" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="683" y="84" width="154" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+    <rect x="681.5" y="82.5" width="157" height="25" fill="none" stroke="#B8862E" stroke-width="2.2"/>
+  </g>
+  <g transform="translate(626,190) rotate(-28)" opacity="0.9">
+    <rect x="-3" y="-7" width="12" height="22" fill="#000" opacity="0.30"/>
+    <rect x="-6" y="-11" width="12" height="22" fill="#905C8A"/>
+    <rect x="-6" y="-11" width="12" height="4.8" fill="#B795B3"/>
+    <rect x="-6" y="6.2" width="12" height="4.8" fill="#4F324C"/>
+    <line x1="-6" y1="6.2" x2="6" y2="6.2" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <rect x="-6" y="-11" width="12" height="22" fill="none" stroke="#2A2118" stroke-width="1.6"/>
+  </g>
+  <!-- Title -->
+  <text x="92" y="186" font-family="'Playfair Display','Didot','Bodoni 72',Georgia,serif" font-size="96" font-weight="700" letter-spacing="14" fill="#1E1810">PAGODA</text>
+  <g transform="translate(548,118) rotate(-5)">
+    <rect x="-23.0" y="-23.0" width="46" height="46" rx="3" fill="url(#seal)"/>
+    <rect x="-19.0" y="-19.0" width="38" height="38" rx="2" fill="none" stroke="#F2E8CC" stroke-width="1.2" opacity="0.8"/>
+    <text x="0" y="13.799999999999999" text-anchor="middle" font-family="'Songti SC','STSong','PingFang SC',serif" font-size="33.12" font-weight="700" fill="#F2E8CC">塔</text>
+  </g>
+  <rect x="94" y="208" width="380" height="2" fill="url(#gold)"/>
+  <text x="94" y="246" font-family="'Songti SC','STSong','PingFang SC',serif" font-size="26" letter-spacing="18" fill="#75140F">宝塔</text>
+  <text x="198" y="245" font-family="Georgia,serif" font-style="italic" font-size="22" fill="#3B3020">a one-button stacker</text>
+  <text x="94" y="290" font-family="Georgia,serif" font-size="17" letter-spacing="2" fill="#3B3020" opacity="0.85">Drop the tile. Slice the overhang. Climb the night.</text>
+</svg>

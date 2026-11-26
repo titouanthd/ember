@@ -66,6 +66,17 @@ DejaVu Sans Mono is the default UI font. A 9 KB Noto Sans SC subset supplies
 `宝塔`, `完美`, `终`, and `新纪录`; if it fails to load, the English labels take
 over and gameplay is unaffected. Regenerate it with `tools/subset-font.sh`.
 
+## itch.io media
+
+Cover (630×500), banner (960×400) and screenshots for the store page:
+
+```sh
+./tools/itch-media/build-media.sh                 # SVG → dist/itch-media/*.png
+node tools/itch-media/capture-screenshots.mjs     # bot-played shots from dist/web
+```
+
+Page settings and copy live in the vault (`Pagoda — itch.io Page`).
+
 ## Tests
 
 ```sh

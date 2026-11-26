@@ -1,0 +1,225 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 630 500">
+  <defs>
+    <linearGradient id="seal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E04A36"/>
+      <stop offset="100%" stop-color="#8E1C14"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#B8862E"/>
+      <stop offset="50%" stop-color="#FFD979"/>
+      <stop offset="100%" stop-color="#9A6E2A"/>
+    </linearGradient>
+    <linearGradient id="lacquer" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8E1E16"/>
+      <stop offset="100%" stop-color="#5A0E0A"/>
+    </linearGradient>
+    <radialGradient id="moonHalo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#FFF2C7" stop-opacity="0.45"/>
+      <stop offset="40%" stop-color="#FFE3A0" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#FFE3A0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="goldGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#FFD140" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#FFD140" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="mist" x="-20%" y="-200%" width="140%" height="500%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0B0712"/>
+      <stop offset="55%" stop-color="#141A30"/>
+      <stop offset="100%" stop-color="#1C2A33"/>
+    </linearGradient>
+  </defs>
+  <!-- Ink-wash night sky -->
+  <rect width="100%" height="100%" fill="url(#sky)"/>
+  <g>
+    <circle cx="204.0" cy="49.8" r="0.7" fill="#EBE6C7" opacity="0.39"/>
+    <circle cx="337.6" cy="120.7" r="0.7" fill="#EBE6C7" opacity="0.85"/>
+    <circle cx="135.3" cy="28.4" r="1.4" fill="#EBE6C7" opacity="0.39"/>
+    <circle cx="57.1" cy="140.1" r="1.8" fill="#EBE6C7" opacity="0.42"/>
+    <circle cx="140.6" cy="207.1" r="0.7" fill="#EBE6C7" opacity="0.67"/>
+    <circle cx="249.9" cy="322.2" r="0.7" fill="#EBE6C7" opacity="0.66"/>
+    <circle cx="83.9" cy="138.3" r="1.8" fill="#EBE6C7" opacity="0.41"/>
+    <circle cx="194.3" cy="269.3" r="0.9" fill="#EBE6C7" opacity="0.41"/>
+    <circle cx="359.9" cy="62.0" r="0.7" fill="#EBE6C7" opacity="0.65"/>
+    <circle cx="39.6" cy="19.7" r="0.9" fill="#EBE6C7" opacity="0.62"/>
+    <circle cx="335.0" cy="256.5" r="1.4" fill="#EBE6C7" opacity="0.67"/>
+    <circle cx="285.5" cy="98.9" r="0.9" fill="#EBE6C7" opacity="0.73"/>
+    <circle cx="153.8" cy="189.6" r="1.8" fill="#EBE6C7" opacity="0.62"/>
+    <circle cx="216.4" cy="148.1" r="1.8" fill="#EBE6C7" opacity="0.89"/>
+    <circle cx="74.4" cy="138.0" r="1.1" fill="#EBE6C7" opacity="0.43"/>
+    <circle cx="308.0" cy="12.9" r="0.7" fill="#EBE6C7" opacity="0.77"/>
+    <circle cx="361.0" cy="288.9" r="1.1" fill="#EBE6C7" opacity="0.54"/>
+    <circle cx="220.6" cy="163.9" r="1.4" fill="#EBE6C7" opacity="0.39"/>
+    <circle cx="59.0" cy="89.1" r="0.7" fill="#EBE6C7" opacity="0.38"/>
+    <circle cx="441.9" cy="213.6" r="1.4" fill="#EBE6C7" opacity="0.51"/>
+    <circle cx="243.0" cy="220.7" r="0.7" fill="#EBE6C7" opacity="0.87"/>
+    <circle cx="223.9" cy="201.6" r="1.4" fill="#EBE6C7" opacity="0.38"/>
+    <circle cx="484.0" cy="42.7" r="0.9" fill="#EBE6C7" opacity="0.57"/>
+    <circle cx="577.6" cy="163.8" r="0.9" fill="#EBE6C7" opacity="0.60"/>
+    <circle cx="346.1" cy="291.5" r="1.4" fill="#EBE6C7" opacity="0.83"/>
+    <circle cx="175.4" cy="137.0" r="1.1" fill="#EBE6C7" opacity="0.73"/>
+    <circle cx="239.7" cy="76.1" r="0.7" fill="#EBE6C7" opacity="0.45"/>
+    <circle cx="146.1" cy="77.0" r="1.4" fill="#EBE6C7" opacity="0.81"/>
+    <circle cx="114.9" cy="93.0" r="0.9" fill="#EBE6C7" opacity="0.58"/>
+    <circle cx="232.6" cy="186.9" r="0.9" fill="#EBE6C7" opacity="0.73"/>
+    <circle cx="324.8" cy="203.8" r="0.7" fill="#EBE6C7" opacity="0.60"/>
+    <circle cx="548.7" cy="314.1" r="1.8" fill="#EBE6C7" opacity="0.57"/>
+    <circle cx="251.4" cy="34.2" r="1.4" fill="#EBE6C7" opacity="0.38"/>
+    <circle cx="42.4" cy="68.9" r="0.9" fill="#EBE6C7" opacity="0.41"/>
+    <circle cx="378.5" cy="33.8" r="1.8" fill="#EBE6C7" opacity="0.43"/>
+    <circle cx="63.9" cy="120.0" r="0.7" fill="#EBE6C7" opacity="0.39"/>
+    <circle cx="131.0" cy="124.2" r="1.1" fill="#EBE6C7" opacity="0.88"/>
+    <circle cx="379.4" cy="156.5" r="0.7" fill="#EBE6C7" opacity="0.82"/>
+    <circle cx="625.7" cy="153.8" r="1.4" fill="#EBE6C7" opacity="0.52"/>
+    <circle cx="90.8" cy="247.4" r="1.1" fill="#EBE6C7" opacity="0.61"/>
+    <circle cx="436.0" cy="170.4" r="0.9" fill="#EBE6C7" opacity="0.87"/>
+    <circle cx="332.8" cy="48.4" r="1.8" fill="#EBE6C7" opacity="0.85"/>
+    <circle cx="477.6" cy="98.4" r="0.7" fill="#EBE6C7" opacity="0.73"/>
+    <circle cx="164.5" cy="121.0" r="0.9" fill="#EBE6C7" opacity="0.55"/>
+    <circle cx="140.4" cy="178.7" r="1.8" fill="#EBE6C7" opacity="0.53"/>
+    <circle cx="140.5" cy="267.8" r="0.9" fill="#EBE6C7" opacity="0.79"/>
+  </g>
+  <!-- Paper moon -->
+  <circle cx="104" cy="196" r="110" fill="url(#moonHalo)"/>
+  <circle cx="104" cy="196" r="40" fill="#FFF2C7" opacity="0.93"/>
+  <circle cx="104" cy="196" r="41" fill="none" stroke="#FFD973" stroke-width="1" opacity="0.25"/>
+  <rect x="40" y="190" width="130" height="5" fill="#1A1A29" opacity="0.18"/>
+  <rect x="52" y="204" width="104" height="4" fill="#1A1A29" opacity="0.14"/>
+  <!-- Mist + ridges -->
+  <rect x="-40" y="300" width="710" height="26" fill="#B3C7D1" opacity="0.10" filter="url(#mist)"/>
+  <polygon points="0,380 30,342 64,338 106,375 129,321 160,364 213,347 261,347 303,369 345,319 384,328 427,376 473,339 505,378 554,347 599,318 630,316 630,500 0,500" fill="#161D28"/>
+  <rect x="-40" y="372" width="710" height="22" fill="#B3C7D1" opacity="0.08" filter="url(#mist)"/>
+  <polygon points="0,440 29,414 69,419 99,413 122,416 155,404 175,426 195,403 230,438 271,396 305,412 327,439 358,437 380,429 399,419 427,401 458,411 488,410 517,427 559,394 597,407 623,429 630,437 630,500 0,500" fill="#080B12"/>
+  <!-- Stone plinth -->
+  <rect x="176" y="450" width="278" height="12" fill="#2A2C36"/>
+  <rect x="160" y="462" width="310" height="10" fill="#1A1C24"/>
+  <line x1="176" y1="450" x2="454" y2="450" stroke="#E8C25A" stroke-width="1" opacity="0.5"/>
+  <!-- Lacquered tiles, palette advancing celadon → gold -->
+  <g>
+    <rect x="203" y="428" width="230" height="26" fill="#000" opacity="0.30"/>
+    <rect x="200" y="424" width="230" height="26" fill="#5CCCA8"/>
+    <rect x="200" y="424" width="230" height="5.7" fill="#95DEC7"/>
+    <rect x="200" y="444.3" width="230" height="5.7" fill="#32705D"/>
+    <line x1="200" y1="444.3" x2="430" y2="444.3" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="315.0,430.8 320.7,436.48 315.0,442.2 309.3,436.48" fill="#397E68" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+  </g>
+  <g>
+    <rect x="211" y="402" width="222" height="26" fill="#000" opacity="0.30"/>
+    <rect x="208" y="398" width="222" height="26" fill="#51C3B3"/>
+    <rect x="208" y="398" width="222" height="5.7" fill="#8ED8CE"/>
+    <rect x="208" y="418.3" width="222" height="5.7" fill="#2C6B63"/>
+    <line x1="208" y1="418.3" x2="430" y2="418.3" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="319.0,404.8 324.7,410.48 319.0,416.2 313.3,410.48" fill="#32796F" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+  </g>
+  <g>
+    <rect x="211" y="376" width="222" height="26" fill="#000" opacity="0.30"/>
+    <rect x="208" y="372" width="222" height="26" fill="#46BABE"/>
+    <rect x="208" y="372" width="222" height="5.7" fill="#87D2D5"/>
+    <rect x="208" y="392.3" width="222" height="5.7" fill="#266669"/>
+    <line x1="208" y1="392.3" x2="430" y2="392.3" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="319.0,378.8 324.7,384.48 319.0,390.2 313.3,384.48" fill="#2B7376" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+  </g>
+  <g>
+    <rect x="217" y="350" width="216" height="26" fill="#000" opacity="0.30"/>
+    <rect x="214" y="346" width="216" height="26" fill="#3FADC8"/>
+    <rect x="214" y="346" width="216" height="5.7" fill="#82CADB"/>
+    <rect x="214" y="366.3" width="216" height="5.7" fill="#235F6E"/>
+    <line x1="214" y1="366.3" x2="430" y2="366.3" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="322.0,352.8 327.7,358.48 322.0,364.2 316.3,358.48" fill="#276C7C" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+  </g>
+  <g>
+    <rect x="217" y="324" width="216" height="26" fill="#000" opacity="0.30"/>
+    <rect x="214" y="320" width="216" height="26" fill="#4896CB"/>
+    <rect x="214" y="320" width="216" height="5.7" fill="#88BBDD"/>
+    <rect x="214" y="340.3" width="216" height="5.7" fill="#285370"/>
+    <line x1="214" y1="340.3" x2="430" y2="340.3" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="322.0,326.8 327.7,332.48 322.0,338.2 316.3,332.48" fill="#2D5D7E" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+  </g>
+  <g>
+    <rect x="229" y="298" width="204" height="26" fill="#000" opacity="0.30"/>
+    <rect x="226" y="294" width="204" height="26" fill="#5280CF"/>
+    <rect x="226" y="294" width="204" height="5.7" fill="#8EACE0"/>
+    <rect x="226" y="314.3" width="204" height="5.7" fill="#2D4672"/>
+    <line x1="226" y1="314.3" x2="430" y2="314.3" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="328.0,300.8 333.7,306.48 328.0,312.2 322.3,306.48" fill="#334F80" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+  </g>
+  <g>
+    <rect x="229" y="272" width="204" height="26" fill="#000" opacity="0.30"/>
+    <rect x="226" y="268" width="204" height="26" fill="#6C6AB7"/>
+    <rect x="226" y="268" width="204" height="5.7" fill="#9F9ED0"/>
+    <rect x="226" y="288.3" width="204" height="5.7" fill="#3B3A64"/>
+    <line x1="226" y1="288.3" x2="430" y2="288.3" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="328.0,274.8 333.7,280.48 328.0,286.2 322.3,280.48" fill="#434271" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+  </g>
+  <g>
+    <rect x="235" y="246" width="198" height="26" fill="#000" opacity="0.30"/>
+    <rect x="232" y="242" width="198" height="26" fill="#9C577B"/>
+    <rect x="232" y="242" width="198" height="5.7" fill="#BE92A9"/>
+    <rect x="232" y="262.3" width="198" height="5.7" fill="#563044"/>
+    <line x1="232" y1="262.3" x2="430" y2="262.3" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="331.0,248.8 336.7,254.48 331.0,260.2 325.3,254.48" fill="#61364C" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+  </g>
+  <g>
+    <rect x="235" y="220" width="174" height="26" fill="#000" opacity="0.30"/>
+    <rect x="232" y="216" width="174" height="26" fill="#CB443F"/>
+    <rect x="232" y="216" width="174" height="5.7" fill="#DD8582"/>
+    <rect x="232" y="236.3" width="174" height="5.7" fill="#702523"/>
+    <line x1="232" y1="236.3" x2="406" y2="236.3" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="319.0,222.8 324.7,228.48 319.0,234.2 313.3,228.48" fill="#7E2A27" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="230.5" y="214.5" width="177" height="29" fill="none" stroke="#FFD140" stroke-width="2.2"/>
+  </g>
+  <!-- Sliced overhang falling away -->
+  <g transform="translate(196,262) rotate(-24)" opacity="0.92">
+    <rect x="-9" y="-9" width="24" height="26" fill="#000" opacity="0.30"/>
+    <rect x="-12" y="-13" width="24" height="26" fill="#CB443F"/>
+    <rect x="-12" y="-13" width="24" height="5.7" fill="#DD8582"/>
+    <rect x="-12" y="7.3" width="24" height="5.7" fill="#702523"/>
+    <line x1="-12" y1="7.3" x2="12" y2="7.3" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+  </g>
+  <rect x="204.1" y="282.4" width="4.0" height="4.0" fill="#CB443F" opacity="0.92"/>
+  <rect x="210.9" y="294.7" width="2.1" height="2.1" fill="#CB443F" opacity="0.71"/>
+  <rect x="222.7" y="276.1" width="4.3" height="4.3" fill="#CB443F" opacity="0.55"/>
+  <rect x="195.2" y="248.8" width="3.4" height="3.4" fill="#CB443F" opacity="0.76"/>
+  <rect x="168.8" y="246.7" width="2.7" height="2.7" fill="#CB443F" opacity="0.91"/>
+  <rect x="212.4" y="242.9" width="4.0" height="4.0" fill="#CB443F" opacity="0.56"/>
+  <rect x="203.8" y="240.6" width="2.0" height="2.0" fill="#CB443F" opacity="0.89"/>
+  <rect x="180.1" y="246.7" width="4.5" height="4.5" fill="#CB443F" opacity="0.89"/>
+  <rect x="184.8" y="297.4" width="3.3" height="3.3" fill="#CB443F" opacity="0.81"/>
+  <!-- Sliding tile with the gold plumb line: inside the perfect window -->
+  <circle cx="319.0" cy="216" r="22" fill="url(#goldGlow)"/>
+  <line x1="322" y1="186" x2="322" y2="216" stroke="#FFD140" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.9"/>
+  <polygon points="319.0,210 325.0,216 319.0,222 313.0,216" fill="#FFD140"/>
+  <line x1="305.0" y1="215" x2="311.0" y2="215" stroke="#FFD140" stroke-width="2"/>
+  <line x1="327.0" y1="215" x2="333.0" y2="215" stroke="#FFD140" stroke-width="2"/>
+  <g>
+    <rect x="238" y="164" width="174" height="26" fill="#000" opacity="0.30"/>
+    <rect x="235" y="160" width="174" height="26" fill="#E46130"/>
+    <rect x="235" y="160" width="174" height="5.7" fill="#ED9879"/>
+    <rect x="235" y="180.3" width="174" height="5.7" fill="#7D351B"/>
+    <line x1="235" y1="180.3" x2="409" y2="180.3" stroke="#E8C25A" stroke-width="1" opacity="0.75"/>
+    <polygon points="322.0,166.8 327.7,172.48 322.0,178.2 316.3,172.48" fill="#8D3C1E" stroke="#E8C25A" stroke-width="0.8" opacity="0.9"/>
+    <rect x="233.5" y="158.5" width="177" height="29" fill="none" stroke="#FFD140" stroke-width="2.2"/>
+  </g>
+  <path d="M 205,173 l -10,0 M 189,173 l -6,0" stroke="#F2E8CC" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+  <!-- Floating perfect text -->
+  <text x="470" y="222" text-anchor="middle" font-family="'Songti SC','STSong','PingFang SC',serif" font-size="30" font-weight="700" fill="#FFD140">完美 <tspan font-family="Georgia,serif" font-size="20">×3</tspan></text>
+  <!-- Lacquer signboard 匾额 -->
+  <rect x="150" y="26" width="330" height="86" rx="4" fill="#000" opacity="0.35" transform="translate(4,5)"/>
+  <rect x="150" y="26" width="330" height="86" rx="4" fill="url(#lacquer)"/>
+  <rect x="157" y="33" width="316" height="72" rx="2" fill="none" stroke="url(#gold)" stroke-width="2"/>
+  <polygon points="157,29 161,33 157,37 153,33" fill="#FFD140"/>
+  <polygon points="473,29 477,33 473,37 469,33" fill="#FFD140"/>
+  <polygon points="157,101 161,105 157,109 153,105" fill="#FFD140"/>
+  <polygon points="473,101 477,105 473,109 469,105" fill="#FFD140"/>
+  <text x="315" y="84" text-anchor="middle" font-family="'Playfair Display','Didot','Bodoni 72',Georgia,serif" font-size="50" font-weight="700" letter-spacing="10" fill="#F2E8CC">PAGODA</text>
+  <g transform="translate(494,104) rotate(6)">
+    <rect x="-20.0" y="-20.0" width="40" height="40" rx="3" fill="url(#seal)"/>
+    <rect x="-16.0" y="-16.0" width="32" height="32" rx="2" fill="none" stroke="#F2E8CC" stroke-width="1.2" opacity="0.8"/>
+    <text x="0" y="12.0" text-anchor="middle" font-family="'Songti SC','STSong','PingFang SC',serif" font-size="28.799999999999997" font-weight="700" fill="#F2E8CC">塔</text>
+  </g>
+  <text x="315" y="138" text-anchor="middle" font-family="'Songti SC','STSong','PingFang SC',serif" font-size="17" letter-spacing="14" fill="#E8C25A" opacity="0.9">宝塔</text>
+  <!-- Tagline -->
+  <text x="315" y="490" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="16" letter-spacing="3" fill="#F2E8CC" opacity="0.85">Drop · Slice · Climb</text>
+</svg>

@@ -20,6 +20,7 @@ generated: "2026-11-22"
 - README (in the repo, outside the vault): `games/jade-garden/README.md`. Credits (fonts, music) are in that README.
 - [[Jade Garden — Design]]
 - [[Jade Garden — Release]] *(archived)*
+- [[itch.io Release Media]]: how the itch.io cover, banner and builds were produced
 
 ## Links
 
