@@ -1,5 +1,5 @@
+use ember_core::Color;
 use glam::Vec2;
-use macroquad::prelude::Color;
 use serde::Deserialize;
 
 use ember_core::rng::Rng;

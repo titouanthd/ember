@@ -1,5 +1,6 @@
 pub mod components;
 pub mod config;
+pub mod scene;
 pub mod systems;
 pub mod waves;
 

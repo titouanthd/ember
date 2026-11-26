@@ -5,8 +5,8 @@
 
 use std::path::PathBuf;
 
+use ember_core::Color;
 use glam::Vec2;
-use macroquad::prelude::Color;
 use serde::Deserialize;
 
 use crate::components::{Emitter, EntryMotion};

@@ -11,7 +11,7 @@ use ember_core::rng::Rng;
 use crate::components::{Bullet, Emitter, Enemy, EntryMotion, Particle, Player};
 use crate::config::GameContext;
 use crate::waves::{WaveData, load_waves};
-use macroquad::prelude::Color;
+use ember_core::Color;
 
 /// Input snapshot for one frame. Decoupled from macroquad so tests can drive
 /// the world without a window.
