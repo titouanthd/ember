@@ -6,7 +6,7 @@ generated: "2026-11-22"
 
 # Roadmap tracker
 
-Checklist of every **exit criterion** in [[40-roadmap]], ticked against the `main` branch on 2026-11-22. Tick boxes as work lands. ⚑ = landed with the merge of `titouanthd-docs-crates-games-plan` (2026-11-22).
+Checklist of every **exit criterion** in [[40-roadmap]], ticked against the `main` branch (last update 2026-11-26, see [[Handover 2026-11-26]]). Tick boxes as work lands. ⚑ = landed with the merge of `titouanthd-docs-crates-games-plan` (2026-11-22).
 
 ```mermaid
 gantt

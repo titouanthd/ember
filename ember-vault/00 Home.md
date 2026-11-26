@@ -10,10 +10,11 @@ generated: "2026-11-22"
 A 2D game engine in Rust (macroquad backend) built on top of **17 games**. **This vault is the only home of the project documentation** — the only docs outside it are the `README.md` files (repo root and 5 games). It also holds generated notes that map the code and evaluate progress.
 
 > [!summary] Where things stand (2026-11-22)
-> Engine core (scene tree, `.escene`, signals, servers) is **~70 % done**; UI and editor **not started**; **1 / 17** games migrated (pong). Overall v0.1 POC ≈ **30 %**. → [[Progress Evaluation 2026-11-22]]
+> Phases 0, 2, 4, 5 (UI) and 6 (editor POC) are **closed**; **4 / 17** games run on the engine (snake, simon, memory; pong partly). Overall v0.1 POC ≈ **60 %**, the rest is mostly migration. → [[Handover 2026-11-26]]
 
 ## Start here
-- [[Handover 2026-11-22]] — what changed today, how to push, what to do next
+- [[Handover 2026-11-26]] — latest state, how to push, what to do next
+- [[Handover 2026-11-22]] — the vault move, Phase 0 close
 - [[Roadmap Review 2026-11-22]] — latest phase-by-phase status and re-plan (≈ 37 %)
 - [[Baseline 2026-11-22]] — gate results after the Phase 0 merge (2,065 tests green)
 - [[Progress Evaluation 2026-11-22]] — status, scorecard, risks, next steps
@@ -23,7 +24,7 @@ A 2D game engine in Rust (macroquad backend) built on top of **17 games**. **Thi
 
 ## Workflow
 - [[Commit & Push]] — commit message format, pre-push checks, push / merge / hotfix flow
-- [[Next Phase Plan — Phase 5 UI]] — the plan for what comes next
+- [[Next Phase Plan — Phase 6 Editor]], [[Next Phase Plan — Phase 5 UI]] — past phase plans (Phase 7 follows [[41-migration-guide]])
 
 ## Maps of content
 - [[Crates MOC]] — 12 engine crates, layers, LOC, test counts
