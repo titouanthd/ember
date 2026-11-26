@@ -58,6 +58,14 @@ unsafe extern "C" {
     fn ember_storage_remove(key: *const u8) -> i32;
 }
 
+/// Read by miniquad's `init_plugins` and compared with the JS plugin's
+/// `version` (named `ember_storage`). Bump both together.
+#[cfg(target_arch = "wasm32")]
+#[unsafe(no_mangle)]
+pub extern "C" fn ember_storage_crate_version() -> u32 {
+    1
+}
+
 #[cfg(target_arch = "wasm32")]
 pub fn save(game: &Game) -> bool {
     let Ok(text) = ron::ser::to_string(game) else {
