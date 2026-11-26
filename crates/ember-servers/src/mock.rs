@@ -121,6 +121,7 @@ pub enum RecordedCall {
     },
     CreateTexture(TextureId),
     DestroyTexture(TextureId),
+    SetTextureFilter(TextureId, crate::TextureFilter),
     CreateFont(FontId),
     DestroyFont(FontId),
 }
@@ -451,6 +452,10 @@ impl RenderingServer for MockRenderer {
 
     fn destroy_texture(&mut self, id: TextureId) {
         self.calls.push(RecordedCall::DestroyTexture(id));
+    }
+
+    fn set_texture_filter(&mut self, id: TextureId, filter: crate::TextureFilter) {
+        self.calls.push(RecordedCall::SetTextureFilter(id, filter));
     }
 
     fn create_font(&mut self, _bytes: &[u8]) -> Result<FontId, ServerError> {

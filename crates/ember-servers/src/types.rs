@@ -81,6 +81,16 @@ pub enum RenderFeature {
     Instancing,
 }
 
+/// How a texture is sampled when drawn larger or smaller than its
+/// pixels (ADR-048). New textures are `Linear`; pixel art wants
+/// `Nearest`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum TextureFilter {
+    #[default]
+    Linear,
+    Nearest,
+}
+
 /// Audio capability flags, probed with `AudioServer::supports`.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

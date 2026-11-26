@@ -28,5 +28,6 @@ pub use mock::{MockAudio, MockRenderer, RecordedAudioCall, RecordedCall};
 pub use physics::{CollisionMask, LinearPhysics, PhysicsServer, RayHit, Shape as PhysicsShape};
 pub use rendering::RenderingServer;
 pub use types::{
-    AudioClipId, AudioFeature, FontId, RenderFeature, SoundId, TextMetrics, TextureId,
+    AudioClipId, AudioFeature, FontId, RenderFeature, SoundId, TextMetrics, TextureFilter,
+    TextureId,
 };

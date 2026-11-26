@@ -19,7 +19,7 @@
 //! - `draw_rect_rotated` — Pagoda's falling slice pieces (juice) rotate
 //!   as they fall.
 
-use crate::{Camera2d, FontId, RenderFeature, ServerError, TextMetrics, TextureId};
+use crate::{Camera2d, FontId, RenderFeature, ServerError, TextMetrics, TextureFilter, TextureId};
 use ember_core::math::Rect;
 use ember_core::{Color, Image};
 use glam::Vec2;
@@ -156,6 +156,9 @@ pub trait RenderingServer {
 
     fn create_texture(&mut self, image: &Image) -> Result<TextureId, ServerError>;
     fn destroy_texture(&mut self, id: TextureId);
+    /// How `id` is sampled from now on (ADR-048). An unknown id is
+    /// ignored.
+    fn set_texture_filter(&mut self, id: TextureId, filter: TextureFilter);
     fn create_font(&mut self, bytes: &[u8]) -> Result<FontId, ServerError>;
     fn destroy_font(&mut self, id: FontId);
 

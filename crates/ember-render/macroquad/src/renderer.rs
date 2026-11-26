@@ -23,7 +23,7 @@ use ember_core::math::Rect;
 use ember_core::{Color, Image};
 use ember_servers::{
     Camera2d, ClipStack, FontId, RenderFeature, RenderingServer, ServerError, TextMetrics,
-    TextureId,
+    TextureFilter, TextureId,
 };
 use glam::Vec2;
 use macroquad::prelude::*;
@@ -401,6 +401,15 @@ impl RenderingServer for MacroquadRenderer {
 
     fn destroy_texture(&mut self, id: TextureId) {
         self.textures.remove(&id);
+    }
+
+    fn set_texture_filter(&mut self, id: TextureId, filter: TextureFilter) {
+        if let Ok(texture) = self.texture(id) {
+            texture.set_filter(match filter {
+                TextureFilter::Linear => FilterMode::Linear,
+                TextureFilter::Nearest => FilterMode::Nearest,
+            });
+        }
     }
 
     /// Parses on every target: `load_ttf_font_from_bytes` is synchronous

@@ -205,6 +205,18 @@ fn begin_frame_resets_an_unbalanced_clip() {
 }
 
 #[test]
+fn texture_filter_is_recorded() {
+    let mut r = MockRenderer::new();
+    let tex = r.create_texture(&Image::new(2, 2)).unwrap();
+    r.set_texture_filter(tex, TextureFilter::Nearest);
+    assert_eq!(
+        r.calls().last(),
+        Some(&RecordedCall::SetTextureFilter(tex, TextureFilter::Nearest))
+    );
+    assert_eq!(TextureFilter::default(), TextureFilter::Linear);
+}
+
+#[test]
 fn audio_play_returns_unique_sounds() {
     let mut a = MockAudio::new();
     let clip = a.load_clip(b"fake").unwrap();
