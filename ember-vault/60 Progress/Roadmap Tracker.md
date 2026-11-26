@@ -22,7 +22,7 @@ gantt
   P5 UI (done)           :done, p5, 2026-11-22, 3d
   P6 Editor (done)       :done, p6, 2026-11-24, 1d
   section Application
-  P7 Migration (7/17)    :active, p7, 2026-11-18, 13d
+  P7 Migration (8/17)    :active, p7, 2026-11-18, 13d
   P8 Cleanup (0%)        :p8, after p7, 1d
 ```
 
@@ -90,7 +90,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] minesweeper *(`237243e`: root node + `ember_ui` buttons; `main.rs` 5 lines; no macroquad; 7 `SceneLoop` tests)*
 - [x] freecell *(`9371b95`: root node + `ember_ui` buttons + engine font; `main.rs` 5 lines; no macroquad; 7 `SceneLoop` tests)*
 - [x] breakout *(`ee84048`: root node, keyboard only; `main.rs` 5 lines; no macroquad; 6 `SceneLoop` tests)*
-- [ ] asteroids
+- [x] asteroids *(`f03a117`: root node, keyboard only, seeded `Rng`; `main.rs` 5 lines; no macroquad; 7 `SceneLoop` tests)*
 - [ ] air-hockey
 - [ ] bullet-hell
 - [ ] pagoda

@@ -10,7 +10,7 @@ generated: "2026-11-22"
 A 2D game engine in Rust (macroquad backend) built on top of **17 games**. **This vault is the only home of the project documentation** — the only docs outside it are the `README.md` files (repo root and 5 games). It also holds generated notes that map the code and evaluate progress.
 
 > [!summary] Where things stand (2026-11-22)
-> Phases 0, 2, 4, 5 (UI) and 6 (editor POC) are **closed**; **7 / 17** games run on the engine (snake, simon, memory, minesweeper, freecell, breakout; pong partly). Overall v0.1 POC ≈ **60 %**, the rest is mostly migration. → [[Handover 2026-11-26]]
+> Phases 0, 2, 4, 5 (UI) and 6 (editor POC) are **closed**; **8 / 17** games run on the engine (snake, simon, memory, minesweeper, freecell, breakout, asteroids; pong partly). Overall v0.1 POC ≈ **60 %**, the rest is mostly migration. → [[Handover 2026-11-26]]
 
 ## Start here
 - [[Handover 2026-11-26]] — latest state, how to push, what to do next

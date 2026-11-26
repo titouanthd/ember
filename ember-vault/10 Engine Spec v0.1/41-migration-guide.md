@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 41 — Migration Guide
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; 7 of 17 games (pong, simon, snake, memory, minesweeper, freecell, breakout) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
+> **Status:** 🟡 partial — reviewed 2026-11-19; 8 of 17 games (pong, simon, snake, memory, minesweeper, freecell, breakout, asteroids) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [[40-roadmap]], [[21-ember-scene]]
 
@@ -378,12 +378,24 @@ persistence API lands.
   test's `use macroquad::prelude::Color` became `use ember_core::Color`
   (one import line).
 
-### 5.8 asteroids
+### 5.8 asteroids — **migrated** (`f03a117`, 2026-11-26)
 
-- 19 unit + 10 scenario.
-- Wraparound rendering: the `RenderingServer` needs a "world wraps" mode
-  to draw sprites that straddle the edge. Planned as a v0.1 trait method
-  `set_wrap_mode(WrapMode::Wrap)` — *not yet implemented*.
+- 19 unit + 10 scenario (bodies unchanged) + 7 headless `SceneLoop`
+  tests (`games/asteroids/tests/scene.rs`).
+- Result: `src/scene.rs`, one `AsteroidsGame` root node (keyboard only,
+  like breakout). Ship, asteroids, bullets and stars use the existing
+  `draw_triangle` / `draw_line` / `draw_circle`.
+- Wraparound: **no engine change needed.** The macroquad version only
+  wrapped *positions* (`wrap_position`) and never drew an object twice
+  across an edge, so `set_wrap_mode` stays unplanned until a game needs
+  it.
+- Randomness: `macroquad::rand::gen_range` became a seeded
+  `ember_core::Rng` behind `systems::seed_rng` (clock seed in `run`),
+  the snake pattern (§5.3).
+- `Sprite` is a local twin (as breakout, §5.7); the scenario test's
+  `macroquad::prelude::Color` import became `ember_core::Color`.
+- Gotcha found here: macroquad's named `RED` / `GREEN` / `YELLOW` are not
+  pure RGB. Copy the macroquad values (`8a1d7d9` fixed breakout).
 
 ### 5.9 air-hockey
 
