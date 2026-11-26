@@ -7,11 +7,15 @@
 //!   also keeps ASCII so mixed strings such as `完美 x3` render in one
 //!   pass.
 //!
-//! Loading is async because the web build fetches the files over HTTP;
-//! native builds resolve them from disk under the same API.
+//! Both are built into the binary (`include_bytes!`), so native and web
+//! load them the same way through `RenderingServer::create_font`; the
+//! web build no longer fetches them.
 
-use macroquad::prelude::*;
+use ember_core::Color;
+use ember_servers::{FontId, RenderingServer, TextMetrics};
+use glam::Vec2;
 
+#[cfg(test)]
 use crate::paths;
 
 /// Font file bundled in `assets/`.
@@ -20,31 +24,41 @@ pub const FONT_FILE: &str = "DejaVuSansMono.ttf";
 /// CJK subset used for decorative Chinese text.
 pub const CJK_FONT_FILE: &str = "NotoSansSC-Pagoda.otf";
 
+const FONT_BYTES: &[u8] = include_bytes!("../assets/DejaVuSansMono.ttf");
+const CJK_FONT_BYTES: &[u8] = include_bytes!("../assets/NotoSansSC-Pagoda.otf");
+
 /// Load Pagoda's UI font and set it as the default.
 ///
-/// Returns `None` when the file is missing or malformed; the game then
-/// keeps macroquad's built-in font.
-pub async fn load_default_font() -> Option<Font> {
-    let path = paths::asset_str(FONT_FILE);
-    ember_stdlib::fonts::load_and_set_default(&path).await
+/// Returns `None` when the font cannot be parsed; the game then keeps
+/// the backend's built-in font.
+pub fn load_default_font(r: &mut dyn RenderingServer) -> Option<FontId> {
+    match r.create_font(FONT_BYTES) {
+        Ok(font) => {
+            r.set_default_font(Some(font));
+            Some(font)
+        }
+        Err(e) => {
+            eprintln!("⚠️  Failed to load {FONT_FILE}: {e}. Using the built-in font.");
+            None
+        }
+    }
 }
 
 /// The Chinese accent font, loaded once and passed explicitly to the
 /// renderers that need it.
 pub struct CjkFont {
-    font: Option<Font>,
+    font: Option<FontId>,
 }
 
 impl CjkFont {
-    /// Load the bundled subset. A missing file is non-fatal: Chinese
-    /// accents become inert and the English UI keeps working.
-    pub async fn load() -> Self {
-        let path = paths::asset_str(CJK_FONT_FILE);
-        match load_ttf_font(&path).await {
+    /// Load the bundled subset. A font that does not parse is non-fatal:
+    /// Chinese accents become inert and the English UI keeps working.
+    pub fn load(r: &mut dyn RenderingServer) -> Self {
+        match r.create_font(CJK_FONT_BYTES) {
             Ok(font) => Self { font: Some(font) },
             Err(e) => {
                 eprintln!(
-                    "⚠️  Failed to load CJK font {path}: {e}. \
+                    "⚠️  Failed to load CJK font {CJK_FONT_FILE}: {e}. \
                      Chinese accents will be skipped. \
                      Run games/pagoda/tools/subset-font.sh to generate it."
                 );
@@ -63,38 +77,41 @@ impl CjkFont {
     }
 
     /// Draw `text` at `(x, y)`; `y` is the baseline.
-    pub fn draw(&self, text: &str, x: f32, y: f32, size: f32, color: Color) {
-        match &self.font {
-            Some(font) => {
-                draw_text_ex(
-                    text,
-                    x,
-                    y,
-                    TextParams {
-                        font: Some(font),
-                        font_size: size as u16,
-                        color,
-                        ..Default::default()
-                    },
-                );
-            }
-            None => {
-                draw_text(text, x, y, size, color);
-            }
+    pub fn draw(
+        &self,
+        r: &mut dyn RenderingServer,
+        text: &str,
+        x: f32,
+        y: f32,
+        size: f32,
+        color: Color,
+    ) {
+        let pos = Vec2::new(x, y);
+        match self.font {
+            Some(font) => r.draw_text_with_font(font, text, pos, size, color),
+            None => r.draw_text(text, pos, size, color),
         }
     }
 
-    pub fn measure(&self, text: &str, size: f32) -> TextDimensions {
-        match &self.font {
-            Some(font) => measure_text(text, Some(font), size as u16, 1.0),
-            None => measure_text(text, None, size as u16, 1.0),
+    pub fn measure(&self, r: &dyn RenderingServer, text: &str, size: f32) -> TextMetrics {
+        match self.font {
+            Some(font) => r.measure_text_with_font(font, text, size),
+            None => r.measure_text(text, size),
         }
     }
 
     /// Draw horizontally centred around `center_x`.
-    pub fn draw_centered(&self, text: &str, center_x: f32, y: f32, size: f32, color: Color) {
-        let dim = self.measure(text, size);
-        self.draw(text, center_x - dim.width * 0.5, y, size, color);
+    pub fn draw_centered(
+        &self,
+        r: &mut dyn RenderingServer,
+        text: &str,
+        center_x: f32,
+        y: f32,
+        size: f32,
+        color: Color,
+    ) {
+        let dim = self.measure(r, text, size);
+        self.draw(r, text, center_x - dim.width * 0.5, y, size, color);
     }
 }
 

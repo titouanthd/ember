@@ -2,6 +2,7 @@
 pub mod app;
 pub mod art;
 pub mod audio;
+pub mod backdrop;
 pub mod components;
 pub mod config;
 pub mod controls;

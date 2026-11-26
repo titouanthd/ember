@@ -4,9 +4,8 @@ use crate::components::{Block, SlidingBlock};
 use crate::config::{GameContext, block_color};
 use crate::controls::confirm_pressed;
 use crate::effects::Effects;
-use ember_stdlib::input::Input;
+use ember_input::Input;
 use glam::Vec2;
-use macroquad::prelude::*;
 
 /// Fraction of the screen height at which the top block should settle.
 const CAMERA_TOP_FRACTION: f32 = 0.7;
@@ -319,12 +318,13 @@ pub fn update(
 mod tests {
     use super::*;
     use crate::app::App;
+    use ember_input::Key;
 
     fn ctx() -> GameContext {
         GameContext::default()
     }
 
-    fn press(key: KeyCode) -> Input {
+    fn press(key: Key) -> Input {
         Input {
             keys_pressed: vec![key],
             ..Default::default()
@@ -353,7 +353,7 @@ mod tests {
 
     fn drop_at(state: &mut MatchState, app: &mut App, ctx: &GameContext, x: f32) {
         state.sliding.x = x;
-        update(state, app, ctx, 0.0, &press(KeyCode::Space));
+        update(state, app, ctx, 0.0, &press(Key::Space));
     }
 
     // ------------------------------------------------------------------
@@ -851,7 +851,7 @@ mod tests {
         let height = state.tower.len();
         let score = app.score;
 
-        update(&mut state, &mut app, &ctx, 0.0, &press(KeyCode::Space));
+        update(&mut state, &mut app, &ctx, 0.0, &press(Key::Space));
 
         assert_eq!(state.tower.len(), height);
         assert_eq!(app.score, score);
@@ -869,7 +869,7 @@ mod tests {
         let top_x = state.tower[0].transform.position.x;
 
         state.sliding.x = top_x;
-        let events = update(&mut state, &mut app, &ctx, 0.0, &press(KeyCode::Space));
+        let events = update(&mut state, &mut app, &ctx, 0.0, &press(Key::Space));
 
         assert_eq!(
             events,
@@ -885,9 +885,9 @@ mod tests {
         let top_x = state.tower[0].transform.position.x;
 
         state.sliding.x = top_x;
-        update(&mut state, &mut app, &ctx, 0.0, &press(KeyCode::Space));
+        update(&mut state, &mut app, &ctx, 0.0, &press(Key::Space));
         state.sliding.x = top_x;
-        let events = update(&mut state, &mut app, &ctx, 0.0, &press(KeyCode::Space));
+        let events = update(&mut state, &mut app, &ctx, 0.0, &press(Key::Space));
 
         assert_eq!(
             events,
@@ -903,7 +903,7 @@ mod tests {
         let top_x = state.tower[0].transform.position.x;
 
         state.sliding.x = top_x + 50.0;
-        let events = update(&mut state, &mut app, &ctx, 0.0, &press(KeyCode::Space));
+        let events = update(&mut state, &mut app, &ctx, 0.0, &press(Key::Space));
 
         assert_eq!(
             events,
@@ -918,7 +918,7 @@ mod tests {
         let mut state = MatchState::new(&ctx);
 
         state.sliding.x = 0.0;
-        let events = update(&mut state, &mut app, &ctx, 0.0, &press(KeyCode::Space));
+        let events = update(&mut state, &mut app, &ctx, 0.0, &press(Key::Space));
 
         assert_eq!(events, vec![GameEvent::Miss]);
         assert_eq!(app.state, AppState::GameOver);
@@ -942,7 +942,7 @@ mod tests {
         let mut state = MatchState::new(&ctx);
 
         drop_at(&mut state, &mut app, &ctx, 0.0);
-        let events = update(&mut state, &mut app, &ctx, 0.0, &press(KeyCode::Space));
+        let events = update(&mut state, &mut app, &ctx, 0.0, &press(Key::Space));
 
         assert!(events.is_empty());
     }

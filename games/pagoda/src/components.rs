@@ -1,7 +1,7 @@
 // games/pagoda/src/components.rs
+use ember_core::Color;
 use ember_stdlib::Transform;
 use glam::Vec2;
-use macroquad::prelude::Color;
 
 /// A standard block in the tower.
 #[derive(Debug, Clone)]

@@ -95,12 +95,8 @@ fi
 # 5. Copy the HTML shell.
 cp "$CRATE_DIR/web/index.html" "$OUT/index.html"
 
-# 6. Copy assets when the game has some (Pagoda currently has none).
-if [ -d "$CRATE_DIR/assets" ]; then
-    cp -R "$CRATE_DIR/assets" "$OUT/assets"
-    rm -f "$OUT/assets/.env"
-    rm -f "$OUT/assets/progress.ron"
-fi
+# 6. No assets to copy: fonts and sounds are built into pagoda.wasm
+#    (include_bytes!), so the page fetches nothing else.
 
 # 7. Optimize the wasm binary if wasm-opt is available.
 if command -v wasm-opt >/dev/null 2>&1; then

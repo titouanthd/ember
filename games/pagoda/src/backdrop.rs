@@ -1,4 +1,4 @@
-// games/pagoda/src/scene.rs
+// games/pagoda/src/backdrop.rs
 //! Chinese night backdrop: an ink-wash sky, a paper moon, drifting
 //! cloud bands and layered mountain silhouettes.
 //!
@@ -8,20 +8,30 @@
 //! without needing a camera-following world.
 
 use crate::config::{MOON, background_color};
-use macroquad::prelude::*;
+use ember_core::Color;
+use ember_core::math::Rect;
+use ember_servers::RenderingServer;
+use glam::{Vec2, vec2};
 use std::f32::consts::TAU;
 
 const SKY_BANDS: usize = 32;
 const STAR_COUNT: usize = 52;
 
-pub fn draw(camera_y: f32, height: u32, screen_w: f32, screen_h: f32) {
-    let time = get_time() as f32;
-
-    draw_sky(height, screen_w, screen_h);
-    draw_stars(camera_y, screen_w, screen_h, time);
-    draw_moon(camera_y, screen_w, screen_h);
-    draw_clouds(camera_y, screen_w, screen_h);
-    draw_mountains(camera_y, screen_w, screen_h);
+/// `time` is the seconds since the game started (was macroquad's
+/// `get_time()`), for the twinkle and the drifting moon cloud.
+pub fn draw(
+    r: &mut dyn RenderingServer,
+    camera_y: f32,
+    height: u32,
+    screen_w: f32,
+    screen_h: f32,
+    time: f32,
+) {
+    draw_sky(r, height, screen_w, screen_h);
+    draw_stars(r, camera_y, screen_w, screen_h, time);
+    draw_moon(r, camera_y, screen_w, screen_h, time);
+    draw_clouds(r, camera_y, screen_w, screen_h);
+    draw_mountains(r, camera_y, screen_w, screen_h);
 }
 
 fn mix(a: Color, b: Color, t: f32) -> Color {
@@ -34,7 +44,7 @@ fn mix(a: Color, b: Color, t: f32) -> Color {
     )
 }
 
-fn draw_sky(height: u32, screen_w: f32, screen_h: f32) {
+fn draw_sky(r: &mut dyn RenderingServer, height: u32, screen_w: f32, screen_h: f32) {
     let base = background_color(height);
     let top = Color::new(
         (base.r + 0.045).min(1.0),
@@ -47,11 +57,8 @@ fn draw_sky(height: u32, screen_w: f32, screen_h: f32) {
     let band_h = screen_h / SKY_BANDS as f32;
     for i in 0..SKY_BANDS {
         let t = i as f32 / (SKY_BANDS - 1) as f32;
-        draw_rectangle(
-            0.0,
-            i as f32 * band_h,
-            screen_w,
-            band_h + 1.0,
+        r.draw_rect(
+            Rect::new(0.0, i as f32 * band_h, screen_w, band_h + 1.0),
             mix(top, bottom, t),
         );
     }
@@ -73,7 +80,7 @@ fn star_position(index: u32, camera_y: f32, screen_w: f32, screen_h: f32) -> Vec
     vec2(x, y)
 }
 
-fn draw_stars(camera_y: f32, screen_w: f32, screen_h: f32, time: f32) {
+fn draw_stars(r: &mut dyn RenderingServer, camera_y: f32, screen_w: f32, screen_h: f32, time: f32) {
     for i in 0..STAR_COUNT as u32 {
         let pos = star_position(i, camera_y, screen_w, screen_h);
         let size = 0.7 + hash01(i.wrapping_add(500)) * 1.2;
@@ -81,18 +88,32 @@ fn draw_stars(camera_y: f32, screen_w: f32, screen_h: f32, time: f32) {
         let twinkle = 0.72 + 0.28 * (time * 1.6 + phase).sin();
         let alpha = (0.22 + hash01(i.wrapping_add(300)) * 0.45) * twinkle;
 
-        draw_circle(pos.x, pos.y, size, Color::new(0.92, 0.90, 0.78, alpha));
+        r.draw_circle(
+            Vec2::new(pos.x, pos.y),
+            size,
+            Color::new(0.92, 0.90, 0.78, alpha),
+        );
 
         if i % 11 == 0 {
             let arm = size * 2.8;
             let c = Color::new(0.95, 0.92, 0.78, alpha * 0.55);
-            draw_line(pos.x - arm, pos.y, pos.x + arm, pos.y, 1.0, c);
-            draw_line(pos.x, pos.y - arm, pos.x, pos.y + arm, 1.0, c);
+            r.draw_line(
+                Vec2::new(pos.x - arm, pos.y),
+                Vec2::new(pos.x + arm, pos.y),
+                1.0,
+                c,
+            );
+            r.draw_line(
+                Vec2::new(pos.x, pos.y - arm),
+                Vec2::new(pos.x, pos.y + arm),
+                1.0,
+                c,
+            );
         }
     }
 }
 
-fn draw_moon(camera_y: f32, screen_w: f32, screen_h: f32) {
+fn draw_moon(r: &mut dyn RenderingServer, camera_y: f32, screen_w: f32, screen_h: f32, time: f32) {
     let x = screen_w * 0.76;
     let y = screen_h * 0.20 + (-camera_y * 0.01).clamp(0.0, 24.0);
     let radius = 54.0;
@@ -100,25 +121,35 @@ fn draw_moon(camera_y: f32, screen_w: f32, screen_h: f32) {
     // Soft halo: many faint rings avoid visible banding.
     for i in 0..16 {
         let age = i as f32 / 15.0;
-        let r = radius + 4.0 + age * 116.0;
+        let halo = radius + 4.0 + age * 116.0;
         let alpha = 0.012 * (1.0 - age).powf(1.3);
-        draw_circle(x, y, r, Color::new(MOON.r, MOON.g, MOON.b, alpha));
+        r.draw_circle(
+            Vec2::new(x, y),
+            halo,
+            Color::new(MOON.r, MOON.g, MOON.b, alpha),
+        );
     }
 
-    draw_circle(x, y, radius, Color::new(MOON.r, MOON.g, MOON.b, 0.92));
-    draw_circle_lines(x, y, radius + 1.0, 1.0, Color::new(1.0, 0.85, 0.45, 0.16));
+    r.draw_circle(
+        Vec2::new(x, y),
+        radius,
+        Color::new(MOON.r, MOON.g, MOON.b, 0.92),
+    );
+    r.draw_circle_outline(
+        Vec2::new(x, y),
+        radius + 1.0,
+        1.0,
+        Color::new(1.0, 0.85, 0.45, 0.16),
+    );
 
     // A single ink cloud crossing the moon, the classic painted motif.
-    let drift = (get_time() as f32 * 4.0).rem_euclid(screen_w + 380.0) - 190.0;
+    let drift = (time * 4.0).rem_euclid(screen_w + 380.0) - 190.0;
     for i in 0..10 {
         let t = i as f32 / 9.0;
         let fade = (1.0 - (2.0 * t - 1.0).abs()).powf(1.4);
         let w = 260.0 * fade.sqrt();
-        draw_rectangle(
-            x - w / 2.0 + drift * 0.30,
-            y + 12.0 + t * 24.0,
-            w,
-            3.0,
+        r.draw_rect(
+            Rect::new(x - w / 2.0 + drift * 0.30, y + 12.0 + t * 24.0, w, 3.0),
             Color::new(0.10, 0.10, 0.16, 0.09 * fade),
         );
     }
@@ -126,55 +157,62 @@ fn draw_moon(camera_y: f32, screen_w: f32, screen_h: f32) {
 
 /// Soft horizontal mist: a stack of thin bands whose alpha peaks in the
 /// middle. Reads as haze rather than a row of circles.
-fn draw_mist_band(base_y: f32, screen_w: f32, strength: f32, height: f32) {
+fn draw_mist_band(
+    r: &mut dyn RenderingServer,
+    base_y: f32,
+    screen_w: f32,
+    strength: f32,
+    height: f32,
+) {
     let steps = 14;
     let line_h = height / steps as f32;
 
     for i in 0..steps {
         let t = i as f32 / (steps - 1) as f32;
         let fade = (1.0 - (2.0 * t - 1.0).abs()).powf(1.5);
-        draw_rectangle(
-            0.0,
-            base_y - height / 2.0 + i as f32 * line_h,
-            screen_w,
-            line_h + 1.0,
+        r.draw_rect(
+            Rect::new(
+                0.0,
+                base_y - height / 2.0 + i as f32 * line_h,
+                screen_w,
+                line_h + 1.0,
+            ),
             Color::new(0.70, 0.78, 0.82, strength * fade),
         );
     }
 }
 
-fn draw_clouds(camera_y: f32, screen_w: f32, screen_h: f32) {
+fn draw_clouds(r: &mut dyn RenderingServer, camera_y: f32, screen_w: f32, screen_h: f32) {
     let drift = (-camera_y * 0.035).clamp(0.0, 46.0);
 
-    draw_mist_band(screen_h * 0.34 + drift, screen_w, 0.022, 34.0);
-    draw_mist_band(screen_h * 0.47 + drift * 1.3, screen_w, 0.018, 42.0);
-    draw_mist_band(screen_h * 0.63 + drift * 1.7, screen_w, 0.014, 50.0);
+    draw_mist_band(r, screen_h * 0.34 + drift, screen_w, 0.022, 34.0);
+    draw_mist_band(r, screen_h * 0.47 + drift * 1.3, screen_w, 0.018, 42.0);
+    draw_mist_band(r, screen_h * 0.63 + drift * 1.7, screen_w, 0.014, 50.0);
 }
 
-fn draw_mountains(camera_y: f32, screen_w: f32, screen_h: f32) {
+fn draw_mountains(r: &mut dyn RenderingServer, camera_y: f32, screen_w: f32, screen_h: f32) {
     let far_drift = (-camera_y * 0.035).clamp(0.0, 44.0);
     let near_drift = (-camera_y * 0.055).clamp(0.0, 62.0);
 
     // Far ridge: blue ink, softened with a mist band at its base.
     let far_base = screen_h * 0.80 + far_drift;
     draw_ridge(
+        r,
         far_base,
         150.0,
         Color::new(0.085, 0.115, 0.155, 1.0),
         0xB10C,
         screen_w,
     );
-    draw_rectangle(
-        0.0,
-        far_base - 18.0,
-        screen_w,
-        28.0,
+    r.draw_rect(
+        Rect::new(0.0, far_base - 18.0, screen_w, 28.0),
         Color::new(0.14, 0.18, 0.22, 0.055),
     );
 
     // Near ridge: near-black ink, grounded at the bottom edge.
     let near_base = screen_h * 0.95 + near_drift;
     draw_ridge(
+        r,
         near_base,
         185.0,
         Color::new(0.030, 0.045, 0.070, 1.0),
@@ -183,11 +221,8 @@ fn draw_mountains(camera_y: f32, screen_w: f32, screen_h: f32) {
     );
 
     // Low fog so the tower does not look pasted onto the ridge.
-    draw_rectangle(
-        0.0,
-        near_base - 12.0,
-        screen_w,
-        24.0,
+    r.draw_rect(
+        Rect::new(0.0, near_base - 12.0, screen_w, 24.0),
         Color::new(0.10, 0.14, 0.18, 0.05),
     );
 }
@@ -196,7 +231,14 @@ fn draw_mountains(camera_y: f32, screen_w: f32, screen_h: f32) {
 ///
 /// Peak spacing, height and width all come from the hash, so the ridge
 /// stays irregular instead of turning into a regular sawtooth.
-fn draw_ridge(base_y: f32, peak_height: f32, color: Color, seed: u32, screen_w: f32) {
+fn draw_ridge(
+    r: &mut dyn RenderingServer,
+    base_y: f32,
+    peak_height: f32,
+    color: Color,
+    seed: u32,
+    screen_w: f32,
+) {
     let mut i = 0u32;
     let mut x = -140.0;
 
@@ -206,7 +248,7 @@ fn draw_ridge(base_y: f32, peak_height: f32, color: Color, seed: u32, screen_w: 
         let right = 55.0 + 70.0 * hash01(seed.wrapping_add(i).wrapping_add(67));
         let peak_x = x + (hash01(seed.wrapping_add(i).wrapping_add(113)) - 0.5) * 46.0;
 
-        draw_triangle(
+        r.draw_triangle(
             vec2(peak_x - left, base_y),
             vec2(peak_x + right, base_y),
             vec2(peak_x, base_y - h),
@@ -217,7 +259,7 @@ fn draw_ridge(base_y: f32, peak_height: f32, color: Color, seed: u32, screen_w: 
         i += 1;
     }
 
-    draw_rectangle(0.0, base_y, screen_w, 420.0, color);
+    r.draw_rect(Rect::new(0.0, base_y, screen_w, 420.0), color);
 }
 
 #[cfg(test)]

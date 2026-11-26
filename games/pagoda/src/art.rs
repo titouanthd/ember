@@ -9,8 +9,13 @@
 
 use crate::components::{Block, SlidingBlock};
 use crate::config::{IVORY, PERFECT_GOLD};
-use glam::Vec2;
-use macroquad::prelude::*;
+use ember_core::Color;
+use ember_core::math::Rect;
+use ember_servers::RenderingServer;
+use glam::{Vec2, vec2};
+
+#[cfg(test)]
+use crate::config::WHITE;
 
 /// Move `color` towards white by `amount` (0.0–1.0).
 pub fn lighten(color: Color, amount: f32) -> Color {
@@ -34,47 +39,83 @@ pub fn with_alpha(color: Color, alpha: f32) -> Color {
 }
 
 /// Filled diamond, built from two triangles.
-pub fn draw_diamond(cx: f32, cy: f32, radius: f32, color: Color) {
+pub fn draw_diamond(r: &mut dyn RenderingServer, cx: f32, cy: f32, radius: f32, color: Color) {
     let top = vec2(cx, cy - radius);
     let bottom = vec2(cx, cy + radius);
     let left = vec2(cx - radius, cy);
     let right = vec2(cx + radius, cy);
-    draw_triangle(top, left, bottom, color);
-    draw_triangle(top, right, bottom, color);
+    r.draw_triangle(top, left, bottom, color);
+    r.draw_triangle(top, right, bottom, color);
 }
 
 /// Diamond outline, used as a small carved motif.
-pub fn diamond_outline(cx: f32, cy: f32, radius: f32, thickness: f32, color: Color) {
-    draw_line(cx, cy - radius, cx + radius, cy, thickness, color);
-    draw_line(cx + radius, cy, cx, cy + radius, thickness, color);
-    draw_line(cx, cy + radius, cx - radius, cy, thickness, color);
-    draw_line(cx - radius, cy, cx, cy - radius, thickness, color);
+pub fn diamond_outline(
+    r: &mut dyn RenderingServer,
+    cx: f32,
+    cy: f32,
+    radius: f32,
+    thickness: f32,
+    color: Color,
+) {
+    r.draw_line(
+        Vec2::new(cx, cy - radius),
+        Vec2::new(cx + radius, cy),
+        thickness,
+        color,
+    );
+    r.draw_line(
+        Vec2::new(cx + radius, cy),
+        Vec2::new(cx, cy + radius),
+        thickness,
+        color,
+    );
+    r.draw_line(
+        Vec2::new(cx, cy + radius),
+        Vec2::new(cx - radius, cy),
+        thickness,
+        color,
+    );
+    r.draw_line(
+        Vec2::new(cx - radius, cy),
+        Vec2::new(cx, cy - radius),
+        thickness,
+        color,
+    );
 }
 
 /// Draw one tower tier at screen coordinates.
 ///
 /// `glow` in `0.0..=1.0` adds a gold landing outline; it is used on the
 /// newest block and decays over a few frames.
-pub fn draw_tile(x: f32, y: f32, w: f32, h: f32, color: Color, glow: f32) {
+pub fn draw_tile(
+    r: &mut dyn RenderingServer,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    color: Color,
+    glow: f32,
+) {
     if w <= 0.0 || h <= 0.0 {
         return;
     }
 
-    draw_rectangle(x, y, w, h, color);
+    r.draw_rect(Rect::new(x, y, w, h), color);
 
     // Lit top face / shadowed base: enough to read as a carved edge.
     let top_h = (h * 0.16).clamp(2.0, 7.0);
-    draw_rectangle(x, y, w, top_h, lighten(color, 0.20));
+    r.draw_rect(Rect::new(x, y, w, top_h), lighten(color, 0.20));
     let base_h = (h * 0.13).clamp(2.0, 6.0);
-    draw_rectangle(x, y + h - base_h, w, base_h, darken(color, 0.28));
+    r.draw_rect(Rect::new(x, y + h - base_h, w, base_h), darken(color, 0.28));
 
     // A thin gold seam, like the joined edge of a lacquered beam.
-    draw_rectangle(x, y, w, 1.5, with_alpha(PERFECT_GOLD, 0.34));
+    r.draw_rect(Rect::new(x, y, w, 1.5), with_alpha(PERFECT_GOLD, 0.34));
 
     // Carved diamond boss on wide-enough tiles.
     if w >= 42.0 && h >= 24.0 {
         let radius = (h * 0.14).clamp(3.0, 5.5);
         diamond_outline(
+            r,
             x + w / 2.0,
             y + h / 2.0 + 1.0,
             radius,
@@ -84,11 +125,8 @@ pub fn draw_tile(x: f32, y: f32, w: f32, h: f32, color: Color, glow: f32) {
     }
 
     if glow > 0.0 {
-        draw_rectangle_lines(
-            x - 1.0,
-            y - 1.0,
-            w + 2.0,
-            h + 2.0,
+        r.draw_rect_outline(
+            Rect::new(x - 1.0, y - 1.0, w + 2.0, h + 2.0),
             2.0,
             with_alpha(PERFECT_GOLD, glow.clamp(0.0, 1.0) * 0.85),
         );
@@ -96,8 +134,15 @@ pub fn draw_tile(x: f32, y: f32, w: f32, h: f32, color: Color, glow: f32) {
 }
 
 /// Draw a settled tower block.
-pub fn draw_block(block: &Block, camera_y: f32, shake: Vec2, glow: f32) {
+pub fn draw_block(
+    r: &mut dyn RenderingServer,
+    block: &Block,
+    camera_y: f32,
+    shake: Vec2,
+    glow: f32,
+) {
     draw_tile(
+        r,
         block.transform.position.x + shake.x,
         block.transform.position.y + camera_y + shake.y,
         block.transform.scale.x,
@@ -110,6 +155,7 @@ pub fn draw_block(block: &Block, camera_y: f32, shake: Vec2, glow: f32) {
 /// Draw the sliding block. When its centre is inside the perfect
 /// window, a gold rim makes the alignment readable.
 pub fn draw_sliding_block(
+    r: &mut dyn RenderingServer,
     sliding: &SlidingBlock,
     y: f32,
     block_height: f32,
@@ -119,25 +165,36 @@ pub fn draw_sliding_block(
     let x = sliding.x + shake.x;
     let tile_y = y + shake.y;
 
-    draw_tile(x, tile_y, sliding.width, block_height, sliding.color, 0.0);
+    draw_tile(
+        r,
+        x,
+        tile_y,
+        sliding.width,
+        block_height,
+        sliding.color,
+        0.0,
+    );
 
     let (color, thickness) = if aligned {
         (PERFECT_GOLD, 2.5)
     } else {
         (with_alpha(IVORY, 0.55), 1.0)
     };
-    draw_rectangle_lines(
-        x - 1.0,
-        tile_y - 1.0,
-        sliding.width + 2.0,
-        block_height + 2.0,
+    r.draw_rect_outline(
+        Rect::new(
+            x - 1.0,
+            tile_y - 1.0,
+            sliding.width + 2.0,
+            block_height + 2.0,
+        ),
         thickness,
         with_alpha(color, if aligned { 0.95 } else { 0.35 }),
     );
 
     if aligned {
-        draw_diamond(x + 7.0, tile_y + block_height / 2.0, 3.0, PERFECT_GOLD);
+        draw_diamond(r, x + 7.0, tile_y + block_height / 2.0, 3.0, PERFECT_GOLD);
         draw_diamond(
+            r,
             x + sliding.width - 7.0,
             tile_y + block_height / 2.0,
             3.0,
@@ -152,6 +209,7 @@ pub fn draw_sliding_block(
 /// while the small target mark sits on the centre of the block below.
 /// Both turn gold inside the perfect window.
 pub fn draw_drop_guide(
+    r: &mut dyn RenderingServer,
     slide_center_x: f32,
     target_center_x: f32,
     top_y: f32,
@@ -165,26 +223,23 @@ pub fn draw_drop_guide(
         0.14
     };
 
-    draw_line(
-        slide_center_x,
-        top_y + 1.0,
-        slide_center_x,
-        top_y + block_height * 2.4,
+    r.draw_line(
+        Vec2::new(slide_center_x, top_y + 1.0),
+        Vec2::new(slide_center_x, top_y + block_height * 2.4),
         if aligned { 2.5 } else { 1.0 },
         with_alpha(if aligned { PERFECT_GOLD } else { IVORY }, pulse),
     );
 
     // The target itself is always visible, faintly.
     let target = if aligned { 0.95 } else { 0.30 };
-    draw_line(
-        target_center_x,
-        top_y - 5.0,
-        target_center_x,
-        top_y + 9.0,
+    r.draw_line(
+        Vec2::new(target_center_x, top_y - 5.0),
+        Vec2::new(target_center_x, top_y + 9.0),
         2.0,
         with_alpha(PERFECT_GOLD, target),
     );
     draw_diamond(
+        r,
         target_center_x,
         top_y + 11.0,
         3.0,
@@ -193,19 +248,15 @@ pub fn draw_drop_guide(
 
     if aligned {
         // Short gold land marks frame the perfect spot.
-        draw_line(
-            target_center_x - 20.0,
-            top_y + 3.0,
-            target_center_x - 8.0,
-            top_y + 3.0,
+        r.draw_line(
+            Vec2::new(target_center_x - 20.0, top_y + 3.0),
+            Vec2::new(target_center_x - 8.0, top_y + 3.0),
             2.0,
             with_alpha(PERFECT_GOLD, 0.85),
         );
-        draw_line(
-            target_center_x + 8.0,
-            top_y + 3.0,
-            target_center_x + 20.0,
-            top_y + 3.0,
+        r.draw_line(
+            Vec2::new(target_center_x + 8.0, top_y + 3.0),
+            Vec2::new(target_center_x + 20.0, top_y + 3.0),
             2.0,
             with_alpha(PERFECT_GOLD, 0.85),
         );

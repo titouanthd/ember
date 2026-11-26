@@ -1,5 +1,8 @@
 // games/pagoda/src/config.rs
-use macroquad::prelude::*;
+use ember_core::Color;
+
+/// Pure white (macroquad's `WHITE` has the same value).
+pub const WHITE: Color = Color::WHITE;
 
 /// Shared gold used by the perfect-drop effects, seals and HUD.
 pub const PERFECT_GOLD: Color = Color::new(1.0, 0.82, 0.25, 1.0);

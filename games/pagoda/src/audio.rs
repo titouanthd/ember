@@ -5,144 +5,142 @@
 //! checkout even if the generated assets were not built yet.
 //!
 //! Files live in `assets/sfx/` and are produced by
-//! `tools/generate-sounds.py`.
+//! `tools/generate-sounds.py`. They are built into the binary
+//! (`include_bytes!`) and loaded through the engine's `AudioServer`.
 //!
 //! macroquad exposes no per-playback pitch control, so the perfect
 //! chime is a set of pre-generated notes on a pentatonic scale. The
 //! combo selects the note, which makes the escalation audible without
 //! any runtime DSP.
+//!
+//! The bank does not play anything itself: its methods return [`Cue`]s,
+//! which the `Pagoda` node plays on its `AudioServer`. That keeps the
+//! bank testable without an audio device.
 
-use ember_stdlib::audio::AudioClip;
+use ember_servers::{AudioClipId, AudioServer};
 
+#[cfg(test)]
 use crate::paths;
 use crate::systems::GameEvent;
 
-/// Number of pre-generated perfect notes. Combos above this cap stay
-/// on the highest note.
 pub const PERFECT_NOTES: usize = 6;
 
-/// Playback volumes, mixed against each other.
 const VOL_LAND: f32 = 0.50;
 const VOL_SLICE: f32 = 0.30;
-/// A cut at least this wide plays at full slice volume. Smaller shaves
-/// scale down towards [`SLICE_MIN_FRACTION`].
 const SLICE_FULL_WIDTH_PX: f32 = 120.0;
 const SLICE_MIN_FRACTION: f32 = 0.30;
-/// The landing thud keeps a little body under the perfect chime.
 const VOL_PERFECT_LAND: f32 = 0.18;
 const VOL_PERFECT: f32 = 0.70;
 const VOL_GAME_OVER: f32 = 0.90;
 const VOL_START: f32 = 0.45;
 const VOL_NEW_BEST: f32 = 0.65;
 
+const DROP: &[u8] = include_bytes!("../assets/sfx/drop.wav");
+const SLICE: &[u8] = include_bytes!("../assets/sfx/slice.wav");
+const GAME_OVER: &[u8] = include_bytes!("../assets/sfx/game_over.wav");
+const START: &[u8] = include_bytes!("../assets/sfx/start.wav");
+const NEW_BEST: &[u8] = include_bytes!("../assets/sfx/new_best.wav");
+const PERFECT: [&[u8]; PERFECT_NOTES] = [
+    include_bytes!("../assets/sfx/perfect_1.wav"),
+    include_bytes!("../assets/sfx/perfect_2.wav"),
+    include_bytes!("../assets/sfx/perfect_3.wav"),
+    include_bytes!("../assets/sfx/perfect_4.wav"),
+    include_bytes!("../assets/sfx/perfect_5.wav"),
+    include_bytes!("../assets/sfx/perfect_6.wav"),
+];
+
+/// One sound to play now.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Cue {
+    pub clip: AudioClipId,
+    pub volume: f32,
+}
+
+impl Cue {
+    pub fn play(self, audio: &mut dyn AudioServer) {
+        audio.play(self.clip, self.volume, 1.0);
+    }
+}
+
 pub struct SoundBank {
-    land: Option<AudioClip>,
-    slice: Option<AudioClip>,
-    perfect: Vec<Option<AudioClip>>,
-    game_over: Option<AudioClip>,
-    start: Option<AudioClip>,
-    new_best: Option<AudioClip>,
+    land: Option<AudioClipId>,
+    slice: Option<AudioClipId>,
+    perfect: Vec<Option<AudioClipId>>,
+    game_over: Option<AudioClipId>,
+    start: Option<AudioClipId>,
+    new_best: Option<AudioClipId>,
     muted: bool,
 }
 
 impl SoundBank {
-    /// Preload every clip. Must be awaited before the loop on the web,
-    /// where each load performs an HTTP fetch.
-    pub async fn load() -> Self {
-        async fn clip(name: &str) -> Option<AudioClip> {
-            AudioClip::load_optional(&paths::asset(&format!("sfx/{name}.wav"))).await
-        }
-
-        let mut perfect = Vec::with_capacity(PERFECT_NOTES);
-        for i in 1..=PERFECT_NOTES {
-            perfect.push(clip(&format!("perfect_{i}")).await);
-        }
-
+    /// Load every clip into `audio`. On the web the clips finish decoding
+    /// a few frames later; a cue for a clip still decoding is skipped.
+    pub fn load(audio: &mut dyn AudioServer) -> Self {
+        let mut clip = |bytes: &[u8]| match audio.load_clip(bytes) {
+            Ok(id) => Some(id),
+            Err(e) => {
+                eprintln!("⚠️  Failed to load a Pagoda sound: {e}. It will be silent.");
+                None
+            }
+        };
+        let perfect = PERFECT.iter().map(|bytes| clip(bytes)).collect();
         Self {
-            land: clip("drop").await,
-            slice: clip("slice").await,
+            land: clip(DROP),
+            slice: clip(SLICE),
             perfect,
-            game_over: clip("game_over").await,
-            start: clip("start").await,
-            new_best: clip("new_best").await,
+            game_over: clip(GAME_OVER),
+            start: clip(START),
+            new_best: clip(NEW_BEST),
             muted: false,
         }
     }
 
-    /// Translate one simulation event into sound.
-    pub fn on_event(&self, event: GameEvent) {
-        match event {
-            GameEvent::Land => self.play(self.land.as_ref(), VOL_LAND),
+    /// The sounds for `event`.
+    pub fn on_event(&self, event: GameEvent) -> Vec<Cue> {
+        let cues = match event {
+            GameEvent::Land => vec![self.cue(self.land, VOL_LAND)],
             GameEvent::Slice { cut_width } => {
-                self.play(self.slice.as_ref(), slice_volume(cut_width));
+                vec![self.cue(self.slice, slice_volume(cut_width))]
             }
             GameEvent::Perfect { combo } => {
-                // A soft thud under the chime keeps the landing physical.
-                self.play(self.land.as_ref(), VOL_PERFECT_LAND);
-                let note = self
-                    .perfect
-                    .get(perfect_index(combo))
-                    .and_then(Option::as_ref);
-                self.play(note, VOL_PERFECT);
+                let note = self.perfect.get(perfect_index(combo)).copied().flatten();
+                vec![
+                    self.cue(self.land, VOL_PERFECT_LAND),
+                    self.cue(note, VOL_PERFECT),
+                ]
             }
-            GameEvent::Miss => self.play(self.game_over.as_ref(), VOL_GAME_OVER),
-        }
+            GameEvent::Miss => vec![self.cue(self.game_over, VOL_GAME_OVER)],
+        };
+        cues.into_iter().flatten().collect()
     }
 
-    /// Menu start and restart.
-    pub fn start(&self) {
-        self.play(self.start.as_ref(), VOL_START);
+    pub fn start(&self) -> Option<Cue> {
+        self.cue(self.start, VOL_START)
     }
 
-    /// Short fanfare when a run beats the record. The WAV itself starts
-    /// with silence so it does not collide with the game-over thud.
-    pub fn new_best(&self) {
-        self.play(self.new_best.as_ref(), VOL_NEW_BEST);
+    pub fn new_best(&self) -> Option<Cue> {
+        self.cue(self.new_best, VOL_NEW_BEST)
     }
 
-    pub fn toggle_mute(&mut self) {
+    /// Flip mute. Returns `true` when sound just went off, so the caller
+    /// stops what is playing (`AudioServer::stop_all`).
+    pub fn toggle_mute(&mut self) -> bool {
         self.muted = !self.muted;
-        if self.muted {
-            self.stop_all();
-        }
+        self.muted
     }
 
     pub fn is_muted(&self) -> bool {
         self.muted
     }
 
-    /// Cut whatever is currently ringing so muting is immediate, not
-    /// "from the next sound onwards".
-    fn stop_all(&self) {
-        for clip in [
-            self.land.as_ref(),
-            self.slice.as_ref(),
-            self.game_over.as_ref(),
-            self.start.as_ref(),
-            self.new_best.as_ref(),
-        ]
-        .into_iter()
-        .flatten()
-        {
-            clip.stop();
-        }
-        for clip in self.perfect.iter().flatten() {
-            clip.stop();
-        }
-    }
-
-    fn play(&self, clip: Option<&AudioClip>, volume: f32) {
+    fn cue(&self, clip: Option<AudioClipId>, volume: f32) -> Option<Cue> {
         if self.muted {
-            return;
+            return None;
         }
-        if let Some(clip) = clip {
-            clip.play_at(volume);
-        }
+        clip.map(|clip| Cue { clip, volume })
     }
 }
 
-/// Note index for a perfect combo. Combo 1 plays the first note; the
-/// scale plateaus at [`PERFECT_NOTES`].
 pub fn perfect_index(combo: u32) -> usize {
     let index = combo.saturating_sub(1) as usize;
     index.min(PERFECT_NOTES.saturating_sub(1))

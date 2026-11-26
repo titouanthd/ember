@@ -1,12 +1,17 @@
 // games/pagoda/src/effects.rs
 //! Pagoda-specific feedback: falling slices and the perfect-drop combo,
-//! layered on top of the shared `ember_stdlib::juice::Juice`.
+//! layered on top of the shared `ember_stdlib::fx::Juice`.
 
 use crate::config::PERFECT_GOLD;
-use ember_stdlib::juice::{self, Juice, JuiceConfig};
+use ember_core::Color;
+use ember_core::math::Rect;
+use ember_servers::RenderingServer;
+use ember_stdlib::fx::{self, Juice, JuiceConfig};
 use glam::Vec2;
-use macroquad::prelude::*;
 use std::ops::{Deref, DerefMut};
+
+#[cfg(test)]
+use crate::config::WHITE;
 
 const PIECE_LIFE: f32 = 0.8;
 const PIECE_GRAVITY: f32 = 900.0;
@@ -142,37 +147,38 @@ impl Effects {
 
     /// Draw world-space effects. `camera_y` is the tower camera offset;
     /// `shake` is the current screen-shake offset.
-    pub fn draw_world(&self, camera_y: f32, shake: Vec2) {
+    pub fn draw_world(&self, r: &mut dyn RenderingServer, camera_y: f32, shake: Vec2) {
         let offset = shake + Vec2::new(0.0, camera_y);
 
-        juice::draw_shockwaves(&self.base, offset);
+        fx::draw_shockwaves(r, &self.base, offset);
 
         for piece in &self.pieces {
             let alpha = (piece.life / piece.max_life).clamp(0.0, 1.0);
-            draw_rectangle_ex(
-                piece.pos.x + offset.x,
-                piece.pos.y + offset.y,
-                piece.size.x,
-                piece.size.y,
-                DrawRectangleParams {
-                    offset: vec2(0.5, 0.5),
-                    rotation: piece.rotation,
-                    color: Color::new(
-                        piece.color.r,
-                        piece.color.g,
-                        piece.color.b,
-                        piece.color.a * alpha,
-                    ),
-                },
+            // `draw_rect_rotated` turns about the rect's (x, y), which is
+            // the piece's centre, as macroquad's offset (0.5, 0.5) did.
+            r.draw_rect_rotated(
+                Rect::new(
+                    piece.pos.x + offset.x,
+                    piece.pos.y + offset.y,
+                    piece.size.x,
+                    piece.size.y,
+                ),
+                piece.rotation,
+                Color::new(
+                    piece.color.r,
+                    piece.color.g,
+                    piece.color.b,
+                    piece.color.a * alpha,
+                ),
             );
         }
 
-        juice::draw_particles(&self.base, offset);
-        juice::draw_floating_texts(&self.base, offset);
+        fx::draw_particles(r, &self.base, offset);
+        fx::draw_floating_texts(r, &self.base, offset);
     }
 
-    pub fn draw_flash(&self, screen_w: f32, screen_h: f32) {
-        juice::draw_flashes_sized(&self.base, screen_w, screen_h);
+    pub fn draw_flash(&self, r: &mut dyn RenderingServer, screen_w: f32, screen_h: f32) {
+        fx::draw_flashes(r, &self.base, Vec2::new(screen_w, screen_h));
     }
 }
 
