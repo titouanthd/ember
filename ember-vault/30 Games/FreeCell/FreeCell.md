@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/freecell` (`cargo run -p freecell`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | Drag-and-drop state machine, super-moves, undo/redo |
-| **Engine migration (Phase 7)** | ⬜ not migrated |
+| **Engine migration (Phase 7)** | ✅ migrated `9371b95` — `src/scene.rs`: `FreeCellGame` root node drawing cards through the `RenderingServer`, Hint / Restart / New / Menu as `ember_ui` Buttons, font via `create_font`; no macroquad |
 
 ## Documents
 

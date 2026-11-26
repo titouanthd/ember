@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 41 — Migration Guide
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; 5 of 17 games (pong, simon, snake, memory, minesweeper) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
+> **Status:** 🟡 partial — reviewed 2026-11-19; 6 of 17 games (pong, simon, snake, memory, minesweeper, freecell) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [[40-roadmap]], [[21-ember-scene]]
 
@@ -345,12 +345,24 @@ persistence API lands.
   `Game`; `Color` comes from `ember_core`.
 
 
-### 5.6 freecell
+### 5.6 freecell — **migrated** (`9371b95`, 2026-11-26)
 
-- 78 unit + 8 scenario.
-- Card game with undo/redo. Drag-and-drop is v0.2, so v0.1 uses
-  click-to-select. The `ember_ui` `Panel` widget is enough for
-  card visuals.
+- 78 unit + 8 scenario (unchanged) + 7 headless `SceneLoop` tests
+  (`games/freecell/tests/scene.rs`).
+- Result: `src/scene.rs`, same shape as memory (§5.4): one
+  `FreeCellGame` root node and four `ember_ui` header buttons (Hint,
+  Restart, New, Menu). Cards are drawn by the root node, not as nodes.
+- The plan said click-to-select; not needed: the game's own drag-and-drop
+  state machine (`drag.rs`) runs unchanged on `Input` (press / down /
+  release), and the drag overlay reads the pointer saved in `process`.
+- Font: DejaVu Sans Mono (for ♠♥♦♣, `·`, `→`) is read from `assets/` and
+  installed with `RenderingServer::create_font` + `set_default_font` in
+  `ready` — no `load_ttf_font`.
+- Engine: `Key::Semicolon` added (`18513a1`) for the win screen's
+  M / Semicolon "menu" shortcut.
+- Logic touched: the five `Button` fields and `update_menu_layout` left
+  `Game` (`start_btn` was never drawn); `Rect` / `Color` come from
+  `ember_core`; `hit::contains` became `Rect::contains`.
 
 ### 5.7 breakout
 
