@@ -79,19 +79,25 @@ impl MacroquadRenderer {
     /// Apply `clip` (screen pixels, top-left origin) as the GL scissor;
     /// `None` disables it. Same call as jade-garden's help modal.
     fn apply_scissor(clip: Option<Rect>) {
-        let scissor = clip.map(|r| {
-            let x0 = r.x.floor();
-            let y0 = r.y.floor();
-            let x1 = (r.x + r.w).ceil();
-            let y1 = (r.y + r.h).ceil();
-            (x0 as i32, y0 as i32, (x1 - x0) as i32, (y1 - y0) as i32)
-        });
+        // Clip rects are in logical pixels; the GL scissor wants physical
+        // ones, which differ on a high-DPI window (ADR-047).
+        let scissor = clip.map(|r| scissor_box(r, macroquad::window::screen_dpi_scale()));
         // SAFETY: `get_internal_gl` is unsafe because it exposes macroquad's
         // internal GL state. We only set the scissor between draw calls, on
         // the main thread, and never hold the reference past this call.
         let gl = unsafe { get_internal_gl() };
         gl.quad_gl.scissor(scissor);
     }
+}
+
+/// A logical clip rect as the GL scissor box `(x, y, w, h)` in physical
+/// pixels, grown outward to whole pixels.
+fn scissor_box(r: Rect, dpi: f32) -> (i32, i32, i32, i32) {
+    let x0 = (r.x * dpi).floor();
+    let y0 = (r.y * dpi).floor();
+    let x1 = ((r.x + r.w) * dpi).ceil();
+    let y1 = ((r.y + r.h) * dpi).ceil();
+    (x0 as i32, y0 as i32, (x1 - x0) as i32, (y1 - y0) as i32)
 }
 
 impl Default for MacroquadRenderer {
@@ -417,5 +423,26 @@ impl RenderingServer for MacroquadRenderer {
 
     fn supports(&self, feature: RenderFeature) -> bool {
         self.capabilities.contains(&feature)
+    }
+}
+
+#[cfg(test)]
+mod scissor_tests {
+    use super::*;
+
+    #[test]
+    fn at_dpi_one_the_box_is_the_rect_grown_to_whole_pixels() {
+        assert_eq!(
+            scissor_box(Rect::new(10.5, 20.0, 100.2, 50.0), 1.0),
+            (10, 20, 101, 50)
+        );
+    }
+
+    #[test]
+    fn a_high_dpi_window_scales_the_box() {
+        assert_eq!(
+            scissor_box(Rect::new(10.0, 20.0, 100.0, 50.0), 2.0),
+            (20, 40, 200, 100)
+        );
     }
 }
