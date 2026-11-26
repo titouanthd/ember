@@ -126,11 +126,14 @@ editor is finished.
 
 ## 4. Phase 1 — Scene core
 
-> **Progress:** 🟡 `NodeTree`, `NodeId`, contexts, `SceneLoop` and the
+> **Progress:** ✅ closed 2026-11-26. `NodeTree`, `NodeId`, contexts, `SceneLoop` and the
 > ordering/stale-id tests are in. `crates/ember/examples/hello_scene.rs`
 > runs the tree on macroquad via `ember::run_window` (runner and input
 > poller live in `ember-render-macroquad`; `InputSink` in `ember-input`).
-> Build-verified only; not run headlessly. `NodeTreeMainLoop` was
+> The scene is built by a backend-generic `build_scene`; the example's
+> own tests run it on `MockRenderer` / `MockAudio` (draws the square,
+> arrow keys move it, Escape quits) and `test = true` in
+> `crates/ember/Cargo.toml` puts them in `cargo test --workspace`. `NodeTreeMainLoop` was
 > replaced by `SceneLoop`. Deviations: ADR-022.
 
 ### 4.1 Scope

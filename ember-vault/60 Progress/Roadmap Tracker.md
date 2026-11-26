@@ -14,7 +14,7 @@ gantt
   title Ember v0.1 — estimated completion per phase
   section Engine core
   P0 Foundations (done)  :done, p0, 2026-11-18, 1d
-  P1 Scene core (90%)    :active, p1, 2026-11-16, 3d
+  P1 Scene core (done)   :done, p1, 2026-11-16, 3d
   P2 Serialization (done):done, p2, 2026-11-18, 7d
   P3 Signals (85%)       :active, p3, 2026-11-18, 2d
   P4 Servers (done)      :done, p4, 2026-11-16, 3d
@@ -37,8 +37,8 @@ gantt
 - [x] `Cooldown::running` / `Cooldown::ready(d)` + `#[deprecated]` aliases ⚑
 - [x] `primary_action()` *(in `ember-input`)*
 
-## Phase 1 — Scene core
-- [x] `NodeTree` + `Sprite`-like node rendered via `ember_render_macroquad` (`crates/ember/examples/hello_scene.rs`, build-verified only)
+## Phase 1 — Scene core ✅ closed 2026-11-26 (headless `hello_scene` tests)
+- [x] `NodeTree` + `Sprite`-like node rendered via `ember_render_macroquad` (`crates/ember/examples/hello_scene.rs`; 3 headless tests on `MockRenderer` in the example, run by `cargo test --workspace`)
 - [x] process order test — `tests/tree_ordering.rs`
 - [x] ready order (bottom-up) test — `tests/ready_ordering.rs`
 - [x] stale `NodeId` test — `tests/stale_id.rs`
