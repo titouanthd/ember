@@ -1,7 +1,7 @@
 // games/pong/src/systems.rs
+use ember_core::GameState;
 use ember_core::rng::Rng;
 use ember_core::time::Cooldown;
-use ember_stdlib::app::GameState;
 use glam::Vec2;
 
 use crate::components::{Ball, Paddle};

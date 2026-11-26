@@ -834,7 +834,6 @@ dependencies = [
  "ember-servers",
  "ember-stdlib",
  "glam",
- "macroquad",
 ]
 
 [[package]]

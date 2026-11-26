@@ -25,7 +25,5 @@ games/bore-inc/
 games/ember-wars/
 games/jade-garden/
 games/pagoda/
-# pong: on NodeTree already; only macroquad::Color left (config, components, scene)
-games/pong/
 games/taiji/
 games/zhuo-ji/

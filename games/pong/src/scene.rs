@@ -6,7 +6,7 @@
 use crate::components::{Ball, Paddle};
 use crate::systems::{self, GameContext, MatchState};
 use ember::prelude::*;
-use ember_stdlib::app::GameState;
+use ember_core::GameState;
 
 /// Emitted by `Pong` whenever a point is scored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,10 +20,6 @@ pub struct MatchReset;
 
 /// Frame time cap; prevents tunneling after a hitch.
 const MAX_FRAME_DT: f32 = 1.0 / 60.0;
-
-fn color(c: macroquad::prelude::Color) -> Color {
-    Color::new(c.r, c.g, c.b, c.a)
-}
 
 fn rect(t: &ember_stdlib::Transform) -> Rect {
     Rect::new(t.position.x, t.position.y, t.scale.x, t.scale.y)
@@ -153,14 +149,11 @@ impl Node for Pong {
     fn draw(&self, ctx: &mut DrawContext) {
         let (w, h) = (self.cfg.screen_w, self.cfg.screen_h);
         let r = ctx.render();
-        r.draw_rect(
-            rect(&self.player.transform),
-            color(self.player.sprite.color),
-        );
-        r.draw_rect(rect(&self.ai.transform), color(self.ai.sprite.color));
+        r.draw_rect(rect(&self.player.transform), self.player.sprite.color);
+        r.draw_rect(rect(&self.ai.transform), self.ai.sprite.color);
         r.draw_rect(
             rect(&self.state.ball.transform),
-            color(self.state.ball.sprite.color),
+            self.state.ball.sprite.color,
         );
         let msg = match self.state.state {
             GameState::Start => Some("Press SPACE to start"),
@@ -271,4 +264,21 @@ pub fn build_tree(cfg: GameContext, seed: u32) -> NodeTree {
     let board = tree.insert(Scoreboard::new(width));
     tree.attach(board, root).expect("attach");
     tree
+}
+
+/// Opens the window and plays Pong.
+pub fn run() {
+    let cfg = crate::config::load_config();
+    let (w, h) = (cfg.screen_w, cfg.screen_h);
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u32)
+        .unwrap_or(1);
+    let game = SceneLoop::new(
+        build_tree(cfg, seed),
+        MacroquadRenderer::new(),
+        MacroquadAudio::new(),
+        Rect::new(0.0, 0.0, w, h),
+    );
+    run_window("Pong - Powered by Ember", w as i32, h as i32, game);
 }

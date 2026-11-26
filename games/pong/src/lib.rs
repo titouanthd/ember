@@ -7,5 +7,5 @@ pub mod systems;
 
 pub use components::{Ball, Paddle};
 pub use config::GameContext;
-pub use ember_stdlib::app::GameState;
+pub use ember_core::GameState;
 pub use systems::{MatchState, reset_match, update};

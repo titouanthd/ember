@@ -1,8 +1,25 @@
 // games/pong/src/components.rs
+use ember_core::Color;
 use ember_core::math::Aabb;
-use ember_stdlib::{Sprite, Transform};
+use ember_stdlib::Transform;
 use glam::Vec2;
-use macroquad::prelude::Color;
+
+/// Colour and visibility of an entity. Local twin of
+/// `ember_stdlib::Sprite`, which holds a macroquad colour.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Sprite {
+    pub color: Color,
+    pub visible: bool,
+}
+
+impl Sprite {
+    pub fn new(color: Color) -> Self {
+        Self {
+            color,
+            visible: true,
+        }
+    }
+}
 
 /// Raquette : rectangle qui bouge verticalement.
 #[derive(Debug, Clone)]
