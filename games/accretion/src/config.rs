@@ -1,6 +1,6 @@
 //! Palette and layout constants. Color evolves with the paradigm.
 
-use macroquad::prelude::*;
+use ember_core::Color;
 
 use crate::components::Paradigm;
 

@@ -2,7 +2,10 @@
 //! and one body per owned building. Purely cosmetic — no game logic
 //! here. `Disk` lives in the outer loop, not in `Game`.
 
-use macroquad::prelude::*;
+use ember::prelude::*;
+use glam::vec2;
+
+use crate::frame::{screen_height, screen_width};
 
 use crate::components::Paradigm;
 use crate::config as cfg;
@@ -86,14 +89,19 @@ impl Disk {
     }
 
     /// Draw the whole disk around `center`.
-    pub fn draw(&self, game: &Game, center: Vec2, max_radius: f32) {
+    pub fn draw(&self, gfx: &mut dyn RenderingServer, game: &Game, center: Vec2, max_radius: f32) {
         let accent = cfg::paradigm_color(game.paradigm);
 
         // Orbit rings
         for i in 0..6 {
             let r = max_radius * (0.30 + i as f32 * 0.14);
             let alpha = 0.06 + 0.03 * i as f32;
-            draw_circle_lines(center.x, center.y, r, 1.0, accent.with_alpha(alpha));
+            gfx.draw_circle_outline(
+                Vec2::new(center.x, center.y),
+                r,
+                1.0,
+                accent.with_alpha(alpha),
+            );
         }
 
         // Star with layered glow
@@ -103,12 +111,11 @@ impl Disk {
         for i in (1..=5).rev() {
             let r = star_r * (1.0 + i as f32 * 0.45);
             let a = 0.10 * (1.0 - (i as f32 - 1.0) / 5.0);
-            draw_circle(center.x, center.y, r, accent.with_alpha(a));
+            gfx.draw_circle(Vec2::new(center.x, center.y), r, accent.with_alpha(a));
         }
-        draw_circle(center.x, center.y, star_r, accent);
-        draw_circle(
-            center.x,
-            center.y,
+        gfx.draw_circle(Vec2::new(center.x, center.y), star_r, accent);
+        gfx.draw_circle(
+            Vec2::new(center.x, center.y),
             star_r * 0.55,
             Color::new(1.0, 1.0, 1.0, 0.9),
         );
@@ -141,8 +148,8 @@ impl Disk {
                     let x = center.x + orbit_r * angle.cos();
                     let y = center.y + orbit_r * angle.sin();
                     let size = 2.0 + pidx as f32 * 0.5;
-                    draw_circle(x, y, size + 1.5, accent.with_alpha(0.20));
-                    draw_circle(x, y, size, accent);
+                    gfx.draw_circle(Vec2::new(x, y), size + 1.5, accent.with_alpha(0.20));
+                    gfx.draw_circle(Vec2::new(x, y), size, accent);
                 }
             }
         }
@@ -153,11 +160,10 @@ impl Disk {
         for p in &self.particles {
             let x = center.x + p.radius * p.angle.cos();
             let y = center.y + p.radius * p.angle.sin();
-            draw_circle(x, y, p.size, accent.with_alpha(p.brightness));
+            gfx.draw_circle(Vec2::new(x, y), p.size, accent.with_alpha(p.brightness));
         }
-        draw_circle(
-            center.x,
-            center.y,
+        gfx.draw_circle(
+            Vec2::new(center.x, center.y),
             star_r * 0.55,
             Color::new(1.0, 1.0, 1.0, 0.9),
         );

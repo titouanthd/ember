@@ -2,7 +2,7 @@
 //!
 //! Native: paths are anchored to `CARGO_MANIFEST_DIR`, so
 //! `cargo run -p accretion` works from anywhere in the workspace.
-//! Web: paths are relative to `index.html` (macroquad does a fetch).
+//! Web: paths are relative to `index.html`.
 
 use std::path::PathBuf;
 

@@ -6,8 +6,7 @@
 #     ├── index.html
 #     ├── mq_js_bundle.js
 #     ├── localStorage_plugin.js
-#     ├── accretion.wasm
-#     └── assets/
+#     └── accretion.wasm   (the font is built in)
 #
 # Usage:
 #     chmod +x tools/build-web.sh
@@ -81,11 +80,7 @@ cp "$CRATE_DIR/web/index.html" "$OUT/index.html"
 cp "$CRATE_DIR/tools/localStorage_plugin.js" "$OUT/localStorage_plugin.js"
 
 # ─── 6. Assets ───
-if [ -d "$CRATE_DIR/assets" ]; then
-    cp -R "$CRATE_DIR/assets" "$OUT/assets"
-    rm -f "$OUT/assets/.env"
-    rm -f "$OUT/assets/progress.ron"
-fi
+# None to copy: the font is built into the wasm binary (include_bytes!).
 
 # ─── 7. wasm-opt (optional) ───
 if command -v wasm-opt >/dev/null 2>&1; then
