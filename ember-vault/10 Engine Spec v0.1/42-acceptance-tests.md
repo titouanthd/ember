@@ -57,13 +57,30 @@ is complete for v0.1's scope.
 
 ## 3. The acceptance checklist
 
-> **Current state (2026-11-19):** none of the items below is met yet.
-> `games/ember-wars/src/main.rs` is 210 lines, still uses macroquad and
-> `ember_stdlib` audio, and still has `juice.rs`; there is no `game.rs`.
-> It has 320 `#[test]`s in total (the "316 lib" figure below is from the
-> original plan; re-count before gating) and 20 scenario tests in
-> `tests/game_scenarios.rs`. Items 4 and 8 depend on `MainLoop`/derive
-> details that have since changed (see below).
+> **Current state (2026-11-26, after the port, `f16fe0c`):** the
+> migration runs in two steps, as the user chose. **Step 1 — port (done):**
+> one root node, `EmberWars`, on `SceneLoop`; `main.rs` 5 lines; no
+> macroquad. **Step 2 — node tree (next round):** catapults, units and
+> projectiles become nodes (items 6–8, §4).
+>
+> | Item | State |
+> |---|---|
+> | 1 `main.rs` ≤ 10 lines | ✅ 5 lines |
+> | 2 runs through `SceneLoop` | ✅ |
+> | 3 no `use macroquad` | ✅ (`make macroquad`; ember-wars left the allowlist) |
+> | 4 no `ember_stdlib::audio` | ✅ (the game has no audio) |
+> | 5 no `juice.rs` / `audio.rs` | ✅ (juice on `ember_stdlib::fx`) |
+> | 6 `Vec<Unit>` → `NodeId`s | ⬜ step 2 (still `Game::units`) |
+> | 7 projectiles → `NodeId`s | ⬜ step 2 |
+> | 8 `Catapult` and `Unit` are nodes | ⬜ step 2 |
+> | 9 lib tests pass | ✅ 302 (the "316" below is stale; 301 before the port, +1 `frame` test) |
+> | 10 20 scenario tests pass | ✅ unchanged |
+> | 11–15 manual play-throughs, upgrade UI, save/load | ⬜ the user plays |
+> | 16 no new `unsafe` | ✅ none in the game |
+> | 17 no new `unwrap()` outside tests | ✅ count unchanged (68) |
+> | 18–20 nothing added to `ember_servers` / `ember_scene` just for ember-wars | ✅ no engine change this round |
+>
+> Headless: 7 `SceneLoop` tests (`games/ember-wars/tests/scene.rs`).
 
 `ember-wars` migration is done when **all** of these are true. Each
 item is testable.
