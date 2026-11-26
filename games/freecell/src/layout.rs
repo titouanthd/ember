@@ -4,8 +4,8 @@
 //! window. All zone rects are derived from `board_x_offset`, so changing
 //! the window width or the number of columns does not break alignment.
 
+use ember_core::math::Rect;
 use glam::Vec2;
-use macroquad::prelude::Rect;
 
 use crate::config::GameContext;
 

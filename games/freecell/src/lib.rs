@@ -7,6 +7,7 @@ pub mod drag;
 pub mod fonts;
 pub mod layout;
 pub mod persistence;
+pub mod scene;
 pub mod systems;
 
 pub use ember_core::app::GameState;

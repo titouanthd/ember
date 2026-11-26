@@ -3,9 +3,8 @@
 
 use std::collections::HashMap;
 
-use ember_stdlib::ui::hit;
+use ember_core::math::Rect;
 use glam::Vec2;
-use macroquad::prelude::Rect;
 
 use ember_core::app::GameState;
 
@@ -81,21 +80,14 @@ pub struct Game {
     pub was_new_best: bool,
 
     pub hint: Option<Hint>,
-
-    pub start_btn: ember_stdlib::ui::button::Button,
-    pub hint_btn: ember_stdlib::ui::button::Button,
-    pub restart_btn: ember_stdlib::ui::button::Button,
-    pub menu_btn: ember_stdlib::ui::button::Button,
-    pub new_game_btn: ember_stdlib::ui::button::Button,
 }
 
 impl Game {
     pub fn new() -> Self {
-        let ctx = crate::config::load_config();
         let best_handle = persistence::default();
         let best_times = best_handle.load_or(HashMap::new());
 
-        let mut g = Self {
+        Self {
             state: GameState::Start,
             columns: Default::default(),
             free_cells: Default::default(),
@@ -111,38 +103,7 @@ impl Game {
             best_handle,
             was_new_best: false,
             hint: None,
-            start_btn: ember_stdlib::ui::button::Button::new(0.0, 0.0, 200.0, 50.0, "START"),
-            hint_btn: ember_stdlib::ui::button::Button::new(
-                ctx.window_w - 480.0,
-                10.0,
-                100.0,
-                30.0,
-                "Hint",
-            ),
-            restart_btn: ember_stdlib::ui::button::Button::new(
-                ctx.window_w - 360.0,
-                10.0,
-                100.0,
-                30.0,
-                "Restart",
-            ),
-            new_game_btn: ember_stdlib::ui::button::Button::new(
-                ctx.window_w - 240.0,
-                10.0,
-                100.0,
-                30.0,
-                "New",
-            ),
-            menu_btn: ember_stdlib::ui::button::Button::new(
-                ctx.window_w - 120.0,
-                10.0,
-                100.0,
-                30.0,
-                "Menu",
-            ),
-        };
-        g.update_menu_layout(&ctx);
-        g
+        }
     }
 
     pub fn with_best_handle(handle: BestTimes) -> Self {
@@ -150,11 +111,6 @@ impl Game {
         g.best_times = handle.load_or(HashMap::new());
         g.best_handle = handle;
         g
-    }
-
-    pub fn update_menu_layout(&mut self, ctx: &GameContext) {
-        let cx = ctx.window_w * 0.5;
-        self.start_btn.rect = (cx - 100.0, ctx.window_h * 0.5 + 100.0, 200.0, 50.0);
     }
 
     pub fn start_game(&mut self, seed: u32, _ctx: &GameContext) {
@@ -541,19 +497,19 @@ impl Game {
     pub fn zone_at(&self, mouse: Vec2, ctx: &GameContext) -> Option<Zone> {
         for i in 0..4 {
             let r = layout::free_cell_rect(i, ctx);
-            if hit::contains(r, mouse) {
+            if r.contains(mouse) {
                 return Some(Zone::FreeCell(i));
             }
         }
         for i in 0..4 {
             let r = layout::foundation_rect(i, ctx);
-            if hit::contains(r, mouse) {
+            if r.contains(mouse) {
                 return Some(Zone::Foundation(i));
             }
         }
         for col in 0..8 {
             let r = layout::column_bounds(col, ctx);
-            if hit::contains(r, mouse) {
+            if r.contains(mouse) {
                 return Some(Zone::Column(col));
             }
         }
@@ -568,7 +524,7 @@ impl Game {
         for i in 0..4 {
             if self.free_cells[i].is_some() {
                 let r = layout::free_cell_rect(i, ctx);
-                if hit::contains(r, mouse) {
+                if r.contains(mouse) {
                     return Some((Zone::FreeCell(i), 0));
                 }
             }
@@ -576,7 +532,7 @@ impl Game {
         for i in 0..4 {
             if !self.foundations[i].is_empty() {
                 let r = layout::foundation_rect(i, ctx);
-                if hit::contains(r, mouse) {
+                if r.contains(mouse) {
                     return Some((Zone::Foundation(i), 0));
                 }
             }
@@ -585,7 +541,7 @@ impl Game {
             let len = self.columns[col].len();
             for card_index in (0..len).rev() {
                 let r = layout::card_rect_in_column(col, card_index, ctx);
-                if hit::contains(r, mouse) {
+                if r.contains(mouse) {
                     return Some((Zone::Column(col), card_index));
                 }
             }

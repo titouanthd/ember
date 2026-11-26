@@ -1,21 +1,37 @@
-//! Font loading: DejaVu Sans Mono for the card symbols.
-//!
-//! Delegates to `ember_stdlib::fonts`. The wrapper resolves the
-//! game-local path from `CARGO_MANIFEST_DIR / assets`.
+//! Font loading: DejaVu Sans Mono for the card symbols (♠ ♥ ♦ ♣) and
+//! the `·` / `→` in the footer and hint line.
 
 use std::path::PathBuf;
 
-use macroquad::prelude::*;
+use ember::prelude::RenderingServer;
 
-/// Load DejaVu Sans Mono from `assets/DejaVuSansMono.ttf` and set it
-/// as the global default font. Returns the font for later use, or
-/// `None` if loading failed (in which case the default font is kept).
-///
-/// Call this once in `main()` before any text rendering.
-pub async fn load_default_fonts() -> Option<Font> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+/// `assets/DejaVuSansMono.ttf` next to FreeCell's manifest.
+pub fn font_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
-        .join("DejaVuSansMono.ttf");
-    let path_str = path.to_str()?;
-    ember_stdlib::fonts::load_and_set_default(path_str).await
+        .join("DejaVuSansMono.ttf")
+}
+
+/// Load DejaVu Sans Mono and make it the renderer's default font.
+/// Returns `false` (keeping the built-in font) if loading failed.
+///
+/// Called once from the root node's `ready`.
+pub fn load_default_font(r: &mut dyn RenderingServer) -> bool {
+    let path = font_path();
+    let loaded = std::fs::read(&path)
+        .map_err(|e| e.to_string())
+        .and_then(|bytes| r.create_font(&bytes).map_err(|e| e.to_string()));
+    match loaded {
+        Ok(id) => {
+            r.set_default_font(Some(id));
+            true
+        }
+        Err(e) => {
+            eprintln!(
+                "⚠️  Failed to load {}: {e}. Falling back to default font.",
+                path.display()
+            );
+            false
+        }
+    }
 }

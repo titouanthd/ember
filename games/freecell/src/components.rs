@@ -20,7 +20,8 @@ impl Suit {
         }
     }
 
-    /// Unicode symbol. Must be verified against macroquad's default font.
+    /// Unicode symbol. Needs a font with these glyphs (DejaVu Sans Mono,
+    /// loaded by `fonts::load_default_font`).
     pub fn symbol(self) -> char {
         match self {
             Suit::Spade => '♠',
