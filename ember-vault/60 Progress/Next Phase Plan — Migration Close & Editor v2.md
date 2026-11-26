@@ -125,7 +125,7 @@ The gaps below come from a grep of what the remaining games use. Each one lands 
 |---|---|---|---|
 | Camera offset + zoom ✅ `dfa8b04` | pagoda, taiji, editor preview (ember-wars already scrolls with its own camera and `set_camera(offset)`) | `set_camera(Camera2d { offset, zoom })` + `DrawContext::world_to_screen` | ADR-040 (M1.4) |
 | **Virtual resolution / letterbox** ✅ `ef68ce5` | pagoda, taiji (both render to a `render_target` of a fixed size and scale it to the window) | `SceneLoop` / backend option `VirtualResolution { w, h, filter }`: draw at a fixed size, scaled and letterboxed into the window; mouse mapped back. As built: `with_virtual_resolution(w, h)` with vector scaling through `Camera2d`, so no render target and no `filter` | ADR-041 |
-| **Shapes** | zhuo-ji, jade-garden (`draw_poly`, `draw_poly_lines`, `draw_arc`, `draw_ellipse`), pagoda (`draw_arc`) | `draw_polygon(points)`, `draw_regular_polygon(center, sides, radius, rotation)`, `draw_arc`, `draw_ellipse` (+ outline variants) on `RenderingServer`; mock records them | ADR-042 |
+| **Shapes** ✅ `20a1c21` | zhuo-ji, jade-garden (`draw_poly`, `draw_poly_lines`, `draw_arc`, `draw_ellipse`), pagoda (`draw_arc`) | `draw_polygon(points)`, `draw_regular_polygon(center, sides, radius, rotation)`, `draw_arc`, `draw_ellipse` (+ outline variants) on `RenderingServer`; mock records them | ADR-042 |
 | **Looping audio / music** | bore-inc, jade-garden (`ember_stdlib::music`), pagoda | `AudioServer::play_looped` / `set_volume(SoundId)`; music becomes a looped clip | ADR-043 |
 | **Window size at runtime** | accretion, jade-garden, bore-inc, ember-wars (`screen_width()` / `screen_height()` 20+ times each) | `NodeContext::viewport()` / `DrawContext::viewport()` (the size `SceneLoop` already knows) + a `ViewportResized` signal for resizable windows | ADR-044 |
 | Sprite drawing options | bore-inc, pagoda, taiji (`draw_texture_ex`: source rect, size, rotation, flip) | check `draw_sprite(texture, dst, src, tint)` covers it; add rotation / flip only if a game needs them | (in ADR-042 if needed) |
@@ -144,7 +144,7 @@ Suggested order: small games first, each one landing the engine feature the next
 | Round | Game | Size | Needs | Est. | Notes |
 |---|---|---:|---|---:|---|
 | 1 | **taiji** ✅ `60ba747` | 0.7 k lines, 0 tests | ADR-040, ADR-041 | 1 | smallest user of the render-target pattern → proves the letterbox; add a first scenario test |
-| 2 | **pagoda** | 3.4 k, 0 tests | ADR-041, shapes (arc), juice, persistence, sounds | 1.5 | Native + WASM; replace `ember_stdlib::juice` with an engine-typed version (Phase 8 work, pulled forward) |
+| 2 | **pagoda** ✅ `980dc1e` | 3.4 k, 0 tests | ADR-041, shapes (arc), juice, persistence, sounds | 1.5 | Native + WASM; replace `ember_stdlib::juice` with an engine-typed version (Phase 8 work, pulled forward) |
 | 3 | **zhuo-ji** | 9.2 k, 1 test file | ADR-042 shapes, fonts, `layout::centered_rect`, `ui::hit` | 2 | biggest UI-style game; `ui::hit` → `Rect::contains` |
 | 4 | **jade-garden** | 9.7 k, 3 test files | ADR-042, ADR-043, ADR-044, clip, mouse wheel, animation, juice | 2.5 | shipped on itch.io (web) — playtest native **and** web |
 | 5 | **accretion** | 3.7 k, 2 test files | ADR-044, clip, mouse wheel | 1.5 | web storage stays as is |

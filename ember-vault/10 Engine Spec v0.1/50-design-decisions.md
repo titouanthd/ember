@@ -796,7 +796,7 @@ The derive emits exactly:
 
 ## ADR-020: Wasm font/audio loading strategy
 
-**Status:** accepted (v0.1)
+**Status:** accepted (v0.1) — **amended 2026-11-26** (pagoda round, `7bdf040`): on wasm `create_font` now parses the bytes (`load_ttf_font_from_bytes` is synchronous there), and `load_clip` returns the id at once and decodes in a macroquad coroutine; a clip played before it is ready is skipped. Games embed their assets (`include_bytes!`) instead of fetching them. The text below is the original decision.
 
 ### Context
 
@@ -1784,6 +1784,81 @@ no render targets, and `SceneLoop` never learned the window size.
 - Clip rects pushed by nodes are in window pixels (ADR-031), so
   `ember_ui` clipping containers do not line up under a virtual
   resolution yet. No game needs both today.
+
+## ADR-042: Polygon, arc and ellipse shapes
+
+**Status:** accepted (2026-11-26) — M2 of [[Next Phase Plan — Migration Close & Editor v2]]
+
+### Context
+
+The unmigrated games call macroquad's `draw_poly` (11 times),
+`draw_poly_lines` (13), `draw_arc` (1, pagoda) and `draw_ellipse`
+(1, zhuo-ji). `RenderingServer` had rectangles, circles, lines and
+triangles only.
+
+### Decision (`20a1c21`)
+
+- `draw_regular_polygon(center, sides, radius, rotation, color)` and
+  `draw_regular_polygon_outline(…, thickness, color)`;
+- `draw_arc(center, radius, start, sweep, thickness, segments, color)`,
+  where `segments` counts the straight pieces in a full turn;
+- `draw_ellipse(center, radii, rotation, color)` and
+  `draw_ellipse_outline(…, thickness, color)`, with `radii` the
+  semi-axes.
+- **Angles are in radians,** like `draw_rect_rotated`. The macroquad
+  backend converts them to its degrees and maps every shape through the
+  camera (ADR-040). `MockRenderer` records `DrawRegularPolygon`,
+  `DrawArc` and `DrawEllipse` (`thickness: None` when filled).
+
+### Alternatives
+
+- **An arbitrary `draw_polygon(points)`:** no game draws one, and
+  macroquad fills only convex fans. Deferred until a game needs it.
+- **Degrees, to copy call sites verbatim:** the rest of the trait uses
+  radians. Rejected.
+
+### Consequences
+
+- Five more required methods on `RenderingServer`. Only the mock and
+  the macroquad backend implement it.
+- Pagoda's mute icon draws its arcs with `f32::to_radians(-50.0)` etc.
+
+## ADR-046: `ember_stdlib` may use `ember_servers`; engine-typed juice (`fx`)
+
+**Status:** accepted (2026-11-26) — pagoda round; the user chose this over a game-local copy or splitting data from drawing
+
+### Context
+
+`ember_stdlib::juice` (particles, shake, flashes, floating text) uses
+macroquad's `Color` and draw calls. Pagoda, jade-garden and ember-wars
+need it on engine types. The layer rule allowed `ember-stdlib` to depend
+on `ember-core` only, so an engine-typed version could not draw through
+`RenderingServer` there.
+
+### Decision (`9fa73de`)
+
+- **Layer rule:** `ember-stdlib` may depend on `ember-core` **and
+  `ember-servers`** (`xtask/src/check_layers.rs`).
+- **`ember_stdlib::fx`:** the same data and logic as `juice`, on
+  `ember_core::Color`. The draw functions take the renderer first:
+  `draw_particles(r, …)`, `draw_floating_texts`, `draw_shockwaves`,
+  `draw_flashes(r, juice, size)`. Particle `rotation` / `spin` stay in
+  degrees, so ports are mechanical.
+- `juice` stays until jade-garden and ember-wars move to `fx`. It is
+  deleted in Phase 8 (M5).
+
+### Alternatives
+
+- **Data in stdlib, drawing in each game:** keeps the old rule, but
+  three games would repeat the draw code. Rejected.
+- **A game-local copy in pagoda:** a twin that M5 would have to remove.
+  Rejected.
+
+### Consequences
+
+- `fx` and `juice` coexist for a while, with the same tests.
+- Other engine-typed helpers (`Sprite`, `env_color` in M5) can follow
+  the same path.
 
 ## How to add an ADR
 

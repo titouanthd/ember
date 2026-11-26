@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 41 — Migration Guide
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; 11 of 17 games (taiji, pong, simon, snake, memory, minesweeper, freecell, breakout, asteroids, air-hockey, bullet-hell) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
+> **Status:** 🟡 partial — reviewed 2026-11-19; 12 of 17 games (pagoda, taiji, pong, simon, snake, memory, minesweeper, freecell, breakout, asteroids, air-hockey, bullet-hell) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [[40-roadmap]], [[21-ember-scene]]
 
@@ -441,11 +441,25 @@ persistence API lands.
 - As before, there is no quit key; `draw_centered_shadowed` became a
   local `shadowed` helper (black, 2 px).
 
-### 5.11 pagoda
+### 5.11 pagoda — **migrated** (`980dc1e`, 2026-11-26; native + web)
 
-- 112 unit.
-- Custom rendering (blocks with gradients, slicing effects). Good test
-  of `RenderingServer` primitives beyond rectangles.
+- 105 unit tests, unchanged except mechanically (imports, `KeyCode` →
+  `Key`, a test-only `WHITE` import, `scene.rs` → `backdrop.rs`), plus
+  6 new headless `SceneLoop` tests (`tests/scene.rs`).
+- Shape: one root node, `Pagoda`, on an 800 × 600 virtual resolution
+  (ADR-041). The perfect-drop punch is
+  `Camera2d::zoomed_about` (`ba077ad`) on the letterbox camera.
+- Engine work this round:
+  - shapes (ADR-042, `20a1c21`) for the mute icon's arcs;
+  - fonts and clips from bytes on wasm (ADR-020 amended, `7bdf040`);
+  - `ember_stdlib::fx` (ADR-046, `9fa73de`) for the effects.
+- Assets are built in (`include_bytes!`, 840 KB), so native and web load
+  them the same way and `build-web.sh` copies none.
+- `SoundBank` returns `Cue`s that the node plays, so the bank stays
+  testable without audio.
+- `get_time()` became the node's own time counter.
+- Web checked in a browser: fonts (CJK too), drops and slicing, mute,
+  letterbox on resize. Sound was not heard.
 
 ### 5.12 taiji — **migrated** (`60ba747`, 2026-11-26)
 

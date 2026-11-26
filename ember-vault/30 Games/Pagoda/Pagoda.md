@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/pagoda` (`cargo run -p pagoda`) |
 | **Platform** | Native + WASM |
 | **Engine bricks exercised** | One-button stacker, perfect window, ink-wash art, SFX bank, mobile shell |
-| **Engine migration (Phase 7)** | ⬜ not migrated · has juice.rs, audio.rs · needs virtual resolution (ADR-041), arc (ADR-042), juice, sounds — see [[Next Phase Plan — Migration Close & Editor v2]] |
+| **Engine migration (Phase 7)** | ✅ `980dc1e` — one root node on an 800 × 600 virtual resolution; native + web; assets built in; effects on `ember_stdlib::fx` — see [[41-migration-guide#5.11 pagoda — **migrated** (`980dc1e`, 2026-11-26; native + web)|§5.11]] |
 
 ## Documents
 

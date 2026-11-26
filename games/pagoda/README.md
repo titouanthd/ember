@@ -3,7 +3,8 @@
 A one-button precision stacker: drop sliding lacquered tiles onto a pagoda,
 slice the overhang, chase perfect landings, and climb as high as you can.
 
-**Status:** complete (Milestone 5). 112 tests, clippy-clean, native + WASM,
+**Status:** complete (Milestone 5), running on the Ember engine. 111 tests,
+clippy-clean, native + WASM,
 mobile-friendly web shell, procedural SFX. Music is the only missing feature.
 
 **▶ Play in your browser:** the committed bundle is in `dist/web/`. Serve it
@@ -71,9 +72,9 @@ over and gameplay is unaffected. Regenerate it with `tools/subset-font.sh`.
 cargo test -p pagoda
 ```
 
-112 tests. The suite covers slicing, the speed-scaled perfect window, combos,
-camera math, letterbox mapping, WAV headers, and persistence. Clippy and fmt
-are clean.
+111 tests: 105 unit tests (slicing, the speed-scaled perfect window, combos,
+camera math, letterbox mapping, WAV headers, persistence) and 6 headless
+`SceneLoop` runs in `tests/scene.rs`. Clippy and fmt are clean.
 
 ## Layout
 
@@ -90,24 +91,29 @@ games/pagoda/
 │   ├── build-web.sh
 │   ├── generate-sounds.py
 │   └── subset-font.sh
-├── dist/web/              committed browser bundle
+├── dist/web/              browser bundle from build-web.sh (git-ignored)
+├── tests/scene.rs         headless SceneLoop runs
 └── src/
-    ├── main.rs            loop, camera, scene/tile/guide rendering
+    ├── main.rs            calls scene::run()
+    ├── scene.rs           the Pagoda root node: loop, camera punch, drawing
     ├── app.rs             Menu / Playing / GameOver + HUD
     ├── art.rs             lacquered tiles, drop guide
-    ├── scene.rs           procedural ink-wash night
-    ├── ui.rs              signboard, seals, panels
-    ├── audio.rs           SoundBank + event mapping
-    ├── components.rs      Block, Tower, Camera
+    ├── backdrop.rs        procedural ink-wash night
+    ├── ui.rs              signboard, seals, panels, text helpers
+    ├── audio.rs           SoundBank → cues (clips built in)
+    ├── components.rs      Block, SlidingBlock
     ├── controls.rs        Space / Enter / click mapping
-    ├── fonts.rs           DejaVu + Noto subset loader
-    ├── paths.rs           native / web asset paths
+    ├── effects.rs         falling slices on ember_stdlib::fx
+    ├── fonts.rs           DejaVu + Noto subset (built in)
+    ├── paths.rs           asset paths (tests, tools)
     ├── systems.rs         physics, slicing, perfect window
     ├── persistence.rs     best score
     ├── config.rs          GameContext + pigment palette
-    ├── render.rs          letterbox + coordinate mapping
-    └── juice.rs           particles
+    └── render.rs          letterbox math (the engine letterboxes now)
 ```
+
+Fonts and sounds are built into the binary (`include_bytes!`), so the web
+bundle is just `index.html`, `mq_js_bundle.js` and `pagoda.wasm`.
 
 ## Credits
 

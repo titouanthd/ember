@@ -94,6 +94,12 @@ pub trait RenderingServer {
     fn draw_rect_rotated(&mut self, rect: Rect, rotation_radians: f32, color: Color);
     fn draw_circle(&mut self, center: Vec2, radius: f32, color: Color);
     fn draw_circle_outline(&mut self, center: Vec2, radius: f32, thickness: f32, color: Color);
+    // ADR-042 — angles in radians
+    fn draw_regular_polygon(&mut self, center: Vec2, sides: u8, radius: f32, rotation: f32, color: Color);
+    fn draw_regular_polygon_outline(&mut self, center: Vec2, sides: u8, radius: f32, rotation: f32, thickness: f32, color: Color);
+    fn draw_arc(&mut self, center: Vec2, radius: f32, start: f32, sweep: f32, thickness: f32, segments: u8, color: Color);
+    fn draw_ellipse(&mut self, center: Vec2, radii: Vec2, rotation: f32, color: Color);
+    fn draw_ellipse_outline(&mut self, center: Vec2, radii: Vec2, rotation: f32, thickness: f32, color: Color);
     fn draw_line(&mut self, a: Vec2, b: Vec2, thickness: f32, color: Color);
     fn draw_triangle(&mut self, a: Vec2, b: Vec2, c: Vec2, color: Color);
 

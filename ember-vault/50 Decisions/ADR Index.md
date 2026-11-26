@@ -29,7 +29,7 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 017 | [[50-design-decisions#ADR-017: PhysicsServer uses opaque u64 handles, not NodeId\|PhysicsServer uses opaque u64 handles, not NodeId]] | ✅ u64 handles |
 | 018 | [[50-design-decisions\|Input is not non_exhaustive]] (ADR-018) | ✅ |
 | 019 | [[50-design-decisions\|derive(Node) scope in v0.1]] (ADR-019) | ✅ amended by ADR-030 |
-| 020 | [[50-design-decisions#ADR-020: Wasm font/audio loading strategy\|Wasm font/audio loading strategy]] | ✅ `adopt_font`/`adopt_clip` |
+| 020 | [[50-design-decisions#ADR-020: Wasm font/audio loading strategy\|Wasm font/audio loading strategy]] | ✅ `adopt_font`/`adopt_clip`; amended `7bdf040` (bytes load on wasm) |
 | 021 | [[50-design-decisions#ADR-021: Nested folder organization for backend families\|Nested folder organization for backend families]] | ✅ nested backend folders |
 | 022 | [[50-design-decisions#ADR-022: Tree passes take `Servers`; nodes are checked out while they run\|Tree passes take `Servers`; nodes are checked out while they run]] | ✅ |
 | 023 | [[50-design-decisions#ADR-023: One tree-level `SignalTable`; handlers are `Arc`, dispatch lives on `NodeContext`\|One tree-level `SignalTable`; handlers are `Arc`, dispatch lives on `NodeContext`]] | ✅ |
@@ -52,5 +52,7 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 039 | [[50-design-decisions#ADR-039: How a game plugs into the editor\|How a game plugs into the editor]] | ✅ `6aaf9a0` |
 | 040 | [[50-design-decisions#ADR-040: Camera transform (offset + zoom)\|Camera transform (offset + zoom)]] | ✅ `dfa8b04` |
 | 041 | [[50-design-decisions#ADR-041: Virtual resolution with letterbox\|Virtual resolution with letterbox]] | ✅ `ef68ce5` |
+| 042 | [[50-design-decisions#ADR-042: Polygon, arc and ellipse shapes\|Polygon, arc and ellipse shapes]] | ✅ `20a1c21` |
+| 046 | [[50-design-decisions#ADR-046: `ember_stdlib` may use `ember_servers`; engine-typed juice (`fx`)\|stdlib may use servers; `fx`]] | ✅ `9fa73de` |
 
 New ADRs: copy [[ADR Template]].

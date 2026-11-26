@@ -95,7 +95,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] asteroids *(`f03a117`: root node, keyboard only, seeded `Rng`; `main.rs` 5 lines; no macroquad; 7 `SceneLoop` tests)*
 - [x] air-hockey *(`66987a2`: root node, engine `Input`, `AudioServer` sounds, engine font; `main.rs` 5 lines; no macroquad; 6 `SceneLoop` tests)*
 - [x] bullet-hell *(`8b27a11`: root node, keyboard only; `main.rs` 5 lines; no macroquad; tests untouched; 6 `SceneLoop` tests)*
-- [ ] pagoda
+- [x] pagoda *(`980dc1e`: root node on a virtual resolution; native + web; `main.rs` 5 lines; no macroquad; 105 unit + 6 `SceneLoop` tests)*
 - [x] taiji *(`60ba747`: root node on a virtual resolution (ADR-041); `main.rs` 5 lines; no macroquad; 7 scenario + 4 `SceneLoop` tests)*
 - [ ] zhuo-ji
 - [ ] bore-inc
@@ -130,6 +130,8 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 ## Engine gaps (M2, one ADR each)
 - [x] ADR-040 camera offset + zoom *(`dfa8b04`)*
 - [x] ADR-041 virtual resolution / letterbox (pagoda, taiji) *(`ef68ce5`)*
-- [ ] ADR-042 shapes: polygon, regular polygon, arc, ellipse (zhuo-ji, jade-garden, pagoda)
+- [x] ADR-042 shapes: polygon, regular polygon, arc, ellipse (zhuo-ji, jade-garden, pagoda) *(`20a1c21`; arbitrary polygon deferred)*
+- [x] fonts and clips from bytes on wasm (ADR-020 amended) *(`7bdf040`)*
+- [x] ADR-046 `ember_stdlib::fx`, engine-typed juice; stdlib may use servers *(`9fa73de`)*
 - [ ] ADR-043 looping audio / music (bore-inc, jade-garden, pagoda)
 - [ ] ADR-044 runtime window size + resize signal (accretion, jade-garden, bore-inc, ember-wars)
