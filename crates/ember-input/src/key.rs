@@ -88,6 +88,8 @@ pub enum Key {
     /// Modifiers, as plain keys (held for "focus" / "run" style actions).
     LeftShift,
     RightShift,
+    LeftControl,
+    RightControl,
 
     /// Punctuation. `Semicolon` is the physical key right of `L` on a
     /// US layout (where `M` sits on AZERTY).
