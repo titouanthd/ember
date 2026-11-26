@@ -19,6 +19,7 @@ generated: "2026-11-22"
 
 - README (in the repo, outside the vault): `games/pagoda/README.md`. Credits (fonts, music) are in that README.
 - [[Pagoda — Design]]
+- [[Pagoda — itch.io Page]]: store page data and media, ready to upload
 
 ## Links
 
