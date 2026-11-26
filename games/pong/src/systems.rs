@@ -87,15 +87,18 @@ fn time_seed() -> u32 {
 
 /// Remet les raquettes au centre, scores à zéro, et sert la balle vers la
 /// droite. **Ne touche pas à `match_state.state`** — l'appelant décide.
+///
+/// Chaque raquette est centrée selon **sa** hauteur : les deux peuvent
+/// différer depuis que `scenes/pong.escene` les décrit séparément.
 pub fn reset_match(
     player: &mut Paddle,
     ai: &mut Paddle,
     match_state: &mut MatchState,
     ctx: &GameContext,
 ) {
-    let paddle_y = ctx.screen_h / 2.0 - ctx.paddle_h / 2.0;
-    player.transform.position.y = paddle_y;
-    ai.transform.position.y = paddle_y;
+    for paddle in [&mut *player, &mut *ai] {
+        paddle.transform.position.y = ctx.screen_h / 2.0 - paddle.transform.scale.y / 2.0;
+    }
     player.velocity_y = 0.0;
     ai.velocity_y = 0.0;
     match_state.score_player = 0;

@@ -1,0 +1,64 @@
+(
+    format: 1,
+    uid: "uid://scene_pong",
+    nodes: [
+        (
+            name: "Pong",
+            class: "Pong",
+            properties: {
+                "ai_reaction_time": Float(0.08),
+                "ball_max_speed": Float(1000.0),
+                "ball_speed": Float(600.0),
+                "ball_speed_increment": Float(1.05),
+                "court": Vec2(800.0, 600.0),
+                "paddle_velocity_factor": Float(0.3),
+                "serve_angle_max": Float(0.4),
+                "win_score": Int(5),
+            },
+        ),
+        (
+            name: "PlayerPaddle",
+            class: "Paddle",
+            parent: ".",
+            properties: {
+                "ai": Bool(false),
+                "color": Color(1.0, 1.0, 1.0, 1.0),
+                "position": Vec2(30.0, 260.0),
+                "size": Vec2(15.0, 80.0),
+                "speed": Float(350.0),
+            },
+        ),
+        (
+            name: "AiPaddle",
+            class: "Paddle",
+            parent: ".",
+            properties: {
+                "ai": Bool(true),
+                "color": Color(1.0, 1.0, 1.0, 1.0),
+                "position": Vec2(755.0, 260.0),
+                "size": Vec2(15.0, 80.0),
+                "speed": Float(300.0),
+            },
+        ),
+        (
+            name: "Ball",
+            class: "Ball",
+            parent: ".",
+            properties: {
+                "color": Color(0.7, 0.0, 1.0, 1.0),
+                "position": Vec2(390.0, 290.0),
+                "size": Float(20.0),
+            },
+        ),
+        (
+            name: "Scoreboard",
+            class: "Scoreboard",
+            parent: ".",
+            properties: {
+                "color": Color(1.0, 1.0, 1.0, 1.0),
+                "font_size": Float(48.0),
+                "position": Vec2(400.0, 50.0),
+            },
+        ),
+    ],
+)

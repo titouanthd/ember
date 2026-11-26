@@ -16,7 +16,7 @@ fn env_color(prefix: &str, default: Color) -> Color {
 }
 
 /// Immutable per-run config, loaded once from `.env`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GameContext {
     pub screen_w: f32,
     pub screen_h: f32,
@@ -75,27 +75,36 @@ impl Default for GameContext {
     }
 }
 
+/// The config from `.env`, falling back to the built-in defaults.
 pub fn load_config() -> GameContext {
+    load_config_over(&GameContext::default())
+}
+
+/// The config from `.env`, falling back to `base` for every variable
+/// that is not set. The game passes the values of `scenes/pong.escene`,
+/// so `.env` only overrides what it names.
+pub fn load_config_over(base: &GameContext) -> GameContext {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     load_dotenv_once(&manifest_dir, "Pong");
+    let b = base;
 
     GameContext {
-        screen_w: env_f32("SCREEN_WIDTH", 800.0),
-        screen_h: env_f32("SCREEN_HEIGHT", 600.0),
-        paddle_w: env_f32("PADDLE_WIDTH", 15.0),
-        paddle_h: env_f32("PADDLE_HEIGHT", 80.0),
-        ball_size: env_f32("BALL_SIZE", 20.0),
-        base_speed: env_f32("BALL_SPEED", 400.0),
-        max_ball_speed: env_f32("BALL_MAX_SPEED", 1000.0),
-        win_score: env_i32("WIN_SCORE", 5),
-        player_color: env_color("PLAYER_COLOR", Color::new(1.0, 1.0, 1.0, 1.0)),
-        ai_color: env_color("AI_COLOR", Color::new(1.0, 1.0, 1.0, 1.0)),
-        ball_color: env_color("BALL_COLOR", Color::new(1.0, 0.65, 0.0, 1.0)),
-        ball_speed_increment: env_f32("BALL_SPEED_INCREMENT", 1.05),
-        player_speed: env_f32("PLAYER_SPEED", 350.0),
-        ai_speed: env_f32("AI_SPEED", 300.0),
-        ai_reaction_time: env_f32("AI_REACTION_TIME", 0.08),
-        serve_angle_max: env_f32("SERVE_ANGLE_MAX", 0.4),
-        paddle_velocity_factor: env_f32("PADDLE_VELOCITY_FACTOR", 0.3),
+        screen_w: env_f32("SCREEN_WIDTH", b.screen_w),
+        screen_h: env_f32("SCREEN_HEIGHT", b.screen_h),
+        paddle_w: env_f32("PADDLE_WIDTH", b.paddle_w),
+        paddle_h: env_f32("PADDLE_HEIGHT", b.paddle_h),
+        ball_size: env_f32("BALL_SIZE", b.ball_size),
+        base_speed: env_f32("BALL_SPEED", b.base_speed),
+        max_ball_speed: env_f32("BALL_MAX_SPEED", b.max_ball_speed),
+        win_score: env_i32("WIN_SCORE", b.win_score),
+        player_color: env_color("PLAYER_COLOR", b.player_color),
+        ai_color: env_color("AI_COLOR", b.ai_color),
+        ball_color: env_color("BALL_COLOR", b.ball_color),
+        ball_speed_increment: env_f32("BALL_SPEED_INCREMENT", b.ball_speed_increment),
+        player_speed: env_f32("PLAYER_SPEED", b.player_speed),
+        ai_speed: env_f32("AI_SPEED", b.ai_speed),
+        ai_reaction_time: env_f32("AI_REACTION_TIME", b.ai_reaction_time),
+        serve_angle_max: env_f32("SERVE_ANGLE_MAX", b.serve_angle_max),
+        paddle_velocity_factor: env_f32("PADDLE_VELOCITY_FACTOR", b.paddle_velocity_factor),
     }
 }

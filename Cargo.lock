@@ -831,6 +831,8 @@ dependencies = [
  "ember",
  "ember-core",
  "ember-input",
+ "ember-macros",
+ "ember-scene",
  "ember-servers",
  "ember-stdlib",
  "glam",
