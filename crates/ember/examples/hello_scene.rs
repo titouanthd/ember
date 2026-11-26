@@ -78,7 +78,8 @@ impl Node for Player {
     }
 }
 
-fn main() {
+/// The demo scene, generic over the backends so a test can run it on mocks.
+fn build_scene<R: RenderingServer, A: AudioServer>(rendering: R, audio: A) -> SceneLoop<R, A> {
     let mut tree = NodeTree::with_root(Root::new());
     let root = tree.root().expect("root");
     let player = tree.insert(Player {
@@ -88,11 +89,73 @@ fn main() {
     tree.attach(player, root).expect("attach");
 
     let viewport = Rect::new(0.0, 0.0, 800.0, 600.0);
-    let scene = SceneLoop::new(
-        tree,
-        MacroquadRenderer::new(),
-        MacroquadAudio::new(),
-        viewport,
-    );
+    SceneLoop::new(tree, rendering, audio, viewport)
+}
+
+fn main() {
+    let scene = build_scene(MacroquadRenderer::new(), MacroquadAudio::new());
     run_window("hello_scene", 800, 600, scene);
+}
+
+// Phase 1 exit criterion, checked headless: the same scene, on mock
+// backends, draws the player and moves it with the arrow keys
+// (`cargo test -p ember --example hello_scene`; part of the workspace run).
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ember_servers::{MockAudio, MockRenderer, RecordedCall};
+
+    const ORANGE: Color = Color::rgb(1.0, 0.45, 0.1);
+
+    /// The player squares drawn in the last frame.
+    fn drawn(scene: &SceneLoop<MockRenderer, MockAudio>) -> Vec<Rect> {
+        scene
+            .rendering()
+            .calls()
+            .iter()
+            .filter_map(|c| match c {
+                RecordedCall::DrawRect { rect, color, .. } if *color == ORANGE => Some(*rect),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn frame(scene: &mut SceneLoop<MockRenderer, MockAudio>, dt: f32) -> bool {
+        scene.rendering_mut().clear_calls();
+        let running = scene.process(dt);
+        scene.draw();
+        scene.rendering().assert_frame_closed();
+        running
+    }
+
+    #[test]
+    fn renders_the_player_square() {
+        let mut scene = build_scene(MockRenderer::new(), MockAudio::new());
+        assert!(scene.init());
+        assert!(frame(&mut scene, 1.0 / 60.0));
+        assert_eq!(drawn(&scene), vec![Rect::new(100.0, 100.0, 48.0, 48.0)]);
+    }
+
+    #[test]
+    fn arrow_keys_move_the_player() {
+        let mut scene = build_scene(MockRenderer::new(), MockAudio::new());
+        assert!(scene.init());
+        scene.input_mut().keys_down = vec![Key::Right, Key::Down];
+        for _ in 0..30 {
+            assert!(frame(&mut scene, 1.0 / 60.0));
+        }
+        let r = drawn(&scene)[0];
+        // Half a second at 240 px/s along the normalised diagonal.
+        let step = 120.0 / 2f32.sqrt();
+        assert!((r.x - (100.0 + step)).abs() < 1e-3, "x = {}", r.x);
+        assert!((r.y - (100.0 + step)).abs() < 1e-3, "y = {}", r.y);
+    }
+
+    #[test]
+    fn escape_quits() {
+        let mut scene = build_scene(MockRenderer::new(), MockAudio::new());
+        assert!(scene.init());
+        scene.input_mut().keys_pressed = vec![Key::Escape];
+        assert!(!frame(&mut scene, 1.0 / 60.0));
+    }
 }
