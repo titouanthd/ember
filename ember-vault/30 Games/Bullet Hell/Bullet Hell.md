@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/bullet-hell` (`cargo run -p bullet-hell`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | Data-driven waves, 4 emitters, graze multiplier, screen shake, hitstop |
-| **Engine migration (Phase 7)** | ⬜ not migrated |
+| **Engine migration (Phase 7)** | ✅ migrated `8b27a11` — `src/scene.rs`: `BulletHellGame` root node drawing bullets, enemies and ship through the `RenderingServer`; Shift focus via the new `Key::LeftShift` / `RightShift`; no macroquad |
 
 ## Documents
 

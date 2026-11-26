@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 41 — Migration Guide
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; 9 of 17 games (pong, simon, snake, memory, minesweeper, freecell, breakout, asteroids, air-hockey) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
+> **Status:** 🟡 partial — reviewed 2026-11-19; 10 of 17 games (pong, simon, snake, memory, minesweeper, freecell, breakout, asteroids, air-hockey, bullet-hell) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [[40-roadmap]], [[21-ember-scene]]
 
@@ -419,11 +419,18 @@ persistence API lands.
   so it never showed. `high_dpi` is not configurable through
   `run_window`.
 
-### 5.10 bullet-hell
+### 5.10 bullet-hell — **migrated** (`8b27a11`, 2026-11-26)
 
-- 34 unit + 11 scenario.
-- Many bullets (300+). Good stress test of the renderer's sprite
-  batching.
+- 34 unit + 11 scenario (unchanged — they never touched macroquad) + 6
+  headless `SceneLoop` tests (`games/bullet-hell/tests/scene.rs`).
+- Result: `src/scene.rs`, one `BulletHellGame` root node (keyboard only).
+  Bullets are circles drawn by the root node, not nodes; 300+ bullets is
+  300+ `draw_circle` + `draw_circle_outline` calls per frame, no sprite
+  batching needed yet.
+- Engine: `Key::LeftShift` / `Key::RightShift` added (`c6d3055`) for
+  focus mode.
+- As before, there is no quit key; `draw_centered_shadowed` became a
+  local `shadowed` helper (black, 2 px).
 
 ### 5.11 pagoda
 

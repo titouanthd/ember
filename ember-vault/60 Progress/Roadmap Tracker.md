@@ -22,7 +22,7 @@ gantt
   P5 UI (done)           :done, p5, 2026-11-22, 3d
   P6 Editor (done)       :done, p6, 2026-11-24, 1d
   section Application
-  P7 Migration (9/17)    :active, p7, 2026-11-18, 13d
+  P7 Migration (10/17)    :active, p7, 2026-11-18, 13d
   P8 Cleanup (0%)        :p8, after p7, 1d
 ```
 
@@ -92,7 +92,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] breakout *(`ee84048`: root node, keyboard only; `main.rs` 5 lines; no macroquad; 6 `SceneLoop` tests)*
 - [x] asteroids *(`f03a117`: root node, keyboard only, seeded `Rng`; `main.rs` 5 lines; no macroquad; 7 `SceneLoop` tests)*
 - [x] air-hockey *(`66987a2`: root node, engine `Input`, `AudioServer` sounds, engine font; `main.rs` 5 lines; no macroquad; 6 `SceneLoop` tests)*
-- [ ] bullet-hell
+- [x] bullet-hell *(`8b27a11`: root node, keyboard only; `main.rs` 5 lines; no macroquad; tests untouched; 6 `SceneLoop` tests)*
 - [ ] pagoda
 - [ ] taiji
 - [ ] zhuo-ji
