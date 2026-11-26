@@ -1,80 +1,87 @@
-//! Sound bank. Wraps `ember_stdlib::audio::AudioClip`.
+//! Sound bank: one optional clip per game event, loaded into the
+//! engine's `AudioServer`.
 //!
-//! Every clip is optional: if a `.wav` file is missing, `load` returns
+//! Every clip is optional: if a `.wav` file is missing, `load` records
 //! `None` for that slot and the game runs silently. This is intentional —
 //! the repo does not ship binary assets in git, and the game must be
 //! playable from a fresh checkout.
 
 use std::path::Path;
 
-use ember_stdlib::audio::AudioClip;
+use ember::prelude::AudioServer;
+use ember_servers::AudioClipId;
 
 use crate::systems::GameEvent;
 
 /// All clips the game can play.
 pub struct SoundBank {
-    wall: Option<AudioClip>,
-    paddle_soft: Option<AudioClip>,
-    paddle_hard: Option<AudioClip>,
-    goal: Option<AudioClip>,
-    beep: Option<AudioClip>,
-    beep_go: Option<AudioClip>,
-    round_win: Option<AudioClip>,
-    match_win: Option<AudioClip>,
+    wall: Option<AudioClipId>,
+    paddle_soft: Option<AudioClipId>,
+    paddle_hard: Option<AudioClipId>,
+    goal: Option<AudioClipId>,
+    beep: Option<AudioClipId>,
+    beep_go: Option<AudioClipId>,
+    round_win: Option<AudioClipId>,
+    match_win: Option<AudioClipId>,
 }
 
 impl SoundBank {
     /// Load every clip from `<manifest_dir>/assets/`. Missing files are
     /// recorded as `None` and the corresponding event is a no-op.
-    pub async fn load(manifest_dir: &Path) -> Self {
+    pub fn load(manifest_dir: &Path, audio: &mut dyn AudioServer) -> Self {
         let dir = manifest_dir.join("assets");
-        async fn try_load(dir: &Path, name: &str) -> Option<AudioClip> {
-            AudioClip::load_optional(&dir.join(name)).await
-        }
+        let mut try_load = |name: &str| -> Option<AudioClipId> {
+            let bytes = std::fs::read(dir.join(name)).ok()?;
+            match audio.load_clip(&bytes) {
+                Ok(id) => Some(id),
+                Err(e) => {
+                    eprintln!("⚠️  Failed to decode {name}: {e}");
+                    None
+                }
+            }
+        };
         Self {
-            wall: try_load(&dir, "wall.wav").await,
-            paddle_soft: try_load(&dir, "paddle_soft.wav").await,
-            paddle_hard: try_load(&dir, "paddle_hard.wav").await,
-            goal: try_load(&dir, "goal.wav").await,
-            beep: try_load(&dir, "beep.wav").await,
-            beep_go: try_load(&dir, "beep_go.wav").await,
-            round_win: try_load(&dir, "round.wav").await,
-            match_win: try_load(&dir, "match.wav").await,
+            wall: try_load("wall.wav"),
+            paddle_soft: try_load("paddle_soft.wav"),
+            paddle_hard: try_load("paddle_hard.wav"),
+            goal: try_load("goal.wav"),
+            beep: try_load("beep.wav"),
+            beep_go: try_load("beep_go.wav"),
+            round_win: try_load("round.wav"),
+            match_win: try_load("match.wav"),
         }
     }
 
-    /// Play the sound associated with a game event, if any.
-    pub fn on_event(&self, ev: GameEvent) {
+    /// The clip and volume for a game event, if that clip is loaded. The
+    /// caller plays it (`AudioServer::play`).
+    pub fn on_event(&self, ev: GameEvent) -> Option<(AudioClipId, f32)> {
         match ev {
-            GameEvent::Wall => self.play(&self.wall, 0.5),
+            GameEvent::Wall => self.sound(&self.wall, 0.5),
             GameEvent::Paddle { impact_speed } => {
                 // 900 px/s is the same boundary used by `systems::HARD_HIT_SPEED`.
                 if impact_speed > 900.0 {
-                    self.play(&self.paddle_hard, 0.9);
+                    self.sound(&self.paddle_hard, 0.9)
                 } else {
-                    self.play(&self.paddle_soft, 0.6);
+                    self.sound(&self.paddle_soft, 0.6)
                 }
             }
-            GameEvent::Goal(_) => self.play(&self.goal, 1.0),
-            GameEvent::CountdownBeep => self.play(&self.beep, 0.7),
-            GameEvent::CountdownGo => self.play(&self.beep_go, 1.0),
-            GameEvent::RoundWon(_) => self.play(&self.round_win, 0.9),
-            GameEvent::MatchWon(_) => self.play(&self.match_win, 1.0),
+            GameEvent::Goal(_) => self.sound(&self.goal, 1.0),
+            GameEvent::CountdownBeep => self.sound(&self.beep, 0.7),
+            GameEvent::CountdownGo => self.sound(&self.beep_go, 1.0),
+            GameEvent::RoundWon(_) => self.sound(&self.round_win, 0.9),
+            GameEvent::MatchWon(_) => self.sound(&self.match_win, 1.0),
         }
     }
 
-    fn play(&self, clip: &Option<AudioClip>, volume: f32) {
-        if let Some(c) = clip {
-            c.play_at(volume);
-        }
+    fn sound(&self, clip: &Option<AudioClipId>, volume: f32) -> Option<(AudioClipId, f32)> {
+        clip.map(|c| (c, volume))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // `AudioClip::load` requires an active macroquad context, so we cannot
-    // construct a `SoundBank` in unit tests. What we *can* test is that the
-    // event → slot mapping is total (no event is silently dropped) by
+    // Loading needs an `AudioServer`, so this builds an empty `SoundBank`
+    // by hand. What we *can* test is that the event → slot mapping is total (no event is silently dropped) by
     // exhaustively matching on `GameEvent`. If a new variant is added and
     // not handled, this test stops compiling.
     use super::*;

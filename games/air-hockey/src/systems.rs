@@ -6,10 +6,9 @@
 //! that `main.rs` translates into audio; the state machine itself is fully
 //! self-contained (events never need to be fed back in).
 
+use ember::prelude::{Input, Key};
 use ember_core::rng::Rng;
-use ember_stdlib::input::Input;
 use glam::Vec2;
-use macroquad::prelude::KeyCode;
 
 use crate::ai::AiState;
 use crate::components::{Paddle, Puck, Side, Trail};
@@ -124,16 +123,16 @@ const HARD_HIT_SPEED: f32 = 900.0;
 // Player 1 controls. We map **both** the QWERTY position and the AZERTY
 // physical key, so the game is playable on either layout without a setting.
 // `W` (QWERTY pos) and `Z` (AZERTY label) share position 1,2 — see DESIGN §4.
-const P1_UP: &[KeyCode] = &[KeyCode::W, KeyCode::Z];
-const P1_DOWN: &[KeyCode] = &[KeyCode::S];
-const P1_LEFT: &[KeyCode] = &[KeyCode::A, KeyCode::Q];
-const P1_RIGHT: &[KeyCode] = &[KeyCode::D];
+const P1_UP: &[Key] = &[Key::W, Key::Z];
+const P1_DOWN: &[Key] = &[Key::S];
+const P1_LEFT: &[Key] = &[Key::A, Key::Q];
+const P1_RIGHT: &[Key] = &[Key::D];
 
 // Player 2 uses arrows, which are layout-stable.
-const P2_UP: &[KeyCode] = &[KeyCode::Up];
-const P2_DOWN: &[KeyCode] = &[KeyCode::Down];
-const P2_LEFT: &[KeyCode] = &[KeyCode::Left];
-const P2_RIGHT: &[KeyCode] = &[KeyCode::Right];
+const P2_UP: &[Key] = &[Key::Up];
+const P2_DOWN: &[Key] = &[Key::Down];
+const P2_LEFT: &[Key] = &[Key::Left];
+const P2_RIGHT: &[Key] = &[Key::Right];
 
 /// Full game state.
 pub struct Game {
@@ -196,7 +195,7 @@ impl Game {
         self.shake_offset = self.shake.current();
 
         // 2. Pause toggle. Only meaningful in Playing.
-        if matches!(self.phase, Phase::Playing) && input.is_key_pressed(KeyCode::P) {
+        if matches!(self.phase, Phase::Playing) && input.is_key_pressed(Key::P) {
             self.paused = !self.paused;
         }
 
@@ -212,11 +211,11 @@ impl Game {
         let phase = self.phase;
         match phase {
             Phase::Menu => {
-                if input.is_key_pressed(KeyCode::Space) {
+                if input.is_key_pressed(Key::Space) {
                     self.mode = GameMode::Pvp;
                     self.enter_countdown(ctx);
                     events.push(GameEvent::CountdownBeep);
-                } else if input.is_key_pressed(KeyCode::Enter) {
+                } else if input.is_key_pressed(Key::Enter) {
                     self.mode = GameMode::PvAi;
                     self.enter_countdown(ctx);
                     events.push(GameEvent::CountdownBeep);
@@ -316,7 +315,7 @@ impl Game {
             }
 
             Phase::MatchOver { winner } => {
-                if input.is_key_pressed(KeyCode::Space) {
+                if input.is_key_pressed(Key::Space) {
                     self.reset_match(ctx);
                     self.enter_countdown(ctx);
                     events.push(GameEvent::CountdownBeep);
@@ -384,13 +383,7 @@ impl Game {
 }
 
 /// Combine directional keys into a normalized-ish direction vector.
-fn gather_dir(
-    input: &Input,
-    up: &[KeyCode],
-    down: &[KeyCode],
-    left: &[KeyCode],
-    right: &[KeyCode],
-) -> Vec2 {
+fn gather_dir(input: &Input, up: &[Key], down: &[Key], left: &[Key], right: &[Key]) -> Vec2 {
     let mut d = Vec2::ZERO;
     if up.iter().any(|k| input.is_key_down(*k)) {
         d.y -= 1.0;
@@ -421,7 +414,6 @@ pub fn gather_paddles(input: &Input) -> [Vec2; 2] {
 mod tests {
     use super::*;
     use crate::config::GameContext;
-    use macroquad::prelude::KeyCode;
 
     fn ctx() -> GameContext {
         GameContext::default_hermetic()
@@ -442,10 +434,11 @@ mod tests {
             keys_pressed: Vec::new(),
             keys_down: Vec::new(),
             keys_released: Vec::new(),
+            ..Input::default()
         }
     }
 
-    fn input_with(pressed: Vec<KeyCode>, down: Vec<KeyCode>) -> Input {
+    fn input_with(pressed: Vec<Key>, down: Vec<Key>) -> Input {
         let mut i = empty_input();
         i.keys_pressed = pressed;
         i.keys_down = down;
@@ -453,11 +446,11 @@ mod tests {
     }
 
     fn input_space() -> Input {
-        input_with(vec![KeyCode::Space], vec![])
+        input_with(vec![Key::Space], vec![])
     }
 
     fn input_p() -> Input {
-        input_with(vec![KeyCode::P], vec![])
+        input_with(vec![Key::P], vec![])
     }
 
     /// Build a game that is already in `Playing`.

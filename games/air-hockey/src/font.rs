@@ -1,33 +1,41 @@
 //! Font loading: DejaVu Sans Mono for accents and typographic dashes.
 //!
-//! macroquad's default font (ProggyClean.ttf) is a bitmap that only covers
-//! basic ASCII up to ~32 px. French accents (é, è, ê) and typographic
-//! dashes (—, –) render as tofu (□), and large sizes refuse to draw at all.
-//! We load DejaVu Sans Mono, which covers Latin-1 and general punctuation,
-//! and set it as the global default font.
+//! The backend's built-in font is a bitmap that only covers basic ASCII.
+//! French accents (é, è, ê) and typographic dashes (—, –) would render as
+//! tofu (□). We load DejaVu Sans Mono, which covers Latin-1 and general
+//! punctuation, and make it the renderer's default font.
 //!
-//! Call `load_default_font()` once in `main()` before any text rendering.
+//! Called once from the root node's `ready`.
 
 use std::path::PathBuf;
 
-use macroquad::prelude::*;
+use ember::prelude::RenderingServer;
 
-/// Load DejaVu Sans Mono from `assets/DejaVuSansMono.ttf` and set it as
-/// the global default font. Returns the font for later use, or `None`
-/// if loading failed (in which case the default font is kept).
-pub async fn load_default_font() -> Option<Font> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+/// `assets/DejaVuSansMono.ttf` next to Air Hockey's manifest.
+pub fn font_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
-        .join("DejaVuSansMono.ttf");
-    let path_str = path.to_str()?;
-    match load_ttf_font(path_str).await {
-        Ok(font) => {
-            set_default_font(font.clone());
-            Some(font)
+        .join("DejaVuSansMono.ttf")
+}
+
+/// Load DejaVu Sans Mono and make it the default font. Returns `false`
+/// (keeping the built-in font) if loading failed.
+pub fn load_default_font(r: &mut dyn RenderingServer) -> bool {
+    let path = font_path();
+    let loaded = std::fs::read(&path)
+        .map_err(|e| e.to_string())
+        .and_then(|bytes| r.create_font(&bytes).map_err(|e| e.to_string()));
+    match loaded {
+        Ok(id) => {
+            r.set_default_font(Some(id));
+            true
         }
         Err(e) => {
-            eprintln!("⚠️  Failed to load {path:?}: {e}. Falling back to default font.");
-            None
+            eprintln!(
+                "⚠️  Failed to load {}: {e}. Falling back to default font.",
+                path.display()
+            );
+            false
         }
     }
 }

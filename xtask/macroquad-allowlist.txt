@@ -21,7 +21,6 @@ crates/ember-stdlib/src/ui/
 
 # --- games (Phase 7: remove each line as the game migrates) ---------
 games/accretion/
-games/air-hockey/
 games/bore-inc/
 games/bullet-hell/
 games/ember-wars/

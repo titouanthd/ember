@@ -15,9 +15,8 @@
 
 use air_hockey::components::Side;
 use air_hockey::{Game, GameContext, GameEvent, Phase};
-use ember_stdlib::input::Input;
+use ember::prelude::{Input, Key};
 use glam::Vec2;
-use macroquad::prelude::KeyCode;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -40,12 +39,13 @@ fn empty_input() -> Input {
         keys_pressed: Vec::new(),
         keys_down: Vec::new(),
         keys_released: Vec::new(),
+        ..Input::default()
     }
 }
 
 fn input_space() -> Input {
     let mut i = empty_input();
-    i.keys_pressed = vec![KeyCode::Space];
+    i.keys_pressed = vec![Key::Space];
     i
 }
 
@@ -229,7 +229,7 @@ fn test_paddle_confined_to_half() {
 
     // Push J1 to the right as hard as we can for a full second.
     let mut input = empty_input();
-    input.keys_down = vec![KeyCode::D];
+    input.keys_down = vec![Key::D];
     for _ in 0..60 {
         g.update(&input, &c, 1.0 / 60.0);
     }
@@ -241,7 +241,7 @@ fn test_paddle_confined_to_half() {
 
     // Push J2 to the left as hard as we can.
     let mut input = empty_input();
-    input.keys_down = vec![KeyCode::Left];
+    input.keys_down = vec![Key::Left];
     for _ in 0..60 {
         g.update(&input, &c, 1.0 / 60.0);
     }
@@ -304,7 +304,7 @@ fn test_puck_gets_paddle_velocity() {
 
     // Slide paddle 1 hard to the right to build up speed.
     let mut input = empty_input();
-    input.keys_down = vec![KeyCode::D];
+    input.keys_down = vec![Key::D];
     for _ in 0..15 {
         g.update(&input, &c, 1.0 / 60.0);
     }
@@ -329,7 +329,7 @@ fn test_pause_freezes_physics() {
 
     // Toggle pause.
     let mut p_input = empty_input();
-    p_input.keys_pressed = vec![KeyCode::P];
+    p_input.keys_pressed = vec![Key::P];
     g.update(&p_input, &c, 1.0 / 60.0);
     assert!(g.paused);
 
