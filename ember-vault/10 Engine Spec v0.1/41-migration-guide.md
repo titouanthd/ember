@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 41 — Migration Guide
 
-> **Status:** 🟡 partial — reviewed 2026-11-19; 10 of 17 games (pong, simon, snake, memory, minesweeper, freecell, breakout, asteroids, air-hockey, bullet-hell) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
+> **Status:** 🟡 partial — reviewed 2026-11-19; 11 of 17 games (taiji, pong, simon, snake, memory, minesweeper, freecell, breakout, asteroids, air-hockey, bullet-hell) migrated to `NodeTree`/`SceneLoop`; the recipe is a plan and diverges from what pong needed (see §5.2)
 > **Audience:** implementers, game authors
 > **Prerequisites:** [[40-roadmap]], [[21-ember-scene]]
 
@@ -447,10 +447,21 @@ persistence API lands.
 - Custom rendering (blocks with gradients, slicing effects). Good test
   of `RenderingServer` primitives beyond rectangles.
 
-### 5.12 taiji
+### 5.12 taiji — **migrated** (`60ba747`, 2026-11-26)
 
-- Various unit tests.
-- Match state machine, good test of `GameState`.
+- 7 scenario + 4 headless `SceneLoop` tests. These are the game's first
+  tests: `render.rs`'s 2 letterbox tests moved to `ember_servers::Camera2d`.
+- Shape: one root node, `Taiji`, keyboard only, on an 800 × 600
+  **virtual resolution** (ADR-041, `ef68ce5`), which replaces the
+  macroquad render target and letterbox blit.
+- Changes: `App::update` returns `false` to quit (was
+  `std::process::exit`); `App::draw` takes a `RenderingServer` with a
+  local `centered()` (was `ember_stdlib::graphics::text::draw_centered`);
+  macroquad's `BLACK` / `DARKGRAY` / `WHITE` values copied into
+  `config.rs`. The canvas background is a full-canvas white rect, because
+  `set_clear_color` would paint over the bars.
+- Logic unchanged, quirks included: the ball is drawn as a circle centred
+  on `transform.position`, while its AABB treats that point as a corner.
 
 ### 5.13 zhuo-ji
 

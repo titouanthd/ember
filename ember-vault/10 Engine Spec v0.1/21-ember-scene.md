@@ -536,6 +536,11 @@ impl<R, A> SceneLoop<R, A> {
     pub fn audio(&self) -> &A;
     pub fn physics_mut(&mut self) -> &mut LinearPhysics;
     pub fn request_quit(&mut self);
+    // ADR-041
+    pub fn with_virtual_resolution(self, width: f32, height: f32) -> Self;
+    pub fn set_virtual_resolution(&mut self, v: Option<VirtualResolution>);
+    pub fn window_size(&self) -> Vec2;
+    pub fn screen_camera(&self) -> Camera2d;
 }
 ```
 

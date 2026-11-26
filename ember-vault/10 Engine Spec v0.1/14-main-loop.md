@@ -44,6 +44,9 @@ pub trait MainLoop {
 
     /// Called once before shutdown. Best-effort.
     fn finalize(&mut self) {}
+
+    /// The window size: before the first frame, then on change (ADR-041).
+    fn resize(&mut self, width: f32, height: f32) {}
 }
 ```
 

@@ -1728,6 +1728,63 @@ pagoda, taiji and ember-wars need a zoom to leave macroquad's own camera.
   Save then writes. Pong's `ready` writes back the same values.
 - ADR-041 (virtual resolution / letterbox) can build on `Camera2d`.
 
+## ADR-041: Virtual resolution with letterbox
+
+**Status:** accepted (2026-11-26) — M2 of [[Next Phase Plan — Migration Close & Editor v2]]; builds on ADR-040
+
+### Context
+
+Taiji and pagoda draw into a macroquad `render_target` of a fixed size,
+then scale it into a resizable window with black bars. The engine had
+no render targets, and `SceneLoop` never learned the window size.
+
+### Decision (`ef68ce5`)
+
+- **`SceneLoop::with_virtual_resolution(w, h)`**, or
+  `set_virtual_resolution(Option<VirtualResolution { size, bars }>)`.
+  Nodes draw on a `w × h` canvas, and `viewport()` is that canvas. Each
+  frame the loop:
+  1. clears to `bars` (black);
+  2. sets `Camera2d::letterbox(window, size)`;
+  3. clips to `Camera2d::letterbox_rect(window, size)`;
+  4. draws the tree;
+  5. restores the identity camera.
+- **Input is mapped back:** in `set_input`, `mouse_pos` and every touch
+  position go from window pixels to canvas coordinates. The wheel and
+  keys are unchanged.
+- **`MainLoop::resize(width, height)`**, a no-op by default. The
+  macroquad runner calls it before the first frame and whenever
+  `screen_width()` / `screen_height()` change. Without a virtual
+  resolution, `SceneLoop` only records the size; viewport tracking is
+  ADR-044's job.
+- **No render target:** scaling is done per draw call through the
+  camera (vector scaling). There is no `filter` option, because nothing
+  is resampled.
+
+### Alternatives
+
+- **Render targets on `RenderingServer` (`create_render_target`, draw
+  into it, blit):** this is what the games did, but it needs a new
+  resource type on both backends and on the mock. Rejected while vector
+  scaling is enough. It can be added later if a game needs pixel-art
+  filtering.
+- **Track the window inside `Input`:** the window size is not input.
+  Rejected.
+
+### Consequences
+
+- Shapes and text stay sharp at any window size. Text rounds its scaled
+  size to whole pixels.
+- **A node must not call `set_clear_color`** under a virtual resolution:
+  it would paint over the bars. Draw a full-canvas rect instead (taiji
+  does).
+- A node that sets its own camera replaces the letterbox. To scroll,
+  build on `ctx.camera()`: `Camera2d { offset: base.offset + scroll,
+  ..base }`.
+- Clip rects pushed by nodes are in window pixels (ADR-031), so
+  `ember_ui` clipping containers do not line up under a virtual
+  resolution yet. No game needs both today.
+
 ## How to add an ADR
 
 1. Copy the template:

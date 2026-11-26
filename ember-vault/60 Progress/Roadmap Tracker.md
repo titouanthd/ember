@@ -96,7 +96,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] air-hockey *(`66987a2`: root node, engine `Input`, `AudioServer` sounds, engine font; `main.rs` 5 lines; no macroquad; 6 `SceneLoop` tests)*
 - [x] bullet-hell *(`8b27a11`: root node, keyboard only; `main.rs` 5 lines; no macroquad; tests untouched; 6 `SceneLoop` tests)*
 - [ ] pagoda
-- [ ] taiji
+- [x] taiji *(`60ba747`: root node on a virtual resolution (ADR-041); `main.rs` 5 lines; no macroquad; 7 scenario + 4 `SceneLoop` tests)*
 - [ ] zhuo-ji
 - [ ] bore-inc
 - [ ] jade-garden
@@ -128,8 +128,8 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [ ] a second game opens with `make edit GAME=…`
 
 ## Engine gaps (M2, one ADR each)
-- [ ] ADR-040 camera offset + zoom
-- [ ] ADR-041 virtual resolution / letterbox (pagoda, taiji)
+- [x] ADR-040 camera offset + zoom *(`dfa8b04`)*
+- [x] ADR-041 virtual resolution / letterbox (pagoda, taiji) *(`ef68ce5`)*
 - [ ] ADR-042 shapes: polygon, regular polygon, arc, ellipse (zhuo-ji, jade-garden, pagoda)
 - [ ] ADR-043 looping audio / music (bore-inc, jade-garden, pagoda)
 - [ ] ADR-044 runtime window size + resize signal (accretion, jade-garden, bore-inc, ember-wars)
