@@ -198,6 +198,8 @@ via `create_texture`.
 pub trait AudioServer {
     // === Playback ===
     fn play(&mut self, clip: AudioClipId, volume: f32, pitch: f32) -> SoundId;
+    fn play_looped(&mut self, clip: AudioClipId, volume: f32) -> SoundId; // ADR-043
+    fn is_clip_ready(&self, clip: AudioClipId) -> bool;                    // ADR-043
     fn stop(&mut self, sound: SoundId);
     fn stop_all(&mut self);
 
@@ -217,8 +219,13 @@ pub trait AudioServer {
 }
 ```
 
-*Not yet implemented:* `play_looped`, `is_playing`, `set_muted`/`is_muted`,
-`name`. `play` is infallible.
+*Not yet implemented:* `is_playing`, `set_muted`/`is_muted`,
+`set_volume(SoundId)`, `name`. `play` and `play_looped` are infallible; on
+a clip that is not ready (still decoding on the web) they are skipped.
+`load_clip` takes WAV, Ogg Vorbis or MP3; the native macroquad backend
+decodes MP3 itself and rejects other bytes with a `ServerError`
+(ADR-043). `MockAudio` records `PlayLooped` and can hold a clip back
+with `set_clip_ready`.
 
 ### 5.2 `AudioClipId` and `SoundId`
 

@@ -22,7 +22,7 @@ gantt
   P5 UI (done)           :done, p5, 2026-11-22, 3d
   P6 Editor (done)       :done, p6, 2026-11-24, 1d
   section Application
-  P7 Migration (13/17)    :active, p7, 2026-11-18, 13d
+  P7 Migration (14/17)    :active, p7, 2026-11-18, 13d
   P8 Cleanup (10%)       :p8, after p7, 2d
   section Editor v2
   P9 Editor v2 (0%)      :p9, after p7, 4d
@@ -99,7 +99,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] taiji *(`60ba747`: root node on a virtual resolution (ADR-041); `main.rs` 5 lines; no macroquad; 7 scenario + 4 `SceneLoop` tests)*
 - [x] zhuo-ji *(`614cf30`: root node; viewport follows the window (ADR-041 amendment, `bebe16d`); `main.rs` 5 lines; no macroquad; 188 unit + 10 scenario + 6 `SceneLoop` tests)*
 - [ ] bore-inc
-- [ ] jade-garden
+- [x] jade-garden *(`4ef6142`: root node; viewport follows the window; music on `AudioServer` (ADR-043); native + web; `main.rs` 5 lines; no macroquad; 289 unit + 22 + 1 scenario + 6 `SceneLoop` + 5 music tests)*
 - [ ] accretion
 - [ ] ember-wars → full checklist in [[42-acceptance-tests]]
 
@@ -133,5 +133,6 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] ADR-042 shapes: polygon, regular polygon, arc, ellipse (zhuo-ji, jade-garden, pagoda) *(`20a1c21`; arbitrary polygon deferred)*
 - [x] fonts and clips from bytes on wasm (ADR-020 amended) *(`7bdf040`)*
 - [x] ADR-046 `ember_stdlib::fx`, engine-typed juice; stdlib may use servers *(`9fa73de`)*
-- [ ] ADR-043 looping audio / music (bore-inc, jade-garden, pagoda)
-- [ ] ADR-044 runtime window size + resize signal (accretion, jade-garden, bore-inc, ember-wars)
+- [x] ADR-043 looping audio / music (bore-inc, jade-garden, pagoda) *(`d5ba842`: `play_looped`, `is_clip_ready`, MP3 natively)*
+- [x] ~~ADR-044 runtime window size + resize signal~~ *(covered by the ADR-041 amendment, `bebe16d`: the viewport follows the window; no signal needed)*
+- [x] ADR-047 window options: icon, high DPI *(`45392e9`)*

@@ -509,11 +509,41 @@ persistence API lands.
 - Large. Grid + upgrades + save/load + sprites. The largest single
   migration after `ember-wars` and `jade-garden`.
 
-### 5.15 jade-garden
+### 5.15 jade-garden — **migrated** (`4ef6142`, 2026-11-26; native + web)
 
-- 293 unit + 10+22 scenario.
-- Match-3 with cascades, poem reveals, chapters. The most complex
-  *content* after `ember-wars`.
+- 289 unit + 22 + 1 scenario tests (1 ignored), unchanged except a
+  test-only `WHITE` in `effects.rs`; `main.rs`'s 9 tests moved with the
+  code to `app.rs`. New: 6 headless `SceneLoop` tests (`tests/scene.rs`)
+  and 5 playlist tests on `MockAudio` (`tests/music.rs`).
+- Shape: one root node, `JadeGarden` (`src/scene.rs`), running
+  `AppState` (`src/app.rs`, was `main.rs`): `update(ctx, input, dt)` is
+  the old loop's logic and `draw(gfx, ctx)` its rendering.
+  `with_viewport_following_window`, as zhuo-ji (§5.13).
+- Engine work this round:
+  - looped clips, clip readiness, MP3 natively (ADR-043, `d5ba842`,
+    `a855e43`);
+  - window options (ADR-047, `45392e9`) for the icon;
+  - `Key::LeftControl` / `RightControl` (`51865df`) for the debug
+    buttons.
+- Music: a local `MusicPlayer` plays each track as a looped clip and
+  moves on by timer; `start` / `stop` are applied on its next `tick`, so
+  the state machine stays audio-free. It replaces soloud, the OS-player
+  fallback and `macroquad::audio`. The teaser's two native shrieks keep
+  the OS player (one falls back to an AIFF system sound).
+- Input read inside `draw` moved to `update`: the menu keeps the pointer
+  and Ctrl state from `tick`; `help::scroll` is split from `help::draw`.
+  The scroll speed uses the capped `dt` (was the uncapped frame time).
+- `get_time()` became `clock::time()`, a drawing-only clock the node
+  advances; `screen_width()` in drawing became `gfx.viewport()`;
+  `Game::tick` keeps the viewport from `GameContext`.
+- Built in for the web: fonts, `levels.ron`, `chapitres.ron`, music
+  (9 MB wasm). Native still reads levels and music from `assets/`.
+  `build-web.sh` copies no assets.
+- Kept quirk: on the menu, Escape with the help open closes it and also
+  quits (pinned by a test).
+- Web checked in a browser: start screen, menu, help (wheel scroll,
+  clip, CJK), chapter intro, board at 1400 × 900, hint, selection.
+  Not checked: a completed swap, sound.
 
 ### 5.16 accretion
 

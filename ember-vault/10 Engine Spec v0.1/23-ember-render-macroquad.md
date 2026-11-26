@@ -164,6 +164,8 @@ field-identical to macroquad's.
 ```rust
 pub async fn run<L: MainLoop + InputSink>(game: L);
 pub fn run_window<L: MainLoop + InputSink + 'static>(title: &str, width: i32, height: i32, game: L);
+// ADR-047: title, size, resizable, high_dpi, optional 16/32/64 px icon
+pub fn run_window_with<L: MainLoop + InputSink + 'static>(config: WindowConfig, game: L);
 ```
 
 `run_window` builds the macroquad `Window` and calls `run`. Per frame,

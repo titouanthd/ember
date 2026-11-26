@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/jade-garden` (`cargo run -p jade-garden`) |
 | **Platform** | Native + WASM |
 | **Engine bricks exercised** | Match-3, cascade, Tween/Easing, CJK subset, parallax |
-| **Engine migration (Phase 7)** | ⬜ not migrated · has juice.rs, audio.rs · shipped on web · needs shapes (ADR-042), looping music (ADR-043), window size (ADR-044), clip, juice — see [[Next Phase Plan — Migration Close & Editor v2]] |
+| **Engine migration (Phase 7)** | ✅ `4ef6142` — one root node; screens follow the window; music on `AudioServer` (ADR-043); native + web — see [[41-migration-guide#5.15 jade-garden — **migrated** (`4ef6142`, 2026-11-26; native + web)|§5.15]] |
 
 ## Documents
 

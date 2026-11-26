@@ -45,9 +45,8 @@ Produces `dist/web/`:
 ```
 dist/web/
 ├── index.html
-├── jade-garden.wasm
-├── mq_js_bundle.js
-└── assets/
+├── jade-garden.wasm   (fonts, levels and music are built in)
+└── mq_js_bundle.js
 ```
 
 Serve it locally with any static server:
@@ -115,23 +114,19 @@ runs.
 
 ## Audio backends
 
-### Native
+Music plays through the Ember engine's `AudioServer` (ADR-043): each
+MP3 track is a clip played on a loop, and a small playlist
+(`src/audio.rs`) moves to the next track on a timer — the intro once,
+then the other two in a loop.
 
-Music is played by trying, in order:
+- **Native:** the tracks are read from `assets/`; the engine's audio
+  backend decodes MP3 itself.
+- **Web:** the tracks are built into the wasm binary and the browser
+  decodes them; a track starts once it is decoded.
 
-1. **soloud** (bundled, no external runtime).
-2. **OS-native player**: `afplay` on macOS, `ffplay` or `mpv` on
-   Linux/Windows.
-
-If neither works, the game continues silently. To install a
-fallback on Linux: `apt install ffmpeg` (or `mpv`).
-
-### Web
-
-Music is played via `macroquad::audio` (backed by quad-snd →
-WebAudio). Tracks are preloaded asynchronously before the main
-loop, then played synchronously. MP3 and WAV work in every modern
-browser; OGG is not supported by Safari.
+The Halloween teaser's two shrieks are native-only and played by an OS
+player (`afplay` on macOS, `ffplay` or `mpv` elsewhere); without one
+they are silent.
 
 ## Save file
 
@@ -155,10 +150,9 @@ A `localStorage` bridge is planned but not yet shipped.
 
 ## Development
 
-> **Test status (Session 17.9):** 326 tests pass, **1 fails**
-> (`tests/balance.rs::ai_balance_report`, level `l05`: target 3100 vs AI
-> 2970), and 1 is ignored. `cargo test -p jade-garden` therefore exits
-> non-zero. Use `--no-fail-fast` to run the integration suites anyway.
+> **Test status (engine migration, 2026-11-26):** 324 tests pass and
+> 1 is ignored, including 6 headless scene tests (`tests/scene.rs`) and
+> 5 playlist tests (`tests/music.rs`).
 
 ```sh
 # Unit + integration tests
@@ -264,9 +258,10 @@ domain.
 
 ### Engine
 
-Built with [macroquad](https://macroquad.rs/) and the workspace-local
-crates `ember-core` and `ember-stdlib`. See `Cargo.toml` for the full
-dependency list.
+Runs on the Ember engine as a node tree (`src/scene.rs`): drawing goes
+through the `RenderingServer` and sound through the `AudioServer`, with
+macroquad as the backend. See `Cargo.toml` for the full dependency
+list.
 
 ### Sound effects
 

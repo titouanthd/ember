@@ -1878,6 +1878,77 @@ on `ember-core` only, so an engine-typed version could not draw through
 - Other engine-typed helpers (`Sprite`, `env_color` in M5) can follow
   the same path.
 
+## ADR-043: Looped clips, clip readiness and MP3
+
+**Status:** accepted (2026-11-26) — jade-garden round; the user chose an MP3 decoder in the backend over converting the tracks to Ogg or keeping game-local music
+
+### Context
+
+Jade-garden's music is three MP3 tracks played in a timed playlist
+(an intro once, then the others in a loop). It played them through
+soloud natively and `macroquad::audio` on the web. `AudioServer` could
+only play a clip once, and quad-snd, the native macroquad backend,
+reads only WAV and Ogg Vorbis: it `unwrap`s its reader, so an MP3
+panicked at load.
+
+### Decision (`d5ba842`, `a855e43`)
+
+- **`AudioServer::play_looped(clip, volume) -> SoundId`** plays until
+  `stop` / `stop_all`. Music is a looped clip; a playlist is game code
+  (jade-garden's `MusicPlayer`).
+- **`AudioServer::is_clip_ready(clip)`:** the web decodes in the
+  background (ADR-020 amended), and a `play` before then is skipped.
+  Callers that must not miss the start (music) wait for it.
+  `MockAudio::set_clip_ready` holds a clip back in tests.
+- **The native backend sniffs the container first:** WAV and Ogg go to
+  quad-snd as before; MP3 is decoded with symphonia (MP3 feature only,
+  native only) into a 16-bit PCM WAV; anything else is a
+  `ServerError`, not a panic. The web keeps the browser's decoder.
+- **Decoders build at `opt-level = 3` in dev** (workspace profile):
+  a 3-minute track decodes in 0.23 s in a debug build instead of 4 s.
+
+### Alternatives
+
+- **Convert the tracks to Ogg:** no new dependency, but a second lossy
+  encode and a manual step. Rejected by the user.
+- **Keep soloud natively and drop web music:** music off the engine.
+  Rejected.
+- **`set_volume(SoundId)`** (planned with this ADR): no game needs it
+  yet. Deferred.
+
+### Consequences
+
+- Decoded music lives in memory as PCM (≈ 90 MB for jade-garden's four
+  minutes), as soloud's `Wav` did.
+- bore-inc's music can use the same path.
+
+## ADR-047: Window options (`run_window_with`)
+
+**Status:** accepted (2026-11-26) — jade-garden round; the user chose engine window options over dropping jade-garden's icon
+
+### Context
+
+`run_window(title, w, h, game)` could not set an icon (jade-garden) or
+high DPI (zhuo-ji, air-hockey), which the games' own macroquad `Conf`s
+did.
+
+### Decision (`45392e9`)
+
+- **`WindowConfig { title, width, height, resizable, high_dpi, icon }`**
+  with builders (`high_dpi`, `resizable`, `with_icon`) and
+  **`run_window_with(config, game)`**. `run_window` keeps its
+  signature and defaults (resizable, no high DPI, no icon).
+- **`WindowIcon { small, medium, big }`** are `ember_core::Image`s of
+  16, 32 and 64 px. A wrongly sized icon is left out with a warning;
+  resizing is the game's job (jade-garden uses the `image` crate).
+- Zhuo-ji asks for high DPI again (`c79017d`).
+
+### Consequences
+
+- Sizes, the viewport and the mouse stay in logical pixels under high
+  DPI (macroquad divides by the DPI scale).
+- Air-hockey can opt back into high DPI the same way.
+
 ## How to add an ADR
 
 1. Copy the template:
