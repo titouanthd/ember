@@ -109,6 +109,12 @@ impl<B: MusicBackend> MusicPlayer<B> {
         self.playing
     }
 
+    /// The backend, for a backend that needs per-frame work outside the
+    /// player (an engine-audio backend applying queued plays).
+    pub fn backend_mut(&mut self) -> &mut B {
+        &mut self.backend
+    }
+
     /// Advance the playlist clock by `dt` seconds.
     pub fn tick(&mut self, dt: f32) {
         if !self.playing || self.tracks.is_empty() {
