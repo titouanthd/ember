@@ -1,9 +1,13 @@
 ---
 title: "Progress Evaluation 2026-11-22"
-tags: ["ember/progress", "ember/evaluation"]
+tags: ["ember/progress", "ember/evaluation", "ember/archive"]
 branch: "main @ cd4f289 (+ unmerged local branch titouanthd-docs-crates-games-plan)"
 generated: "2026-11-22"
+archived: "2026-11-26"
 ---
+
+> [!warning] Archived 2026-11-26
+> Kept for history — a dated snapshot (≈ 30 %); the live state is in the tracker [[Roadmap Tracker]]. Do not update this note. Index: [[Archives]].
 
 # Ember v0.1 — Progress evaluation (2026-11-22)
 

@@ -1,11 +1,15 @@
 ---
 title: "Next Phase Plan — Phase 6 Editor"
 aliases: ["Phase 6 plan"]
-tags: ["ember/progress", "ember/plan", "ember/phase-6"]
+tags: ["ember/progress", "ember/plan", "ember/phase-6", "ember/archive"]
 created: "2026-11-24"
 phase: "6 — Editor POC"
 estimate: "3 sessions"
+archived: "2026-11-26"
 ---
+
+> [!warning] Archived 2026-11-26
+> Kept for history — Phase 6 (editor POC) is closed; Editor v2 is planned in [[Next Phase Plan — Migration Close & Editor v2]]. Do not update this note. Index: [[Archives]].
 
 # Next phase — Phase 6 · Editor POC
 

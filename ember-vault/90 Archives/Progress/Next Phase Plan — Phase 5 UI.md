@@ -1,11 +1,15 @@
 ---
 title: "Next Phase Plan — Phase 5 UI"
 aliases: ["Phase 5 plan"]
-tags: ["ember/progress", "ember/plan", "ember/phase-5"]
+tags: ["ember/progress", "ember/plan", "ember/phase-5", "ember/archive"]
 created: "2026-11-22"
 phase: "5 — UI (+ entry gate)"
 estimate: "5–6 sessions (gate 1–2, UI 4)"
+archived: "2026-11-26"
 ---
+
+> [!warning] Archived 2026-11-26
+> Kept for history — Phase 5 is closed; the current plan is [[Next Phase Plan — Migration Close & Editor v2]]. Do not update this note. Index: [[Archives]].
 
 # Next phase — Phase 5 · UI
 

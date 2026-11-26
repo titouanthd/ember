@@ -1,9 +1,13 @@
 ---
 title: "Project Recap (version.txt)"
-tags: ["ember/workspace"]
+tags: ["ember/workspace", "ember/archive"]
 former-path: "version.txt"
 imported: "2026-11-22"
+archived: "2026-11-26"
 ---
+
+> [!warning] Archived 2026-11-26
+> Kept for history — the pre-engine project recap (Session 17.9); the live state is in [[Handover 2026-11-26]]. Do not update this note. Index: [[Archives]].
 
 > [!note] Imported from `version.txt` (plain text recap). Last updated at *Session 17.9* — **predates the engine v0.1 work**; see [[Progress Evaluation 2026-11-22]].
 

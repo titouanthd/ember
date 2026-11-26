@@ -1,9 +1,13 @@
 ---
 title: "Roadmap Review 2026-11-22"
-tags: ["ember/progress", "ember/review", "ember/roadmap"]
+tags: ["ember/progress", "ember/review", "ember/roadmap", "ember/archive"]
 created: "2026-11-22"
 head: "cdbc078 feat(ui-control): Add Control, anchors, theme and UiRoot layout"
+archived: "2026-11-26"
 ---
+
+> [!warning] Archived 2026-11-26
+> Kept for history — a dated snapshot (≈ 37 %); the live state is in the tracker [[Roadmap Tracker]]. Do not update this note. Index: [[Archives]].
 
 # Roadmap review — 2026-11-22 (evening)
 

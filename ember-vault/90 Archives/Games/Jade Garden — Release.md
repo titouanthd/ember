@@ -1,10 +1,14 @@
 ---
 title: "Jade Garden — Release"
-tags: ["ember/game", "game/jade-garden"]
+tags: ["ember/game", "game/jade-garden", "ember/archive"]
 game: "Jade Garden"
 former-path: "games/jade-garden/RELEASE.md"
 imported: "2026-11-22"
+archived: "2026-11-26"
 ---
+
+> [!warning] Archived 2026-11-26
+> Kept for history — the v0.1.0 release status as of Session 17.9 (pre-engine); the game hub is [[Jade Garden]]. Do not update this note. Index: [[Archives]].
 
 # jade-garden — Release status
 

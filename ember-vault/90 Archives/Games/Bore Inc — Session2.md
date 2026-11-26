@@ -1,10 +1,14 @@
 ---
 title: "Bore Inc — Session2"
-tags: ["ember/game", "game/bore-inc"]
+tags: ["ember/game", "game/bore-inc", "ember/archive"]
 game: "Bore Inc"
 former-path: "games/bore-inc/SESSION2.md"
 imported: "2026-11-22"
+archived: "2026-11-26"
 ---
+
+> [!warning] Archived 2026-11-26
+> Kept for history — a pre-engine session log; the game hub is [[Bore Inc]]. Do not update this note. Index: [[Archives]].
 
 # SESSION2.md — Handoff to the next agent
 
