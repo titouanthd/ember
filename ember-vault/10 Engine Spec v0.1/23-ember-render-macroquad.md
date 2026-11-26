@@ -85,6 +85,9 @@ fn draw_rect(&mut self, rect: Rect, color: Color) {
 
 macroquad's immediate-mode API uses screen coordinates. Mapping each
 call is cheap and keeps clip rects and `measure_text` in plain pixels.
+Clip rects are logical pixels; the GL scissor box is scaled by
+`screen_dpi_scale()` so they also hold on a high-DPI window (ADR-047,
+`bd2aeca`).
 Rotation of the whole view is not supported.
 
 ## 5. Z-ordered batching

@@ -147,7 +147,7 @@ Suggested order: small games first, each one landing the engine feature the next
 | 2 | **pagoda** ✅ `980dc1e` | 3.4 k, 0 tests | ADR-041, shapes (arc), juice, persistence, sounds | 1.5 | Native + WASM; replace `ember_stdlib::juice` with an engine-typed version (Phase 8 work, pulled forward) |
 | 3 | **zhuo-ji** ✅ `614cf30` | 9.2 k, 1 test file | ADR-042 shapes, fonts, `layout::centered_rect`, `ui::hit` | 2 | biggest UI-style game; `ui::hit` → `Rect::contains` |
 | 4 | **jade-garden** ✅ `4ef6142` | 9.7 k, 3 test files | ADR-042, ADR-043, ADR-044, clip, mouse wheel, animation, juice | 2.5 | shipped on itch.io (web) — playtest native **and** web |
-| 5 | **accretion** | 3.7 k, 2 test files | ADR-044, clip, mouse wheel | 1.5 | web storage stays as is |
+| 5 | **accretion** ✅ `ddf58a6` | 3.7 k, 2 test files | ADR-044, clip, mouse wheel | 1.5 | web storage stays as is |
 | 6 | **bore-inc** | 8.3 k, 1 test file | textures, sounds, music (ADR-043), ADR-044, touches | 2 | marked **abandoned** — see [[Next Phase Plan — Migration Close & Editor v2#Open questions\|open questions]] |
 | 7 | **ember-wars** | 9.5 k, 1 test file | ADR-044, own camera (`set_camera` offset), juice, fonts | 2.5 | **acceptance test** — full checklist in [[42-acceptance-tests]]; migrates last |
 

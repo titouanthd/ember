@@ -1947,6 +1947,9 @@ did.
 
 - Sizes, the viewport and the mouse stay in logical pixels under high
   DPI (macroquad divides by the DPI scale).
+- Clip rects stay logical too: the backend scales the GL scissor box by
+  the DPI scale (`bd2aeca`, found while migrating accretion, whose
+  building list clips on a high-DPI window).
 - Air-hockey can opt back into high DPI the same way.
 
 ## How to add an ADR

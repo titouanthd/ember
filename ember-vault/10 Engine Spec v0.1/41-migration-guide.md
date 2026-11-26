@@ -545,11 +545,32 @@ persistence API lands.
   clip, CJK), chapter intro, board at 1400 × 900, hint, selection.
   Not checked: a completed swap, sound.
 
-### 5.16 accretion
+### 5.16 accretion — **migrated** (`ddf58a6`, 2026-11-26)
 
-- 125 unit + 2 balance.
-- Prestige economy. The prestige system is a good test of cross-run
-  persistence (`progress()` / `progress_mut()`).
+- 125 unit + 2 balance (1 ignored) tests, unchanged. New: 6 headless
+  `SceneLoop` tests (`tests/scene.rs`) and `frame`'s unit test.
+- Shape: one root node, `Accretion` (`src/scene.rs`), running `App`
+  (`src/app.rs`, was `main.rs`): `update(input, dt)` returns whether to
+  save, `draw(gfx)` draws. High-DPI window (ADR-047) whose viewport
+  follows its size.
+- **`src/frame.rs`:** the layout helpers (`title_begin_rect`,
+  `disk::center`, …) are shared by hit tests and drawing and read the
+  window size, pointer and clock as macroquad's globals. The node sets
+  them once per frame (`frame::begin`), so those helpers kept their
+  signatures. jade-garden threaded the size instead (§5.15); either
+  goes, and Phase 8 can fold the snapshot into the context.
+- The building cards clip with `push_clip_rect` (was a DPI-scaled
+  scissor). That exposed an engine bug: clip rects ignored the DPI
+  scale. Fixed in `bd2aeca` (ADR-047).
+- Saving goes through a `Saver` (`save::save` when playing), so tests
+  never write `save.ron`. The font is built in; the web bundle copies
+  no assets.
+- **Found, not fixed (pre-existing):** on the web, saves do nothing.
+  `tools/localStorage_plugin.js` is an Emscripten-style library
+  (`mergeInto`, `HEAPU8`), which macroquad's `mq_js_bundle.js` lacks, so
+  the plugin exits at load and `ember_storage_*` are never defined. The
+  game runs; it just never loads or keeps a save in the browser.
+- Web checked in a browser: title, Begin, disk clicks, tabs.
 
 ### 5.17 ember-wars (acceptance test)
 

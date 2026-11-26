@@ -29,9 +29,11 @@ cd dist/web && python3 -m http.server 8080
 # → http://localhost:8080
 ```
 
-The web build saves to `localStorage["accretion:save"]` through the miniquad
-plugin in `tools/localStorage_plugin.js` (loaded after `mq_js_bundle.js`).
-A committed bundle lives in `dist/web/`.
+The web build is meant to save to `localStorage["accretion:save"]` through
+`tools/localStorage_plugin.js`, but that plugin is written for Emscripten and
+does not load with macroquad's `mq_js_bundle.js`, so **web saves do nothing
+today** (the game runs; see the migration guide §5.16). The font is built into
+the wasm, so the bundle needs no `assets/` folder.
 
 ## Controls
 
@@ -85,12 +87,9 @@ Prestige unlocks at **Gas Giant** (not Planets, as the original design said).
 cargo test -p accretion
 ```
 
-125 unit + 2 integration tests pass; `tests/balance.rs::click_rate_sensitivity`
-is ignored. `tests/save.rs` is a native placeholder with 0 tests.
-
-Clippy currently reports warnings in this crate (`skip_while_next`,
-`vec_init_then_push`, unnecessary `unsafe`, `unwrap_or_else` default); it is
-not clean yet.
+126 unit + 2 integration + 6 headless scene tests pass;
+`tests/balance.rs::click_rate_sensitivity` is ignored. `tests/save.rs` is a
+native placeholder with 0 tests. Clippy is clean (native and wasm).
 
 ## Layout
 
@@ -98,7 +97,10 @@ not clean yet.
 games/accretion/
 ├── (design doc → ember-vault)              full design + implementation status
 ├── src/
-│   ├── main.rs            loop, screens, UI drawing
+│   ├── main.rs            5 lines: scene::run()
+│   ├── scene.rs           the Accretion root node (engine node tree)
+│   ├── app.rs             screens, input, UI drawing (was main.rs)
+│   ├── frame.rs           this frame's window size, pointer, clock
 │   ├── systems.rs         Game state + pure tick/input
 │   ├── economy.rs         12-building table, production
 │   ├── paradigm.rs        5 transition conditions
@@ -108,8 +110,7 @@ games/accretion/
 │   ├── save.rs            RON native / localStorage web
 │   └── ...
 ├── tests/balance.rs       greedy-AI balance report
-├── tools/                 build-web.sh + localStorage_plugin.js
-└── dist/web/              committed browser bundle
+└── tools/                 build-web.sh + localStorage_plugin.js
 ```
 
 ## Documentation
