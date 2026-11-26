@@ -1,10 +1,19 @@
 //! `SceneLoop`: drives a `NodeTree` as a `MainLoop`.
 
 use crate::{DrawContext, NodeTree, Servers};
-use ember_core::MainLoop;
 use ember_core::math::Rect;
+use ember_core::{Color, MainLoop};
 use ember_input::{Input, InputSink};
-use ember_servers::{AudioServer, LinearPhysics, RenderingServer};
+use ember_servers::{AudioServer, Camera2d, LinearPhysics, RenderingServer};
+use glam::Vec2;
+
+/// A fixed canvas the game draws on, scaled to fit the window with its
+/// aspect kept; the rest is `bars` (ADR-041).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VirtualResolution {
+    pub size: Vec2,
+    pub bars: Color,
+}
 
 /// Owns a tree plus the backends it runs against. The runner updates
 /// `input_mut()` once per frame before calling `process`.
@@ -16,6 +25,9 @@ pub struct SceneLoop<R: RenderingServer, A: AudioServer> {
     input: Input,
     viewport: Rect,
     quit: bool,
+    virtual_resolution: Option<VirtualResolution>,
+    /// Last size from `MainLoop::resize`; the viewport size until then.
+    window: Vec2,
 }
 
 impl<R: RenderingServer, A: AudioServer> SceneLoop<R, A> {
@@ -28,6 +40,43 @@ impl<R: RenderingServer, A: AudioServer> SceneLoop<R, A> {
             input: Input::default(),
             viewport,
             quit: false,
+            virtual_resolution: None,
+            window: Vec2::new(viewport.w, viewport.h),
+        }
+    }
+
+    /// Draw on a fixed `width` × `height` canvas, letterboxed into the
+    /// window with black bars (ADR-041). Nodes see that canvas as their
+    /// viewport, and mouse and touch positions arrive in its coordinates.
+    pub fn with_virtual_resolution(mut self, width: f32, height: f32) -> Self {
+        self.set_virtual_resolution(Some(VirtualResolution {
+            size: Vec2::new(width, height),
+            bars: Color::BLACK,
+        }));
+        self
+    }
+
+    pub fn set_virtual_resolution(&mut self, virtual_resolution: Option<VirtualResolution>) {
+        if let Some(v) = virtual_resolution {
+            self.viewport = Rect::new(0.0, 0.0, v.size.x, v.size.y);
+        }
+        self.virtual_resolution = virtual_resolution;
+    }
+
+    pub fn virtual_resolution(&self) -> Option<VirtualResolution> {
+        self.virtual_resolution
+    }
+
+    pub fn window_size(&self) -> Vec2 {
+        self.window
+    }
+
+    /// The camera that maps the canvas onto the window: the letterbox
+    /// with a virtual resolution, else the identity.
+    pub fn screen_camera(&self) -> Camera2d {
+        match self.virtual_resolution {
+            Some(v) => Camera2d::letterbox(self.window, v.size),
+            None => Camera2d::IDENTITY,
         }
     }
 
@@ -96,7 +145,18 @@ impl<R: RenderingServer, A: AudioServer> MainLoop for SceneLoop<R, A> {
 
     fn draw(&mut self) {
         self.rendering.begin_frame(self.viewport);
+        if let Some(v) = self.virtual_resolution {
+            // Bars first; the canvas is drawn over them, clipped to it.
+            self.rendering.set_clear_color(v.bars);
+            self.rendering.set_camera(self.screen_camera());
+            self.rendering
+                .push_clip_rect(Camera2d::letterbox_rect(self.window, v.size));
+        }
         self.tree.draw(&mut DrawContext::new(&mut self.rendering));
+        if self.virtual_resolution.is_some() {
+            self.rendering.pop_clip_rect();
+            self.rendering.set_camera(Camera2d::IDENTITY);
+        }
         self.rendering.end_frame();
         self.audio.flush();
     }
@@ -104,10 +164,23 @@ impl<R: RenderingServer, A: AudioServer> MainLoop for SceneLoop<R, A> {
     fn finalize(&mut self) {
         self.tree.clear();
     }
+
+    fn resize(&mut self, width: f32, height: f32) {
+        self.window = Vec2::new(width, height);
+    }
 }
 
 impl<R: RenderingServer, A: AudioServer> InputSink for SceneLoop<R, A> {
-    fn set_input(&mut self, input: Input) {
+    /// With a virtual resolution, mouse and touch positions are mapped
+    /// from window pixels to canvas coordinates.
+    fn set_input(&mut self, mut input: Input) {
+        if self.virtual_resolution.is_some() {
+            let camera = self.screen_camera();
+            input.mouse_pos = camera.screen_to_world(input.mouse_pos);
+            for touch in &mut input.touch_points {
+                touch.position = camera.screen_to_world(touch.position);
+            }
+        }
         self.input = input;
     }
 }

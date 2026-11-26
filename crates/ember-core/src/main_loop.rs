@@ -34,6 +34,10 @@ pub trait MainLoop {
 
     /// Called once before shutdown. Best-effort.
     fn finalize(&mut self) {}
+
+    /// The window's size in pixels: once before the first `process`,
+    /// then whenever it changes (ADR-041). Headless runs never call it.
+    fn resize(&mut self, _width: f32, _height: f32) {}
 }
 
 /// Runs one frame of the fixed-step algorithm. Keeps the physics

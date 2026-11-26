@@ -29,7 +29,7 @@ pub use error::SceneError;
 pub use node::{Node, NodeId, NodeName};
 pub use packed::{PackedScene, SceneAssets};
 pub use scene::{NodeRecord, SceneWriter};
-pub use scene_loop::SceneLoop;
+pub use scene_loop::{SceneLoop, VirtualResolution};
 pub use signal::{Handler, ScopedConnection, Signal, SignalTable};
 pub use tree::NodeTree;
 

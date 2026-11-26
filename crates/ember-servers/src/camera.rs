@@ -44,6 +44,26 @@ impl Camera2d {
         }
     }
 
+    /// The screen rect that shows a `size` canvas scaled to fit `window`,
+    /// aspect kept and centred; the rest is bars (ADR-041). A degenerate
+    /// size gives the canvas at the top-left, unscaled.
+    pub fn letterbox_rect(window: Vec2, size: Vec2) -> Rect {
+        if window.x <= 0.0 || window.y <= 0.0 || size.x <= 0.0 || size.y <= 0.0 {
+            return Rect::new(0.0, 0.0, size.x.max(0.0), size.y.max(0.0));
+        }
+        let scale = (window.x / size.x).min(window.y / size.y);
+        let shown = size * scale;
+        let corner = (window - shown) / 2.0;
+        Rect::new(corner.x, corner.y, shown.x, shown.y)
+    }
+
+    /// The camera that draws a `size` canvas into its letterbox rect.
+    pub fn letterbox(window: Vec2, size: Vec2) -> Self {
+        let r = Self::letterbox_rect(window, size);
+        let zoom = if size.x > 0.0 { r.w / size.x } else { 1.0 };
+        Self::placing_origin_at(Vec2::new(r.x, r.y), zoom.max(f32::MIN_POSITIVE))
+    }
+
     pub fn world_to_screen(&self, world: Vec2) -> Vec2 {
         (world - self.offset) * self.zoom
     }
@@ -88,6 +108,36 @@ mod tests {
             Rect::new(0.0, 0.0, 400.0, 300.0)
         );
         assert_eq!(c.length(48.0), 24.0);
+    }
+
+    // The two cases below were taiji's `render::letterbox_rect` tests.
+    #[test]
+    fn letterbox_preserves_aspect_ratio() {
+        let r = Camera2d::letterbox_rect(Vec2::new(1920.0, 1080.0), Vec2::new(800.0, 600.0));
+        assert!((r.w / r.h - 800.0 / 600.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn letterbox_centers_on_wide_screen() {
+        let r = Camera2d::letterbox_rect(Vec2::new(1920.0, 1080.0), Vec2::new(800.0, 600.0));
+        assert!(r.x > 0.0);
+        assert_eq!(r.y, 0.0);
+        assert_eq!(r.h, 1080.0);
+    }
+
+    #[test]
+    fn the_letterbox_camera_maps_the_canvas_onto_its_rect() {
+        let (window, size) = (Vec2::new(1000.0, 1000.0), Vec2::new(800.0, 600.0));
+        let c = Camera2d::letterbox(window, size);
+        assert_eq!(c.zoom, 1.25);
+        assert_eq!(c.world_to_screen(Vec2::ZERO), Vec2::new(0.0, 125.0));
+        assert_eq!(c.world_to_screen(size), Vec2::new(1000.0, 875.0));
+        assert_eq!(
+            c.screen_to_world(Vec2::new(500.0, 500.0)),
+            Vec2::new(400.0, 300.0)
+        );
+        let same = Camera2d::letterbox(size, size);
+        assert_eq!(same, Camera2d::IDENTITY);
     }
 
     #[test]

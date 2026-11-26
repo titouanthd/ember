@@ -9,7 +9,7 @@ use ember_core::{FrameStepper, MainLoop};
 use ember_input::InputSink;
 use macroquad::Window;
 use macroquad::time::get_frame_time;
-use macroquad::window::{Conf, next_frame};
+use macroquad::window::{Conf, next_frame, screen_height, screen_width};
 
 /// Run `game` inside an already-open macroquad context.
 pub async fn run<L: MainLoop + InputSink>(mut game: L) {
@@ -17,7 +17,13 @@ pub async fn run<L: MainLoop + InputSink>(mut game: L) {
         return;
     }
     let mut stepper = FrameStepper::new();
+    let mut window = (0.0, 0.0);
     loop {
+        let size = (screen_width(), screen_height());
+        if size != window {
+            window = size;
+            game.resize(size.0, size.1);
+        }
         let dt = get_frame_time();
         game.set_input(poll_input());
         if !stepper.frame(&mut game, dt) {
