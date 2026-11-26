@@ -199,8 +199,12 @@ impl VariantValue for f64 {
 }
 
 impl VariantValue for f32 {
+    /// Widens through the shortest decimal form, so `0.08_f32` is saved
+    /// as `0.08` rather than `0.07999999821186066`. Reading it back
+    /// gives the same `f32`.
     fn to_variant(&self) -> Variant {
-        Variant::Float(f64::from(*self))
+        let shortest = self.to_string().parse().unwrap_or(f64::from(*self));
+        Variant::Float(shortest)
     }
     fn from_variant(v: &Variant) -> Option<Self> {
         v.as_f64().map(|f| f as f32)
@@ -337,5 +341,25 @@ mod tests {
             Vec::<u8>::from_variant(&Variant::Array(vec![Variant::Bool(true)])),
             None
         );
+    }
+
+    #[test]
+    fn f32_widens_to_its_shortest_decimal_and_back() {
+        for v in [
+            0.08_f32,
+            0.3,
+            1.05,
+            0.7,
+            100.0,
+            -2.5,
+            f32::MAX,
+            f32::MIN_POSITIVE,
+        ] {
+            let Variant::Float(f) = v.to_variant() else {
+                panic!("not a float");
+            };
+            assert_eq!(f.to_string(), v.to_string());
+            assert_eq!(f32::from_variant(&Variant::Float(f)), Some(v));
+        }
     }
 }
