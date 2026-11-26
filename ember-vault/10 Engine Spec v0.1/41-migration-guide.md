@@ -565,11 +565,14 @@ persistence API lands.
 - Saving goes through a `Saver` (`save::save` when playing), so tests
   never write `save.ron`. The font is built in; the web bundle copies
   no assets.
-- **Found, not fixed (pre-existing):** on the web, saves do nothing.
-  `tools/localStorage_plugin.js` is an Emscripten-style library
+- **Found, then fixed (pre-existing):** web saves did nothing.
+  `tools/localStorage_plugin.js` was an Emscripten-style library
   (`mergeInto`, `HEAPU8`), which macroquad's `mq_js_bundle.js` lacks, so
-  the plugin exits at load and `ember_storage_*` are never defined. The
-  game runs; it just never loads or keeps a save in the browser.
+  the plugin exited at load and `ember_storage_*` were never defined.
+  Rewritten as a miniquad plugin (`miniquad_add_plugin`, memory through
+  `wasm_memory`, C strings decoded in JS); `save.rs` exports
+  `ember_storage_crate_version` for the bundle's version check. Checked
+  in a browser: a reload offers Continue with the run kept.
 - Web checked in a browser: title, Begin, disk clicks, tabs.
 
 ### 5.17 ember-wars (acceptance test)
