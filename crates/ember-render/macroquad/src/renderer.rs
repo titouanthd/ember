@@ -12,10 +12,10 @@
 //!
 //! ## Font loading
 //!
-//! `create_font` blocks on `load_ttf_font_from_bytes` on native
-//! targets. On wasm it returns `ServerError::NotSupported` — games
-//! should load fonts before entering the loop (via macroquad directly)
-//! and pass the loaded handle in. See ADR-020.
+//! `create_font` parses the bytes with `load_ttf_font_from_bytes`, which
+//! is synchronous on every target, wasm included. A web game embeds its
+//! font (`include_bytes!`) or fetches the bytes itself (ADR-020, amended
+//! by the pagoda round).
 
 use std::collections::HashMap;
 
@@ -397,21 +397,15 @@ impl RenderingServer for MacroquadRenderer {
         self.textures.remove(&id);
     }
 
+    /// Parses on every target: `load_ttf_font_from_bytes` is synchronous
+    /// on wasm too (only fetching a file is async there).
     fn create_font(&mut self, bytes: &[u8]) -> Result<FontId, ServerError> {
-        #[cfg(target_arch = "wasm32")]
-        {
-            let _ = bytes;
-            return Err(ServerError::NotSupported);
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let font = load_ttf_font_from_bytes(bytes)
-                .map_err(|e| ServerError::Backend(format!("font loading failed: {e}")))?;
-            self.next_font += 1;
-            let id = FontId::new(self.next_font);
-            self.fonts.insert(id, font);
-            Ok(id)
-        }
+        let font = load_ttf_font_from_bytes(bytes)
+            .map_err(|e| ServerError::Backend(format!("font loading failed: {e}")))?;
+        self.next_font += 1;
+        let id = FontId::new(self.next_font);
+        self.fonts.insert(id, font);
+        Ok(id)
     }
 
     fn destroy_font(&mut self, id: FontId) {

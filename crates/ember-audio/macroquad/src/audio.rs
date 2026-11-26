@@ -2,9 +2,11 @@
 //!
 //! ## Async loading
 //!
-//! `load_clip` blocks on `load_sound_from_bytes` on native. On wasm it
-//! returns `ServerError::NotSupported` — games on wasm load audio
-//! before entering the loop. See ADR-020.
+//! `load_clip` blocks on `load_sound_from_bytes` on native. On wasm the
+//! browser decodes asynchronously: `load_clip` returns the id at once
+//! and decodes in a macroquad coroutine; the sound is adopted on the
+//! next call once ready. A clip played before then is silently skipped
+//! (ADR-020, amended by the pagoda round).
 //!
 //! ## Playback
 //!
@@ -20,6 +22,12 @@ use macroquad::audio::{PlaySoundParams, Sound, load_sound_from_bytes, play_sound
 
 pub struct MacroquadAudio {
     clips: HashMap<AudioClipId, Sound>,
+    /// Clips still decoding (wasm only).
+    #[cfg(target_arch = "wasm32")]
+    pending: Vec<(
+        AudioClipId,
+        macroquad::experimental::coroutines::Coroutine<Option<Sound>>,
+    )>,
     sound_to_clip: HashMap<SoundId, AudioClipId>,
     next_clip: u64,
     next_sound: u64,
@@ -31,12 +39,61 @@ impl MacroquadAudio {
     pub fn new() -> Self {
         Self {
             clips: HashMap::new(),
+            #[cfg(target_arch = "wasm32")]
+            pending: Vec::new(),
             sound_to_clip: HashMap::new(),
             next_clip: 0,
             next_sound: 0,
             master_volume: 1.0,
             capabilities: vec![],
         }
+    }
+
+    /// Move clips that finished decoding into `clips` (wasm only).
+    fn adopt_decoded(&mut self) {
+        #[cfg(target_arch = "wasm32")]
+        self.pending.retain(|(id, job)| {
+            if !job.is_done() {
+                return true;
+            }
+            if let Some(Some(sound)) = job.retrieve() {
+                self.clips.insert(*id, sound);
+            }
+            false
+        });
+    }
+
+    /// Clips still decoding (always 0 on native).
+    #[cfg(target_arch = "wasm32")]
+    pub fn pending_clips(&self) -> usize {
+        self.pending.len()
+    }
+
+    /// Clips still decoding (always 0 on native).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn pending_clips(&self) -> usize {
+        0
+    }
+
+    /// Wasm: decode in a coroutine, adopt the sound when it is ready.
+    #[cfg(target_arch = "wasm32")]
+    fn decode(&mut self, bytes: &[u8]) -> Result<AudioClipId, ServerError> {
+        self.next_clip += 1;
+        let id = AudioClipId::new(self.next_clip);
+        let bytes = bytes.to_vec();
+        let job = macroquad::experimental::coroutines::start_coroutine(async move {
+            load_sound_from_bytes(&bytes).await.ok()
+        });
+        self.pending.push((id, job));
+        Ok(id)
+    }
+
+    /// Native: decoding finishes immediately.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn decode(&mut self, bytes: &[u8]) -> Result<AudioClipId, ServerError> {
+        let sound = futures::executor::block_on(load_sound_from_bytes(bytes))
+            .map_err(|e| ServerError::Backend(format!("audio parse: {e}")))?;
+        Ok(self.adopt_clip(sound))
     }
 
     /// Adopt a sound loaded externally (e.g., before the loop on wasm).
@@ -57,6 +114,7 @@ impl Default for MacroquadAudio {
 
 impl AudioServer for MacroquadAudio {
     fn play(&mut self, clip: AudioClipId, volume: f32, _pitch: f32) -> SoundId {
+        self.adopt_decoded();
         self.next_sound += 1;
         let sound_id = SoundId::new(self.next_sound);
 
@@ -97,24 +155,13 @@ impl AudioServer for MacroquadAudio {
     }
 
     fn flush(&mut self) {
-        // macroquad flushes automatically on `next_frame`. No-op.
+        // macroquad flushes automatically on `next_frame`; only adopt
+        // clips that finished decoding.
+        self.adopt_decoded();
     }
 
     fn load_clip(&mut self, bytes: &[u8]) -> Result<AudioClipId, ServerError> {
-        #[cfg(target_arch = "wasm32")]
-        {
-            let _ = bytes;
-            return Err(ServerError::NotSupported);
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let sound = futures::executor::block_on(load_sound_from_bytes(bytes))
-                .map_err(|e| ServerError::Backend(format!("audio parse: {e}")))?;
-            self.next_clip += 1;
-            let id = AudioClipId::new(self.next_clip);
-            self.clips.insert(id, sound);
-            Ok(id)
-        }
+        self.decode(bytes)
     }
 
     fn destroy_clip(&mut self, clip: AudioClipId) {
