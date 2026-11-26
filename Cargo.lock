@@ -663,10 +663,11 @@ name = "memory"
 version = "0.1.0"
 dependencies = [
  "dotenvy",
+ "ember",
  "ember-core",
+ "ember-servers",
  "ember-stdlib",
  "glam",
- "macroquad",
  "ron",
  "serde",
 ]
@@ -992,10 +993,11 @@ name = "snake"
 version = "0.1.0"
 dependencies = [
  "dotenvy",
+ "ember",
  "ember-core",
+ "ember-servers",
  "ember-stdlib",
  "glam",
- "macroquad",
  "ron",
  "serde",
 ]
