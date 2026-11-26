@@ -2,7 +2,7 @@ use breakout::components::Brick;
 
 use breakout::GameState;
 use breakout::systems::{self, BreakoutWorld, GameContext};
-use macroquad::prelude::Color;
+use ember_core::Color;
 
 #[test]
 fn test_brick_destroyed_on_ball_collision() {

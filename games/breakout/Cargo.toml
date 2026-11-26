@@ -6,8 +6,11 @@ edition.workspace = true
 [dependencies]
 ember-core.workspace = true
 ember-stdlib.workspace = true
-macroquad.workspace = true
+ember.workspace = true
 dotenvy.workspace = true
 glam.workspace = true
 serde.workspace = true
 ron.workspace = true
+
+[dev-dependencies]
+ember-servers.workspace = true

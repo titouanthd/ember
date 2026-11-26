@@ -1,10 +1,10 @@
 // games/breakout/src/systems.rs
 use crate::components::{Ball, Brick, Paddle};
 use crate::levels::Level;
+use ember_core::Color;
 use ember_core::app::GameState;
 use ember_core::io::load_from_file;
 use glam::Vec2;
-use macroquad::prelude::Color;
 use std::path::PathBuf;
 
 pub use crate::config::GameContext;

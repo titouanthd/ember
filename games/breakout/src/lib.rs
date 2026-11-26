@@ -2,6 +2,7 @@
 pub mod components;
 pub mod config;
 pub mod levels;
+pub mod scene;
 pub mod systems;
 
 pub use components::{Ball, Brick, Paddle};

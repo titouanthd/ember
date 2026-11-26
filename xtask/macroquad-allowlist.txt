@@ -24,7 +24,6 @@ games/accretion/
 games/air-hockey/
 games/asteroids/
 games/bore-inc/
-games/breakout/
 games/bullet-hell/
 games/ember-wars/
 games/jade-garden/

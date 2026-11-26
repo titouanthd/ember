@@ -1,7 +1,34 @@
 // components.rs
-use ember_stdlib::{Collider, Shape, Sprite, Transform};
+use ember_core::Color;
+use ember_stdlib::{Collider, Shape, Transform};
 use glam::Vec2;
-use macroquad::prelude::Color;
+
+// ---- Sprite ----
+
+/// Colour and visibility of an entity. Local twin of
+/// `ember_stdlib::Sprite`, which holds a macroquad colour.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Sprite {
+    pub color: Color,
+    pub visible: bool,
+}
+
+impl Sprite {
+    pub fn new(color: Color) -> Self {
+        Self {
+            color,
+            visible: true,
+        }
+    }
+
+    pub fn hide(&mut self) {
+        self.visible = false;
+    }
+
+    pub fn show(&mut self) {
+        self.visible = true;
+    }
+}
 
 // ---- Paddle ----
 
