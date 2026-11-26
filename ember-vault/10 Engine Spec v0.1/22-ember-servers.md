@@ -116,6 +116,7 @@ pub trait RenderingServer {
     // === Resources ===
     fn create_texture(&mut self, image: &Image) -> Result<TextureId, ServerError>;
     fn destroy_texture(&mut self, id: TextureId);
+    fn set_texture_filter(&mut self, id: TextureId, filter: TextureFilter); // ADR-048
     fn create_font(&mut self, bytes: &[u8]) -> Result<FontId, ServerError>;
     fn destroy_font(&mut self, id: FontId);
 

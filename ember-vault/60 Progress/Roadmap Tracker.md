@@ -22,7 +22,7 @@ gantt
   P5 UI (done)           :done, p5, 2026-11-22, 3d
   P6 Editor (done)       :done, p6, 2026-11-24, 1d
   section Application
-  P7 Migration (15/17)    :active, p7, 2026-11-18, 13d
+  P7 Migration (16/17)    :active, p7, 2026-11-18, 13d
   P8 Cleanup (10%)       :p8, after p7, 2d
   section Editor v2
   P9 Editor v2 (0%)      :p9, after p7, 4d
@@ -98,7 +98,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] pagoda *(`980dc1e`: root node on a virtual resolution; native + web; `main.rs` 5 lines; no macroquad; 105 unit + 6 `SceneLoop` tests)*
 - [x] taiji *(`60ba747`: root node on a virtual resolution (ADR-041); `main.rs` 5 lines; no macroquad; 7 scenario + 4 `SceneLoop` tests)*
 - [x] zhuo-ji *(`614cf30`: root node; viewport follows the window (ADR-041 amendment, `bebe16d`); `main.rs` 5 lines; no macroquad; 188 unit + 10 scenario + 6 `SceneLoop` tests)*
-- [ ] bore-inc
+- [x] bore-inc *(`1b08851`: root node, built in `ready`; engine textures, nearest-filtered (ADR-048); viewport follows the window; `main.rs` 5 lines; no macroquad; 201 unit + 21 scenario + 6 `SceneLoop` tests)*
 - [x] jade-garden *(`4ef6142`: root node; viewport follows the window; music on `AudioServer` (ADR-043); native + web; `main.rs` 5 lines; no macroquad; 289 unit + 22 + 1 scenario + 6 `SceneLoop` + 5 music tests)*
 - [x] accretion *(`ddf58a6`: root node; high DPI, viewport follows the window; per-frame `frame` snapshot; `main.rs` 5 lines; no macroquad; 125 unit + 2 balance + 6 `SceneLoop` tests; web saves broken before and after, see §5.16)*
 - [ ] ember-wars → full checklist in [[42-acceptance-tests]]

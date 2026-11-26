@@ -503,11 +503,40 @@ persistence API lands.
 - The window no longer asks for `high_dpi` (`run_window` has no such
   option), so text may look softer on Retina screens.
 
-### 5.14 bore-inc
+### 5.14 bore-inc — **migrated** (`1b08851`, 2026-11-26; native + web)
 
-- 202 unit + 21 scenario.
-- Large. Grid + upgrades + save/load + sprites. The largest single
-  migration after `ember-wars` and `jade-garden`.
+- 201 unit + 21 scenario tests, unchanged. New: 6 headless `SceneLoop`
+  tests (`tests/scene.rs`).
+- Shape: one root node, `BoreInc` (`src/scene.rs`, was `main.rs`). It
+  builds `AppState` in `ready`, because the atlas and background need the
+  renderer; the viewport follows the window.
+- Engine work this round:
+  - texture filtering (ADR-048, `fcf7a8e`): the atlas and background
+    layers are `Nearest`;
+  - `ember_stdlib::music::MusicPlayer::backend_mut` (`a8aa9f3`).
+- Textures: `BakedAtlas::upload` / `BackgroundData::upload` take the
+  renderer and create engine textures; `Atlas::draw*` and the layers use
+  `draw_sprite`.
+- `archie.png` is built in and decoded with the `image` crate (PNG only)
+  into a local `Image` with macroquad's field names, so the sheet code
+  and its tests did not change. The font is built in; the web bundle
+  copies no assets.
+- Input: `AppState::tick(keys, ctx, dt)` takes the engine `Input`,
+  threaded through the `tick_*` helpers (named `keys`, as `input` is the
+  game's own `GameInput`); `GameInput::from_keyboard` became
+  `from_input(keys)`.
+- Music: `ember_stdlib::music::MusicPlayer` over a game-local
+  `EngineMusic` backend that queues plays; the node applies them on the
+  `AudioServer` each frame (looped clips, ADR-043). The playlist is still
+  empty, as before.
+- Saving goes through a `Saver` (`progress::save_progress` when
+  playing), so tests never write the progress file.
+- No touch input was in use; the plan's "touches" need was a test name.
+- Web checked in a browser: start screen, title, intro, the level with
+  atlas sprites and background layers.
+- Pre-existing: a release-only `unused_variables` warning in
+  `hq.rs::draw_upgrade_block` (`progress` is used only under
+  `debug_assertions`).
 
 ### 5.15 jade-garden — **migrated** (`4ef6142`, 2026-11-26; native + web)
 

@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/bore-inc` (`cargo run -p bore-inc`) |
 | **Platform** | Abandoned (WASM ref) |
 | **Engine bricks exercised** | Incremental mining, pixel-perfect rendering, procedural sprites |
-| **Engine migration (Phase 7)** | ⬜ not migrated · has audio.rs · needs textures, looping music (ADR-043), window size (ADR-044), touches — see [[Next Phase Plan — Migration Close & Editor v2]] |
+| **Engine migration (Phase 7)** | ✅ `1b08851` — one root node; engine textures, nearest-filtered (ADR-048); screens follow the window — see [[41-migration-guide#5.14 bore-inc — **migrated** (`1b08851`, 2026-11-26; native + web)|§5.14]] |
 
 ## Documents
 

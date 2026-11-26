@@ -1,7 +1,7 @@
 # bore-inc
 
-**Status: abandoned prototype** — playable mining/truck/HQ loop, 223 tests,
-native + WASM. Robots, map/intro screens, and the level-complete objective
+**Status: abandoned prototype** — playable mining/truck/HQ loop, 228 tests,
+native + WASM, running on the Ember engine as a node tree. Robots, map/intro screens, and the level-complete objective
 were never finished. See **Status** below.
 
 An incremental mining game. Archie the cat drills a tunnel through a
@@ -48,9 +48,10 @@ Any movement key starts the game from the title screen.
 
 ## Assets
 
-Drop a `DejaVuSansMono.ttf` into `assets/` (copy it from another
-Ember game). The game falls back to macroquad's default font if
-missing — no crash, just a warning.
+`assets/DejaVuSansMono.ttf` and `assets/archie.png` are built into the
+binary (`include_bytes!`), so native and web load them the same way and
+the web bundle needs no `assets/` folder. Music tracks, once the
+playlist has any, are read from `assets/` natively.
 
 ## Structure
 
@@ -59,7 +60,8 @@ Session 2 starter kit.
 
 ```
 src/
-  main.rs        — entry point, preload, main loop
+  main.rs        — 5 lines: scene::run()
+  scene.rs       — the BoreInc root node: builds the app in ready, runs it
   lib.rs         — module list + reexports
   paths.rs       — runtime asset / progress path resolution
   config.rs      — GameContext, palette
@@ -90,8 +92,8 @@ src/
 **Playable prototype, abandoned as a jam project.** Implemented: mining by
 movement, resource drops, bag capacity, the drivable truck and its storage,
 HQ selling and upgrades, procedural levels with deterministic seeds, delta
-persistence, pixel-perfect sprites, and a web/WASM build. 223 tests pass
-(202 unit + 21 integration).
+persistence, pixel-perfect sprites, and a web/WASM build. 228 tests pass
+(201 unit + 21 integration + 6 headless scene tests).
 
 **Incomplete:** robot employees (only capsule tiles and unlock flags exist),
 the map screen (`MAP` is a placeholder), the intro screen (`INTRO` is a
@@ -100,7 +102,7 @@ truck to the finish line" objective is not yet a win condition.
 
 The game still compiles for wasm and remains a useful second reference port
 (see `ember-vault/20 Workspace/Browser Build (WASM).md`), so do not delete it while it is a workspace member
-— but expect it to break first on macroquad/glam bumps.
+— but expect it to break first on engine or glam bumps.
 
 ## Documentation
 

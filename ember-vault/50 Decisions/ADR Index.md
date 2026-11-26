@@ -56,5 +56,6 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 043 | [[50-design-decisions#ADR-043: Looped clips, clip readiness and MP3\|Looped clips, clip readiness, MP3]] | ✅ `d5ba842` `a855e43` |
 | 046 | [[50-design-decisions#ADR-046: `ember_stdlib` may use `ember_servers`; engine-typed juice (`fx`)\|stdlib may use servers; `fx`]] | ✅ `9fa73de` |
 | 047 | [[50-design-decisions#ADR-047: Window options (`run_window_with`)\|Window options (`run_window_with`)]] | ✅ `45392e9` |
+| 048 | [[50-design-decisions#ADR-048: Texture filtering (`set_texture_filter`)\|Texture filtering]] | ✅ `fcf7a8e` |
 
 New ADRs: copy [[ADR Template]].

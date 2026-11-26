@@ -1952,6 +1952,38 @@ did.
   building list clips on a high-DPI window).
 - Air-hockey can opt back into high DPI the same way.
 
+## ADR-048: Texture filtering (`set_texture_filter`)
+
+**Status:** accepted (2026-11-26) — bore-inc round
+
+### Context
+
+Bore-inc draws pixel art (a baked sprite atlas, parallax background
+layers) scaled up, and asked macroquad for `FilterMode::Nearest` on each
+texture. `RenderingServer::create_texture` always made linear-filtered
+textures, which blur pixel art.
+
+### Decision (`fcf7a8e`)
+
+- **`TextureFilter { Linear (default), Nearest }`** in `ember_servers`.
+- **`RenderingServer::set_texture_filter(id, filter)`**; an unknown id is
+  ignored. New textures stay `Linear`, so nothing changes for existing
+  callers. `MockRenderer` records `SetTextureFilter`; the macroquad
+  backend maps it to `FilterMode`.
+
+### Alternatives
+
+- **A filter argument on `create_texture`:** touches every caller and
+  the trait's existing signature. Rejected.
+- **A backend-wide default:** a game mixing UI text and pixel art could
+  not choose per texture. Rejected.
+
+### Consequences
+
+- `draw_sprite(texture, dst, src, tint)` already covered bore-inc's
+  `draw_texture_ex` calls (source rect, destination size, tint); no
+  rotation or flip was needed (the L sprites are mirrored when baked).
+
 ## How to add an ADR
 
 1. Copy the template:

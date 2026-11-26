@@ -128,7 +128,7 @@ The gaps below come from a grep of what the remaining games use. Each one lands 
 | **Shapes** ✅ `20a1c21` | zhuo-ji, jade-garden (`draw_poly`, `draw_poly_lines`, `draw_arc`, `draw_ellipse`), pagoda (`draw_arc`) | `draw_polygon(points)`, `draw_regular_polygon(center, sides, radius, rotation)`, `draw_arc`, `draw_ellipse` (+ outline variants) on `RenderingServer`; mock records them | ADR-042 |
 | **Looping audio / music** ✅ `d5ba842` | bore-inc, jade-garden (`ember_stdlib::music`), pagoda | `AudioServer::play_looped` / `set_volume(SoundId)`; music becomes a looped clip. As built: `play_looped` + `is_clip_ready`, MP3 decoded natively; `set_volume` deferred | ADR-043 |
 | **Window size at runtime** ✅ `bebe16d` | accretion, jade-garden, bore-inc, ember-wars (`screen_width()` / `screen_height()` 20+ times each) | `NodeContext::viewport()` / `DrawContext::viewport()` (the size `SceneLoop` already knows) + a `ViewportResized` signal for resizable windows. As built: `SceneLoop::with_viewport_following_window` and `RenderingServer::viewport`, no signal (games re-read it each frame) | ADR-041 amendment (ADR-044 not needed) |
-| Sprite drawing options | bore-inc, pagoda, taiji (`draw_texture_ex`: source rect, size, rotation, flip) | check `draw_sprite(texture, dst, src, tint)` covers it; add rotation / flip only if a game needs them | (in ADR-042 if needed) |
+| Sprite drawing options ✅ | bore-inc, pagoda, taiji (`draw_texture_ex`: source rect, size, rotation, flip) | check `draw_sprite(texture, dst, src, tint)` covers it; add rotation / flip only if a game needs them. As built: `draw_sprite` covered bore-inc; it needed nearest filtering instead | ADR-048 |
 | Text options | zhuo-ji, pagoda, jade-garden (`draw_text_ex`) | check each use: scale = size multiplier (as air-hockey); rotation only if used | — |
 | Clipping ✅ | jade-garden, accretion (`get_internal_gl().quad_gl.scissor`) | **already exists** (`push_clip_rect`) — no new API, just replace | — |
 | Elapsed time | pagoda, taiji, zhuo-ji, jade-garden, accretion, ember-wars (`get_time`) | keep a time counter in the root node (as asteroids does); add `NodeContext::time()` only if three games need it | — |
@@ -148,7 +148,7 @@ Suggested order: small games first, each one landing the engine feature the next
 | 3 | **zhuo-ji** ✅ `614cf30` | 9.2 k, 1 test file | ADR-042 shapes, fonts, `layout::centered_rect`, `ui::hit` | 2 | biggest UI-style game; `ui::hit` → `Rect::contains` |
 | 4 | **jade-garden** ✅ `4ef6142` | 9.7 k, 3 test files | ADR-042, ADR-043, ADR-044, clip, mouse wheel, animation, juice | 2.5 | shipped on itch.io (web) — playtest native **and** web |
 | 5 | **accretion** ✅ `ddf58a6` | 3.7 k, 2 test files | ADR-044, clip, mouse wheel | 1.5 | web storage stays as is |
-| 6 | **bore-inc** | 8.3 k, 1 test file | textures, sounds, music (ADR-043), ADR-044, touches | 2 | marked **abandoned** — see [[Next Phase Plan — Migration Close & Editor v2#Open questions\|open questions]] |
+| 6 | **bore-inc** ✅ `1b08851` | 8.3 k, 1 test file | textures, sounds, music (ADR-043), ADR-044, touches | 2 | marked **abandoned** — see [[Next Phase Plan — Migration Close & Editor v2#Open questions\|open questions]] |
 | 7 | **ember-wars** | 9.5 k, 1 test file | ADR-044, own camera (`set_camera` offset), juice, fonts | 2.5 | **acceptance test** — full checklist in [[42-acceptance-tests]]; migrates last |
 
 Each round follows the migration recipe in [[41-migration-guide#5. Per-game notes|§5]]:
@@ -206,7 +206,7 @@ The proof (M1) already makes the editor general. M4 makes it a real tool. Each s
 
 ## Open questions
 
-1. **bore-inc** is marked *abandoned* (WASM reference only). Should we migrate it (2 sessions), or freeze it and drop it from the workspace build? Until you decide, the plan migrates it, so that "every game" holds.
+1. ~~**bore-inc** is marked *abandoned* (WASM reference only). Should we migrate it, or freeze it?~~ Migrated (`1b08851`) on the user's go-ahead ("Start bore-inc round"); it stays marked abandoned as a game.
 2. **Which games are editable?** The definition of done above does not require every game to open in the editor. Pong is the proof, and at least one more game is required by Phase 9's exit criteria. Converting a game to data costs ≈ 0.5 session each. Should more of them become editable?
 3. ~~**High DPI:** air-hockey used `high_dpi: true`, and `run_window` has no such option.~~ Answered by ADR-047 (`run_window_with`, `45392e9`): zhuo-ji uses it; air-hockey can opt back in.
 
