@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/pagoda` (`cargo run -p pagoda`) |
 | **Platform** | Native + WASM |
 | **Engine bricks exercised** | One-button stacker, perfect window, ink-wash art, SFX bank, mobile shell |
-| **Engine migration (Phase 7)** | ⬜ not migrated · has juice.rs, audio.rs |
+| **Engine migration (Phase 7)** | ⬜ not migrated · has juice.rs, audio.rs · needs virtual resolution (ADR-041), arc (ADR-042), juice, sounds — see [[Next Phase Plan — Migration Close & Editor v2]] |
 
 ## Documents
 

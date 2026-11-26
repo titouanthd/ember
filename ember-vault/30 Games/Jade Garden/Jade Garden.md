@@ -13,13 +13,13 @@ generated: "2026-11-22"
 | **Crate** | `games/jade-garden` (`cargo run -p jade-garden`) |
 | **Platform** | Native + WASM |
 | **Engine bricks exercised** | Match-3, cascade, Tween/Easing, CJK subset, parallax |
-| **Engine migration (Phase 7)** | ⬜ not migrated · has juice.rs, audio.rs · shipped on web |
+| **Engine migration (Phase 7)** | ⬜ not migrated · has juice.rs, audio.rs · shipped on web · needs shapes (ADR-042), looping music (ADR-043), window size (ADR-044), clip, juice — see [[Next Phase Plan — Migration Close & Editor v2]] |
 
 ## Documents
 
 - README (in the repo, outside the vault): `games/jade-garden/README.md`. Credits (fonts, music) are in that README.
 - [[Jade Garden — Design]]
-- [[Jade Garden — Release]]
+- [[Jade Garden — Release]] *(archived)*
 
 ## Links
 

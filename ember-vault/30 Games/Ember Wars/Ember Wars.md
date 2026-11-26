@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/ember-wars` (`cargo run -p ember-wars`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | Catapult, auto-combat, 28-node upgrade tree, procedural textures, juice |
-| **Engine migration (Phase 7)** | ⬜ not migrated · has juice.rs · **acceptance test** (migrates last) |
+| **Engine migration (Phase 7)** | ⬜ not migrated · has juice.rs · **acceptance test** (migrates last) · needs window size (ADR-044), juice, fonts — see [[Next Phase Plan — Migration Close & Editor v2]] |
 
 ## Documents
 

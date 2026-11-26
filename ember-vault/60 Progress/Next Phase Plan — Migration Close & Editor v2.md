@@ -1,0 +1,214 @@
+---
+title: "Next Phase Plan — Migration Close & Editor v2"
+aliases: ["Current plan", "Phase 7-9 plan", "Editor v2 plan"]
+tags: ["ember/progress", "ember/plan", "ember/phase-7", "ember/phase-8", "ember/phase-9"]
+created: "2026-11-26"
+phase: "7 (close) · 8 (cleanup) · 9 (Editor v2, new)"
+estimate: "≈ 26 sessions"
+---
+
+# Next phases — finish the migration, then Editor v2
+
+> [!summary] Goal
+> 1. **Every game runs on the latest engine.** All 17 games are node trees
+>    on `SceneLoop`, and none imports macroquad, a macroquad-backed
+>    `ember-stdlib` module or a local "twin" of an engine type.
+> 2. **A big refactor of the editor (Editor v2).** It becomes a general
+>    tool that a game plugs its node classes into, not a demo that knows
+>    two hard-coded classes.
+> 3. **Proof:** `make edit GAME=pong` opens Pong in the editor. You can
+>    edit it and save it, and `cargo run -p pong` then plays the saved
+>    scene.
+>
+> The proof comes **first** (milestone M1), because it shapes how every
+> later game is written: as data the editor can open, not only as code.
+
+## Where we start (2026-11-26)
+
+| Area | State |
+|---|---|
+| Phases 0, 2, 4, 5, 6 | ✅ closed |
+| Phase 1 / 3 | one open item each (`hello_scene` headless run; scene-declared connections) |
+| **Phase 7** | **9 games fully migrated** (snake, simon, memory, minesweeper, freecell, breakout, asteroids, air-hockey, bullet-hell) + **pong partly** → 10 / 17 counted, 8 to go incl. pong |
+| Phase 8 | `juice.rs` gone from games; 10 `ember-stdlib` modules still import macroquad |
+| Editor | POC: opens `player.escene`, edits properties as text, previews, saves. Knows only its own `Player` / `Sprite` classes; drops connections and ext resources on save; no add/remove nodes, no undo |
+
+Live checklist: [[Roadmap Tracker]] · state and push steps: [[Handover 2026-11-26]].
+
+## Definition of done
+
+**Per game ("latest engine"):**
+- `src/scene.rs` holds the node tree, and `main.rs` is ≤ 10 lines.
+- No macroquad anywhere in `src/` or `tests/`, and the game is off `xtask/macroquad-allowlist.txt`.
+- It uses no macroquad-backed `ember-stdlib` module (`audio`, `config::env_color`, `fonts`, `graphics`, `input`, `juice`, `layout`, `music`, `sprite`, `ui`).
+- It has no local twin of an engine type (`env_color`, `Sprite`), once Phase 8 gives `ember-stdlib` engine-typed versions.
+- Existing tests are green with only mechanical edits (imports, `KeyCode` → `Key`), and a `tests/scene.rs` drives `SceneLoop` on mocks.
+- You have played the game before pushing, as per the round rule below.
+
+**Editor proof ("opens Pong"):** see [[Next Phase Plan — Migration Close & Editor v2#Proof checklist — the editor opens Pong|the proof checklist]].
+
+## Milestones
+
+| # | Milestone | Sessions | Unblocks |
+|---|---|---:|---|
+| **M1** | Pong finished **and** described as an `.escene`; the editor opens it | 4 | the proof; the pattern for "games as data" |
+| **M2** | Engine gaps, each as a small renderer/audio feature with its own ADR, landed just before the first game that needs it | 4 | M3 |
+| **M3** | The 7 remaining games, one per round | 13 | Phase 7 exit, acceptance test |
+| **M4** | Editor v2: lossless documents, node editing, undo, typed inspector, panel split | 3 | Phase 9 exit |
+| **M5** | Phase 8 cleanup: retire the macroquad parts of `ember-stdlib`, drop the twins, `CHANGELOG.md` | 2 | v0.1 POC done |
+
+Rounds keep the current rhythm: **one game or one engine feature per round**. I commit locally; you run `make pre-push`, play the game and push ([[Commit & Push]]).
+
+---
+
+## M1 — Pong, and the editor opens it (proof first)
+
+### M1.1 Finish Pong (0.5 session)
+- `macroquad::Color` → `ember_core::Color` in `config.rs`, `components.rs` and `scene.rs` (the `color()` bridge goes away).
+- `main.rs` (20 lines) moves into `scene::run()`, leaving 5 lines.
+- Drop `ember_stdlib::app::GameState` for `ember_core::GameState`.
+- Off the allowlist. The tracker line becomes ✅.
+
+### M1.2 Pong as data (1 session)
+- The nodes become editable classes with `#[derive(Node)]` and `#[export]`:
+  - `Pong` (root): match rules such as the score to win and the ball speed.
+  - `Paddle` ×2: `side`, `size`, `speed`, `color`, `ai`.
+  - `Ball`: `size` and `color`.
+  - `Scoreboard`: `font_size` and `color`.
+- Their behaviour stays in hand-written `impl Node`, as allowed since ADR-030.
+- New `games/pong/scenes/pong.escene`, with `pong::scene::classes() -> ClassDB` registering the four classes.
+- `build_tree` **instantiates the scene file** instead of building the tree in code. `.env` values still apply as overrides, so nothing changes in play.
+- Tests:
+  - The loaded tree matches the old hand-built one (names, classes, positions).
+  - A save → load → save round trip is identical.
+  - The existing pong tests stay green.
+- Risk: `.escene` cannot express the `PointScored` connection yet (Phase 3 open item). Keep connecting in `ready` for now; it gets solved in M4.1.
+
+### M1.3 Editor as a library + game plug-in (1 session) · **ADR-039 "How a game plugs into the editor"**
+- Layers forbid `ember-editor` from depending on games, so the dependency points the other way:
+  - `ember_editor::run(EditorConfig { classes, scene, viewport })` becomes a library entry point.
+  - Each game that wants editing gets an `examples/edit.rs` (3 lines) calling it with its own `classes()`.
+  - `make edit GAME=pong` runs `cargo run -p pong --example edit -- scenes/pong.escene`, on a scratch copy as `make editor` does today.
+- The built-in `Player` / `Sprite` classes stay as the editor's own demo set (`make editor` unchanged).
+
+### M1.4 Preview v2 (1 session) · **ADR-040 "Camera transform (offset + zoom)"**
+- The editor's preview draws the scene at its **real resolution** (Pong is 800 × 600), scaled to fit the preview panel.
+- That needs a zoom in `RenderingServer::set_camera`, which today takes an offset only. Pagoda, taiji and ember-wars need the same feature, so it is built once here.
+- The preview calls `ready` on the opened scene, so nodes that set themselves up at that point (fonts, children) look right.
+- Stretch goal: a **Play / Stop** toggle that runs `process` in the preview and restores the document on Stop.
+
+### Proof checklist — the editor opens Pong
+- [ ] `make edit GAME=pong` opens a window showing the outline `Pong / PlayerPaddle / AiPaddle / Ball / Scoreboard`
+- [ ] the preview shows the Pong court at 800 × 600, scaled into the panel
+- [ ] selecting `PlayerPaddle` shows `size`, `speed`, `color`; changing `size` to `16, 160` updates the preview
+- [ ] Save writes `pong.escene`; reopening it shows the change
+- [ ] `cargo run -p pong` with the saved scene plays with the taller paddle
+- [ ] headless test: `games/pong/tests/editor.rs` opens `pong.escene` in `ember_editor::Document`, edits, saves and reloads
+
+---
+
+## M2 — Engine gaps (with an ADR each)
+
+The gaps below come from a grep of what the remaining games use. Each one lands as its own round, just before the first game that needs it.
+
+| Feature | Needed by | Plan | ADR |
+|---|---|---|---|
+| Camera offset + zoom | pagoda, taiji, editor preview (ember-wars already scrolls with its own camera and `set_camera(offset)`) | `set_camera(Camera2d { offset, zoom })` + `DrawContext::world_to_screen` | ADR-040 (M1.4) |
+| **Virtual resolution / letterbox** | pagoda, taiji (both render to a `render_target` of a fixed size and scale it to the window) | `SceneLoop` / backend option `VirtualResolution { w, h, filter }`: draw at a fixed size, scaled and letterboxed into the window; mouse mapped back | ADR-041 |
+| **Shapes** | zhuo-ji, jade-garden (`draw_poly`, `draw_poly_lines`, `draw_arc`, `draw_ellipse`), pagoda (`draw_arc`) | `draw_polygon(points)`, `draw_regular_polygon(center, sides, radius, rotation)`, `draw_arc`, `draw_ellipse` (+ outline variants) on `RenderingServer`; mock records them | ADR-042 |
+| **Looping audio / music** | bore-inc, jade-garden (`ember_stdlib::music`), pagoda | `AudioServer::play_looped` / `set_volume(SoundId)`; music becomes a looped clip | ADR-043 |
+| **Window size at runtime** | accretion, jade-garden, bore-inc, ember-wars (`screen_width()` / `screen_height()` 20+ times each) | `NodeContext::viewport()` / `DrawContext::viewport()` (the size `SceneLoop` already knows) + a `ViewportResized` signal for resizable windows | ADR-044 |
+| Sprite drawing options | bore-inc, pagoda, taiji (`draw_texture_ex`: source rect, size, rotation, flip) | check `draw_sprite(texture, dst, src, tint)` covers it; add rotation / flip only if a game needs them | (in ADR-042 if needed) |
+| Text options | zhuo-ji, pagoda, jade-garden (`draw_text_ex`) | check each use: scale = size multiplier (as air-hockey); rotation only if used | — |
+| Clipping | jade-garden, accretion (`get_internal_gl().quad_gl.scissor`) | **already exists** (`push_clip_rect`) — no new API, just replace | — |
+| Elapsed time | pagoda, taiji, zhuo-ji, jade-garden, accretion, ember-wars (`get_time`) | keep a time counter in the root node (as asteroids does); add `NodeContext::time()` only if three games need it | — |
+
+Web builds (pagoda, jade-garden, accretion, bore-inc) must keep building ([[Browser Build (WASM)]]). Accretion's `ember_storage_*` web storage functions stay game-local.
+
+---
+
+## M3 — Remaining games (one per round)
+
+Suggested order: small games first, each one landing the engine feature the next one needs. This is a change from [[41-migration-guide#3. Migration order|§3]]: taiji now goes before pagoda.
+
+| Round | Game | Size | Needs | Est. | Notes |
+|---|---|---:|---|---:|---|
+| 1 | **taiji** | 0.7 k lines, 0 tests | ADR-040, ADR-041 | 1 | smallest user of the render-target pattern → proves the letterbox; add a first scenario test |
+| 2 | **pagoda** | 3.4 k, 0 tests | ADR-041, shapes (arc), juice, persistence, sounds | 1.5 | Native + WASM; replace `ember_stdlib::juice` with an engine-typed version (Phase 8 work, pulled forward) |
+| 3 | **zhuo-ji** | 9.2 k, 1 test file | ADR-042 shapes, fonts, `layout::centered_rect`, `ui::hit` | 2 | biggest UI-style game; `ui::hit` → `Rect::contains` |
+| 4 | **jade-garden** | 9.7 k, 3 test files | ADR-042, ADR-043, ADR-044, clip, mouse wheel, animation, juice | 2.5 | shipped on itch.io (web) — playtest native **and** web |
+| 5 | **accretion** | 3.7 k, 2 test files | ADR-044, clip, mouse wheel | 1.5 | web storage stays as is |
+| 6 | **bore-inc** | 8.3 k, 1 test file | textures, sounds, music (ADR-043), ADR-044, touches | 2 | marked **abandoned** — see [[Next Phase Plan — Migration Close & Editor v2#Open questions\|open questions]] |
+| 7 | **ember-wars** | 9.5 k, 1 test file | ADR-044, own camera (`set_camera` offset), juice, fonts | 2.5 | **acceptance test** — full checklist in [[42-acceptance-tests]]; migrates last |
+
+Each round follows the migration recipe in [[41-migration-guide#5. Per-game notes|§5]]:
+- existing tests unchanged, or changed only mechanically (and said so);
+- a new `tests/scene.rs`;
+- off the allowlist;
+- a `41-migration-guide` §5 entry, a game hub note, the tracker, and the Home count.
+
+---
+
+## M4 — Editor v2 (the big refactor)
+
+The proof (M1) already makes the editor general. M4 makes it a real tool. Each session is one round, with tests on `Document` (headless) plus `SceneLoop` tests on the app.
+
+### M4.1 Lossless documents (1 session)
+- `Document` keeps `ext_resources`, `connections` and unknown properties, and writes them back on save. Today they are dropped.
+- Scene-declared connections get wired at instantiate time. **This closes the Phase 3 open item**, and Pong's `PointScored` connection moves into `pong.escene`.
+- Test: opening and saving every `.escene` in the repo changes no byte.
+
+### M4.2 Node editing + undo (1 session) · **ADR-045 "Editor commands and undo"**
+- A command stack: `SetProperty`, `AddNode(class, parent)`, `RemoveNode`, `RenameNode`, `Reparent`, each one reversible.
+- Undo / redo with Ctrl+Z / Ctrl+Shift+Z, and Ctrl+S to save. These need `Key::LeftControl` / `RightControl` / `Super` (a small input addition, like Semicolon and Shift).
+- The outline gets **Add** (a class picker over `ClassDB`), **Delete** and **Rename**, and the dirty flag asks before closing.
+
+### M4.3 Inspector v2 + panel split (1 session)
+- `app.rs` (469 lines) is split into `toolbar.rs`, `outline.rs`, `inspector.rs` and `preview.rs`, each a `Control` subtree talking through signals (ADR-036).
+- Typed editors replace "everything is a text box":
+  - `bool` → a checkbox;
+  - `Vec2` → two number fields;
+  - `Color` → a swatch plus four fields;
+  - an enum → cycling through its values;
+  - text stays as text for everything else.
+- The 16-property cap goes, because the inspector scrolls (`ScrollContainer`).
+- The preview gets selection highlight, click-to-select in the preview, and drawn textures.
+
+### Phase 9 exit criteria (Editor v2)
+- [ ] the M1 proof checklist passes
+- [ ] every `.escene` in the repo round-trips byte-for-byte (connections, ext resources included)
+- [ ] add / remove / rename / reparent a node, each undoable
+- [ ] typed editors for bool, number, `Vec2`, `Color`, enum
+- [ ] at least one other migrated game (suggested: breakout, bricks as data) also opens with `make edit GAME=…`
+
+---
+
+## M5 — Phase 8 cleanup (2 sessions)
+
+- `ember-stdlib` loses its macroquad modules: `audio`, `config::env_color`, `fonts`, `graphics`, `input`, `juice`, `layout`, `music`, `sprite`, `ui`.
+  - Each one is replaced by an engine-typed version (for example `env_color → ember_core::Color`, `Sprite` with `ember_core::Color`, `juice` on `RenderingServer`), or deleted when nothing uses it.
+- The games' local twins (`env_color` in 5 games, `Sprite` in breakout and asteroids) switch to the stdlib versions.
+- `xtask/macroquad-allowlist.txt` is empty except for comments, so `check-macroquad` holds for the whole workspace.
+- `CHANGELOG.md`, and the tracker's Phase 8 boxes.
+- `40-roadmap` gains Phase 9 (Editor v2). [[Doc–Code Discrepancies]] items #4 (phase numbering) and #18 (Makefile `CRATES`) get closed.
+
+---
+
+## Open questions
+
+1. **bore-inc** is marked *abandoned* (WASM reference only). Should we migrate it (2 sessions), or freeze it and drop it from the workspace build? Until you decide, the plan migrates it, so that "every game" holds.
+2. **Which games are editable?** The definition of done above does not require every game to open in the editor. Pong is the proof, and at least one more game is required by Phase 9's exit criteria. Converting a game to data costs ≈ 0.5 session each. Should more of them become editable?
+3. **High DPI:** air-hockey used `high_dpi: true`, and `run_window` has no such option. Worth a small backend option (with ADR-041's window setup) if text looks soft on Retina.
+
+## Estimate
+
+| Milestone | Sessions |
+|---|---:|
+| M1 Pong + editor proof | 4 |
+| M2 engine gaps (ADR-041…044) | 4 |
+| M3 seven games | 13 |
+| M4 Editor v2 | 3 |
+| M5 cleanup | 2 |
+| **Total** | **≈ 26** |
+
+At the current pace (≈ 6 rounds a day), that is about **4–5 working days**.

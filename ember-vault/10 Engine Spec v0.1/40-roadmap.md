@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 40 — Roadmap
 
-> **Status:** 🟡 partial — reviewed 2026-11-22 ([[Roadmap Review 2026-11-22]]); progress notes match code
+> **Status:** 🟡 partial — reviewed 2026-11-22 ([[Roadmap Review 2026-11-22]], archived); progress notes match code. **Current plan (2026-11-26):** [[Next Phase Plan — Migration Close & Editor v2]], which closes Phase 7 and 8 and adds a **Phase 9 — Editor v2**
 > **Audience:** all
 > **Prerequisites:** [[00-overview]], [[01-architecture]]
 

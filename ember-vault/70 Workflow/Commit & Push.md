@@ -124,4 +124,4 @@ git push origin --all       # back up every local branch
 Then write `60 Progress/Handover <date>.md`: what changed, current state, exact next steps.
 
 ## See also
-- [[Handover 2026-11-22]] · [[Next Phase Plan — Phase 5 UI]] · [[Engine Spec Index#6. Contribution workflow|Spec contribution workflow]]
+- [[Handover 2026-11-26]] · [[Next Phase Plan — Migration Close & Editor v2]] · [[Engine Spec Index#6. Contribution workflow|Spec contribution workflow]]

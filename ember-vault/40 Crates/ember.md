@@ -30,4 +30,4 @@ all engine crates + glam
 
 ## See also
 
-- [[Crates MOC]] · [[Roadmap Tracker]] · [[Progress Evaluation 2026-11-22]]
+- [[Crates MOC]] · [[Roadmap Tracker]] · [[Handover 2026-11-26]]

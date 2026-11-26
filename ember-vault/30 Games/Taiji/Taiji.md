@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/taiji` (`cargo run -p taiji`) |
 | **Platform** | Native (prototype) |
 | **Engine bricks exercised** | Time-dilation Pong, letterboxed virtual canvas |
-| **Engine migration (Phase 7)** | ⬜ not migrated |
+| **Engine migration (Phase 7)** | ⬜ not migrated · needs camera zoom (ADR-040), virtual resolution (ADR-041) — see [[Next Phase Plan — Migration Close & Editor v2]] |
 
 ## Documents
 

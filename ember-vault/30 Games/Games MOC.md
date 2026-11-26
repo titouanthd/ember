@@ -8,24 +8,24 @@ generated: "2026-11-22"
 
 17 game crates under `games/` (16 playable, 1 abandoned). The engine docs say **18** in many places — see [[Doc–Code Discrepancies]].
 
-| # | Game | Platform | Docs | Phase 7 status |
-|---|---|---|---|---|
-| 1 | [[Snake]] | Native | 0 | ⬜ not migrated (first in migration order) |
-| 2 | [[Pong]] | Native | 0 | ✅ migrated to NodeTree + SceneLoop + PointScored signal (only migrated game) |
-| 3 | [[Simon]] | Native | 0 | ⬜ not migrated |
-| 4 | [[Memory]] | Native | 1 | ⬜ not migrated |
-| 5 | [[Minesweeper]] | Native | 0 | ⬜ not migrated |
-| 6 | [[FreeCell]] | Native | 1 | ⬜ not migrated |
-| 7 | [[Breakout]] | Native | 0 | ⬜ not migrated |
-| 8 | [[Asteroids]] | Native | 1 | ⬜ not migrated |
-| 9 | [[Air Hockey]] | Native | 0 | ⬜ not migrated · has audio.rs |
-| 10 | [[Bullet Hell]] | Native | 1 | ⬜ not migrated |
-| 11 | [[Pagoda]] | Native + WASM | 3 | ⬜ not migrated · has juice.rs, audio.rs |
-| 12 | [[Taiji]] | Native (prototype) | 2 | ⬜ not migrated |
-| 13 | [[Zhuo Ji]] | Native | 1 | ⬜ not migrated |
-| 14 | [[Bore Inc]] | Abandoned (WASM ref) | 4 | ⬜ not migrated · has audio.rs |
-| 15 | [[Jade Garden]] | Native + WASM | 4 | ⬜ not migrated · has juice.rs, audio.rs · shipped on web |
-| 16 | [[Accretion]] | Native + WASM | 2 | ⬜ not migrated |
-| 17 | [[Ember Wars]] | Native | 1 | ⬜ not migrated · has juice.rs · **acceptance test** (migrates last) |
+| # | Game | Platform | Phase 7 status (2026-11-26) |
+|---|---|---|---|
+| 1 | [[Snake]] | Native | ✅ `77d7694` |
+| 2 | [[Pong]] | Native | 🟡 partly — finish + `.escene` = editor proof (M1) |
+| 3 | [[Simon]] | Native | ✅ `1d0dc87` |
+| 4 | [[Memory]] | Native | ✅ `8b08c5d` |
+| 5 | [[Minesweeper]] | Native | ✅ `237243e` |
+| 6 | [[FreeCell]] | Native | ✅ `9371b95` |
+| 7 | [[Breakout]] | Native | ✅ `ee84048` |
+| 8 | [[Asteroids]] | Native | ✅ `f03a117` |
+| 9 | [[Air Hockey]] | Native | ✅ `66987a2` |
+| 10 | [[Bullet Hell]] | Native | ✅ `8b27a11` |
+| 11 | [[Pagoda]] | Native + WASM | ⬜ needs ADR-041 (virtual resolution) · has juice |
+| 12 | [[Taiji]] | Native (prototype) | ⬜ needs ADR-040 / 041 · **next game** (moved before pagoda) |
+| 13 | [[Zhuo Ji]] | Native | ⬜ needs ADR-042 (shapes) |
+| 14 | [[Bore Inc]] | Abandoned (WASM ref) | ⬜ needs ADR-043 / 044 · migrate or freeze? (open question) |
+| 15 | [[Jade Garden]] | Native + WASM | ⬜ needs ADR-042 / 043 / 044 · shipped on web |
+| 16 | [[Accretion]] | Native + WASM | ⬜ needs ADR-044 |
+| 17 | [[Ember Wars]] | Native | ⬜ needs ADR-044 · **acceptance test** (migrates last) |
 
-Rows are in the planned migration order from [[41-migration-guide#3. Migration order|41-migration-guide §3]].
+Rows are in the original migration order from [[41-migration-guide#3. Migration order|41-migration-guide §3]]; the order for the remaining games and the ADRs they need are in [[Next Phase Plan — Migration Close & Editor v2]]. **10 / 17** on the engine (pong counted as partly).

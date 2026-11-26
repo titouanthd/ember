@@ -6,7 +6,7 @@ generated: "2026-11-22"
 
 # Roadmap tracker
 
-Checklist of every **exit criterion** in [[40-roadmap]], ticked against the `main` branch (last update 2026-11-26, see [[Handover 2026-11-26]]). Tick boxes as work lands. ⚑ = landed with the merge of `titouanthd-docs-crates-games-plan` (2026-11-22).
+Checklist of every **exit criterion** in [[40-roadmap]], ticked against the `main` branch (last update 2026-11-26, see [[Handover 2026-11-26]]; plan: [[Next Phase Plan — Migration Close & Editor v2]]). Tick boxes as work lands. ⚑ = landed with the merge of `titouanthd-docs-crates-games-plan` (2026-11-22).
 
 ```mermaid
 gantt
@@ -23,7 +23,9 @@ gantt
   P6 Editor (done)       :done, p6, 2026-11-24, 1d
   section Application
   P7 Migration (10/17)    :active, p7, 2026-11-18, 13d
-  P8 Cleanup (0%)        :p8, after p7, 1d
+  P8 Cleanup (10%)       :p8, after p7, 2d
+  section Editor v2
+  P9 Editor v2 (0%)      :p9, after p7, 4d
 ```
 
 ## Phase 0 — Foundations ✅ closed 2026-11-22
@@ -84,7 +86,7 @@ gantt
 ## Phase 7 — Migration
 Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `macroquad`.
 - [x] snake *(`77d7694`: one root node; `main.rs` 5 lines; no macroquad; 7 `SceneLoop` tests)*
-- [ ] pong *(on NodeTree + signal; `main.rs` 20 lines; still imports macroquad Color)*
+- [ ] pong *(on NodeTree + signal; `main.rs` 20 lines; still imports macroquad Color → M1.1)*
 - [x] simon *(`1d0dc87`: root node + `ember_ui` screens + custom `ColorPad`; `main.rs` 5 lines; no macroquad; 8 `SceneLoop` tests)*
 - [x] memory *(`8b08c5d`: root node + `ember_ui` buttons; `main.rs` 5 lines; no macroquad; 8 `SceneLoop` tests)*
 - [x] minesweeper *(`237243e`: root node + `ember_ui` buttons; `main.rs` 5 lines; no macroquad; 7 `SceneLoop` tests)*
@@ -107,3 +109,27 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [ ] no `audio.rs` in games
 - [ ] workspace tests + clippy green
 - [ ] `CHANGELOG.md`
+- [ ] no macroquad-backed `ember-stdlib` module left (`audio`, `config::env_color`, `fonts`, `graphics`, `input`, `juice`, `layout`, `music`, `sprite`, `ui`); allowlist empty
+- [ ] games' local twins (`env_color`, `Sprite`) replaced by engine-typed stdlib versions
+
+## Phase 9 — Editor v2 (new, see [[Next Phase Plan — Migration Close & Editor v2]])
+**Proof — the editor opens Pong (M1):**
+- [ ] pong described as `games/pong/scenes/pong.escene`; `build_tree` instantiates it
+- [ ] editor as a library; a game plugs its `ClassDB` in (ADR-039); `make edit GAME=pong`
+- [ ] preview at the scene's real resolution, scaled (camera zoom, ADR-040)
+- [ ] edit `PlayerPaddle.size` → preview updates → Save → `cargo run -p pong` plays the change
+- [ ] headless `games/pong/tests/editor.rs`
+
+**Editor v2 (M4):**
+- [ ] lossless save: connections, ext resources, unknown properties; scene-declared connections wired (closes Phase 3)
+- [ ] add / remove / rename / reparent nodes, undo / redo (ADR-045)
+- [ ] typed inspector (bool, number, `Vec2`, `Color`, enum), no 16-property cap
+- [ ] `app.rs` split into toolbar / outline / inspector / preview panels
+- [ ] a second game opens with `make edit GAME=…`
+
+## Engine gaps (M2, one ADR each)
+- [ ] ADR-040 camera offset + zoom
+- [ ] ADR-041 virtual resolution / letterbox (pagoda, taiji)
+- [ ] ADR-042 shapes: polygon, regular polygon, arc, ellipse (zhuo-ji, jade-garden, pagoda)
+- [ ] ADR-043 looping audio / music (bore-inc, jade-garden, pagoda)
+- [ ] ADR-044 runtime window size + resize signal (accretion, jade-garden, bore-inc, ember-wars)

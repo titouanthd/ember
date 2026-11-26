@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/accretion` (`cargo run -p accretion`) |
 | **Platform** | Native + WASM |
 | **Engine bricks exercised** | Production chain, 6 paradigm shifts, prestige, localStorage bridge |
-| **Engine migration (Phase 7)** | ⬜ not migrated |
+| **Engine migration (Phase 7)** | ⬜ not migrated · needs window size (ADR-044), clip, mouse wheel — see [[Next Phase Plan — Migration Close & Editor v2]] |
 
 ## Documents
 
