@@ -13,8 +13,11 @@ use ember::prelude::*;
 /// Number of levels in the campaign (was a `main.rs` constant).
 pub const MAX_LEVELS: usize = 3;
 const BRICK_OUTLINE: Color = Color::new(0.2, 0.2, 0.2, 1.0);
-/// macroquad's `GRAY`, used by the old screens.
+// macroquad's named colours, used by the old screens (not pure RGB).
 const GRAY: Color = Color::new(0.51, 0.51, 0.51, 1.0);
+const YELLOW: Color = Color::new(0.99, 0.98, 0.0, 1.0);
+const RED: Color = Color::new(0.9, 0.16, 0.22, 1.0);
+const GREEN: Color = Color::new(0.0, 0.89, 0.19, 1.0);
 
 pub struct BreakoutGame {
     name: String,
@@ -112,7 +115,7 @@ impl BreakoutGame {
         );
         match world.state {
             GameState::Start => {
-                centered(r, "BREAKOUT", cx, 180.0, 100.0, Color::YELLOW);
+                centered(r, "BREAKOUT", cx, 180.0, 100.0, YELLOW);
                 centered(r, "Press SPACE to start", cx, 300.0, 40.0, Color::WHITE);
                 centered(r, "Use Left/Right or A/D to move", cx, 360.0, 30.0, GRAY);
                 let alive = world.bricks.iter().filter(|b| b.is_alive()).count();
@@ -130,14 +133,14 @@ impl BreakoutGame {
                 );
             }
             GameState::GameOver => {
-                centered(r, "GAME OVER", cx, 250.0, 80.0, Color::RED);
+                centered(r, "GAME OVER", cx, 250.0, 80.0, RED);
                 let score = format!("Final Score: {}", world.score);
                 centered(r, &score, cx, 320.0, 40.0, Color::WHITE);
                 centered(r, "Press R to restart", cx, 380.0, 40.0, Color::WHITE);
             }
             GameState::Win => {
-                centered(r, "YOU WIN !", cx, 200.0, 80.0, Color::GREEN);
-                centered(r, "Congratulations !", cx, 270.0, 50.0, Color::YELLOW);
+                centered(r, "YOU WIN !", cx, 200.0, 80.0, GREEN);
+                centered(r, "Congratulations !", cx, 270.0, 50.0, YELLOW);
                 let score = format!("Final Score: {}", world.score);
                 centered(r, &score, cx, 330.0, 40.0, Color::WHITE);
                 centered(r, "Press R to restart", cx, 390.0, 40.0, Color::WHITE);
