@@ -1679,6 +1679,55 @@ was a binary. To open `pong.escene` it needs Pong's classes. Layers
 - The preview frames the resolution but does not scale it yet: Pong's
   800 × 600 is clipped by the panel until ADR-040 (M1.4).
 
+## ADR-040: Camera transform (offset + zoom)
+
+**Status:** accepted (2026-11-26) — M1.4 of [[Next Phase Plan — Migration Close & Editor v2]]; amends [[22-ember-servers]] and [[23-ember-render-macroquad]] §4
+
+### Context
+
+`RenderingServer::set_camera(offset)` could only scroll. The editor
+preview must show Pong's 800 × 600 court inside a 540 × 660 panel, and
+pagoda, taiji and ember-wars need a zoom to leave macroquad's own camera.
+
+### Decision (`dfa8b04`)
+
+- **`ember_servers::Camera2d { offset: Vec2, zoom: f32 }`.** A world
+  point `p` lands at `(p - offset) * zoom`. It has `IDENTITY`,
+  `at(offset)` (the old behaviour), `with_zoom`, `placing_origin_at(screen,
+  zoom)`, `world_to_screen` / `screen_to_world`, `length`, `rect_to_screen`.
+- **The trait takes the whole value:** `set_camera(Camera2d)` and
+  `camera() -> Camera2d` replace `set_camera(Vec2)` / `camera_offset()`.
+  Saving and restoring a camera is one value.
+- **The backend maps every draw call.** Positions go through
+  `world_to_screen`, and sizes, radii, thicknesses and font sizes are
+  multiplied by `zoom`. **Clip rects stay in screen pixels**, as ADR-031
+  says. `measure_text` stays in world units, so layout code does not
+  change.
+- `DrawContext::camera()` replaces `camera_offset()`;
+  `world_to_screen` / `screen_to_world` use the zoom.
+- **Editor:** `preview_camera(viewport)` scales the game's resolution
+  down to fit the preview (never up) and centres it. Without a viewport
+  the POC placement is unchanged. `Document::ready` runs the scene's
+  `ready` on the preview's own silent servers (`MockAudio`, a separate
+  `LinearPhysics`, no input).
+
+### Alternatives
+
+- **Add `set_camera_zoom` and keep `set_camera(offset)`:** no breaking
+  change, but two calls to save and restore. Only the editor and three
+  tests called the old API. Rejected.
+- **macroquad's `Camera2D` matrix:** scissor rects and `measure_text`
+  would then mix screen and world units. Rejected for v0.1.
+- **Rotation:** no game needs it yet. Deferred.
+
+### Consequences
+
+- Text rounds its scaled size to whole pixels (`font_size: u16`), so
+  zoomed text can be a pixel off in width.
+- `ready` in the preview can rewrite a node's exported fields, which
+  Save then writes. Pong's `ready` writes back the same values.
+- ADR-041 (virtual resolution / letterbox) can build on `Camera2d`.
+
 ## How to add an ADR
 
 1. Copy the template:

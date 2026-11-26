@@ -63,28 +63,29 @@ does this for you).
 
 ### 3.3 Trait impl strategy
 
-Every method maps to a small macroquad call. The renderer adds the
-camera offset (§4) and texture/font lookup (§6, §9).
+Every method maps to a small macroquad call. The renderer applies the
+camera (§4) and texture/font lookup (§6, §9).
 
 ## 4. Camera and coordinates
 
-`set_camera(offset)` stores the offset; every `draw_*` call **adds** it
-to its position (`rect.x + offset.x`, …). `draw_rect_rotated` rotates
-around the rect centre (pivot 0.5, 0.5).
+`set_camera(Camera2d { offset, zoom })` stores the camera (ADR-040).
+Every `draw_*` call maps its points through `Camera2d::world_to_screen`
+(`(p - offset) * zoom`), and scales sizes, radii, thicknesses and font
+sizes by `zoom`. Clip rects stay in screen pixels. `draw_rect_rotated`
+rotates around the rect centre (pivot 0.5, 0.5).
 
 ```rust
 fn draw_rect(&mut self, rect: Rect, color: Color) {
-    let o = self.camera_offset;
-    macroquad::shapes::draw_rectangle(rect.x + o.x, rect.y + o.y, rect.w, rect.h, color_to_mq(color));
+    let r = self.camera.rect_to_screen(rect);
+    draw_rectangle(r.x, r.y, r.w, r.h, color_to_mq(color));
 }
 ```
 
-### 4.2 Why offset (not matrix)
+### 4.2 Why per-call mapping (not a matrix)
 
-macroquad's immediate-mode API uses screen coordinates. Applying an
-offset per call is cheaper than setting up a camera matrix on every
-draw. v0.1 is translate-only; zoom/rotation of the whole view is not
-supported.
+macroquad's immediate-mode API uses screen coordinates. Mapping each
+call is cheap and keeps clip rects and `measure_text` in plain pixels.
+Rotation of the whole view is not supported.
 
 ## 5. Z-ordered batching
 
@@ -200,9 +201,10 @@ a `SoundId`. `stop_all` stops every clip, `flush` is a no-op,
 
 ### 15.1 Why not use macroquad's camera
 
-macroquad's `set_camera2d` is a full camera transform. Most games use
-translate-only; managing the offset in the renderer keeps the trait's
-`set_camera(offset: Vec2)` simple.
+macroquad's `set_camera2d` is a full camera transform. Most games only
+scroll and zoom. Managing a `Camera2d { offset, zoom }` in the renderer
+keeps the trait simple, and keeps scissor clipping in screen pixels
+(ADR-040).
 
 ### 15.2 Why copy images instead of zero-copy
 

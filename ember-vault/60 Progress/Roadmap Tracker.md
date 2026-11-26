@@ -116,7 +116,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 **Proof — the editor opens Pong (M1):**
 - [x] pong described as `games/pong/scenes/pong.escene`; `build_tree` instantiates it *(`f866d2e`: 4 classes, `.env` = overrides only; 6 tests in `tests/scene_file.rs`)*
 - [x] editor as a library; a game plugs its `ClassDB` in (ADR-039); `make edit GAME=pong` *(`6aaf9a0`)*
-- [ ] preview at the scene's real resolution, scaled (camera zoom, ADR-040)
+- [x] preview at the scene's real resolution, scaled (camera zoom, ADR-040) *(`dfa8b04`; headless tests; not checked in the window yet)*
 - [ ] edit `PlayerPaddle.size` → preview updates → Save → `cargo run -p pong` plays the change
 - [x] headless `games/pong/tests/editor.rs` *(`6aaf9a0`: 4 tests)*
 

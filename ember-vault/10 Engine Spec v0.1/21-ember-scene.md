@@ -362,7 +362,7 @@ impl<'a> DrawContext<'a> {
     pub fn new(rendering: &'a mut dyn RenderingServer, /* viewport, camera */) -> Self;
     pub fn render(&mut self) -> &mut dyn RenderingServer;
     pub fn viewport(&self) -> Rect;
-    pub fn camera_offset(&self) -> Vec2;
+    pub fn camera(&self) -> Camera2d; // ADR-040
     pub fn world_to_screen(&self, world: Vec2) -> Vec2;
     pub fn screen_to_world(&self, screen: Vec2) -> Vec2;
     pub fn current_z(&self) -> f32;

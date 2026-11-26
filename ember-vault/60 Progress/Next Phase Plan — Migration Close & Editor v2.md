@@ -99,7 +99,9 @@ Rounds keep the current rhythm: **one game or one engine feature per round**. I 
   - `make edit GAME=pong` runs `cargo run -p pong --example edit -- scenes/pong.escene`, on a scratch copy as `make editor` does today.
 - The built-in `Player` / `Sprite` classes stay as the editor's own demo set (`make editor` unchanged).
 
-### M1.4 Preview v2 (1 session) · **ADR-040 "Camera transform (offset + zoom)"**
+### M1.4 Preview v2 (1 session) · **ADR-040 "Camera transform (offset + zoom)"** — ✅ `dfa8b04` (Play / Stop not done)
+> [!note] As built
+> `set_camera(Camera2d { offset, zoom })` replaces `set_camera(offset)`. Pong previews at zoom 0.625, centred. The Play / Stop stretch goal is **not done**; it fits M4.2, next to undo.
 - The editor's preview draws the scene at its **real resolution** (Pong is 800 × 600), scaled to fit the preview panel.
 - That needs a zoom in `RenderingServer::set_camera`, which today takes an offset only. Pagoda, taiji and ember-wars need the same feature, so it is built once here.
 - The preview calls `ready` on the opened scene, so nodes that set themselves up at that point (fonts, children) look right.
@@ -121,7 +123,7 @@ The gaps below come from a grep of what the remaining games use. Each one lands 
 
 | Feature | Needed by | Plan | ADR |
 |---|---|---|---|
-| Camera offset + zoom | pagoda, taiji, editor preview (ember-wars already scrolls with its own camera and `set_camera(offset)`) | `set_camera(Camera2d { offset, zoom })` + `DrawContext::world_to_screen` | ADR-040 (M1.4) |
+| Camera offset + zoom ✅ `dfa8b04` | pagoda, taiji, editor preview (ember-wars already scrolls with its own camera and `set_camera(offset)`) | `set_camera(Camera2d { offset, zoom })` + `DrawContext::world_to_screen` | ADR-040 (M1.4) |
 | **Virtual resolution / letterbox** | pagoda, taiji (both render to a `render_target` of a fixed size and scale it to the window) | `SceneLoop` / backend option `VirtualResolution { w, h, filter }`: draw at a fixed size, scaled and letterboxed into the window; mouse mapped back | ADR-041 |
 | **Shapes** | zhuo-ji, jade-garden (`draw_poly`, `draw_poly_lines`, `draw_arc`, `draw_ellipse`), pagoda (`draw_arc`) | `draw_polygon(points)`, `draw_regular_polygon(center, sides, radius, rotation)`, `draw_arc`, `draw_ellipse` (+ outline variants) on `RenderingServer`; mock records them | ADR-042 |
 | **Looping audio / music** | bore-inc, jade-garden (`ember_stdlib::music`), pagoda | `AudioServer::play_looped` / `set_volume(SoundId)`; music becomes a looped clip | ADR-043 |

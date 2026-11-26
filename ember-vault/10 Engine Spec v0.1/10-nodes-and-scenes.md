@@ -201,7 +201,7 @@ impl<'a> DrawContext<'a> {
     pub fn new(rendering: &'a mut dyn RenderingServer) -> Self;
     pub fn render(&mut self) -> &mut dyn RenderingServer;
     pub fn viewport(&self) -> Rect;        // forwarded from the renderer
-    pub fn camera_offset(&self) -> Vec2;   // forwarded from the renderer
+    pub fn camera(&self) -> Camera2d;      // forwarded from the renderer (ADR-040)
     pub fn current_z(&self) -> f32;
     pub fn world_to_screen(&self, world: Vec2) -> Vec2;
     pub fn screen_to_world(&self, screen: Vec2) -> Vec2;

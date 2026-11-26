@@ -127,8 +127,8 @@ pub trait RenderingServer {
     fn viewport(&self) -> Rect;
 
     // --- Camera ---
-    fn set_camera(&mut self, offset: Vec2);
-    fn camera_offset(&self) -> Vec2;
+    fn set_camera(&mut self, camera: Camera2d);  // { offset, zoom } — ADR-040
+    fn camera(&self) -> Camera2d;
 
     // --- Z ordering ---
     fn set_z(&mut self, z: f32);

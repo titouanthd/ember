@@ -76,8 +76,8 @@ pub trait RenderingServer {
     fn viewport(&self) -> Rect;
 
     // === Camera ===
-    fn set_camera(&mut self, offset: Vec2);
-    fn camera_offset(&self) -> Vec2;
+    fn set_camera(&mut self, camera: Camera2d); // ADR-040
+    fn camera(&self) -> Camera2d;
 
     // === Z ordering ===
     fn set_z(&mut self, z: f32);
@@ -120,7 +120,7 @@ pub trait RenderingServer {
 
 *Not yet implemented:* `texture_size`, `register_shader` / `use_shader`,
 `name`, `draw_call_count`. Clipping rules live in `ember_servers::ClipStack`
-(ADR-031); `set_camera(offset)` means draws land at `world - offset`.
+(ADR-031); `set_camera(Camera2d { offset, zoom })` means draws land at `(world - offset) * zoom`, and sizes scale by `zoom` (ADR-040).
 `Image` is `ember_core::Image`; `TextMetrics` is
 `{ width, height, offset_y }` (ADR-016).
 
