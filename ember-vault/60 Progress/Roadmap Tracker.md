@@ -124,9 +124,9 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 
 **Editor v2 (M4):**
 - [x] lossless save: connections, ext resources, unknown properties; scene-declared connections wired (closes Phase 3) *(M4.1 `8b20132`: `PackedScene::resave`; `ember-editor/tests/lossless.rs` checks every `.escene` in the repo)*
-- [x] add / remove / rename / reparent nodes, undo / redo (ADR-045) *(M4.2 `203c0a4`: `Document` commands, toolbar + shortcuts, close prompt; reparent UI in M4.3)*
-- [ ] typed inspector (bool, number, `Vec2`, `Color`, enum), no 16-property cap
-- [ ] `app.rs` split into toolbar / outline / inspector / preview panels
+- [x] add / remove / rename / reparent nodes, undo / redo (ADR-045) *(M4.2 `203c0a4`: `Document` commands, toolbar + shortcuts, close prompt; reparent UI in M4.3a: outline Up / Down / In / Out)*
+- [x] typed inspector (bool, number, `Vec2`, `Color`, enum), no 16-property cap *(M4.3a `d373dc4`: toggle / cycle buttons, part fields, colour swatch, `ScrollContainer`; enum via ADR-049 `#[export(enum)]`; preview click-to-select)*
+- [x] `app.rs` split into toolbar / outline / inspector / preview panels *(M4.3a `d373dc4`: panel nodes send `NodeSelected` / `PropertyEdited` / `CommandRequested`)*
 - [ ] a second game opens with `make edit GAME=…`
 
 ## Engine gaps (M2, one ADR each)
