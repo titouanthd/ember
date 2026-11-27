@@ -65,6 +65,51 @@ impl<'a> NodeContext<'a> {
         self.delta
     }
 
+    // --- Frame snapshot (ADR-050) ---
+
+    /// Seconds since the tree started: the sum of every `process` `dt`,
+    /// this frame's included (`NodeTree::time`). The same value in
+    /// `process`, `physics_process` and `draw` of one frame.
+    pub fn time(&self) -> f64 {
+        self.tree.time()
+    }
+
+    /// Completed `process` passes (`NodeTree::frame`).
+    pub fn frame(&self) -> u64 {
+        self.tree.frame()
+    }
+
+    /// The viewport of the frame being drawn, or of the last one drawn
+    /// while `process` runs: with a virtual resolution, its canvas
+    /// (ADR-041); else what the runner passed to `begin_frame`.
+    pub fn viewport(&self) -> Rect {
+        self.rendering.viewport()
+    }
+
+    /// The renderer's camera as it is now (ADR-040): the last one set,
+    /// by `ctx.render().set_camera` in this pass or by the last draw.
+    pub fn camera(&self) -> Camera2d {
+        self.rendering.camera()
+    }
+
+    /// The pointer in screen (viewport) coordinates: the mouse, or the
+    /// first touch when one is down. With a virtual resolution these are
+    /// canvas coordinates already (ADR-041).
+    pub fn pointer(&self) -> Vec2 {
+        self.input
+            .touch_points
+            .first()
+            .map_or(self.input.mouse_pos, |t| t.position)
+    }
+
+    /// [`pointer`](Self::pointer) in world space, through
+    /// [`camera`](Self::camera). A game with a world camera sets it
+    /// (`ctx.render().set_camera`) before reading this, so hit tests
+    /// and drawing agree on the same transform.
+    pub fn pointer_world(&self) -> Vec2 {
+        self.camera().screen_to_world(self.pointer())
+    }
+
     // --- Servers ---
 
     pub fn render(&mut self) -> &mut dyn RenderingServer {
@@ -182,11 +227,25 @@ impl<'a> NodeContext<'a> {
 /// construction.
 pub struct DrawContext<'a> {
     rendering: &'a mut dyn RenderingServer,
+    time: f64,
 }
 
 impl<'a> DrawContext<'a> {
     pub fn new(rendering: &'a mut dyn RenderingServer) -> Self {
-        Self { rendering }
+        Self {
+            rendering,
+            time: 0.0,
+        }
+    }
+
+    /// Seconds since the tree started, as `NodeContext::time` (ADR-050).
+    /// `NodeTree::draw` sets it; `0.0` on a context drawn outside a tree.
+    pub fn time(&self) -> f64 {
+        self.time
+    }
+
+    pub(crate) fn set_time(&mut self, time: f64) {
+        self.time = time;
     }
 
     pub fn render(&mut self) -> &mut dyn RenderingServer {

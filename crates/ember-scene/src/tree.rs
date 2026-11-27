@@ -34,6 +34,8 @@ pub struct NodeTree {
     root: Option<NodeId>,
     pending: Vec<DeferredCmd>,
     frame: u64,
+    /// Seconds of `process` time so far (ADR-050).
+    time: f64,
     needs_ready: bool,
     quit: bool,
     signals: SignalTable,
@@ -309,8 +311,18 @@ impl NodeTree {
         self.quit
     }
 
+    /// Completed `process` passes. During the first pass it is `0`.
     pub fn frame(&self) -> u64 {
         self.frame
+    }
+
+    /// Seconds since the tree started (ADR-050): the sum of every
+    /// `process` `dt` so far, the current one included, so it reads the
+    /// same in `process`, `physics_process` and `draw` of one frame.
+    /// `0.0` before the first `process`; a negative `dt` adds nothing.
+    /// `f64`, so it keeps millisecond precision over days of play.
+    pub fn time(&self) -> f64 {
+        self.time
     }
 
     // --- Signals ---
@@ -360,6 +372,7 @@ impl NodeTree {
 
     /// Variable-step pass: top-down, child insertion order.
     pub fn process(&mut self, servers: &mut Servers, dt: f32) {
+        self.time += f64::from(dt.max(0.0));
         self.flush(servers);
         self.run_pass(servers, dt, |node, ctx| node.process(dt, ctx));
         self.flush(servers);
@@ -377,8 +390,10 @@ impl NodeTree {
 
     /// Top-down, tree order. Each node sets the server's z first, then
     /// `draw`, its children, and `draw_after_children` (ADR-035). A node
-    /// with `visible() == false` hides its whole subtree.
+    /// with `visible() == false` hides its whole subtree. `ctx.time()`
+    /// reads this tree's [`time`](Self::time).
     pub fn draw(&self, ctx: &mut DrawContext) {
+        ctx.set_time(self.time);
         let Some(root) = self.root else { return };
         self.draw_subtree(root, ctx);
     }

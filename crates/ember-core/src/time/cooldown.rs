@@ -19,7 +19,7 @@
 //! - [`Cooldown::ready`] returns a **ready** cooldown that remembers
 //!   its duration for later [`reset`](Cooldown::reset).
 //!
-//! The old names `new` / `with_duration` are deprecated aliases.
+//! The old names `new` / `with_duration` were removed in 0.2.0 (ADR-011).
 //!
 //! ```
 //! use ember_core::time::Cooldown;
@@ -88,18 +88,6 @@ impl Cooldown {
             remaining: 0.0,
             duration: duration.max(0.0),
         }
-    }
-
-    /// Deprecated alias of [`running`](Self::running).
-    #[deprecated(since = "0.1.0", note = "use `Cooldown::running`")]
-    pub fn new(duration: f32) -> Self {
-        Self::running(duration)
-    }
-
-    /// Deprecated alias of [`ready`](Self::ready).
-    #[deprecated(since = "0.1.0", note = "use `Cooldown::ready`")]
-    pub fn with_duration(duration: f32) -> Self {
-        Self::ready(duration)
     }
 
     /// Create a cooldown already running with `remaining` seconds left.

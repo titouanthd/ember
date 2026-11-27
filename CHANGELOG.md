@@ -9,6 +9,18 @@ decisions (ADR-001…048) in `50 Decisions/`, progress in `60 Progress/`.
 Plan: `ember-vault/60 Progress/Next Phase Plan — Engine v0.2 & Game 18.md`.
 Each v0.2 round adds its line here.
 
+### Engine
+
+- **Frame snapshot (V1.1, ADR-050):** `NodeTree::time()` (seconds of
+  `process` time, `f64`) and, on `NodeContext`, `time()`, `frame()`,
+  `viewport()`, `camera()`, `pointer()` (first touch, else the mouse) and
+  `pointer_world()`; `DrawContext::time()`.
+
+### Removed
+
+- `Cooldown::new` and `Cooldown::with_duration`, deprecated in 0.1.0:
+  use `Cooldown::running` and `Cooldown::ready` (ADR-011).
+
 ## [0.1.0] — 2026-11-27
 
 The first engine release: all 17 games run on the Ember node tree, and

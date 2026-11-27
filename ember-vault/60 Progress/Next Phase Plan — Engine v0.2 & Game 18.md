@@ -116,7 +116,7 @@ One round per session ([[Token Budget]] §2.1); each engine feature is its own r
 |---|---|---|---:|---|---|
 | **V0** 🟡 | Close v0.1 (tag, CHANGELOG) — tag left to you | chore | 0.5 | — | v0.2 |
 | **G1** | Game 18 rules: crate, `rules.rs`, solver, design note | game, pure | 1 | — | all G rounds |
-| **V1.1** | Frame snapshot / `time()`; delete the deprecated `Cooldown` aliases | engine | 1 | 050 | G2 |
+| **V1.1** ✅ | Frame snapshot / `time()`; delete the deprecated `Cooldown` aliases | engine | 1 | 050 | G2 |
 | **V1.2** | Typed tree queries | engine | 0.5 | 051 | G2 |
 | **V1.3** | Input action map | engine | 1.5 | 052 | G2 |
 | **V1.4** | stdlib text helpers | engine | 0.5 | — | G4 |
@@ -133,6 +133,11 @@ One round per session ([[Token Budget]] §2.1); each engine feature is its own r
 | | **Total** | | **≈ 20** | | |
 
 G1 needs no engine change, so it can run in parallel with V1.x (different files: a new `games/<slug>` vs `crates/`).
+
+## V1.1 — Frame snapshot (1 session) — ✅ done (2026-11-27)
+
+> [!note] As built
+> `NodeTree::time()` (`f64`, summed from `process` `dt` at the start of the pass) and, on `NodeContext`: `time()`, `frame()`, `viewport()`, `camera()`, `pointer()` (first touch, else the mouse), `pointer_world()` (through the renderer's current camera); `DrawContext::time()`, set by `NodeTree::draw`. `Servers` and the runners are unchanged. Tests: `crates/ember-scene/tests/frame_snapshot.rs` (clock, frame count, physics/draw see the frame's time, bad `dt`, viewport with and without a virtual resolution, world pointer through a camera, touch over mouse). `Cooldown::new` / `with_duration` deleted. Decision: [[v0.2-50-design-decisions#ADR-050: Frame snapshot on `NodeContext`|ADR-050]]; spec delta: [[v0.2-21-ember-scene]] (new folder `10 Engine Spec v0.2/`, index [[v0.2 Spec Index]]). No game migrated yet (accretion / ember-wars `frame.rs`, the `time` counters): done when a round touches them. **Left for you:** `make pre-push`, then push.
 
 ## Definition of done (v0.2.0)
 
