@@ -604,7 +604,7 @@ persistence API lands.
   in a browser: a reload offers Continue with the run kept.
 - Web checked in a browser: title, Begin, disk clicks, tabs.
 
-### 5.17 ember-wars (acceptance test) — **ported** (`f16fe0c`, 2026-11-26); node tree next
+### 5.17 ember-wars (acceptance test) — **node tree** (`f16fe0c` port, `0ad070c` nodes; 2026-11-27)
 
 - 302 lib + 20 scenario tests pass, changed only mechanically
   (`hit::contains` → `Rect::contains`, macroquad's `WHITE` →
@@ -625,6 +625,26 @@ persistence API lands.
   (regular, fake bold), the modal's centred rect, `env_color`.
 - Kept quirk: with the upgrade modal open, one Escape closes it and also
   quits (pinned by a test).
+- **Node tree (`0ad070c`).** A level is a `World` node under the root,
+  with `Catapults` (`PlayerCatapult`, `EnemyCatapult`), `Units` and
+  `Projectiles`; each catapult, stickman and shot is a node that draws
+  itself. `World` takes them out of their nodes each frame, runs the
+  unchanged `Game::tick`, and puts them back (by `UnitId`; projectiles
+  in order). Signals `LevelFinished`, `RestartLevel`, `LeaveLevel` go to
+  the root. Shape and reasons: [[42-acceptance-tests#4.1 The tree as built (`0ad070c`)|spec 42 §4.1]].
+- **Draw parity checked by recording:** a scripted run (spawns, shots,
+  camera scroll, shot kinds, R, Escape, a second level) was recorded on
+  `MockRenderer` before the change; after it, every frame's draw calls
+  matched (2 × 2600 frames). Worth repeating for any later restructure.
+- Rendering split for the nodes: `render::draw_backdrop` (`World::draw`),
+  `draw_catapult` / `draw_unit` / `draw_projectile` (the nodes), and
+  `draw_overlay` (`World::draw_after_children`); the HUD and spawn bar
+  read a per-frame `Hud` snapshot (catapult HP and shot kind, unit kinds
+  at their cap).
+- Tests: 302 lib + 20 scenario unchanged; `tests/scene.rs` reaches the
+  battle through the `World` node (mechanical), plus 3 new tests (tree
+  shape; units and shots as nodes, a dead unit's node despawned; R
+  swaps the world).
 
 ## 6. Rollback
 

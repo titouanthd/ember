@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 42 — Acceptance Tests
 
-> **Status:** ⬜ draft — reviewed 2026-11-19; not implemented yet (`ember-wars` is unmigrated; only pong has moved to `NodeTree`)
+> **Status:** 🟡 in progress — `ember-wars` runs as a node tree (`f16fe0c`, `0ad070c`); items 1–10 and 16–20 met, the manual items 11–15 wait for the user
 > **Audience:** implementers, reviewers
 > **Prerequisites:** [[40-roadmap]], [[41-migration-guide]]
 
@@ -57,11 +57,11 @@ is complete for v0.1's scope.
 
 ## 3. The acceptance checklist
 
-> **Current state (2026-11-26, after the port, `f16fe0c`):** the
-> migration runs in two steps, as the user chose. **Step 1 — port (done):**
-> one root node, `EmberWars`, on `SceneLoop`; `main.rs` 5 lines; no
-> macroquad. **Step 2 — node tree (next round):** catapults, units and
-> projectiles become nodes (items 6–8, §4).
+> **Current state (2026-11-27, after the node tree, `0ad070c`):** both
+> steps are done. **Step 1 — port** (`f16fe0c`): one root node on
+> `SceneLoop`, `main.rs` 5 lines, no macroquad. **Step 2 — node tree**
+> (`0ad070c`): a level is a `World` node; catapults, units and
+> projectiles are nodes (§4.1). Only the manual items (11–15) remain.
 >
 > | Item | State |
 > |---|---|
@@ -70,17 +70,20 @@ is complete for v0.1's scope.
 > | 3 no `use macroquad` | ✅ (`make macroquad`; ember-wars left the allowlist) |
 > | 4 no `ember_stdlib::audio` | ✅ (the game has no audio) |
 > | 5 no `juice.rs` / `audio.rs` | ✅ (juice on `ember_stdlib::fx`) |
-> | 6 `Vec<Unit>` → `NodeId`s | ⬜ step 2 (still `Game::units`) |
-> | 7 projectiles → `NodeId`s | ⬜ step 2 |
-> | 8 `Catapult` and `Unit` are nodes | ⬜ step 2 |
+> | 6 `Vec<Unit>` → `NodeId`s | ✅ each unit is a `Unit` node under `Units`; `Game::units` is only the battle's working set while `World::process` runs (justified in §4.1) |
+> | 7 projectiles → `NodeId`s | ✅ each shot is a `Projectile` node under `Projectiles`; same working set |
+> | 8 `Catapult` and `Unit` are nodes | ✅ `CatapultNode` (class `Catapult`) and `UnitNode` (class `Unit`), hand-written `Object` / `NodeName` like pong |
 > | 9 lib tests pass | ✅ 302 (the "316" below is stale; 301 before the port, +1 `frame` test) |
 > | 10 20 scenario tests pass | ✅ unchanged |
 > | 11–15 manual play-throughs, upgrade UI, save/load | ⬜ the user plays |
 > | 16 no new `unsafe` | ✅ none in the game |
 > | 17 no new `unwrap()` outside tests | ✅ count unchanged (68) |
-> | 18–20 nothing added to `ember_servers` / `ember_scene` just for ember-wars | ✅ no engine change this round |
+> | 18–20 nothing added to `ember_servers` / `ember_scene` just for ember-wars | ✅ no engine change in either step |
 >
-> Headless: 7 `SceneLoop` tests (`games/ember-wars/tests/scene.rs`).
+> Headless: 10 `SceneLoop` tests (`games/ember-wars/tests/scene.rs`).
+> The node tree draws exactly what the port drew: the recorded draw
+> calls matched frame by frame over 2 × 2600 scripted frames (the first
+> level, and `cd_03` with every upgrade and an enemy catapult).
 
 `ember-wars` migration is done when **all** of these are true. Each
 item is testable.
@@ -169,6 +172,46 @@ container nodes; individual units and projectiles are children.
 
 (`ember-ui` is still a stub, so `UiRoot`, `SpawnBar`, `UpgradeModal` and
 `HUD` widgets do not exist yet.)
+
+### 4.1 The tree as built (`0ad070c`)
+
+```text
+EmberWars              campaign: menu, upgrade modal, progress, saving
+└── World              the level being played (spawned on pick)
+    ├── Catapults
+    │   ├── PlayerCatapult   (class Catapult)
+    │   └── EnemyCatapult    (levels with `enemy_catapult`)
+    ├── Units                one Unit node per stickman
+    └── Projectiles          one Projectile node per shot in flight
+```
+
+- **Where the target differs.** Towers, the wave manager (the AI), the
+  mana pools and the camera stay inside `World`'s `Game`: they never
+  interact with anything but the battle, and nothing outside the battle
+  reads them. The spawn bar, HUD and end overlay are drawn by `World`
+  (`ember-ui` widgets would replace them). There is no `AudioRoot`: the
+  game has no sound.
+- **Combat is pairwise**, so a node cannot fight alone: a unit picks a
+  target among the others, a shot hits the first body in its way. Each
+  frame `World` walks its containers' children (no cached id list,
+  §5.1), takes each node's data out (one generic downcast helper),
+  runs `Game::tick` — the same code the 302 lib and 20 scenario tests
+  drive headlessly — and puts the data back: units by `UnitId` (a new
+  unit gets a node, a dead unit's node is despawned), projectiles in
+  order. Between frames the nodes hold the data and draw it.
+- **Signals, all from `World` to the root:** `LevelFinished` (once;
+  the root banks gold and stars and saves), `RestartLevel` (R; the root
+  swaps in a fresh `World` built from the current progress) and
+  `LeaveLevel` (Escape, or Enter after the battle). The root never
+  reaches into the battle; `World` never touches the campaign.
+- **Downcasts:** `World`'s one generic `node_mut::<T>` helper (its own
+  children), and the root's handlers reading the root itself (the
+  freecell / memory / minesweeper pattern).
+- **Not used, and why:** `UpgradePurchased` (§5.3) — upgrades are only
+  bought in the menu, when no level exists; a new `World` reads them
+  when it starts. `UnitDeath` (§5.5) — nothing would listen (no audio;
+  kills and gold are counted by the battle itself).
+
 
 This shape is the **proof** that the engine's primitives are correct.
 If any of these nodes needs to reach across the tree with a path
