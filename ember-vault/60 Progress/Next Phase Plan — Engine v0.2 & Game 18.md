@@ -37,7 +37,10 @@ Live checklist: [[Roadmap Tracker]] · previous plan: [[Next Phase Plan — Migr
 
 ---
 
-## V0 — Close v0.1 (0.5 session)
+## V0 — Close v0.1 (0.5 session) — 🟡 done except the tag (2026-11-27)
+
+> [!note] As built
+> `CHANGELOG.md`: `[0.1.0] — 2026-11-27`; the `Cooldown` aliases moved from *Removed* to a new *Deprecated* list ("removed in 0.2.0"); `[0.2.0] — unreleased` opened above it. Tracker: Phase 9's last box points here. **Left for you:** `make pre-push`, push, then `git tag -a v0.1.0 -m "Ember v0.1.0"` on `main` and `git push origin v0.1.0`. Deleting the aliases is a v0.2 change, done in the first engine round (V1.1).
 
 - **You** tag `v0.1.0` on `main` once `make pre-push` is green (spec [[42-acceptance-tests]] §8), and push the tag. `CHANGELOG.md`: `[0.1.0] — 2026-11-27`.
 - Phase 9's last box (a second editable game) **moves to v0.2**: Game 18 is that second game (see G2). The tracker says so.
@@ -111,9 +114,9 @@ One round per session ([[Token Budget]] §2.1); each engine feature is its own r
 
 | # | Round | Kind | Sessions | ADR | Unblocks |
 |---|---|---|---:|---|---|
-| **V0** | Close v0.1 (tag, CHANGELOG) | chore | 0.5 | — | v0.2 |
+| **V0** 🟡 | Close v0.1 (tag, CHANGELOG) — tag left to you | chore | 0.5 | — | v0.2 |
 | **G1** | Game 18 rules: crate, `rules.rs`, solver, design note | game, pure | 1 | — | all G rounds |
-| **V1.1** | Frame snapshot / `time()` | engine | 1 | 050 | G2 |
+| **V1.1** | Frame snapshot / `time()`; delete the deprecated `Cooldown` aliases | engine | 1 | 050 | G2 |
 | **V1.2** | Typed tree queries | engine | 0.5 | 051 | G2 |
 | **V1.3** | Input action map | engine | 1.5 | 052 | G2 |
 | **V1.4** | stdlib text helpers | engine | 0.5 | — | G4 |
