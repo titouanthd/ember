@@ -4,7 +4,12 @@ All notable changes to the Ember workspace. The design record is the
 vault (`ember-vault/`): the engine spec in `10 Engine Spec v0.1/`, the
 decisions (ADR-001…048) in `50 Decisions/`, progress in `60 Progress/`.
 
-## [0.1.0] — unreleased
+## [0.2.0] — unreleased
+
+Plan: `ember-vault/60 Progress/Next Phase Plan — Engine v0.2 & Game 18.md`.
+Each v0.2 round adds its line here.
+
+## [0.1.0] — 2026-11-27
 
 The first engine release: all 17 games run on the Ember node tree, and
 macroquad is only a backend. The tag follows the spec 42 §8 gate
@@ -65,5 +70,10 @@ simon, snake, taiji, zhuo-ji.
 - `ember-stdlib` modules `audio`, `fonts`, `graphics`, `input`, `juice`,
   `ui` and `music::MacroquadMusic` (macroquad-typed, unused by any
   game).
-- `Cooldown::new` and `Cooldown::with_duration`; the games' `juice.rs`
-  copies.
+- The games' `juice.rs` copies.
+
+### Deprecated
+
+- `Cooldown::new` and `Cooldown::with_duration` (use `Cooldown::running`
+  and `Cooldown::ready`). No call site is left; they are removed in
+  0.2.0.

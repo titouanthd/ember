@@ -264,7 +264,7 @@ M3 is done (17 / 17, ember-wars acceptance passed). Next, in this order:
    - **M5 Phase 8 cleanup** — `ember-stdlib` without macroquad, twins replaced, `CHANGELOG.md`.
 
    M1 and M4 both touch `crates/ember-editor` and `games/pong`: M4 starts once the M1 proof is merged. M5 is independent (stdlib and games), except pong's twins if any — coordinate at merge.
-2. **Plan engine v0.2**, once v0.1 is tagged (spec 42 §8 gate). Candidates seen during M3: a per-frame screen/pointer/time snapshot in the engine (accretion and ember-wars each wrote one), a typed "children of class `T`" helper, shared font helpers, sprite animation, tilemaps, more `ember_ui` in games.
+2. **Plan engine v0.2** → planned 2026-11-27 in [[Next Phase Plan — Engine v0.2 & Game 18]]. Once v0.1 is tagged (spec 42 §8 gate). Candidates seen during M3: a per-frame screen/pointer/time snapshot in the engine (accretion and ember-wars each wrote one), a typed "children of class `T`" helper, shared font helpers, sprite animation, tilemaps, more `ember_ui` in games.
 3. **A new game, designed for the engine**: it uses the v0.2 features, ships a web build, and is built with the editor (levels and entities as `.escene` data).
 
 ---

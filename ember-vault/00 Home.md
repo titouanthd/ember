@@ -10,13 +10,14 @@ updated: "2026-11-26"
 
 A 2D game engine in Rust (macroquad backend) built on top of **17 games**. **This vault is the only home of the project documentation** — the only docs outside it are the `README.md` files (repo root and 5 games). It also holds generated notes that map the code and evaluate progress.
 
-> [!summary] Where things stand (2026-11-26)
-> Phases 0, 2, 4, 5 (UI) and 6 (editor POC) are **closed**. **17 / 17** games run on the engine (snake, simon, memory, minesweeper, freecell, breakout, asteroids, air-hockey, bullet-hell, pong, taiji, pagoda, zhuo-ji, jade-garden, accretion, bore-inc, ember-wars); no game imports macroquad. Ember-wars runs as a node tree (`0ad070c`) and **passed its acceptance test** (all 20 items of [[42-acceptance-tests]], 2026-11-27).
-> **Goal now:** every game on the latest engine, then a big editor refactor (Editor v2). The proof is that the editor opens Pong. → [[Next Phase Plan — Migration Close & Editor v2]]
+> [!summary] Where things stand (2026-11-27)
+> **v0.1 is done:** Phases 0–8 are **closed**, `CHANGELOG.md` is on `main`; Phase 9 (Editor v2) has one box left, moved to v0.2. **17 / 17** games run on the engine (snake, simon, memory, minesweeper, freecell, breakout, asteroids, air-hockey, bullet-hell, pong, taiji, pagoda, zhuo-ji, jade-garden, accretion, bore-inc, ember-wars); no game imports macroquad. Ember-wars runs as a node tree (`0ad070c`) and **passed its acceptance test** (all 20 items of [[42-acceptance-tests]], 2026-11-27).
+> **Goal now:** Ember v0.2 (tiles, animation, input actions, scene changes, an editor you paint levels in) and **Game 18**, a grid puzzle built in the editor. → [[Next Phase Plan — Engine v0.2 & Game 18]]
 
 ## Start here
 - [[Handover 2026-11-26]] — latest state, how to push, gotchas
-- [[Next Phase Plan — Migration Close & Editor v2]] — **the current plan**: milestones M1–M5, engine gaps (ADR-039…045), Editor v2, the "opens Pong" proof
+- [[Next Phase Plan — Engine v0.2 & Game 18]] — **the current plan**: v0.2 features (ADR-050+), Game 18's design draft, rounds V0–V3 and G1–G5
+- [[Next Phase Plan — Migration Close & Editor v2]] — the v0.1 close-out plan (M1–M5), done
 - [[Roadmap Tracker]] — every exit criterion as a checkbox (Phases 0–9)
 - [[Doc–Code Discrepancies]] — where docs and code disagree
 - [[Engine Spec Index]] — the original spec entry point (reading paths A–D)
