@@ -6,7 +6,7 @@ generated: "2026-11-22"
 
 # Roadmap tracker
 
-Checklist of every **exit criterion** in [[40-roadmap]], ticked against the `main` branch (last update 2026-11-26, see [[Handover 2026-11-26]]; plan: [[Next Phase Plan — Migration Close & Editor v2]]). Tick boxes as work lands. ⚑ = landed with the merge of `titouanthd-docs-crates-games-plan` (2026-11-22).
+Checklist of every **exit criterion** in [[40-roadmap]], ticked against the `main` branch (last update 2026-11-26, see [[Handover 2026-11-26]]; plan: [[Next Phase Plan — Migration Close & Editor v2]]; next: [[Next Phase Plan — Engine v0.2 & Game 18]]). Tick boxes as work lands. ⚑ = landed with the merge of `titouanthd-docs-crates-games-plan` (2026-11-22).
 
 ```mermaid
 gantt
@@ -127,7 +127,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] add / remove / rename / reparent nodes, undo / redo (ADR-045) *(M4.2 `203c0a4`: `Document` commands, toolbar + shortcuts, close prompt; reparent UI in M4.3a: outline Up / Down / In / Out)*
 - [x] typed inspector (bool, number, `Vec2`, `Color`, enum), no 16-property cap *(M4.3a `d373dc4`: toggle / cycle buttons, part fields, colour swatch, `ScrollContainer`; enum via ADR-049 `#[export(enum)]`; preview click-to-select)*
 - [x] `app.rs` split into toolbar / outline / inspector / preview panels *(M4.3a `d373dc4`: panel nodes send `NodeSelected` / `PropertyEdited` / `CommandRequested`)*
-- [ ] a second game opens with `make edit GAME=…`
+- [ ] a second game opens with `make edit GAME=…` *(moved to v0.2: Game 18 is the second editable game, round G2 of [[Next Phase Plan — Engine v0.2 & Game 18]])*
 
 ## Engine gaps (M2, one ADR each)
 - [x] ADR-040 camera offset + zoom *(`dfa8b04`)*
