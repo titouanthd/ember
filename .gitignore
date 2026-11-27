@@ -23,10 +23,10 @@
 **/highscore.ron
 **/best_score.ron
 **/best_times.ron
+**/progress.ron
 
 # Local build artifacts
 *.tmp
-/tmp/games/ember-wars/progress.ron
 
 # Obsidian vault — commit notes and shared config, not per-user UI state
 ember-vault/.obsidian/workspace.json
