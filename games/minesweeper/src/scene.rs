@@ -25,16 +25,8 @@ const BLACK: Color = Color::new(0.0, 0.0, 0.0, 1.0);
 const WIN: Color = Color::new(0.4, 1.0, 0.5, 1.0);
 const LOSE: Color = Color::new(1.0, 0.35, 0.4, 1.0);
 
-/// `mm:ss` (or `h:mm:ss`), like `ember_stdlib::ui::timer::TimerDisplay`.
-pub fn format_time(seconds: f32) -> String {
-    let total = seconds.max(0.0) as u64;
-    let (h, m, s) = (total / 3600, (total % 3600) / 60, total % 60);
-    if h > 0 {
-        format!("{h:02}:{m:02}:{s:02}")
-    } else {
-        format!("{m:02}:{s:02}")
-    }
-}
+/// `mm:ss` (or `h:mm:ss`).
+pub use ember_stdlib::clock::format_time;
 
 /// Colour of an adjacent-mines number.
 pub fn number_color(n: u8) -> Color {

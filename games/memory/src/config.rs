@@ -5,19 +5,8 @@ use std::path::PathBuf;
 use ember_core::Color;
 use glam::Vec2;
 
+use ember_stdlib::config::env_color;
 use ember_stdlib::config::{env_f32, load_dotenv_once};
-
-/// `<PREFIX>_R`, `_G`, `_B`, `_A` from the environment, each falling back
-/// to `default`. Local twin of `ember_stdlib::config::env_color`, which
-/// returns a macroquad colour.
-fn env_color(prefix: &str, default: Color) -> Color {
-    Color::new(
-        env_f32(&format!("{prefix}_R"), default.r),
-        env_f32(&format!("{prefix}_G"), default.g),
-        env_f32(&format!("{prefix}_B"), default.b),
-        env_f32(&format!("{prefix}_A"), default.a),
-    )
-}
 
 /// Immutable per-run config, loaded once from `.env`.
 #[derive(Debug, Clone)]

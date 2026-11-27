@@ -337,7 +337,6 @@ dependencies = [
  "ember-core",
  "ember-servers",
  "glam",
- "macroquad",
  "ron",
  "serde",
 ]

@@ -7,11 +7,8 @@ use ember::prelude::*;
 
 pub mod panel;
 
-/// Center a `w × h` rect inside a `vw × vh` viewport (was
-/// `ember_stdlib::layout::centered_rect`, which returns a macroquad rect).
-pub fn centered_rect(vw: f32, vh: f32, w: f32, h: f32) -> Rect {
-    Rect::new((vw - w) * 0.5, (vh - h) * 0.5, w, h)
-}
+/// Center a `w × h` rect inside a `vw × vh` viewport.
+pub use ember_stdlib::layout::centered_rect;
 
 /// Default-font text centred on `cx`; `y` is the baseline (was
 /// `ember_stdlib::graphics::text::draw_centered`).

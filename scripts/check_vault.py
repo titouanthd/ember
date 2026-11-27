@@ -3,7 +3,7 @@
 
 1. Every [[wikilink]] in ember-vault/ resolves to a note (and heading, if given).
 2. No documentation lives outside the vault: the only .md files allowed
-   outside ember-vault/ are README.md files.
+   outside ember-vault/ are README.md files and the root CHANGELOG.md.
 
 Usage: python3 scripts/check_vault.py [--links-only | --guard-only]
 Exit code 1 on any problem.
@@ -49,7 +49,8 @@ def guard():
     for dirpath, dirnames, filenames in os.walk(ROOT):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         for f in filenames:
-            if f.lower().endswith(".md") and f != "README.md":
+            root_changelog = f == "CHANGELOG.md" and Path(dirpath) == ROOT
+            if f.lower().endswith(".md") and f != "README.md" and not root_changelog:
                 errors.append(f"doc outside vault: {Path(dirpath, f).relative_to(ROOT)}")
     print(f"docs guard: {len(errors)} stray doc(s) outside ember-vault/")
     return errors

@@ -26,7 +26,6 @@ pub use input::poll_input;
 pub use renderer::MacroquadRenderer;
 pub use run::{WindowConfig, WindowIcon, run, run_window, run_window_with};
 
-// Re-export macroquad so games don't need their own dependency (until
-// Phase 13 removes the last `use macroquad::` from game code — then
-// this re-export becomes the only path).
+// Re-export macroquad, the only path to it outside the two backend
+// crates. No game imports it since Phase 7 (`make macroquad`).
 pub use macroquad;

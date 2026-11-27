@@ -5,7 +5,7 @@
 //! Chaque jeu appelle `load_dotenv_from` une fois, puis lit ses valeurs
 //! avec `env_f32`, `env_i32`, `env_u32`, `env_color`.
 
-use macroquad::prelude::Color;
+use ember_core::Color;
 use std::path::Path;
 use std::sync::OnceLock;
 

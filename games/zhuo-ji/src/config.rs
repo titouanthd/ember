@@ -3,24 +3,13 @@
 use std::path::Path;
 
 use ember_core::Color;
-use ember_stdlib::config::{env_f32, env_u32, load_dotenv_once};
+use ember_stdlib::config::env_color;
+use ember_stdlib::config::{env_u32, load_dotenv_once};
 
 use crate::font::TileFont;
 
 /// macroquad's `WHITE`, as the table drew it.
 pub const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
-
-/// `<PREFIX>_R`, `_G`, `_B`, `_A` from the environment, each falling back
-/// to `default`. Local twin of `ember_stdlib::config::env_color`, which
-/// returns a macroquad colour.
-fn env_color(prefix: &str, default: Color) -> Color {
-    Color::new(
-        env_f32(&format!("{prefix}_R"), default.r),
-        env_f32(&format!("{prefix}_G"), default.g),
-        env_f32(&format!("{prefix}_B"), default.b),
-        env_f32(&format!("{prefix}_A"), default.a),
-    )
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Colors {

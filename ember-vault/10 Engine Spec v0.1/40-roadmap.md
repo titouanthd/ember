@@ -41,7 +41,7 @@ Phase N's exit criteria are met.
 > `SceneWriter`, scene connections) must land before P6**, because the
 > editor saves scenes. Detail and re-plan: [[Roadmap Review 2026-11-22]].
 
-## 2. The nine phases at a glance
+## 2. The ten phases at a glance
 
 ```mermaid
 flowchart LR
@@ -54,6 +54,7 @@ flowchart LR
     P6[Phase 6<br/>Editor POC]
     P7[Phase 7<br/>Migration]
     P8[Phase 8<br/>Cleanup]
+    P9[Phase 9<br/>Editor v2]
 
     P0 --> P1
     P1 --> P2
@@ -64,6 +65,8 @@ flowchart LR
     P5 --> P6
     P6 --> P7
     P7 --> P8
+    P6 --> P9
+    P7 --> P9
 ```
 
 Note the two parallel branches after Phase 4: UI + Editor can proceed
@@ -381,7 +384,7 @@ editor is finished.
 > Phase 5 widgets *and* Phase 2's close-out: saving an edited scene needs
 > `SceneWriter` and `#[export]` serialization, neither of which exists.
 
-### 8.6 Scope
+### 9.1 Scope
 
 - Add `crates/ember_editor` (dev-only).
 - Load a `.escene` file.
@@ -390,12 +393,12 @@ editor is finished.
 - Edit a property, see the value update in a preview.
 - Save the modified scene back to disk.
 
-### 9.1 Entry criteria
+### 9.2 Entry criteria
 
 - Phase 4 and Phase 5 complete.
 - [[30-escene-format]] is ✅.
 
-### 9.2 Exit criteria
+### 9.3 Exit criteria
 
 - Editor opens `player.escene`, shows `Player / Sprite / Hitbox` in the
   tree.
@@ -403,13 +406,13 @@ editor is finished.
 - Changing `size` from `(32, 32)` to `(64, 64)` updates the preview.
 - Saving round-trips the change through `.escene`.
 
-### 9.3 Deliverables
+### 9.4 Deliverables
 
 - `crates/ember_editor/` (full crate)
 - `crates/ember_editor/tests/load_edit_save.rs`
 - A CLI: `cargo run -p ember_editor -- path/to/scene.escene`
 
-### 9.4 Estimated effort
+### 9.5 Estimated effort
 
 3–4 sessions.
 
@@ -461,11 +464,21 @@ Global:
 
 ## 11. Phase 8 — Cleanup
 
+> **Progress:** ✅ **Closed 2026-11-27** (M5: `ce5547a` stdlib, `cbdf5da`
+> + `2d013b2` twins); `make pre-push` passed.
+> `ember-stdlib` has no macroquad dependency and the macroquad allowlist
+> holds comments only. Release notes: `CHANGELOG.md`.
+
 ### 11.1 Scope
 
 - Delete deprecated APIs (`Cooldown::new`, `Cooldown::with_duration`).
 - Delete per-game `juice.rs` files (already unused since Phase 0).
-- Delete per-game `audio.rs` files (already unused since Phase 4).
+- Delete per-game macroquad `audio.rs` files. The four `audio.rs` left
+  (air-hockey, bore-inc, jade-garden, pagoda) are sound banks on the
+  engine's `AudioServer`, not twins, and stay.
+- `ember-stdlib` drops its macroquad modules (`audio`, `fonts`,
+  `graphics`, `input`, `juice`, `ui`); `config::env_color`, `Sprite` and
+  `layout` move to engine types; games' local twins switch to them.
 - Delete per-game `main.rs` boilerplate (already gone, but clean up any
   remaining fragments).
 - Update `CHANGELOG.md` with the v0.1 release notes.
@@ -479,7 +492,9 @@ Global:
 - `grep -rn "Cooldown::new\|Cooldown::with_duration" crates/ games/`
   returns zero hits.
 - `find games -name juice.rs` returns empty.
-- `find games -name audio.rs` returns empty.
+- no game `audio.rs` imports macroquad.
+- `xtask/macroquad-allowlist.txt` holds comments only; `make macroquad`
+  passes.
 - `cargo test --workspace --no-fail-fast` green.
 - `cargo clippy --workspace --all-targets -- -D warnings` green.
 
@@ -492,7 +507,48 @@ Global:
 
 1 session.
 
-## 12. Dependency graph
+## 12. Phase 9 — Editor v2
+
+> **Progress:** 🟡 added 2026-11-26 by [[Next Phase Plan — Migration Close & Editor v2]]
+> (milestones M1 proof and M4); boxes in [[Roadmap Tracker]].
+
+### 12.1 Scope
+
+- **Proof (M1):** Pong is a `.escene`; the editor is a library a game
+  plugs its `ClassDB` into (ADR-039, `make edit GAME=pong`); the preview
+  runs at the scene's resolution (ADR-040).
+- **Lossless documents (M4.1):** `Document` keeps `ext_resources`,
+  connections and unknown properties; scene-declared connections are
+  wired at instantiate time (closes the Phase 3 open item).
+- **Node editing + undo (M4.2, ADR-045):** a reversible command stack
+  (`SetProperty`, `AddNode`, `RemoveNode`, `RenameNode`, `Reparent`),
+  Ctrl+Z / Ctrl+Shift+Z / Ctrl+S.
+- **Inspector v2 + panel split (M4.3):** `app.rs` split into toolbar,
+  outline, inspector and preview panels; typed editors (bool, number,
+  `Vec2`, `Color`, enum); no 16-property cap.
+
+### 12.2 Entry criteria
+
+- Phase 6 complete; Phase 7 far enough that Pong runs on the node tree.
+
+### 12.3 Exit criteria
+
+- Editing `PlayerPaddle.size` in the editor, saving, and running Pong
+  plays the change.
+- Every `.escene` in the repo round-trips byte-for-byte.
+- Add / remove / rename / reparent a node, each undoable.
+- Typed editors for bool, number, `Vec2`, `Color`, enum.
+- At least one other game opens with `make edit GAME=…`.
+
+### 12.4 Deliverables
+
+- `ember-editor` v2, ADR-045, `games/pong/scenes/pong.escene`.
+
+### 12.5 Estimated effort
+
+7 sessions (M1 proof 4, M4 3).
+
+## 13. Dependency graph
 
 ```mermaid
 flowchart TB
@@ -510,6 +566,7 @@ flowchart TB
     subgraph "Tools"
         P5[Phase 5<br/>UI]
         P6[Phase 6<br/>Editor]
+        P9[Phase 9<br/>Editor v2]
     end
 
     subgraph "Application"
@@ -526,13 +583,15 @@ flowchart TB
     P4 --> P7
     P6 --> P7
     P7 --> P8
+    P6 --> P9
+    P7 --> P9
 ```
 
 The critical path is P0 → P1 → P2 → P3 → P4 → P7 → P8. Phase 5 and 6
 branch from P4 in parallel with the start of P7 (migration of simple
 games can begin before the editor exists).
 
-## 13. Milestones
+## 14. Milestones
 
 | Milestone | Phase | What the engine can do | Status (2026-11-22) |
 |---|---|---|---|
@@ -544,9 +603,10 @@ games can begin before the editor exists).
 | M5 — UI works | P5 | A menu can be built with `Button`, `VBox`, `Label` | 🟡 `VBox` + `Label` ✅, `Button` in 5.3 |
 | M6 — Authoring works | P6 | A `.escene` can be edited outside code | ⬜ |
 | M7 — POC complete | P7 | All 17 games run on the engine | 🟡 1/17 |
-| M8 — v0.1 released | P8 | No deprecated APIs remain | ⬜ |
+| M8 — v0.1 released | P8 | No deprecated APIs remain; no macroquad outside the backends | ✅ Phase 8 closed; tag pending (spec 42 §8) |
+| M9 — Editor v2 | P9 | Scenes are edited, not only tuned, in the editor | 🟡 |
 
-## 14. Cross-references
+## 15. Cross-references
 
 - Scope definition → [[00-overview#5. Scope|00-overview.md §5]]
 - Success criteria → [[00-overview#6. Success criteria|00-overview.md §6]]

@@ -29,9 +29,8 @@ const KEY_SCROLL: f32 = 700.0;
 // ---------- Layout ----------
 
 fn modal_rect_for(vw: f32, vh: f32) -> Rect {
-    // Centred (was `ember_stdlib::layout::centered_rect`, macroquad-typed).
     let (w, h) = (vw - MODAL_MARGIN * 2.0, vh - MODAL_MARGIN * 2.0);
-    Rect::new((vw - w) * 0.5, (vh - h) * 0.5, w, h)
+    ember_stdlib::layout::centered_rect(vw, vh, w, h)
 }
 
 fn modal_rect() -> Rect {

@@ -7,16 +7,6 @@
 # Rule: an entry is only ever removed. A game leaves the list when its
 # Phase 7 migration lands; ember-stdlib leaves it in Phase 8.
 
-# --- ember-stdlib (legacy utilities; retired in Phase 8) ------------
-crates/ember-stdlib/src/audio.rs
-crates/ember-stdlib/src/config.rs
-crates/ember-stdlib/src/fonts.rs
-crates/ember-stdlib/src/graphics/
-crates/ember-stdlib/src/input.rs
-crates/ember-stdlib/src/juice.rs
-crates/ember-stdlib/src/layout.rs
-crates/ember-stdlib/src/music.rs
-crates/ember-stdlib/src/sprite.rs
-crates/ember-stdlib/src/ui/
+# --- ember-stdlib: left in Phase 8 (M5.1); no entries -------------
 
-# --- games (Phase 7: remove each line as the game migrates) ---------
+# --- games: all left in Phase 7; no entries -----------------------

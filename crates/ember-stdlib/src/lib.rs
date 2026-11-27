@@ -1,9 +1,10 @@
 // ember_stdlib/src/lib.rs
-//! Ember stdlib : briques de jeu réutilisables, dépendantes de macroquad.
+//! Ember stdlib : briques de jeu réutilisables, sur les types du moteur
+//! (`ember_core`). Aucune dépendance à macroquad (Phase 8, ADR-033).
 //!
 //! Ce crate ré-exporte `ember_core` pour simplifier les imports dans les jeux.
 //! Il contient les composants de jeu (Transform, Sprite, Collider, config),
-//! les briques réutilisables (grid, input, ui, audio).
+//! les briques réutilisables (grid, fx, layout, clock, music, persistence).
 //!
 //! ⚠️ Ne PAS mettre ici de types spécifiques à un jeu (Level, BrickData…).
 
@@ -19,26 +20,16 @@ pub mod collider;
 pub use collider::{Collider, Shape, collides};
 
 pub mod config;
-pub mod fonts;
-pub mod graphics;
 pub mod layout;
 
 pub mod grid;
 pub use grid::Grid;
 
-pub mod input;
-pub use input::Input;
-
-pub mod juice;
-
 // Engine-typed juice, drawn through a RenderingServer (pagoda round).
 pub mod fx;
 
-pub mod ui;
+pub mod clock;
 
 pub mod persistence;
-
-pub mod audio;
-pub use audio::AudioClip;
 
 pub mod music;

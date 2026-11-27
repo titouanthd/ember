@@ -2,9 +2,8 @@
 //! full-screen flashes and screen shake, on `ember_core::Color`, drawn
 //! through a `RenderingServer`.
 //!
-//! The same data and logic as the macroquad [`crate::juice`], which the
-//! unmigrated games still use and which retires in Phase 8. Porting is
-//! mechanical: draw functions take the renderer first.
+//! The same data and logic as the old macroquad `juice` module, deleted in
+//! Phase 8. Draw functions take the renderer first.
 //!
 //! Games with extra effects (falling pieces, vignettes…) wrap [`Juice`] in a
 //! local struct that `Deref`s to it and keep only the game-specific parts.
@@ -51,7 +50,7 @@ pub struct Particle {
     pub size: f32,
     /// `0` draws a circle, otherwise a regular polygon with this many sides.
     pub sides: u8,
-    /// Degrees, as in [`crate::juice`].
+    /// Degrees (as in the old macroquad `juice`).
     pub rotation: f32,
     /// Degrees per second.
     pub spin: f32,

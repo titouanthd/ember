@@ -4,7 +4,7 @@
 //! had 2-3 copies of the same "center a fixed-size panel in the
 //! viewport" arithmetic. Rule of Three satisfied.
 
-use macroquad::prelude::Rect;
+use ember_core::math::Rect;
 
 /// Center a `w × h` rect inside a `vw × vh` viewport.
 ///
