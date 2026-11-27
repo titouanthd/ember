@@ -604,12 +604,50 @@ persistence API lands.
   in a browser: a reload offers Continue with the run kept.
 - Web checked in a browser: title, Begin, disk clicks, tabs.
 
-### 5.17 ember-wars (acceptance test)
+### 5.17 ember-wars (acceptance test) — **node tree** (`f16fe0c` port, `0ad070c` nodes; 2026-11-27)
 
-- 316 unit + 20 scenario.
-- The most complex game. If migration requires engine changes, we learn
-  them here. See [[42-acceptance-tests]] for the
-  detailed checklist.
+- 302 lib + 20 scenario tests pass, changed only mechanically
+  (`hit::contains` → `Rect::contains`, macroquad's `WHITE` →
+  `Color::WHITE` in two test modules). New: 7 headless `SceneLoop`
+  tests and `frame`'s unit test.
+- **Two steps, as the user chose:** this round ports the game like the
+  other 16 (one root node, `EmberWars`, running `App` — was `main.rs`'s
+  loop, split into `update` in the original order and `draw`); the next
+  round turns catapults, units and projectiles into nodes (acceptance
+  items 6–8). Status per item: [[42-acceptance-tests#3. The acceptance checklist|§3]].
+- **No engine change was needed** (acceptance items 18–20 hold). The
+  game's own `Camera2D` is plain math (`screen_to_world`), so it stayed.
+- `src/frame.rs` (as accretion, §5.16, plus the frame time) feeds the
+  layout helpers, hover and the menu's arrow-key scroll; keys, mouse
+  buttons and the wheel are threaded as `keys`.
+- Juice on `ember_stdlib::fx`: after this, `ember_stdlib::juice` has no
+  users left (Phase 8 can delete it). Local twins: the font helpers
+  (regular, fake bold), the modal's centred rect, `env_color`.
+- Kept quirk: with the upgrade modal open, one Escape closes it and also
+  quits (pinned by a test).
+- **Node tree (`0ad070c`).** A level is a `World` node under the root,
+  with `Catapults` (`PlayerCatapult`, `EnemyCatapult`), `Units` and
+  `Projectiles`; each catapult, stickman and shot is a node that draws
+  itself. `World` takes them out of their nodes each frame, runs the
+  unchanged `Game::tick`, and puts them back (by `UnitId`; projectiles
+  in order). Signals `LevelFinished`, `RestartLevel`, `LeaveLevel` go to
+  the root. Shape and reasons: [[42-acceptance-tests#4.1 The tree as built (`0ad070c`)|spec 42 §4.1]].
+- **Draw parity checked by recording:** a scripted run (spawns, shots,
+  camera scroll, shot kinds, R, Escape, a second level) was recorded on
+  `MockRenderer` before the change; after it, every frame's draw calls
+  matched (2 × 2600 frames). Worth repeating for any later restructure.
+- Rendering split for the nodes: `render::draw_backdrop` (`World::draw`),
+  `draw_catapult` / `draw_unit` / `draw_projectile` (the nodes), and
+  `draw_overlay` (`World::draw_after_children`); the HUD and spawn bar
+  read a per-frame `Hud` snapshot (catapult HP and shot kind, unit kinds
+  at their cap).
+- Tests: 302 lib + 20 scenario unchanged; `tests/scene.rs` reaches the
+  battle through the `World` node (mechanical), plus 3 new tests (tree
+  shape; units and shots as nodes, a dead unit's node despawned; R
+  swaps the world).
+- **Acceptance passed (2026-11-27):** the user played chapters 1, 2 and
+  5, bought an upgrade and checked save / load on the node-tree build —
+  no problem. All 20 items of spec 42 are met.
 
 ## 6. Rollback
 

@@ -1,7 +1,7 @@
 //! Stick men procéduraux — corps en 6 points, animation par sin/cos.
 
+use ember::prelude::*;
 use glam::Vec2;
-use macroquad::prelude::*;
 
 use crate::components::Unit;
 use crate::weapons::{self, Weapon, WeaponAnchor};
@@ -189,7 +189,17 @@ fn attack_t(pose: Pose, phase: f32) -> f32 {
     }
 }
 
-pub fn draw(unit: &Unit, pos: Vec2, size: Vec2, facing: f32, pose: Pose, phase: f32, color: Color) {
+#[allow(clippy::too_many_arguments)]
+pub fn draw(
+    gfx: &mut dyn RenderingServer,
+    unit: &Unit,
+    pos: Vec2,
+    size: Vec2,
+    facing: f32,
+    pose: Pose,
+    phase: f32,
+    color: Color,
+) {
     let p = proportions(size);
     let line_w = p.line_w;
 
@@ -212,50 +222,47 @@ pub fn draw(unit: &Unit, pos: Vec2, size: Vec2, facing: f32, pose: Pose, phase: 
     let leg_r_vec = Vec2::new(f * leg_r.sin() * p.leg_len, leg_r.cos() * p.leg_len);
     let leg_l_end = leg_base + leg_l_vec;
     let leg_r_end = leg_base + leg_r_vec;
-    draw_line(
-        leg_base.x,
-        leg_base.y,
-        leg_l_end.x,
-        leg_l_end.y,
+    gfx.draw_line(
+        Vec2::new(leg_base.x, leg_base.y),
+        Vec2::new(leg_l_end.x, leg_l_end.y),
         line_w,
         color,
     );
-    draw_line(
-        leg_base.x,
-        leg_base.y,
-        leg_r_end.x,
-        leg_r_end.y,
+    gfx.draw_line(
+        Vec2::new(leg_base.x, leg_base.y),
+        Vec2::new(leg_r_end.x, leg_r_end.y),
         line_w,
         color,
     );
 
     // Torse.
-    draw_line(pelvis.x, pelvis.y, neck.x, neck.y, line_w, color);
+    gfx.draw_line(
+        Vec2::new(pelvis.x, pelvis.y),
+        Vec2::new(neck.x, neck.y),
+        line_w,
+        color,
+    );
 
     // Bras.
     let arm_l_vec = Vec2::new(f * arm_l.sin() * p.arm_len, arm_l.cos() * p.arm_len);
     let arm_r_vec = Vec2::new(f * arm_r.sin() * p.arm_len, arm_r.cos() * p.arm_len);
     let arm_l_end = neck + arm_l_vec;
     let arm_r_end = neck + arm_r_vec;
-    draw_line(
-        neck.x,
-        neck.y,
-        arm_l_end.x,
-        arm_l_end.y,
+    gfx.draw_line(
+        Vec2::new(neck.x, neck.y),
+        Vec2::new(arm_l_end.x, arm_l_end.y),
         line_w * 0.85,
         color,
     );
-    draw_line(
-        neck.x,
-        neck.y,
-        arm_r_end.x,
-        arm_r_end.y,
+    gfx.draw_line(
+        Vec2::new(neck.x, neck.y),
+        Vec2::new(arm_r_end.x, arm_r_end.y),
         line_width_safe(line_w),
         color,
     );
 
     // Tête.
-    draw_circle(head_center.x, head_center.y, p.head_r, color);
+    gfx.draw_circle(Vec2::new(head_center.x, head_center.y), p.head_r, color);
 
     // Arme ancrée à la main droite.
     let weapon = Weapon::for_kind(&unit.kind);
@@ -266,7 +273,7 @@ pub fn draw(unit: &Unit, pos: Vec2, size: Vec2, facing: f32, pose: Pose, phase: 
         arm_angle: arm_r,
         attack_t: attack,
     };
-    weapons::draw_weapon(weapon, anchor, color);
+    weapons::draw_weapon(gfx, weapon, anchor, color);
 }
 
 /// Petit helper pour éviter un warning si on change la largeur plus tard.

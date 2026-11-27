@@ -1,8 +1,7 @@
 //! Modal Upgrade Tree — grille de nœuds, achat, description, scroll.
 
-use macroquad::prelude::*;
-
-use ember_stdlib::ui::hit;
+use crate::frame::{get_frame_time, mouse_position, screen_height, screen_width};
+use ember::prelude::*;
 
 use crate::config::GameContext;
 use crate::fonts;
@@ -30,7 +29,9 @@ const KEY_SCROLL: f32 = 700.0;
 // ---------- Layout ----------
 
 fn modal_rect_for(vw: f32, vh: f32) -> Rect {
-    ember_stdlib::layout::centered_rect(vw, vh, vw - MODAL_MARGIN * 2.0, vh - MODAL_MARGIN * 2.0)
+    // Centred (was `ember_stdlib::layout::centered_rect`, macroquad-typed).
+    let (w, h) = (vw - MODAL_MARGIN * 2.0, vh - MODAL_MARGIN * 2.0);
+    Rect::new((vw - w) * 0.5, (vh - h) * 0.5, w, h)
 }
 
 fn modal_rect() -> Rect {
@@ -161,7 +162,7 @@ fn find_neighbor(from_idx: usize, dir: (i32, i32)) -> Option<usize> {
 
 // ---------- Input ----------
 
-pub fn handle_modal_input(tree: &mut UpgradeTree, state: &mut MenuState) -> bool {
+pub fn handle_modal_input(keys: &Input, tree: &mut UpgradeTree, state: &mut MenuState) -> bool {
     let modal = modal_rect();
     let tree_rect = tree_area(modal);
 
@@ -169,22 +170,22 @@ pub fn handle_modal_input(tree: &mut UpgradeTree, state: &mut MenuState) -> bool
         state.upgrade_focus = Some(0);
     }
 
-    let (_wx, wy) = mouse_wheel();
+    let (_wx, wy) = (keys.mouse_wheel.x, keys.mouse_wheel.y);
     if wy.abs() > 0.0 {
         state.upgrade_scroll.y -= wy * WHEEL_SCROLL;
     }
 
     let dt = get_frame_time();
-    if is_key_down(KeyCode::PageDown) {
+    if keys.is_key_down(Key::PageDown) {
         state.upgrade_scroll.y += KEY_SCROLL * dt;
     }
-    if is_key_down(KeyCode::PageUp) {
+    if keys.is_key_down(Key::PageUp) {
         state.upgrade_scroll.y -= KEY_SCROLL * dt;
     }
-    if is_key_pressed(KeyCode::Home) {
+    if keys.is_key_pressed(Key::Home) {
         state.upgrade_scroll.y = 0.0;
     }
-    if is_key_pressed(KeyCode::End) {
+    if keys.is_key_pressed(Key::End) {
         state.upgrade_scroll.y = max_scroll(tree_rect).y;
     }
 
@@ -192,25 +193,25 @@ pub fn handle_modal_input(tree: &mut UpgradeTree, state: &mut MenuState) -> bool
 
     let mut moved = false;
     if let Some(f) = state.upgrade_focus {
-        if is_key_pressed(KeyCode::Up)
+        if keys.is_key_pressed(Key::Up)
             && let Some(n) = find_neighbor(f, (0, -1))
         {
             state.upgrade_focus = Some(n);
             moved = true;
         }
-        if is_key_pressed(KeyCode::Down)
+        if keys.is_key_pressed(Key::Down)
             && let Some(n) = find_neighbor(f, (0, 1))
         {
             state.upgrade_focus = Some(n);
             moved = true;
         }
-        if is_key_pressed(KeyCode::Left)
+        if keys.is_key_pressed(Key::Left)
             && let Some(n) = find_neighbor(f, (-1, 0))
         {
             state.upgrade_focus = Some(n);
             moved = true;
         }
-        if is_key_pressed(KeyCode::Right)
+        if keys.is_key_pressed(Key::Right)
             && let Some(n) = find_neighbor(f, (1, 0))
         {
             state.upgrade_focus = Some(n);
@@ -226,18 +227,18 @@ pub fn handle_modal_input(tree: &mut UpgradeTree, state: &mut MenuState) -> bool
     }
 
     let mouse = Vec2::new(mouse_position().0, mouse_position().1);
-    if is_mouse_button_pressed(MouseButton::Left) {
+    if keys.mouse_left_pressed {
         let defs = load_defs();
         for (i, node) in defs.nodes.iter().enumerate() {
             let r = node_rect(node, tree_rect, state.upgrade_scroll);
-            if hit::contains(r, mouse) {
+            if r.contains(mouse) {
                 state.upgrade_focus = Some(i);
                 return tree.buy(&node.id);
             }
         }
     }
 
-    if (is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space))
+    if (keys.is_key_pressed(Key::Enter) || keys.is_key_pressed(Key::Space))
         && let Some(f) = state.upgrade_focus
         && let Some(node) = load_defs().nodes.get(f)
     {
@@ -249,41 +250,38 @@ pub fn handle_modal_input(tree: &mut UpgradeTree, state: &mut MenuState) -> bool
 
 // ---------- Draw ----------
 
-pub fn draw_modal(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState) {
+pub fn draw_modal(
+    gfx: &mut dyn RenderingServer,
+    ctx: &GameContext,
+    tree: &UpgradeTree,
+    state: &MenuState,
+) {
     let modal = modal_rect();
     let tree_rect = tree_area(modal);
     let desc_rect = desc_area(modal);
     let scroll = state.upgrade_scroll;
 
-    draw_rectangle(
-        0.0,
-        0.0,
-        screen_width(),
-        screen_height(),
+    gfx.draw_rect(
+        Rect::new(0.0, 0.0, screen_width(), screen_height()),
         Color::new(0.0, 0.0, 0.0, 0.72),
     );
 
-    draw_rectangle(
-        modal.x,
-        modal.y,
-        modal.w,
-        modal.h,
+    gfx.draw_rect(
+        Rect::new(modal.x, modal.y, modal.w, modal.h),
         Color::new(0.05, 0.06, 0.08, 1.0),
     );
-    draw_rectangle_lines(modal.x, modal.y, modal.w, modal.h, 2.0, ctx.colors.accent);
+    gfx.draw_rect_outline(
+        Rect::new(modal.x, modal.y, modal.w, modal.h),
+        2.0,
+        ctx.colors.accent,
+    );
 
-    draw_rectangle(
-        tree_rect.x,
-        tree_rect.y,
-        tree_rect.w,
-        tree_rect.h,
+    gfx.draw_rect(
+        Rect::new(tree_rect.x, tree_rect.y, tree_rect.w, tree_rect.h),
         Color::new(0.04, 0.05, 0.07, 1.0),
     );
-    draw_rectangle_lines(
-        tree_rect.x,
-        tree_rect.y,
-        tree_rect.w,
-        tree_rect.h,
+    gfx.draw_rect_outline(
+        Rect::new(tree_rect.x, tree_rect.y, tree_rect.w, tree_rect.h),
         1.0,
         Color::new(0.16, 0.18, 0.22, 1.0),
     );
@@ -309,7 +307,7 @@ pub fn draw_modal(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState) {
                 } else {
                     Color::new(0.22, 0.24, 0.30, 1.0)
                 };
-                draw_line(a.x, a.y, b.x, b.y, 2.0, col);
+                gfx.draw_line(Vec2::new(a.x, a.y), Vec2::new(b.x, b.y), 2.0, col);
             }
         }
     }
@@ -324,16 +322,23 @@ pub fn draw_modal(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState) {
         if r.y < tree_rect.y || r.y + r.h > tree_rect.y + tree_rect.h {
             continue;
         }
-        draw_node(ctx, tree, node, r, state.upgrade_focus == Some(i));
+        draw_node(gfx, ctx, tree, node, r, state.upgrade_focus == Some(i));
     }
 
-    draw_tree_scrollbar(tree_rect, scroll);
+    draw_tree_scrollbar(gfx, tree_rect, scroll);
 
-    draw_header(ctx, tree, modal);
-    draw_description(ctx, tree, state, desc_rect);
+    draw_header(gfx, ctx, tree, modal);
+    draw_description(gfx, ctx, tree, state, desc_rect);
 }
 
-fn draw_node(ctx: &GameContext, tree: &UpgradeTree, node: &UpgradeNode, r: Rect, focused: bool) {
+fn draw_node(
+    gfx: &mut dyn RenderingServer,
+    ctx: &GameContext,
+    tree: &UpgradeTree,
+    node: &UpgradeNode,
+    r: Rect,
+    focused: bool,
+) {
     let purchased = tree.is_purchased(&node.id);
     let accessible = tree.is_accessible(&node.id);
     let affordable = tree.gold >= node.cost;
@@ -363,22 +368,19 @@ fn draw_node(ctx: &GameContext, tree: &UpgradeTree, node: &UpgradeNode, r: Rect,
         )
     };
 
-    draw_rectangle(r.x, r.y, r.w, r.h, bg);
-    draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, border);
+    gfx.draw_rect(Rect::new(r.x, r.y, r.w, r.h), bg);
+    gfx.draw_rect_outline(Rect::new(r.x, r.y, r.w, r.h), 2.0, border);
 
     if focused {
-        draw_rectangle_lines(
-            r.x - 3.0,
-            r.y - 3.0,
-            r.w + 6.0,
-            r.h + 6.0,
+        gfx.draw_rect_outline(
+            Rect::new(r.x - 3.0, r.y - 3.0, r.w + 6.0, r.h + 6.0),
             2.0,
             Color::new(1.0, 1.0, 1.0, 0.9),
         );
     }
 
     let label = truncate(&node.name, 14);
-    let dim = fonts::measure_bold(&label, 13.0);
+    let dim = fonts::measure_bold(gfx, &label, 13.0);
     let text_color = if purchased {
         Color::new(0.65, 1.0, 0.75, 1.0)
     } else if !accessible {
@@ -387,6 +389,7 @@ fn draw_node(ctx: &GameContext, tree: &UpgradeTree, node: &UpgradeNode, r: Rect,
         ctx.colors.text
     };
     fonts::draw_text_bold(
+        gfx,
         &label,
         r.x + (r.w - dim.width) * 0.5,
         r.y + 22.0,
@@ -396,8 +399,9 @@ fn draw_node(ctx: &GameContext, tree: &UpgradeTree, node: &UpgradeNode, r: Rect,
 
     if purchased {
         let check = "✓";
-        let dim_c = fonts::measure_bold(check, 15.0);
+        let dim_c = fonts::measure_bold(gfx, check, 15.0);
         fonts::draw_text_bold(
+            gfx,
             check,
             r.x + (r.w - dim_c.width) * 0.5,
             r.y + r.h - 6.0,
@@ -406,13 +410,14 @@ fn draw_node(ctx: &GameContext, tree: &UpgradeTree, node: &UpgradeNode, r: Rect,
         );
     } else {
         let cost_txt = format!("{:.0}g", node.cost);
-        let dim_c = fonts::measure_regular(&cost_txt, 11.0);
+        let dim_c = fonts::measure_regular(gfx, &cost_txt, 11.0);
         let cost_color = if affordable && accessible {
             ctx.colors.gold
         } else {
             Color::new(0.58, 0.44, 0.44, 1.0)
         };
         fonts::draw_text_regular(
+            gfx,
             &cost_txt,
             r.x + (r.w - dim_c.width) * 0.5,
             r.y + r.h - 6.0,
@@ -422,7 +427,7 @@ fn draw_node(ctx: &GameContext, tree: &UpgradeTree, node: &UpgradeNode, r: Rect,
     }
 }
 
-fn draw_tree_scrollbar(tree_rect: Rect, scroll: Vec2) {
+fn draw_tree_scrollbar(gfx: &mut dyn RenderingServer, tree_rect: Rect, scroll: Vec2) {
     let m = max_scroll(tree_rect);
     if m.y <= 0.0 {
         return;
@@ -434,35 +439,30 @@ fn draw_tree_scrollbar(tree_rect: Rect, scroll: Vec2) {
     let frac = (scroll.y / m.y).clamp(0.0, 1.0);
     let thumb_y = tree_rect.y + (track_h - thumb_h) * frac;
 
-    draw_rectangle(
-        bar_x,
-        tree_rect.y,
-        4.0,
-        track_h,
+    gfx.draw_rect(
+        Rect::new(bar_x, tree_rect.y, 4.0, track_h),
         Color::new(0.10, 0.11, 0.14, 1.0),
     );
-    draw_rectangle(
-        bar_x,
-        thumb_y,
-        4.0,
-        thumb_h,
+    gfx.draw_rect(
+        Rect::new(bar_x, thumb_y, 4.0, thumb_h),
         Color::new(0.72, 0.74, 0.78, 0.85),
     );
 }
 
-fn draw_header(ctx: &GameContext, tree: &UpgradeTree, modal: Rect) {
+fn draw_header(gfx: &mut dyn RenderingServer, ctx: &GameContext, tree: &UpgradeTree, modal: Rect) {
     let h = Rect {
         x: modal.x,
         y: modal.y,
         w: modal.w,
         h: HEADER_H,
     };
-    draw_rectangle(h.x, h.y, h.w, h.h, Color::new(0.06, 0.07, 0.10, 1.0));
-    draw_line(
-        h.x,
-        h.y + h.h - 1.0,
-        h.x + h.w,
-        h.y + h.h - 1.0,
+    gfx.draw_rect(
+        Rect::new(h.x, h.y, h.w, h.h),
+        Color::new(0.06, 0.07, 0.10, 1.0),
+    );
+    gfx.draw_line(
+        Vec2::new(h.x, h.y + h.h - 1.0),
+        Vec2::new(h.x + h.w, h.y + h.h - 1.0),
         1.0,
         Color::new(0.20, 0.22, 0.28, 1.0),
     );
@@ -471,10 +471,11 @@ fn draw_header(ctx: &GameContext, tree: &UpgradeTree, modal: Rect) {
     let baseline = modal.y + 46.0;
 
     let title = "UPGRADES";
-    let dim = fonts::measure_bold(title, 32.0);
-    fonts::draw_text_bold(title, x, baseline, 32.0, ctx.colors.accent);
+    let dim = fonts::measure_bold(gfx, title, 32.0);
+    fonts::draw_text_bold(gfx, title, x, baseline, 32.0, ctx.colors.accent);
 
     fonts::draw_text_regular(
+        gfx,
         "Forge your run",
         x + dim.width + 22.0,
         baseline,
@@ -483,8 +484,9 @@ fn draw_header(ctx: &GameContext, tree: &UpgradeTree, modal: Rect) {
     );
 
     let gold_txt = format!("GOLD  {:.0}", tree.gold);
-    let dim_g = fonts::measure_bold(&gold_txt, 22.0);
+    let dim_g = fonts::measure_bold(gfx, &gold_txt, 22.0);
     fonts::draw_text_bold(
+        gfx,
         &gold_txt,
         modal.x + modal.w - MODAL_PAD - dim_g.width,
         baseline,
@@ -493,19 +495,19 @@ fn draw_header(ctx: &GameContext, tree: &UpgradeTree, modal: Rect) {
     );
 }
 
-fn draw_description(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState, desc: Rect) {
-    draw_rectangle(
-        desc.x,
-        desc.y,
-        desc.w,
-        desc.h,
+fn draw_description(
+    gfx: &mut dyn RenderingServer,
+    ctx: &GameContext,
+    tree: &UpgradeTree,
+    state: &MenuState,
+    desc: Rect,
+) {
+    gfx.draw_rect(
+        Rect::new(desc.x, desc.y, desc.w, desc.h),
         Color::new(0.06, 0.07, 0.10, 1.0),
     );
-    draw_rectangle_lines(
-        desc.x,
-        desc.y,
-        desc.w,
-        desc.h,
+    gfx.draw_rect_outline(
+        Rect::new(desc.x, desc.y, desc.w, desc.h),
         1.0,
         Color::new(0.20, 0.22, 0.28, 1.0),
     );
@@ -517,6 +519,7 @@ fn draw_description(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState, de
 
     let Some(node) = node else {
         fonts::draw_text_regular(
+            gfx,
             "No node focused",
             x,
             desc.y + 32.0,
@@ -531,7 +534,7 @@ fn draw_description(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState, de
     let affordable = tree.gold >= node.cost;
 
     let mut y = desc.y + 28.0;
-    fonts::draw_text_bold(&node.name, x, y, 20.0, ctx.colors.text);
+    fonts::draw_text_bold(gfx, &node.name, x, y, 20.0, ctx.colors.text);
 
     let (state_txt, state_col) = if purchased {
         ("PURCHASED".to_string(), Color::new(0.45, 1.0, 0.55, 1.0))
@@ -545,8 +548,9 @@ fn draw_description(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState, de
             Color::new(0.85, 0.55, 0.50, 1.0),
         )
     };
-    let dim_s = fonts::measure_bold(&state_txt, 13.0);
+    let dim_s = fonts::measure_bold(gfx, &state_txt, 13.0);
     fonts::draw_text_bold(
+        gfx,
         &state_txt,
         desc.x + desc.w - MODAL_PAD * 0.6 - dim_s.width,
         y,
@@ -555,18 +559,23 @@ fn draw_description(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState, de
     );
 
     y += 20.0;
-    draw_line(
-        x,
-        y,
-        desc.x + desc.w - MODAL_PAD * 0.6,
-        y,
+    gfx.draw_line(
+        Vec2::new(x, y),
+        Vec2::new(desc.x + desc.w - MODAL_PAD * 0.6, y),
         1.0,
         Color::new(0.18, 0.20, 0.24, 1.0),
     );
     y += 20.0;
 
     let effect_txt = effect_label(&node.effect);
-    fonts::draw_text_regular(&effect_txt, x, y, 14.0, Color::new(0.75, 0.78, 0.82, 1.0));
+    fonts::draw_text_regular(
+        gfx,
+        &effect_txt,
+        x,
+        y,
+        14.0,
+        Color::new(0.75, 0.78, 0.82, 1.0),
+    );
     y += 20.0;
 
     if !purchased {
@@ -576,7 +585,7 @@ fn draw_description(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState, de
         } else {
             Color::new(0.60, 0.45, 0.45, 1.0)
         };
-        fonts::draw_text_regular(&cost_txt, x, y, 12.0, cost_col);
+        fonts::draw_text_regular(gfx, &cost_txt, x, y, 12.0, cost_col);
         y += 16.0;
     }
 
@@ -589,6 +598,7 @@ fn draw_description(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState, de
         if !reqs.is_empty() {
             let req_txt = format!("Requires: {}", reqs.join(", "));
             fonts::draw_text_regular(
+                gfx,
                 &truncate(&req_txt, 75),
                 x,
                 y,
@@ -599,8 +609,9 @@ fn draw_description(ctx: &GameContext, tree: &UpgradeTree, state: &MenuState, de
     }
 
     let hint = "Tab Close  ·  Wheel Scroll  ·  ↑↓←→ Navigate  ·  Enter Buy";
-    let dim_h = fonts::measure_regular(hint, 11.0);
+    let dim_h = fonts::measure_regular(gfx, hint, 11.0);
     fonts::draw_text_regular(
+        gfx,
         hint,
         desc.x + desc.w - MODAL_PAD * 0.6 - dim_h.width,
         desc.y + desc.h - 10.0,

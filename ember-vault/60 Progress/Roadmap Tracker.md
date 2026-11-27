@@ -22,7 +22,7 @@ gantt
   P5 UI (done)           :done, p5, 2026-11-22, 3d
   P6 Editor (done)       :done, p6, 2026-11-24, 1d
   section Application
-  P7 Migration (16/17)    :active, p7, 2026-11-18, 13d
+  P7 Migration (17/17)    :active, p7, 2026-11-18, 13d
   P8 Cleanup (10%)       :p8, after p7, 2d
   section Editor v2
   P9 Editor v2 (0%)      :p9, after p7, 4d
@@ -101,7 +101,9 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] bore-inc *(`1b08851`: root node, built in `ready`; engine textures, nearest-filtered (ADR-048); viewport follows the window; `main.rs` 5 lines; no macroquad; 201 unit + 21 scenario + 6 `SceneLoop` tests)*
 - [x] jade-garden *(`4ef6142`: root node; viewport follows the window; music on `AudioServer` (ADR-043); native + web; `main.rs` 5 lines; no macroquad; 289 unit + 22 + 1 scenario + 6 `SceneLoop` + 5 music tests)*
 - [x] accretion *(`ddf58a6`: root node; high DPI, viewport follows the window; per-frame `frame` snapshot; `main.rs` 5 lines; no macroquad; 125 unit + 2 balance + 6 `SceneLoop` tests; web saves broken before and after, see §5.16)*
-- [ ] ember-wars → full checklist in [[42-acceptance-tests]]
+- [x] ember-wars — **ported** *(`f16fe0c`: root node; high DPI, viewport follows the window; `main.rs` 5 lines; no macroquad; 302 lib + 20 scenario tests)*
+  - [x] node tree *(`0ad070c`: `World` node with catapults, units and projectiles as nodes; signals to the root; draw calls identical to the port; 10 `SceneLoop` tests)* → [[42-acceptance-tests]]
+  - [x] manual acceptance *(items 11–15: chapters 1, 2, 5; upgrade UI; save/load — played by the user, 2026-11-27, no problem; spec 42's 20 items all met)*
 
 ## Phase 8 — Cleanup
 - [x] no `Cooldown::new` / `with_duration` call sites ⚑
@@ -116,8 +118,8 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 **Proof — the editor opens Pong (M1):**
 - [x] pong described as `games/pong/scenes/pong.escene`; `build_tree` instantiates it *(`f866d2e`: 4 classes, `.env` = overrides only; 6 tests in `tests/scene_file.rs`)*
 - [x] editor as a library; a game plugs its `ClassDB` in (ADR-039); `make edit GAME=pong` *(`6aaf9a0`)*
-- [x] preview at the scene's real resolution, scaled (camera zoom, ADR-040) *(`dfa8b04`; headless tests; not checked in the window yet)*
-- [ ] edit `PlayerPaddle.size` → preview updates → Save → `cargo run -p pong` plays the change
+- [x] preview at the scene's real resolution, scaled (camera zoom, ADR-040) *(`dfa8b04`; headless tests; checked in the window 2026-11-27)*
+- [x] edit `PlayerPaddle.size` → preview updates → Save → `cargo run -p pong` plays the change *(checked in the window 2026-11-27 on `Ball.size` 20 → 50; no code change)*
 - [x] headless `games/pong/tests/editor.rs` *(`6aaf9a0`: 4 tests)*
 
 **Editor v2 (M4):**

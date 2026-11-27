@@ -1,7 +1,7 @@
 //! Armes procédurales — dessinées depuis le bout du bras.
 
+use ember::prelude::*;
 use glam::Vec2;
-use macroquad::prelude::*;
 
 /// Arme tenue par une unité.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,7 +105,12 @@ pub struct WeaponAnchor {
 }
 
 /// Dessine l'arme à l'ancre donnée.
-pub fn draw_weapon(weapon: Weapon, anchor: WeaponAnchor, camp_color: Color) {
+pub fn draw_weapon(
+    gfx: &mut dyn RenderingServer,
+    weapon: Weapon,
+    anchor: WeaponAnchor,
+    camp_color: Color,
+) {
     // Angle de base = celui du bras + offset de poignet.
     let base_angle = anchor.arm_angle + weapon.wrist_offset();
 
@@ -122,22 +127,19 @@ pub fn draw_weapon(weapon: Weapon, anchor: WeaponAnchor, camp_color: Color) {
 
     match weapon {
         Weapon::Sword | Weapon::Longsword | Weapon::Staff | Weapon::Club => {
-            draw_line(
-                anchor.hand.x,
-                anchor.hand.y,
-                tip.x,
-                tip.y,
+            gfx.draw_line(
+                Vec2::new(anchor.hand.x, anchor.hand.y),
+                Vec2::new(tip.x, tip.y),
                 weapon.thickness(),
                 color,
             );
             if matches!(weapon, Weapon::Sword | Weapon::Longsword) {
-                draw_circle(tip.x, tip.y, weapon.thickness() * 0.8, color);
+                gfx.draw_circle(Vec2::new(tip.x, tip.y), weapon.thickness() * 0.8, color);
             }
             if matches!(weapon, Weapon::Staff) {
-                draw_circle(tip.x, tip.y, 3.0, color);
-                draw_circle(
-                    tip.x,
-                    tip.y,
+                gfx.draw_circle(Vec2::new(tip.x, tip.y), 3.0, color);
+                gfx.draw_circle(
+                    Vec2::new(tip.x, tip.y),
                     5.0,
                     Color::new(color.r, color.g, color.b, 0.3),
                 );
@@ -147,31 +149,35 @@ pub fn draw_weapon(weapon: Weapon, anchor: WeaponAnchor, camp_color: Color) {
             let perp = Vec2::new(-dir.y, dir.x) * weapon.length() * 0.4;
             let tip_a = anchor.hand + dir * weapon.length() * 0.3 + perp;
             let tip_b = anchor.hand + dir * weapon.length() * 0.3 - perp;
-            draw_line(
-                anchor.hand.x,
-                anchor.hand.y,
-                tip_a.x,
-                tip_a.y,
+            gfx.draw_line(
+                Vec2::new(anchor.hand.x, anchor.hand.y),
+                Vec2::new(tip_a.x, tip_a.y),
                 weapon.thickness(),
                 color,
             );
-            draw_line(
-                anchor.hand.x,
-                anchor.hand.y,
-                tip_b.x,
-                tip_b.y,
+            gfx.draw_line(
+                Vec2::new(anchor.hand.x, anchor.hand.y),
+                Vec2::new(tip_b.x, tip_b.y),
                 weapon.thickness(),
                 color,
             );
             if anchor.attack_t > 0.3 {
-                draw_line(tip_a.x, tip_a.y, tip_b.x, tip_b.y, 1.0, color);
+                gfx.draw_line(
+                    Vec2::new(tip_a.x, tip_a.y),
+                    Vec2::new(tip_b.x, tip_b.y),
+                    1.0,
+                    color,
+                );
             }
         }
         Weapon::Bomb => {
-            draw_circle(anchor.hand.x, anchor.hand.y, weapon.length() * 0.5, color);
-            draw_circle(
-                anchor.hand.x - 1.5,
-                anchor.hand.y - 1.5,
+            gfx.draw_circle(
+                Vec2::new(anchor.hand.x, anchor.hand.y),
+                weapon.length() * 0.5,
+                color,
+            );
+            gfx.draw_circle(
+                Vec2::new(anchor.hand.x - 1.5, anchor.hand.y - 1.5),
                 1.2,
                 Color::new(0.4, 0.4, 0.5, 0.9),
             );
@@ -249,7 +255,7 @@ mod tests {
 
     #[test]
     fn staff_color_is_golden() {
-        let c = Weapon::Staff.color(WHITE);
+        let c = Weapon::Staff.color(Color::WHITE);
         assert!(c.r > 0.9 && c.g > 0.7 && c.b < 0.5);
     }
 

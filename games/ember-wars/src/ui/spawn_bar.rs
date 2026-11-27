@@ -1,9 +1,10 @@
 //! Barre de spawn en bas de l'écran — un bouton par unité.
 
-use glam::Vec2;
-use macroquad::prelude::*;
+use std::collections::HashSet;
 
-use ember_stdlib::ui::hit;
+use crate::frame::{mouse_position, screen_height, screen_width};
+use ember::prelude::*;
+use glam::Vec2;
 
 use crate::config::GameContext;
 use crate::systems::Game;
@@ -36,7 +37,15 @@ impl SpawnBar {
         }
     }
 
-    pub fn draw(&self, ctx: &GameContext, game: &Game) {
+    /// `at_cap`: the kinds the player has at their `max_alive` cap (the
+    /// units live in their nodes while the world draws).
+    pub fn draw(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        ctx: &GameContext,
+        game: &Game,
+        at_cap: &HashSet<String>,
+    ) {
         let stats = all_units();
         let total = stats.len();
         let vw = screen_width();
@@ -53,10 +62,10 @@ impl SpawnBar {
                 .copied()
                 .unwrap_or_default();
             let enough_mana = game.player_mana.current >= s.cost;
-            let max_alive_ok = can_spawn(&s.id, crate::components::Team::Player, &game.units);
+            let max_alive_ok = !at_cap.contains(&s.id);
             let ready = is_unlocked && cooldown.is_ready() && enough_mana && max_alive_ok;
 
-            let hovered = hit::contains(r, mouse);
+            let hovered = r.contains(mouse);
             let base = s.color();
             let (bg, border) = if !is_unlocked {
                 (
@@ -82,8 +91,8 @@ impl SpawnBar {
                 )
             };
 
-            draw_rectangle(r.x, r.y, r.w, r.h, bg);
-            draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, border);
+            gfx.draw_rect(Rect::new(r.x, r.y, r.w, r.h), bg);
+            gfx.draw_rect_outline(Rect::new(r.x, r.y, r.w, r.h), 2.0, border);
 
             // Cooldown overlay : voile noir qui se réduit de haut en bas
             // à mesure que le cooldown expire. `remaining_fraction()`
@@ -91,7 +100,7 @@ impl SpawnBar {
             if is_unlocked && cooldown.is_active() {
                 let frac = cooldown.remaining_fraction();
                 let h = r.h * frac;
-                draw_rectangle(r.x, r.y, r.w, h, Color::new(0.0, 0.0, 0.0, 0.55));
+                gfx.draw_rect(Rect::new(r.x, r.y, r.w, h), Color::new(0.0, 0.0, 0.0, 0.55));
             }
 
             // Nom.
@@ -101,7 +110,7 @@ impl SpawnBar {
             } else {
                 Color::new(0.40, 0.40, 0.45, 1.0)
             };
-            draw_text(&s.name, r.x + 8.0, name_y, 18.0, name_color);
+            gfx.draw_text(&s.name, Vec2::new(r.x + 8.0, name_y), 18.0, name_color);
 
             // Coût.
             let cost_txt = format!("{:.0} mana", s.cost);
@@ -110,7 +119,12 @@ impl SpawnBar {
             } else {
                 Color::new(0.30, 0.30, 0.35, 1.0)
             };
-            draw_text(&cost_txt, r.x + 8.0, r.y + 44.0, 14.0, cost_color);
+            gfx.draw_text(
+                &cost_txt,
+                Vec2::new(r.x + 8.0, r.y + 44.0),
+                14.0,
+                cost_color,
+            );
 
             // État.
             let state_txt = if !is_unlocked {
@@ -125,13 +139,18 @@ impl SpawnBar {
                 String::new()
             };
             if !state_txt.is_empty() {
-                draw_text(&state_txt, r.x + 8.0, r.y + 62.0, 12.0, ctx.colors.text);
+                gfx.draw_text(
+                    &state_txt,
+                    Vec2::new(r.x + 8.0, r.y + 62.0),
+                    12.0,
+                    ctx.colors.text,
+                );
             }
         }
     }
 
-    pub fn handle_click(&self, game: &Game) -> Option<String> {
-        if !is_mouse_button_pressed(MouseButton::Left) {
+    pub fn handle_click(&self, keys: &Input, game: &Game) -> Option<String> {
+        if !keys.mouse_left_pressed {
             return None;
         }
         let stats = all_units();
@@ -142,7 +161,7 @@ impl SpawnBar {
         let unlocked = game.unlocked_units();
         for (i, s) in stats.iter().enumerate() {
             let r = Self::slot_rect(i, total, vw, vh);
-            if hit::contains(r, m) {
+            if r.contains(m) {
                 if !unlocked.contains(&s.id) {
                     return None;
                 }
@@ -186,6 +205,6 @@ mod tests {
     fn slot_rect_center_matches_hit() {
         let r = SpawnBar::slot_rect(3, 6, 1280.0, 720.0);
         let center = Vec2::new(r.x + r.w * 0.5, r.y + r.h * 0.5);
-        assert!(hit::contains(r, center));
+        assert!(r.contains(center));
     }
 }

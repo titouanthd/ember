@@ -358,10 +358,12 @@ name = "ember-wars"
 version = "0.1.0"
 dependencies = [
  "dotenvy",
+ "ember",
  "ember-core",
+ "ember-input",
+ "ember-servers",
  "ember-stdlib",
  "glam",
- "macroquad",
  "ron",
  "serde",
 ]

@@ -1,6 +1,7 @@
-//! Layout runtime — positions calculées depuis `screen_width/height`.
+//! Layout runtime — positions calculées depuis `screen_width/height`
+//! (la taille de fenêtre de la frame, `crate::frame`).
 
-use macroquad::prelude::{screen_height, screen_width};
+use crate::frame::{screen_height, screen_width};
 
 pub fn scr_w() -> f32 {
     screen_width()

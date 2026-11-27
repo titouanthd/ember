@@ -6,10 +6,11 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
+use crate::frame::{get_time, screen_width};
+use ember::prelude::*;
 use ember_core::hash::hash_u32;
 use ember_core::io::load_from_file;
 use glam::Vec2;
-use macroquad::prelude::*;
 use serde::Deserialize;
 
 // ---------- Palette ----------
@@ -137,7 +138,7 @@ pub const TOWER_VISUAL_H: f32 = 152.0;
 
 // ---------- Dessin : ciel ----------
 
-pub fn draw_sky(palette: &Palette, ground_y: f32) {
+pub fn draw_sky(gfx: &mut dyn RenderingServer, palette: &Palette, ground_y: f32) {
     let vw = screen_width();
     let strip_h = (ground_y / SKY_STRIPS as f32).max(1.0);
     let top = palette.sky_top_c();
@@ -151,16 +152,16 @@ pub fn draw_sky(palette: &Palette, ground_y: f32) {
             top.b * (1.0 - t) + bottom.b * t,
             1.0,
         );
-        draw_rectangle(0.0, i as f32 * strip_h, vw, strip_h + 1.0, c);
+        gfx.draw_rect(Rect::new(0.0, i as f32 * strip_h, vw, strip_h + 1.0), c);
     }
 
     // Étoiles en haut du ciel (Urban uniquement).
     if palette.style == SceneStyle::Urban {
-        draw_stars(palette, ground_y);
+        draw_stars(gfx, palette, ground_y);
     }
 }
 
-fn draw_stars(palette: &Palette, ground_y: f32) {
+fn draw_stars(gfx: &mut dyn RenderingServer, palette: &Palette, ground_y: f32) {
     let vw = screen_width();
     let star_zone_h = ground_y * 0.35;
     let window_c = palette.window_c();
@@ -178,27 +179,45 @@ fn draw_stars(palette: &Palette, ground_y: f32) {
 
         let c = Color::new(window_c.r, window_c.g, window_c.b, alpha);
         let size = if h1.is_multiple_of(7) { 2.0 } else { 1.0 };
-        draw_rectangle(sx, sy, size, size, c);
+        gfx.draw_rect(Rect::new(sx, sy, size, size), c);
     }
 }
 
 // ---------- Dessin : parallax layers ----------
 
-pub fn draw_far_layer(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
+pub fn draw_far_layer(
+    gfx: &mut dyn RenderingServer,
+    palette: &Palette,
+    cam_x: f32,
+    ground_y: f32,
+    seed: u32,
+) {
     match palette.style {
-        SceneStyle::Urban => draw_far_urban(palette, cam_x, ground_y, seed),
-        SceneStyle::Mountain => draw_far_mountain(palette, cam_x, ground_y, seed),
+        SceneStyle::Urban => draw_far_urban(gfx, palette, cam_x, ground_y, seed),
+        SceneStyle::Mountain => draw_far_mountain(gfx, palette, cam_x, ground_y, seed),
     }
 }
 
-pub fn draw_mid_layer(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
+pub fn draw_mid_layer(
+    gfx: &mut dyn RenderingServer,
+    palette: &Palette,
+    cam_x: f32,
+    ground_y: f32,
+    seed: u32,
+) {
     match palette.style {
-        SceneStyle::Urban => draw_mid_urban(palette, cam_x, ground_y, seed),
-        SceneStyle::Mountain => draw_mid_mountain(palette, cam_x, ground_y, seed),
+        SceneStyle::Urban => draw_mid_urban(gfx, palette, cam_x, ground_y, seed),
+        SceneStyle::Mountain => draw_mid_mountain(gfx, palette, cam_x, ground_y, seed),
     }
 }
 
-fn draw_far_urban(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
+fn draw_far_urban(
+    gfx: &mut dyn RenderingServer,
+    palette: &Palette,
+    cam_x: f32,
+    ground_y: f32,
+    seed: u32,
+) {
     let vw = screen_width();
     let layer_x = cam_x * FAR_PARALLAX;
     let first = (layer_x / FAR_CHUNK_W).floor() as i32;
@@ -209,11 +228,17 @@ fn draw_far_urban(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
         let h = far_urban_height(seed, i);
         let x = i as f32 * FAR_CHUNK_W - layer_x;
         let top = ground_y - h;
-        draw_rectangle(x, top, FAR_CHUNK_W - 4.0, h, color);
+        gfx.draw_rect(Rect::new(x, top, FAR_CHUNK_W - 4.0, h), color);
     }
 }
 
-fn draw_mid_urban(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
+fn draw_mid_urban(
+    gfx: &mut dyn RenderingServer,
+    palette: &Palette,
+    cam_x: f32,
+    ground_y: f32,
+    seed: u32,
+) {
     let vw = screen_width();
     let layer_x = cam_x * MID_PARALLAX;
     let first = (layer_x / MID_CHUNK_W).floor() as i32;
@@ -229,8 +254,8 @@ fn draw_mid_urban(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
         let top = ground_y - h;
         let w = MID_CHUNK_W - 8.0;
 
-        draw_rectangle(x, top, w, h, color);
-        draw_rectangle_lines(x, top, w, h, 1.0, Color::new(0.0, 0.0, 0.0, 0.4));
+        gfx.draw_rect(Rect::new(x, top, w, h), color);
+        gfx.draw_rect_outline(Rect::new(x, top, w, h), 1.0, Color::new(0.0, 0.0, 0.0, 0.4));
 
         // Fenêtres allumées.
         let win_cols = 3;
@@ -246,7 +271,7 @@ fn draw_mid_urban(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
                 }
                 let sx = x + 6.0 + wx as f32 * 14.0;
                 let sy = top + 10.0 + wy as f32 * 22.0;
-                draw_rectangle(sx, sy, 6.0, 8.0, window_c);
+                gfx.draw_rect(Rect::new(sx, sy, 6.0, 8.0), window_c);
             }
         }
 
@@ -262,19 +287,22 @@ fn draw_mid_urban(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
                 neon_2
             };
             // Rectangle lumineux + halo.
-            draw_rectangle(
-                neon_x - 1.0,
-                neon_top - 1.0,
-                6.0,
-                neon_h + 2.0,
+            gfx.draw_rect(
+                Rect::new(neon_x - 1.0, neon_top - 1.0, 6.0, neon_h + 2.0),
                 Color::new(neon_c.r, neon_c.g, neon_c.b, 0.25),
             );
-            draw_rectangle(neon_x, neon_top, 4.0, neon_h, neon_c);
+            gfx.draw_rect(Rect::new(neon_x, neon_top, 4.0, neon_h), neon_c);
         }
     }
 }
 
-fn draw_far_mountain(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
+fn draw_far_mountain(
+    gfx: &mut dyn RenderingServer,
+    palette: &Palette,
+    cam_x: f32,
+    ground_y: f32,
+    seed: u32,
+) {
     let vw = screen_width();
     let layer_x = cam_x * FAR_PARALLAX;
     let step = 200.0;
@@ -290,11 +318,17 @@ fn draw_far_mountain(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
         let p1 = Vec2::new(base_x - step * 0.4, ground_y);
         let p2 = Vec2::new(peak_x, top_y);
         let p3 = Vec2::new(base_x + step * 1.4, ground_y);
-        draw_triangle(p1, p2, p3, color);
+        gfx.draw_triangle(p1, p2, p3, color);
     }
 }
 
-fn draw_mid_mountain(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
+fn draw_mid_mountain(
+    gfx: &mut dyn RenderingServer,
+    palette: &Palette,
+    cam_x: f32,
+    ground_y: f32,
+    seed: u32,
+) {
     let vw = screen_width();
     let layer_x = cam_x * MID_PARALLAX;
     let step = 180.0;
@@ -312,7 +346,7 @@ fn draw_mid_mountain(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
         let p1 = Vec2::new(base_x - step * 0.3, ground_y);
         let p2 = Vec2::new(peak_x, top_y);
         let p3 = Vec2::new(base_x + step * 1.3, ground_y);
-        draw_triangle(p1, p2, p3, color);
+        gfx.draw_triangle(p1, p2, p3, color);
 
         // Pagode simple sur certaines collines.
         if hash_u32(seed.wrapping_add(0xABCD), i as u32).is_multiple_of(4) {
@@ -320,40 +354,51 @@ fn draw_mid_mountain(palette: &Palette, cam_x: f32, ground_y: f32, seed: u32) {
             let ph = 34.0;
             let px = peak_x;
             let py = top_y - ph;
-            draw_rectangle(px - pw * 0.5, py, pw, ph, accent);
+            gfx.draw_rect(Rect::new(px - pw * 0.5, py, pw, ph), accent);
             // Étage supérieur plus fin.
-            draw_rectangle(px - pw * 0.35, py - 12.0, pw * 0.7, 12.0, accent);
+            gfx.draw_rect(Rect::new(px - pw * 0.35, py - 12.0, pw * 0.7, 12.0), accent);
             // Toits triangulaires.
             let t1 = Vec2::new(px - pw, py);
             let t2 = Vec2::new(px, py - 10.0);
             let t3 = Vec2::new(px + pw, py);
-            draw_triangle(t1, t2, t3, accent);
+            gfx.draw_triangle(t1, t2, t3, accent);
             let t1b = Vec2::new(px - pw * 0.5, py - 12.0);
             let t2b = Vec2::new(px, py - 22.0);
             let t3b = Vec2::new(px + pw * 0.5, py - 12.0);
-            draw_triangle(t1b, t2b, t3b, accent);
+            gfx.draw_triangle(t1b, t2b, t3b, accent);
             // Pointe dorée en haut.
-            draw_circle(px, py - 24.0, 2.0, accent);
+            gfx.draw_circle(Vec2::new(px, py - 24.0), 2.0, accent);
         }
     }
 }
 
 // ---------- Dessin : sol ----------
 
-pub fn draw_ground(palette: &Palette, cam_x: f32, ground_y: f32, vh: f32) {
+pub fn draw_ground(
+    gfx: &mut dyn RenderingServer,
+    palette: &Palette,
+    cam_x: f32,
+    ground_y: f32,
+    vh: f32,
+) {
     let vw = screen_width();
     let base = palette.ground_base_c();
     let accent = palette.ground_accent_c();
 
-    draw_rectangle(0.0, ground_y, vw, vh - ground_y, base);
+    gfx.draw_rect(Rect::new(0.0, ground_y, vw, vh - ground_y), base);
 
     match palette.style {
         SceneStyle::Urban => {
             // Néons au sol (bandes horizontales colorées façon Blade Runner).
-            draw_urban_neons(palette, cam_x, ground_y, vw);
+            draw_urban_neons(gfx, palette, cam_x, ground_y, vw);
 
             // Ligne de trottoir accentuée.
-            draw_line(0.0, ground_y, vw, ground_y, 3.0, accent);
+            gfx.draw_line(
+                Vec2::new(0.0, ground_y),
+                Vec2::new(vw, ground_y),
+                3.0,
+                accent,
+            );
 
             // Pavés verticaux.
             let tile_w = 60.0;
@@ -362,12 +407,17 @@ pub fn draw_ground(palette: &Palette, cam_x: f32, ground_y: f32, vh: f32) {
             let faint = Color::new(accent.r, accent.g, accent.b, 0.18);
             for i in first..=last {
                 let x = i as f32 * tile_w - cam_x;
-                draw_line(x, ground_y + 12.0, x, vh, 1.0, faint);
+                gfx.draw_line(Vec2::new(x, ground_y + 12.0), Vec2::new(x, vh), 1.0, faint);
             }
         }
         SceneStyle::Mountain => {
             // Ligne de sol.
-            draw_line(0.0, ground_y, vw, ground_y, 3.0, accent);
+            gfx.draw_line(
+                Vec2::new(0.0, ground_y),
+                Vec2::new(vw, ground_y),
+                3.0,
+                accent,
+            );
 
             // Touffes d'herbe.
             let tuft_w = 40.0;
@@ -378,8 +428,18 @@ pub fn draw_ground(palette: &Palette, cam_x: f32, ground_y: f32, vh: f32) {
                 let r = hash_u32(0xC0FFEE, i as u32);
                 if r.is_multiple_of(3) {
                     let h = 6.0 + (r % 5) as f32;
-                    draw_line(x, ground_y + 6.0, x - 3.0, ground_y + 6.0 - h, 2.0, accent);
-                    draw_line(x, ground_y + 6.0, x + 3.0, ground_y + 6.0 - h, 2.0, accent);
+                    gfx.draw_line(
+                        Vec2::new(x, ground_y + 6.0),
+                        Vec2::new(x - 3.0, ground_y + 6.0 - h),
+                        2.0,
+                        accent,
+                    );
+                    gfx.draw_line(
+                        Vec2::new(x, ground_y + 6.0),
+                        Vec2::new(x + 3.0, ground_y + 6.0 - h),
+                        2.0,
+                        accent,
+                    );
                 }
             }
 
@@ -389,14 +449,20 @@ pub fn draw_ground(palette: &Palette, cam_x: f32, ground_y: f32, vh: f32) {
                 let r = hash_u32(0x5EED, i as u32);
                 if r.is_multiple_of(5) {
                     let size = 2.0 + (r % 3) as f32;
-                    draw_rectangle(x, ground_y + 20.0, size, size, accent);
+                    gfx.draw_rect(Rect::new(x, ground_y + 20.0, size, size), accent);
                 }
             }
         }
     }
 }
 
-fn draw_urban_neons(palette: &Palette, cam_x: f32, ground_y: f32, vw: f32) {
+fn draw_urban_neons(
+    gfx: &mut dyn RenderingServer,
+    palette: &Palette,
+    cam_x: f32,
+    ground_y: f32,
+    vw: f32,
+) {
     let layer_x = cam_x * NEON_PARALLAX;
     let stripe_w = 140.0;
     let first = (layer_x / stripe_w).floor() as i32;
@@ -414,15 +480,15 @@ fn draw_urban_neons(palette: &Palette, cam_x: f32, ground_y: f32, vw: f32) {
 
         // Halo semi-transparent.
         let halo = Color::new(c.r, c.g, c.b, 0.18);
-        draw_rectangle(x, ground_y + 2.0, stripe_w * 0.7, 4.0, halo);
+        gfx.draw_rect(Rect::new(x, ground_y + 2.0, stripe_w * 0.7, 4.0), halo);
         // Trait plein.
-        draw_rectangle(x, ground_y + 3.0, stripe_w * 0.7, 2.0, c);
+        gfx.draw_rect(Rect::new(x, ground_y + 3.0, stripe_w * 0.7, 2.0), c);
     }
 }
 
 // ---------- Dessin : brume ----------
 
-pub fn draw_mist(palette: &Palette, ground_y: f32) {
+pub fn draw_mist(gfx: &mut dyn RenderingServer, palette: &Palette, ground_y: f32) {
     let m = palette.mist_c();
     if m.a <= 0.01 {
         return;
@@ -431,12 +497,13 @@ pub fn draw_mist(palette: &Palette, ground_y: f32) {
     // Bande de brume juste au-dessus du sol.
     let mist_h = 90.0;
     let mist_y = ground_y - mist_h + 20.0;
-    draw_rectangle(0.0, mist_y, vw, mist_h, m);
+    gfx.draw_rect(Rect::new(0.0, mist_y, vw, mist_h), m);
 }
 
 // ---------- Dessin : tours ----------
 
 pub fn draw_tower(
+    gfx: &mut dyn RenderingServer,
     player: bool,
     palette: &Palette,
     world_x: f32,
@@ -467,16 +534,21 @@ pub fn draw_tower(
     );
 
     // Corps de la tour (rectangle principal).
-    draw_rectangle(sx - w * 0.5, top, w, h, base);
+    gfx.draw_rect(Rect::new(sx - w * 0.5, top, w, h), base);
 
     // Bande verticale plus claire sur la gauche (effet de relief).
-    draw_rectangle(sx - w * 0.5, top, 4.0, h, bright);
+    gfx.draw_rect(Rect::new(sx - w * 0.5, top, 4.0, h), bright);
 
     // Bandes horizontales (suggestion de niveaux).
     let n_bands = 6;
     for i in 1..n_bands {
         let y = top + i as f32 * (h / n_bands as f32);
-        draw_line(sx - w * 0.5 + 3.0, y, sx + w * 0.5 - 3.0, y, 1.0, detail);
+        gfx.draw_line(
+            Vec2::new(sx - w * 0.5 + 3.0, y),
+            Vec2::new(sx + w * 0.5 - 3.0, y),
+            1.0,
+            detail,
+        );
     }
 
     // Lignes verticales courtes (briques / pierres).
@@ -488,12 +560,17 @@ pub fn draw_tower(
             let y1 = top + (band + 1) as f32 * (h / n_bands as f32) - 2.0;
             // Décalage alterné (staggered masonry)
             let offset = if band % 2 == 0 { 0.0 } else { 5.0 };
-            draw_line(x + offset, y0, x + offset, y1, 0.8, detail);
+            gfx.draw_line(
+                Vec2::new(x + offset, y0),
+                Vec2::new(x + offset, y1),
+                0.8,
+                detail,
+            );
         }
     }
 
     // Bordure extérieure.
-    draw_rectangle_lines(sx - w * 0.5, top, w, h, 2.0, accent);
+    gfx.draw_rect_outline(Rect::new(sx - w * 0.5, top, w, h), 2.0, accent);
 
     // Créneaux au sommet (battlements).
     let merlon_w = 10.0;
@@ -503,10 +580,17 @@ pub fn draw_tower(
     let start_x = sx - total_merlons_w * 0.5;
     for i in 0..3 {
         let mx = start_x + i as f32 * (merlon_w + gap);
-        draw_rectangle(mx, top - merlon_h, merlon_w, merlon_h, base);
-        draw_rectangle_lines(mx, top - merlon_h, merlon_w, merlon_h, 1.5, accent);
+        gfx.draw_rect(Rect::new(mx, top - merlon_h, merlon_w, merlon_h), base);
+        gfx.draw_rect_outline(
+            Rect::new(mx, top - merlon_h, merlon_w, merlon_h),
+            1.5,
+            accent,
+        );
         // Petit créneau interne
-        draw_rectangle(mx + 2.0, top - merlon_h + 2.0, merlon_w - 4.0, 3.0, detail);
+        gfx.draw_rect(
+            Rect::new(mx + 2.0, top - merlon_h + 2.0, merlon_w - 4.0, 3.0),
+            detail,
+        );
     }
 
     // Fenêtres (arche romane, 3 étages).
@@ -522,30 +606,29 @@ pub fn draw_tower(
     for i in 0..win_rows {
         let wy = top + win_top_margin + i as f32 * (win_h + win_gap);
         // Partie rectangulaire de la fenêtre.
-        draw_rectangle(
-            win_x,
-            wy + win_w * 0.5,
-            win_w,
-            win_h - win_w * 0.5,
+        gfx.draw_rect(
+            Rect::new(win_x, wy + win_w * 0.5, win_w, win_h - win_w * 0.5),
             window_c,
         );
         // Partie en arche (cercle).
-        draw_circle(win_x + win_w * 0.5, wy + win_w * 0.5, win_w * 0.5, window_c);
+        gfx.draw_circle(
+            Vec2::new(win_x + win_w * 0.5, wy + win_w * 0.5),
+            win_w * 0.5,
+            window_c,
+        );
         // Bordure fine.
-        draw_rectangle_lines(
-            win_x,
-            wy + win_w * 0.5,
-            win_w,
-            win_h - win_w * 0.5,
+        gfx.draw_rect_outline(
+            Rect::new(win_x, wy + win_w * 0.5, win_w, win_h - win_w * 0.5),
             1.0,
             accent,
         );
         // Petite barre horizontale au milieu (meneau).
-        draw_line(
-            win_x,
-            wy + win_w * 0.5 + (win_h - win_w * 0.5) * 0.5,
-            win_x + win_w,
-            wy + win_w * 0.5 + (win_h - win_w * 0.5) * 0.5,
+        gfx.draw_line(
+            Vec2::new(win_x, wy + win_w * 0.5 + (win_h - win_w * 0.5) * 0.5),
+            Vec2::new(
+                win_x + win_w,
+                wy + win_w * 0.5 + (win_h - win_w * 0.5) * 0.5,
+            ),
             0.8,
             accent,
         );
@@ -557,48 +640,45 @@ pub fn draw_tower(
     let door_x = sx - door_w * 0.5;
     let door_y = top + h - door_h;
     let door_color = Color::new(0.02, 0.02, 0.04, 1.0);
-    draw_rectangle(
-        door_x,
-        door_y + door_w * 0.5,
-        door_w,
-        door_h - door_w * 0.5,
+    gfx.draw_rect(
+        Rect::new(door_x, door_y + door_w * 0.5, door_w, door_h - door_w * 0.5),
         door_color,
     );
-    draw_circle(
-        door_x + door_w * 0.5,
-        door_y + door_w * 0.5,
+    gfx.draw_circle(
+        Vec2::new(door_x + door_w * 0.5, door_y + door_w * 0.5),
         door_w * 0.5,
         door_color,
     );
     // Encadrement.
-    draw_rectangle_lines(
-        door_x,
-        door_y + door_w * 0.5,
-        door_w,
-        door_h - door_w * 0.5,
+    gfx.draw_rect_outline(
+        Rect::new(door_x, door_y + door_w * 0.5, door_w, door_h - door_w * 0.5),
         1.5,
         accent,
     );
     // Petite lumière au-dessus de la porte.
-    draw_circle(sx, door_y - 4.0, 2.5, window_c);
+    gfx.draw_circle(Vec2::new(sx, door_y - 4.0), 2.5, window_c);
 
     // Antenne + voyant au sommet.
     let antenna_base = top - merlon_h;
     let antenna_top = antenna_base - 14.0;
-    draw_line(sx, antenna_base, sx, antenna_top, 2.0, base);
+    gfx.draw_line(
+        Vec2::new(sx, antenna_base),
+        Vec2::new(sx, antenna_top),
+        2.0,
+        base,
+    );
     let light = if player {
         Color::new(0.35, 1.0, 0.45, 1.0)
     } else {
         Color::new(1.0, 0.35, 0.35, 1.0)
     };
     // Halo.
-    draw_circle(
-        sx,
-        antenna_top,
+    gfx.draw_circle(
+        Vec2::new(sx, antenna_top),
         8.0,
         Color::new(light.r, light.g, light.b, 0.28),
     );
-    draw_circle(sx, antenna_top, 4.0, light);
+    gfx.draw_circle(Vec2::new(sx, antenna_top), 4.0, light);
 }
 
 // ---------- Tests ----------

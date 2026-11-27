@@ -13,7 +13,7 @@ generated: "2026-11-22"
 | **Crate** | `games/ember-wars` (`cargo run -p ember-wars`) |
 | **Platform** | Native |
 | **Engine bricks exercised** | Catapult, auto-combat, 28-node upgrade tree, procedural textures, juice |
-| **Engine migration (Phase 7)** | ⬜ not migrated · has juice.rs · **acceptance test** (migrates last) · needs window size (ADR-044), juice, fonts — see [[Next Phase Plan — Migration Close & Editor v2]] |
+| **Engine migration (Phase 7)** | 🟢 node tree `0ad070c` (port `f16fe0c`) — a level is a `World` node; catapults, units and projectiles are nodes; no macroquad. **Acceptance test passed** (all 20 items; play-throughs by the user, 2026-11-27) — see [[41-migration-guide#5.17 ember-wars (acceptance test) — **node tree** (`f16fe0c` port, `0ad070c` nodes; 2026-11-27)|§5.17]] and [[42-acceptance-tests]] |
 
 ## Documents
 

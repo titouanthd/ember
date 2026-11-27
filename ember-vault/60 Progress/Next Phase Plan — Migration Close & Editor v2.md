@@ -61,7 +61,7 @@ Rounds keep the current rhythm: **one game or one engine feature per round**. I 
 
 ---
 
-## M1 — Pong, and the editor opens it (proof first)
+## M1 — Pong, and the editor opens it (proof first) — ✅ proof checked 2026-11-27
 
 ### M1.1 Finish Pong (0.5 session) — ✅ `09dd9b8`
 - `macroquad::Color` → `ember_core::Color` in `config.rs`, `components.rs` and `scene.rs` (the `color()` bridge goes away).
@@ -108,11 +108,13 @@ Rounds keep the current rhythm: **one game or one engine feature per round**. I 
 - Stretch goal: a **Play / Stop** toggle that runs `process` in the preview and restores the document on Stop.
 
 ### Proof checklist — the editor opens Pong
-- [ ] `make edit GAME=pong` opens a window showing the outline `Pong / PlayerPaddle / AiPaddle / Ball / Scoreboard`
-- [ ] the preview shows the Pong court at 800 × 600, scaled into the panel
-- [ ] selecting `PlayerPaddle` shows `size`, `speed`, `color`; changing `size` to `16, 160` updates the preview
-- [ ] Save writes `pong.escene`; reopening it shows the change
-- [ ] `cargo run -p pong` with the saved scene plays with the taller paddle
+> [!success] Checked in the window, 2026-11-27
+> The user ran the five checks with `make edit GAME=pong`. The edit used was **`Ball.size` 20 → 50**, not `PlayerPaddle.size` → `16, 160`: same path (select → inspector → Enter → preview → Save → `cargo run -p pong`), and the user accepted it as the proof. Save wrote `pong.escene` in place; play showed the bigger ball. The scene was then restored to its committed sizes. No code change was needed. **M1 is closed.**
+- [x] `make edit GAME=pong` opens a window showing the outline `Pong / PlayerPaddle / AiPaddle / Ball / Scoreboard`
+- [x] the preview shows the Pong court at 800 × 600, scaled into the panel
+- [x] selecting `PlayerPaddle` shows `size`, `speed`, `color`; changing `size` to `16, 160` updates the preview *(proved on `Ball.size` 20 → 50)*
+- [x] Save writes `pong.escene`; reopening it shows the change
+- [x] `cargo run -p pong` with the saved scene plays with the taller paddle *(the bigger ball)*
 - [x] headless test: `games/pong/tests/editor.rs` opens `pong.escene` in `ember_editor::Document`, edits, saves and reloads *(`6aaf9a0`)*
 
 ---
@@ -149,7 +151,7 @@ Suggested order: small games first, each one landing the engine feature the next
 | 4 | **jade-garden** ✅ `4ef6142` | 9.7 k, 3 test files | ADR-042, ADR-043, ADR-044, clip, mouse wheel, animation, juice | 2.5 | shipped on itch.io (web) — playtest native **and** web |
 | 5 | **accretion** ✅ `ddf58a6` | 3.7 k, 2 test files | ADR-044, clip, mouse wheel | 1.5 | web storage stays as is |
 | 6 | **bore-inc** ✅ `1b08851` | 8.3 k, 1 test file | textures, sounds, music (ADR-043), ADR-044, touches | 2 | marked **abandoned** — see [[Next Phase Plan — Migration Close & Editor v2#Open questions\|open questions]] |
-| 7 | **ember-wars** | 9.5 k, 1 test file | ADR-044, own camera (`set_camera` offset), juice, fonts | 2.5 | **acceptance test** — full checklist in [[42-acceptance-tests]]; migrates last |
+| 7 | **ember-wars** ✅ ported `f16fe0c`, node tree `0ad070c` | 9.5 k, 1 test file | ADR-044, own camera (`set_camera` offset), juice, fonts | 2.5 | **acceptance test** — full checklist in [[42-acceptance-tests]]; migrates last |
 
 Each round follows the migration recipe in [[41-migration-guide#5. Per-game notes|§5]]:
 - existing tests unchanged, or changed only mechanically (and said so);
@@ -201,6 +203,21 @@ The proof (M1) already makes the editor general. M4 makes it a real tool. Each s
 - `xtask/macroquad-allowlist.txt` is empty except for comments, so `check-macroquad` holds for the whole workspace.
 - `CHANGELOG.md`, and the tracker's Phase 8 boxes.
 - `40-roadmap` gains Phase 9 (Editor v2). [[Doc–Code Discrepancies]] items #4 (phase numbering) and #18 (Makefile `CRATES`) get closed.
+
+---
+
+## After M3 — order agreed (2026-11-27)
+
+M3 is done (17 / 17, ember-wars acceptance passed). Next, in this order:
+
+1. **The remaining milestones, each in its own session** ([[Token Budget]]):
+   - **M1 proof** — the editor-opens-Pong checklist in the window (the user checks; the session fixes what fails).
+   - **M4 Editor v2** — M4.1 → M4.2 → M4.3, one round each.
+   - **M5 Phase 8 cleanup** — `ember-stdlib` without macroquad, twins replaced, `CHANGELOG.md`.
+
+   M1 and M4 both touch `crates/ember-editor` and `games/pong`: M4 starts once the M1 proof is merged. M5 is independent (stdlib and games), except pong's twins if any — coordinate at merge.
+2. **Plan engine v0.2**, once v0.1 is tagged (spec 42 §8 gate). Candidates seen during M3: a per-frame screen/pointer/time snapshot in the engine (accretion and ember-wars each wrote one), a typed "children of class `T`" helper, shared font helpers, sprite animation, tilemaps, more `ember_ui` in games.
+3. **A new game, designed for the engine**: it uses the v0.2 features, ships a web build, and is built with the editor (levels and entities as `.escene` data).
 
 ---
 

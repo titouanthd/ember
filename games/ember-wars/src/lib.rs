@@ -1,17 +1,20 @@
 //! ember-wars — 12e jeu Ember.
 
 pub mod ai;
+pub mod app;
 pub mod camera;
 pub mod catapult;
 pub mod combat;
 pub mod components;
 pub mod config;
 pub mod fonts;
+pub mod frame;
 pub mod layout;
 pub mod mana;
 pub mod menu;
 pub mod progress;
 pub mod render;
+pub mod scene;
 pub mod stickman;
 pub mod systems;
 pub mod textures;
@@ -19,6 +22,7 @@ pub mod ui;
 pub mod units;
 pub mod upgrades;
 pub mod weapons;
+pub mod world;
 
 pub use components::*;
 pub use systems::{Game, GameStats, Phase};
