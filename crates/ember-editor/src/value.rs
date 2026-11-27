@@ -80,9 +80,70 @@ pub fn parse_like(current: &Variant, text: &str) -> Result<Variant, &'static str
     }
 }
 
+/// The texts of `v`'s editable parts: `x`, `y` of a `Vec2`; `r`, `g`,
+/// `b`, `a` of a `Color`; the whole value otherwise.
+pub fn components(v: &Variant) -> Vec<String> {
+    match v {
+        Variant::Vec2(p) => [p.x, p.y].iter().map(|x| num(x.to_string())).collect(),
+        Variant::Color(c) => [c.r, c.g, c.b, c.a]
+            .iter()
+            .map(|x| num(x.to_string()))
+            .collect(),
+        other => vec![format(other)],
+    }
+}
+
+/// `current` with part `index` set from `text` (see [`components`]).
+pub fn with_component(
+    current: &Variant,
+    index: usize,
+    text: &str,
+) -> Result<Variant, &'static str> {
+    let part = || {
+        text.trim()
+            .parse::<f32>()
+            .ok()
+            .filter(|f| f.is_finite())
+            .ok_or("a number")
+    };
+    match (current, index) {
+        (Variant::Vec2(p), 0) => Ok(Variant::Vec2(Vec2::new(part()?, p.y))),
+        (Variant::Vec2(p), 1) => Ok(Variant::Vec2(Vec2::new(p.x, part()?))),
+        (Variant::Color(c), 0..=3) => {
+            let mut parts = [c.r, c.g, c.b, c.a];
+            parts[index] = part()?;
+            let [r, g, b, a] = parts;
+            Ok(Variant::Color(Color::new(r, g, b, a)))
+        }
+        (Variant::Vec2(_) | Variant::Color(_), _) => Err("a part this value does not have"),
+        _ => parse_like(current, text),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn components_edit_one_part_at_a_time() {
+        let size = Variant::Vec2(Vec2::new(32.0, 48.0));
+        assert_eq!(components(&size), ["32.0", "48.0"]);
+        assert_eq!(
+            with_component(&size, 1, " 64 "),
+            Ok(Variant::Vec2(Vec2::new(32.0, 64.0)))
+        );
+        assert_eq!(with_component(&size, 0, "wide"), Err("a number"));
+        let c = Variant::Color(Color::new(1.0, 0.5, 0.0, 1.0));
+        assert_eq!(components(&c).len(), 4);
+        assert_eq!(
+            with_component(&c, 3, "0.5"),
+            Ok(Variant::Color(Color::new(1.0, 0.5, 0.0, 0.5)))
+        );
+        assert_eq!(
+            with_component(&Variant::Float(1.0), 0, "2"),
+            Ok(Variant::Float(2.0))
+        );
+    }
 
     #[test]
     fn format_then_parse_gives_the_value_back() {

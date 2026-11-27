@@ -58,5 +58,6 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 046 | [[50-design-decisions#ADR-046: `ember_stdlib` may use `ember_servers`; engine-typed juice (`fx`)\|stdlib may use servers; `fx`]] | ✅ `9fa73de` |
 | 047 | [[50-design-decisions#ADR-047: Window options (`run_window_with`)\|Window options (`run_window_with`)]] | ✅ `45392e9` |
 | 048 | [[50-design-decisions#ADR-048: Texture filtering (`set_texture_filter`)\|Texture filtering]] | ✅ `fcf7a8e` |
+| 049 | [[50-design-decisions#ADR-049: Enum exports (`export(enum)`)\|Enum exports (`export(enum)`)]] | ✅ `d373dc4` |
 
 New ADRs: copy [[ADR Template]].

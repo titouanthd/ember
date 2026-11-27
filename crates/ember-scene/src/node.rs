@@ -23,6 +23,17 @@ impl NodeId {
 ///
 /// Hand-written nodes implement `name` / `set_name` and, if they load
 /// from or save to `.escene` files, the three property methods.
+/// What an editor may know about a property beyond its value (ADR-049).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PropertyHint {
+    /// Edit by the value's kind.
+    #[default]
+    None,
+    /// One of these names, carried as `Variant::String`
+    /// (`#[export(enum = "A,B,C")]`).
+    Enum(&'static [&'static str]),
+}
+
 pub trait NodeName {
     /// The instance's name, used by `NodeTree::find` and `.escene`
     /// serialization.
@@ -48,6 +59,11 @@ pub trait NodeName {
     /// for an unknown key or a wrongly typed value (ADR-025).
     fn set_property(&mut self, _key: &str, _value: &Variant) -> bool {
         false
+    }
+
+    /// How an editor should offer `key` (`#[export(enum)]`, ADR-049).
+    fn property_hint(&self, _key: &str) -> PropertyHint {
+        PropertyHint::None
     }
 }
 

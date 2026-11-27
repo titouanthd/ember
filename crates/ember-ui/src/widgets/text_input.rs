@@ -123,7 +123,10 @@ impl Control for TextInput {
     fn measure(&self, _available: Vec2, m: &Measure) -> Vec2 {
         let size = self.size.unwrap_or(m.theme().font_size);
         let line = m.text("Mg", size).y;
-        Vec2::new(TEXT_INPUT_WIDTH, line + 2.0 * TEXT_INPUT_PADDING).max(self.min_size())
+        let min = self.min_size();
+        // A set `min_size` width replaces the default (narrow fields).
+        let width = if min.x > 0.0 { min.x } else { TEXT_INPUT_WIDTH };
+        Vec2::new(width, (line + 2.0 * TEXT_INPUT_PADDING).max(min.y))
     }
 
     fn focusable(&self) -> bool {

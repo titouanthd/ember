@@ -3,7 +3,8 @@
 use crate::value;
 use ember_core::{ClassDB, Variant};
 use ember_scene::{
-    ClassDbNodes, NodeId, NodeOrigins, NodeTree, PackedScene, SceneConnection, SceneError, Servers,
+    ClassDbNodes, NodeId, NodeOrigins, NodeTree, PackedScene, PropertyHint, SceneConnection,
+    SceneError, Servers,
 };
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -33,6 +34,8 @@ pub enum EditorError {
     NameTaken(String),
     /// The root cannot be removed or moved.
     IsRoot,
+    /// A [`Shift`] with nowhere to go (first, last, no sibling above…).
+    CannotMove(&'static str),
 }
 
 impl fmt::Display for EditorError {
@@ -49,6 +52,7 @@ impl fmt::Display for EditorError {
             Self::InvalidName(n) => write!(f, "`{n}` is not a valid node name"),
             Self::NameTaken(n) => write!(f, "a sibling is already called `{n}`"),
             Self::IsRoot => write!(f, "the root cannot be removed or moved"),
+            Self::CannotMove(why) => write!(f, "cannot move: {why}"),
         }
     }
 }
@@ -59,6 +63,19 @@ impl From<SceneError> for EditorError {
     fn from(e: SceneError) -> Self {
         Self::Scene(e)
     }
+}
+
+/// A move in the outline, built on [`Document::reparent`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Shift {
+    /// Swap with the sibling above.
+    Up,
+    /// Swap with the sibling below.
+    Down,
+    /// Become the last child of the sibling above.
+    In,
+    /// Leave the parent, landing just after it.
+    Out,
 }
 
 /// One line of the outline (node tree panel).
@@ -435,6 +452,29 @@ impl Document {
         self.apply(Command::Reparent { node: id, from, to })
     }
 
+    /// Move `id` one step in the outline (one undoable `Reparent`).
+    pub fn shift(&mut self, id: NodeId, shift: Shift) -> Result<(), EditorError> {
+        let (parent, index) = self.place(id)?;
+        let siblings = self.tree.children(parent).len();
+        match shift {
+            Shift::Up if index == 0 => Err(EditorError::CannotMove("already first")),
+            Shift::Up => self.reparent(id, parent, Some(index - 1)),
+            Shift::Down if index + 1 >= siblings => Err(EditorError::CannotMove("already last")),
+            Shift::Down => self.reparent(id, parent, Some(index + 1)),
+            Shift::In if index == 0 => Err(EditorError::CannotMove("no sibling above")),
+            Shift::In => {
+                let above = self.tree.children(parent)[index - 1];
+                self.reparent(id, above, None)
+            }
+            Shift::Out => {
+                let (grand, at) = self
+                    .place(parent)
+                    .map_err(|_| EditorError::CannotMove("already under the root"))?;
+                self.reparent(id, grand, Some(at + 1))
+            }
+        }
+    }
+
     /// Every node, depth first, as the outline panel lists them.
     pub fn outline(&self) -> Vec<OutlineRow> {
         let mut rows = Vec::new();
@@ -489,6 +529,35 @@ impl Document {
             .get_property(key)
             .ok_or_else(|| EditorError::UnknownProperty(key.to_string()))?;
         Ok(value::format(&v))
+    }
+
+    /// How the inspector should offer `key` (`#[export(enum)]`, ADR-049).
+    pub fn property_hint(&self, id: NodeId, key: &str) -> PropertyHint {
+        self.tree
+            .get(id)
+            .map_or(PropertyHint::None, |n| n.property_hint(key))
+    }
+
+    /// Set one component of a `Vec2` (0–1) or `Color` (0–3) from
+    /// `text`; other kinds parse the whole value. One `SetProperty`.
+    pub fn set_property_component(
+        &mut self,
+        id: NodeId,
+        key: &str,
+        index: usize,
+        text: &str,
+    ) -> Result<(), EditorError> {
+        let node = self.tree.get(id).ok_or(EditorError::UnknownNode)?;
+        let current = node
+            .get_property(key)
+            .ok_or_else(|| EditorError::UnknownProperty(key.to_string()))?;
+        let v = value::with_component(&current, index, text).map_err(|expected| {
+            EditorError::BadValue {
+                key: key.to_string(),
+                expected,
+            }
+        })?;
+        self.set_property(id, key, &v)
     }
 
     /// Set an exported property (one undoable `SetProperty`). Setting

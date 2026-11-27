@@ -41,14 +41,23 @@ pub fn derive(input: DeriveInput) -> Result<TokenStream> {
     })
 }
 
+/// An exported field: its name, type and `#[export(enum = "…")]` values
+/// (ADR-049).
+struct Exported {
+    ident: Ident,
+    ty: Type,
+    values: Option<Vec<String>>,
+}
+
 /// `#[export]` fields, in declaration order (ADR-037).
-fn exported_fields(input: &DeriveInput) -> Result<Vec<(Ident, Type)>> {
+fn exported_fields(input: &DeriveInput) -> Result<Vec<Exported>> {
     let Data::Struct(data) = &input.data else {
         return Ok(Vec::new()); // reported by verify_struct_has_name_field
     };
     let mut out = Vec::new();
     for field in &data.fields {
         let mut export = false;
+        let mut values = None;
         for attr in field.attrs.iter().filter(|a| a.path().is_ident("export")) {
             match &attr.meta {
                 syn::Meta::Path(_) => export = true,
@@ -56,8 +65,26 @@ fn exported_fields(input: &DeriveInput) -> Result<Vec<(Ident, Type)>> {
                     attr.parse_nested_meta(|meta| {
                         if meta.path.is_ident("skip") {
                             Ok(())
+                        } else if meta.path.is_ident("enum") {
+                            let list: LitStr = meta.value()?.parse()?;
+                            let names: Vec<String> = list
+                                .value()
+                                .split(',')
+                                .map(|n| n.trim().to_string())
+                                .collect();
+                            if names.iter().any(String::is_empty) {
+                                return Err(syn::Error::new_spanned(
+                                    &list,
+                                    "#[export(enum = \"A,B\")] needs non-empty names",
+                                ));
+                            }
+                            export = true;
+                            values = Some(names);
+                            Ok(())
                         } else {
-                            Err(meta.error("only #[export] and #[export(skip)] exist in v0.1"))
+                            Err(meta.error(
+                                "expected #[export], #[export(skip)] or #[export(enum = \"A,B\")]",
+                            ))
                         }
                     })?;
                 }
@@ -81,21 +108,39 @@ fn exported_fields(input: &DeriveInput) -> Result<Vec<(Ident, Type)>> {
                 "`name` is the node's name and is always saved; remove #[export]",
             ));
         }
-        out.push((ident, field.ty.clone()));
+        out.push(Exported {
+            ident,
+            ty: field.ty.clone(),
+            values,
+        });
     }
     Ok(out)
 }
 
 /// `property_list` / `get_property` / `set_property` for the exported
 /// fields. Nothing when there are none: the `NodeName` defaults apply.
-fn property_methods(fields: &[(Ident, Type)]) -> TokenStream {
+fn property_methods(fields: &[Exported]) -> TokenStream {
     if fields.is_empty() {
         return TokenStream::new();
     }
-    let keys: Vec<String> = fields.iter().map(|(i, _)| i.unraw().to_string()).collect();
-    let idents: Vec<&Ident> = fields.iter().map(|(i, _)| i).collect();
-    let types: Vec<&Type> = fields.iter().map(|(_, t)| t).collect();
+    let keys: Vec<String> = fields.iter().map(|f| f.ident.unraw().to_string()).collect();
+    let idents: Vec<&Ident> = fields.iter().map(|f| &f.ident).collect();
+    let types: Vec<&Type> = fields.iter().map(|f| &f.ty).collect();
+    let hinted = fields.iter().filter_map(|f| {
+        let values = f.values.as_ref()?;
+        let key = f.ident.unraw().to_string();
+        Some(quote! { #key => ::ember_scene::PropertyHint::Enum(&[#(#values),*]), })
+    });
+    let hint = quote! {
+        fn property_hint(&self, key: &str) -> ::ember_scene::PropertyHint {
+            match key {
+                #(#hinted)*
+                _ => ::ember_scene::PropertyHint::None,
+            }
+        }
+    };
     quote! {
+        #hint
         fn property_list(&self) -> &'static [&'static str] {
             &[#(#keys),*]
         }

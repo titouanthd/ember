@@ -2089,3 +2089,47 @@ read, and scene connections follow the nodes they name.
   drop) is left to M4.3. Play / Stop stays undone.
 - A command stores whole `Variant`s; the stack is unbounded for a
   session (scenes are small).
+
+## ADR-049: Enum exports (`export(enum)`)
+
+**Status:** accepted (2026-11-27) — M4.3a (`d373dc4`), [[Next Phase Plan — Migration Close & Editor v2]]
+
+### Context
+
+The typed inspector (M4.3a) needs to know when a property takes one of
+a fixed set of values, so it can cycle through them instead of offering
+a free text box. `#[export]` (ADR-037) only says *that* a field is
+saved, not what values it allows, and `Variant` has no enum kind.
+
+### Decision
+
+- **`#[export(enum = "Easy,Normal,Hard")]`** on a field exports it like
+  `#[export]` and records its allowed values, in order. The list is
+  split on `,` and trimmed; an empty list or an empty name is a compile
+  error. `#[export(skip)]` stays as it was.
+- **`PropertyHint`** (in `ember_scene`, next to `NodeName`):
+  `None` or `Enum(&'static [&'static str])`. `NodeName::property_hint(
+  &self, key) -> PropertyHint` defaults to `None`; the derive returns
+  `Enum(...)` for each hinted field. It is a `&self` method so the trait
+  stays object safe (the editor holds `dyn Node`).
+- **The value travels as `Variant::String`** (the value's name), so a
+  scene file reads `"fit": String("Tile")`. No new `Variant` kind, no
+  file-format change.
+- **The field's type converts itself.** A plain `String` field works as
+  is (any text is accepted from a file; the editor only offers the
+  listed names). A Rust `enum` field implements `VariantValue` **by
+  hand**: `to_variant` gives its name, `from_variant` accepts only the
+  listed names (`None` otherwise, so `set_property` refuses the value,
+  ADR-025). No helper derive yet: one game-side type needs ten lines,
+  and a derive can come once several games repeat them.
+- **`Document::property_hint(node, key)`** passes the hint to the
+  inspector, which shows an enum as a cycling `Button` (next value on
+  each click, one undoable `SetProperty` per click).
+
+### Consequences
+
+- The names in the attribute and in the hand `VariantValue` must
+  agree; a mismatch shows as a value the editor offers but the node
+  refuses (reported in the status line), never as a bad save.
+- Other hints (ranges, file paths, multiline text) fit the same enum
+  later without changing `NodeName`.

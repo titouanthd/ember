@@ -41,6 +41,34 @@ impl ember_scene::Node for Player {
     }
 }
 
+/// How a sprite would fit its texture into `size` (an enum export,
+/// ADR-049; the POC preview draws every fit the same).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Fit {
+    #[default]
+    Stretch,
+    Tile,
+    Keep,
+}
+
+impl Fit {
+    pub const NAMES: [&'static str; 3] = ["Stretch", "Tile", "Keep"];
+}
+
+impl ember_core::VariantValue for Fit {
+    fn to_variant(&self) -> ember_core::Variant {
+        ember_core::Variant::String(Self::NAMES[*self as usize].into())
+    }
+    fn from_variant(v: &ember_core::Variant) -> Option<Self> {
+        match v.as_str()? {
+            "Stretch" => Some(Self::Stretch),
+            "Tile" => Some(Self::Tile),
+            "Keep" => Some(Self::Keep),
+            _ => None,
+        }
+    }
+}
+
 /// A coloured rectangle standing in for a texture. `texture` is the
 /// asset path; the POC preview does not load it.
 #[derive(Node)]
@@ -59,6 +87,8 @@ pub struct Sprite {
     pub visible: bool,
     #[export]
     pub z: f32,
+    #[export(enum = "Stretch,Tile,Keep")]
+    pub fit: Fit,
 }
 
 impl Default for Sprite {
@@ -71,6 +101,7 @@ impl Default for Sprite {
             color: Color::new(0.4, 0.7, 1.0, 1.0),
             visible: true,
             z: 0.0,
+            fit: Fit::Stretch,
         }
     }
 }

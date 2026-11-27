@@ -201,6 +201,15 @@ The proof (M1) already makes the editor general. M4 makes it a real tool. Each s
 - **Reparent UI** (left from M4.2): in the outline, e.g. "Move into…" / indent-outdent buttons, or drag and drop; `Document::reparent` exists.
 - Done: tests (`Document` + `SceneLoop`), `feat(editor)` commit, then plan / tracker / ADR-049.
 
+**M4.3a done (2026-11-27, `d373dc4`).** As planned, with these choices:
+- ADR-049: `PropertyHint` lives in `ember_scene` beside `NodeName`; a Rust enum field gets a **hand** `VariantValue` (no helper derive yet). The editor's `Sprite` gained `#[export(enum = "Stretch,Tile,Keep")] fit` as the example (the preview draws every fit the same).
+- Panels are plain nodes under `EditorApp` (`Toolbar`, `Outline`, `Inspector`), each owning its widget ids and building its `Control` subtree under the one `UiRoot`; `app::panel::<P>(tree)` finds one. The preview stays drawn by `EditorApp` (it needs the `Document`); `app/preview.rs` holds the camera, `node_rect`, `pick` and the drawing. The class picker and quit dialog belong to the toolbar.
+- Inspector rows are rebuilt when the selection or its property shape changes, and updated in place after an edit (a focused field keeps focus). Rows built during `process` are laid out on the next frame.
+- `Document::set_property_component` (one `Vec2` / `Color` part) and `Document::shift` (`Up` / `Down` / `In` / `Out` over `reparent`) are new; the outline has those four buttons (no drag and drop).
+- Preview pick uses the same rect guess as the highlight (`position` + `size`, or a 12 px square): good for the POC classes and Pong; a node drawing elsewhere needs a real bounds query later. Drawn textures: not done (not cheap: the preview has no asset loading).
+- ember-ui fix: a `TextInput`'s `min_size` width now replaces its 200 px default.
+- Not checked in the window: the user's `make edit GAME=pong` pass.
+
 #### M4.3b Breakout as data (1 session)
 - **Bricks as nodes** (the user's choice): `games/breakout/scenes/level1..3.escene`, each a level root with one `Brick` node per brick (`#[export]` position, size, color, health), replacing `levels/levelN.ron` (`systems::load_level`, `levels.rs` `BrickData`). `BreakoutGame` reads the bricks from its scene the way Pong's root reads its children (M1.2 pattern, `games/pong/src/scene.rs` `read_scene`).
 - `games/breakout/examples/edit.rs` (copy of Pong's) and `make edit GAME=breakout`: the Makefile opens `games/$(GAME)/scenes/$(GAME).escene`, so either name the first level `breakout.escene` or pass `GAME_SCENE=…`.
@@ -211,8 +220,8 @@ The proof (M1) already makes the editor general. M4 makes it a real tool. Each s
 ### Phase 9 exit criteria (Editor v2)
 - [ ] the M1 proof checklist passes
 - [x] every `.escene` in the repo round-trips byte-for-byte (connections, ext resources included) *(M4.1)*
-- [x] add / remove / rename / reparent a node, each undoable *(M4.2; reparent from code / tests only, UI in M4.3)*
-- [ ] typed editors for bool, number, `Vec2`, `Color`, enum
+- [x] add / remove / rename / reparent a node, each undoable *(M4.2; reparent UI in M4.3a)*
+- [x] typed editors for bool, number, `Vec2`, `Color`, enum *(M4.3a `d373dc4`)*
 - [ ] at least one other migrated game (suggested: breakout, bricks as data) also opens with `make edit GAME=…`
 
 ---
