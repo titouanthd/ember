@@ -4,7 +4,7 @@
 //! after ember-wars and jade-garden had 3+ verbatim copies).
 //!
 //! `fmt_time` stays local — the M:SS format is specific to this game's
-//! best-time display (`ember_stdlib::ui::TimerDisplay::format` uses
+//! best-time display (`ember_stdlib::clock::format_time` gives
 //! MM:SS for HUD timers, a different convention).
 
 pub use ember_core::hash::hash_u32;

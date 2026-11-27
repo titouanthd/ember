@@ -23,16 +23,8 @@ const ENTRY_GAP: f32 = 16.0;
 const MISMATCH: Color = Color::new(1.0, 0.30, 0.35, 1.0);
 const BUTTON_TEXT: f32 = 20.0;
 
-/// `mm:ss` (or `h:mm:ss`), like `ember_stdlib::ui::timer::TimerDisplay`.
-pub fn format_time(seconds: f32) -> String {
-    let total = seconds.max(0.0) as u64;
-    let (h, m, s) = (total / 3600, (total % 3600) / 60, total % 60);
-    if h > 0 {
-        format!("{h:02}:{m:02}:{s:02}")
-    } else {
-        format!("{m:02}:{s:02}")
-    }
-}
+/// `mm:ss` (or `h:mm:ss`).
+pub use ember_stdlib::clock::format_time;
 
 /// Ids of the three buttons.
 #[derive(Debug, Clone, Copy)]

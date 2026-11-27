@@ -7,22 +7,11 @@
 use std::path::Path;
 
 #[cfg(not(target_arch = "wasm32"))]
-use ember_stdlib::config::{env_f32, load_dotenv_once};
+use ember_stdlib::config::env_color;
+#[cfg(not(target_arch = "wasm32"))]
+use ember_stdlib::config::load_dotenv_once;
 
 use ember_core::Color;
-
-/// `<PREFIX>_R`, `_G`, `_B`, `_A` from the environment, each falling back
-/// to `default`. Local twin of `ember_stdlib::config::env_color`, which
-/// returns a macroquad colour.
-#[cfg(not(target_arch = "wasm32"))]
-fn env_color(prefix: &str, default: Color) -> Color {
-    Color::new(
-        env_f32(&format!("{prefix}_R"), default.r),
-        env_f32(&format!("{prefix}_G"), default.g),
-        env_f32(&format!("{prefix}_B"), default.b),
-        env_f32(&format!("{prefix}_A"), default.a),
-    )
-}
 
 /// Earthy palette per DESIGN §1: ochres, browns, stone gray, cyan
 /// accents for crystal, amber for lanterns.

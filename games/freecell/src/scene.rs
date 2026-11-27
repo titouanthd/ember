@@ -29,16 +29,8 @@ const DROP_BAD: Color = Color::new(0.95, 0.30, 0.35, 0.55);
 const SUIT_PLACEHOLDER_BLACK: Color = Color::new(0.55, 0.60, 0.68, 1.0);
 const BANNER_BG: Color = Color::new(0.0, 0.0, 0.0, 0.88);
 
-/// `mm:ss` (or `h:mm:ss`), like `ember_stdlib::ui::timer::TimerDisplay`.
-pub fn format_time(seconds: f32) -> String {
-    let total = seconds.max(0.0) as u64;
-    let (h, m, s) = (total / 3600, (total % 3600) / 60, total % 60);
-    if h > 0 {
-        format!("{h:02}:{m:02}:{s:02}")
-    } else {
-        format!("{m:02}:{s:02}")
-    }
-}
+/// `mm:ss` (or `h:mm:ss`).
+pub use ember_stdlib::clock::format_time;
 
 /// A seed from the clock, as before.
 pub fn random_seed() -> u32 {

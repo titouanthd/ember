@@ -5,20 +5,10 @@ use std::sync::OnceLock;
 
 use ember_core::Color;
 use ember_core::io::load_from_file;
+use ember_stdlib::config::env_color;
 use ember_stdlib::config::{env_f32, load_dotenv_once};
 use ember_stdlib::fx::JuiceConfig;
 
-/// `<PREFIX>_R`, `_G`, `_B`, `_A` from the environment, each falling back
-/// to `default`. Local twin of `ember_stdlib::config::env_color`, which
-/// returns a macroquad colour.
-fn env_color(prefix: &str, default: Color) -> Color {
-    Color::new(
-        env_f32(&format!("{prefix}_R"), default.r),
-        env_f32(&format!("{prefix}_G"), default.g),
-        env_f32(&format!("{prefix}_B"), default.b),
-        env_f32(&format!("{prefix}_A"), default.a),
-    )
-}
 use serde::Deserialize;
 
 /// Durée du flash blanc sur une unité touchée.

@@ -3,8 +3,8 @@
 //!
 //! The font is built into the binary and installed through the
 //! `RenderingServer` in the root node's `ready` (was
-//! `ember_stdlib::fonts::load_and_set_default` from `assets/`). The
-//! helpers are local twins of `ember_stdlib::fonts`' macroquad ones.
+//! `ember_stdlib::fonts::load_and_set_default` from `assets/`, deleted in Phase 8). The
+//! helpers draw through the `RenderingServer`.
 
 use ember::prelude::*;
 use ember_servers::TextMetrics;
