@@ -210,7 +210,9 @@ The proof (M1) already makes the editor general. M4 makes it a real tool. Each s
 - Deleted (no users): `audio`, `fonts`, `graphics`, `input`, `juice`, `ui`. Text/font helpers stay as game-local `RenderingServer` code; shared font helpers are a v0.2 candidate.
 - `ember-stdlib` has no macroquad dependency; `xtask/macroquad-allowlist.txt` holds comments only; `make macroquad` OK; `cargo check --workspace --all-targets` clean.
 
-**M5.2 handover — the twins to switch** (mechanical, tests must stay green):
+**M5.2 ✅ (2026-11-27): `cbdf5da` twins, `6f3a1fd` `CHANGELOG.md`.** Done as listed below, plus: `env_f32` imports dropped where only the twin used it (bore-inc, jade-garden, zhuo-ji); wasm check clean for bore-inc and jade-garden; past-tense doc comments ("as … did") kept as history; `scripts/check_vault.py` allows the root `CHANGELOG.md`; 40-roadmap gains §12 Phase 9 and a renumbered Phase 6 (§9.1–9.5); discrepancies #4 and #18 closed. **Left:** pong's `env_color` and `Sprite` twins (M4 owns `games/pong`), and the Phase 8 box "workspace tests + clippy green" (the user's `make pre-push`).
+
+**M5.2 plan — the twins to switch** (mechanical, tests must stay green):
 - `env_color` → `ember_stdlib::config::env_color`: air-hockey, bore-inc, bullet-hell, ember-wars, freecell, jade-garden, memory, minesweeper, simon, zhuo-ji (each `src/config.rs`). **pong is left to M4** (it owns `games/pong`); switch at merge.
 - `Sprite` → `ember_stdlib::Sprite`: breakout, asteroids (`src/components.rs`); pong's twin left to M4.
 - `format_time` → `ember_stdlib::clock::format_time`: freecell, memory, minesweeper (`src/scene.rs`). Not jade-garden's `fmt_time` (`M:SS`, rounded: another format).
