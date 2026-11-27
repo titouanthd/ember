@@ -165,17 +165,21 @@ Each round follows the migration recipe in [[41-migration-guide#5. Per-game note
 
 The proof (M1) already makes the editor general. M4 makes it a real tool. Each session is one round, with tests on `Document` (headless) plus `SceneLoop` tests on the app.
 
-### M4.1 Lossless documents (1 session)
+### M4.1 Lossless documents (1 session) — ✅ `8b20132` (2026-11-27)
 - `Document` keeps `ext_resources`, `connections` and unknown properties, and writes them back on save. Today they are dropped.
 - Scene-declared connections get wired at instantiate time. **This closes the Phase 3 open item**, and Pong's `PointScored` connection moves into `pong.escene`.
 - Test: opening and saving every `.escene` in the repo changes no byte.
+- **Done:** `PackedScene::instantiate_tracked` keeps a `NodeOrigin` per node (properties as written, values as loaded); `PackedScene::resave` writes the tree with the file's uid, ext / sub resources and connections. A property is written if the file had it (in the file's form while unchanged, so `Int(5)` stays `Int(5)`) or if it differs from the class default; unknown keys go back as written; a node with no origin (M4.2's added nodes) writes every export. Connections are wired after all nodes exist, in file order, by `ClassDbNodes::register_receiver::<N, T>(signal, method, fn(&mut N, &T))`; one with no receiver warns and is skipped. `player.escene` was rewritten once in canonical form (comment and entry order only). `ember-editor/tests/lossless.rs` fails when a new `.escene` has no round-trip test.
+- **Left for M4.2:** a renamed or removed node must update or drop the connections that name it (`resave` keeps the file's connection list as is); nested `instance:` nodes still save inline (no repo scene uses them); a receiver gets `(&mut N, &T)`, no `NodeContext`.
 
-### M4.2 Node editing + undo (1 session) · **ADR-045 "Editor commands and undo"**
+### M4.2 Node editing + undo (1 session) · **ADR-045 "Editor commands and undo"** — ✅ `203c0a4` (2026-11-27)
 - A command stack: `SetProperty`, `AddNode(class, parent)`, `RemoveNode`, `RenameNode`, `Reparent`, each one reversible.
 - Undo / redo with Ctrl+Z / Ctrl+Shift+Z, and Ctrl+S to save. These need `Key::LeftControl` / `RightControl` / `Super` (a small input addition, like Semicolon and Shift).
 - The outline gets **Add** (a class picker over `ClassDB`), **Delete** and **Rename**, and the dirty flag asks before closing.
+- **Done:** see [[50-design-decisions#ADR-045: Editor commands and undo|ADR-045]]. Commands live on `Document` (one linear stack; removed nodes stay detached, so ids never die); connections are kept by id and saved with their current paths, so rename / reparent follow them and M4.1's left-over is closed. Toolbar: Undo, Redo, Add (class picker), Delete, name field + Rename; Ctrl / Cmd + Z, + Shift + Z, + Y, + S, Delete. The close button asks through `WindowConfig::confirm_close` → `Input::close_requested` (Save and quit / Quit without saving / Cancel). Tests: `ember-editor/tests/commands.rs` (9, `Document`), `tests/app_commands.rs` (9, `SceneLoop`), `ember-scene/tests/attach_at.rs`.
+- **Not done:** Reparent has no outline UI yet (drag and drop → M4.3); Play / Stop (optional) not started; added nodes do not run `ready` in the editor.
 
-### M4.3 Inspector v2 + panel split (1 session)
+### M4.3 Inspector v2 + panel split (split into M4.3a + M4.3b, below)
 - `app.rs` (469 lines) is split into `toolbar.rs`, `outline.rs`, `inspector.rs` and `preview.rs`, each a `Control` subtree talking through signals (ADR-036).
 - Typed editors replace "everything is a text box":
   - `bool` → a checkbox;
@@ -186,10 +190,28 @@ The proof (M1) already makes the editor general. M4 makes it a real tool. Each s
 - The 16-property cap goes, because the inspector scrolls (`ScrollContainer`).
 - The preview gets selection highlight, click-to-select in the preview, and drawn textures.
 
+**Split agreed 2026-11-27** (the user's choices; [[Token Budget]]: the M4 session was past ~100 steps). M4.3 runs as two fresh sessions, **M4.3a then M4.3b**. Start each from this section, ADR-045 and the current `crates/ember-editor` code.
+
+#### M4.3a Editor: panels, typed inspector, preview select (1 session) · **ADR-049 "Enum exports (`#[export(enum)]`)"**
+- **Enum exports first (engine, own ADR).** `#[export(enum = "Easy,Normal,Hard")]` in `ember-macros` (today only `#[export]` / `#[export(skip)]`, `crates/ember-macros/src/node.rs`), plus `NodeName::property_hint(key) -> PropertyHint` with a default of `PropertyHint::None` and `PropertyHint::Enum(&'static [&'static str])`. The value travels as `Variant::String` (the field's type implements `VariantValue` through its name; a helper derive or a hand impl is the ADR's call). `Document::property_hint` passes it to the inspector.
+- **Panel split.** `app.rs` (~750 lines after M4.2) becomes `toolbar.rs`, `outline.rs`, `inspector.rs`, `preview.rs`, each building its own `Control` subtree and emitting editor signals (`NodeSelected`, `PropertyEdited`, `CommandRequested`…, ADR-036 style: signals carry their sender); `EditorApp` stays the one owner of the `Document` and applies them. Keep the M4.2 behaviour and its tests (`tests/app.rs`, `tests/app_commands.rs`): only mechanical changes, said in the commit.
+- **Typed editors** (ember-ui has Button, Label, TextInput, Panel, ScrollContainer, HBox / VBox, no checkbox or dropdown): bool → a toggle `Button`; number → `TextInput`; `Vec2` → two `TextInput`s; `Color` → a swatch (a small drawn rect) and four fields; enum → a cycling `Button` (or a popup list like the Add class picker); anything else stays text. Each edit is one `SetProperty` (undoable).
+- **No 16-property cap:** the inspector rows live in a `ScrollContainer` and are built per selection (`spawn_child` / `despawn`, as the outline rebuild does), so `MAX_PROPERTIES` goes.
+- **Preview:** click-to-select (screen → scene through `preview_camera`, topmost node whose rect holds the point; today `selection_rect` guesses a rect from `position` / `size`), selection highlight kept. Drawn textures only if cheap.
+- **Reparent UI** (left from M4.2): in the outline, e.g. "Move into…" / indent-outdent buttons, or drag and drop; `Document::reparent` exists.
+- Done: tests (`Document` + `SceneLoop`), `feat(editor)` commit, then plan / tracker / ADR-049.
+
+#### M4.3b Breakout as data (1 session)
+- **Bricks as nodes** (the user's choice): `games/breakout/scenes/level1..3.escene`, each a level root with one `Brick` node per brick (`#[export]` position, size, color, health), replacing `levels/levelN.ron` (`systems::load_level`, `levels.rs` `BrickData`). `BreakoutGame` reads the bricks from its scene the way Pong's root reads its children (M1.2 pattern, `games/pong/src/scene.rs` `read_scene`).
+- `games/breakout/examples/edit.rs` (copy of Pong's) and `make edit GAME=breakout`: the Makefile opens `games/$(GAME)/scenes/$(GAME).escene`, so either name the first level `breakout.escene` or pass `GAME_SCENE=…`.
+- Add the new scenes to `COVERED` in `crates/ember-editor/tests/lossless.rs` with a byte-for-byte test in `games/breakout/tests/`.
+- **Avoid `games/breakout/src/components.rs`:** M5.2 switches its `Sprite` twin to `ember_stdlib::Sprite`. Check M5's branch first and coordinate at merge.
+- Done: the last Phase 9 exit box; `feat(breakout)` commit, then plan / tracker.
+
 ### Phase 9 exit criteria (Editor v2)
 - [ ] the M1 proof checklist passes
-- [ ] every `.escene` in the repo round-trips byte-for-byte (connections, ext resources included)
-- [ ] add / remove / rename / reparent a node, each undoable
+- [x] every `.escene` in the repo round-trips byte-for-byte (connections, ext resources included) *(M4.1)*
+- [x] add / remove / rename / reparent a node, each undoable *(M4.2; reparent from code / tests only, UI in M4.3)*
 - [ ] typed editors for bool, number, `Vec2`, `Color`, enum
 - [ ] at least one other migrated game (suggested: breakout, bricks as data) also opens with `make edit GAME=…`
 

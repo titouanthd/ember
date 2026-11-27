@@ -90,6 +90,9 @@ pub enum Key {
     RightShift,
     LeftControl,
     RightControl,
+    /// Cmd on macOS, the Windows key elsewhere (ADR-045).
+    LeftSuper,
+    RightSuper,
 
     /// Punctuation. `Semicolon` is the physical key right of `L` on a
     /// US layout (where `M` sits on AZERTY).

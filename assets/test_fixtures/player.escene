@@ -1,34 +1,50 @@
-// Hand-written fixture for the PackedScene tests.
 (
     format: 1,
     uid: "uid://scene_player_0a1b2",
-
     ext_resources: [
-        (type: "Texture", uid: "uid://sprite_player_a3b1c", path: "sprites/player.png"),
+        (
+            type: "Texture",
+            uid: "uid://sprite_player_a3b1c",
+            path: "sprites/player.png",
+        ),
     ],
-
     nodes: [
         (
             name: "Player",
             class: "Player",
             properties: {
                 "max_hp": Float(100.0),
-                "speed": Int(5),
                 "mystery": Bool(true),
+                "speed": Int(5),
             },
         ),
         (
             name: "Sprite",
             class: "Sprite",
             parent: ".",
+            properties: {
+                "size": Vec2(32.0, 32.0),
+            },
             z: 1.0,
-            properties: { "size": Vec2(32.0, 32.0) },
         ),
-        (name: "Hitbox", class: "Sprite", parent: ".", visible: false),
-        (name: "Gun", class: "Sprite", parent: "Sprite"),
+        (
+            name: "Gun",
+            class: "Sprite",
+            parent: "Sprite",
+        ),
+        (
+            name: "Hitbox",
+            class: "Sprite",
+            parent: ".",
+            visible: false,
+        ),
     ],
-
     connections: [
-        (signal: "hit", from: "Hitbox", to: ".", method: "on_hit"),
+        (
+            signal: "hit",
+            from: "Hitbox",
+            to: ".",
+            method: "on_hit",
+        ),
     ],
 )

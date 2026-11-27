@@ -182,6 +182,21 @@ impl NodeTree {
         Ok(())
     }
 
+    /// Like [`Self::attach`], placing `child` at `index` among the
+    /// parent's children (clamped to the end). ADR-045.
+    pub fn attach_at(
+        &mut self,
+        child: NodeId,
+        parent: NodeId,
+        index: usize,
+    ) -> Result<(), SceneError> {
+        self.attach(child, parent)?;
+        let children = &mut self.nodes[parent].children;
+        let last = children.pop().expect("just attached");
+        children.insert(index.min(children.len()), last);
+        Ok(())
+    }
+
     /// Make `child` a floating subtree. Its own children stay attached
     /// to it; the node is not removed.
     pub fn detach(&mut self, child: NodeId) -> Result<(), SceneError> {

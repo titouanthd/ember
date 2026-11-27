@@ -22,7 +22,7 @@ ember-core, ember-servers, ember-assets, ember-macros, ember-input, slotmap, gla
 
 ## Implementation status
 
-🟢 The most complete crate: tree, deferred spawn/despawn, signals with deterministic order / stale-target / cycle / scoped tests, `.escene` load + round-trip + nested `instance:` with cycle detection. `Node: Object + NodeName` (ADR-030); `Node::draw_after_children` hook (ADR-035). `#[export]` properties on `NodeName`, `SceneWriter` + `PackedScene::from_tree` (ADR-037). **Gaps:** scene-declared connections parsed but not wired, no `find_by_class`/`find_all_by_class` (used by [[42-acceptance-tests]] §5.4).
+🟢 The most complete crate: tree, deferred spawn/despawn, signals with deterministic order / stale-target / cycle / scoped tests, `.escene` load + round-trip + nested `instance:` with cycle detection. `Node: Object + NodeName` (ADR-030); `Node::draw_after_children` hook (ADR-035). `#[export]` properties on `NodeName`, `SceneWriter` + `PackedScene::from_tree` (ADR-037). Scene-declared connections wired through `ClassDbNodes::register_receiver`; `instantiate_tracked` + `resave` for lossless saves (M4.1). **Gaps:** no `find_by_class`/`find_all_by_class` (used by [[42-acceptance-tests]] §5.4).
 
 ## Spec
 

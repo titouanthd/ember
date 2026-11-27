@@ -3,7 +3,7 @@
 
 use ember::prelude::*;
 use ember_core::{Color, Variant};
-use ember_scene::PackedScene;
+use ember_scene::{NodeOrigins, PackedScene};
 use ember_servers::{MockAudio, MockRenderer};
 use pong::GameContext;
 use pong::scene::{self, BallNode, PaddleNode, Pong, SCENE};
@@ -33,14 +33,15 @@ fn outline(tree: &NodeTree) -> Vec<(String, &'static str)> {
 }
 
 fn save(tree: &NodeTree) -> String {
-    PackedScene::from_tree(
-        tree,
-        tree.root().unwrap(),
-        &scene::classes(),
-        "uid://scene_pong",
-    )
-    .unwrap()
-    .to_ron()
+    scene::packed_scene()
+        .resave(
+            tree,
+            tree.root().unwrap(),
+            &scene::classes(),
+            &NodeOrigins::new(),
+        )
+        .unwrap()
+        .to_ron()
 }
 
 fn started(tree: NodeTree) -> SceneLoop<MockRenderer, MockAudio> {

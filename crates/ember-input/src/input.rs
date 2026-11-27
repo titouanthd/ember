@@ -59,6 +59,10 @@ pub struct Input {
     /// `y > 0` means the wheel moved up (away from the user); `x` is
     /// horizontal scrolling. `Vec2::ZERO` when the wheel did not move.
     pub mouse_wheel: Vec2,
+    /// The window's close button was pressed this frame. Only reported
+    /// when the window was opened with `WindowConfig::confirm_close`;
+    /// otherwise the window just closes (ADR-045).
+    pub close_requested: bool,
 }
 
 impl Input {

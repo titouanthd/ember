@@ -27,7 +27,9 @@ pub use class_db::ClassDbNodes;
 pub use context::{DrawContext, NodeContext, Servers};
 pub use error::SceneError;
 pub use node::{Node, NodeId, NodeName};
-pub use packed::{PackedScene, SceneAssets};
+pub use packed::{
+    NodeOrigin, NodeOrigins, PackedScene, SceneAssets, SceneConnection, TrackedScene,
+};
 pub use scene::{NodeRecord, SceneWriter};
 pub use scene_loop::{SceneLoop, VirtualResolution};
 pub use signal::{Handler, ScopedConnection, Signal, SignalTable};

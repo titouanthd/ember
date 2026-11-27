@@ -28,6 +28,9 @@ const TOOLBAR_H: f32 = 40.0;
 const OUTLINE_W: f32 = 240.0;
 const INSPECTOR_W: f32 = 320.0;
 const KEY_W: f32 = 84.0;
+const NAME_W: f32 = 140.0;
+const PICKER_W: f32 = 180.0;
+const DIALOG_W: f32 = 420.0;
 /// Rows the inspector can show; extra properties are listed as "+N more".
 pub const MAX_PROPERTIES: usize = 16;
 /// Scene origin inside the preview.
@@ -69,8 +72,26 @@ pub enum Intent {
 /// Ids of the widgets `EditorApp` updates.
 #[derive(Debug, Clone)]
 pub struct Widgets {
+    pub ui_root: NodeId,
     pub save: NodeId,
+    pub undo: NodeId,
+    pub redo: NodeId,
+    pub add: NodeId,
+    pub delete: NodeId,
+    /// The selected node's name; Enter (or `rename`) renames it.
+    pub name: NodeId,
+    pub rename: NodeId,
     pub status: NodeId,
+    /// The class picker `add` opens: the panel and `(button, class)`.
+    pub classes: NodeId,
+    pub class_buttons: Vec<(NodeId, &'static str)>,
+    /// The unsaved-changes dialog and its buttons.
+    pub dialog: NodeId,
+    pub save_quit: NodeId,
+    pub discard_quit: NodeId,
+    pub cancel_quit: NodeId,
+    /// The outline's button list, rebuilt after structural edits.
+    pub outline_list: NodeId,
     /// `(button, scene node)` per outline row, in outline order.
     pub outline: Vec<(NodeId, NodeId)>,
     pub header: NodeId,
@@ -88,6 +109,7 @@ pub struct EditorApp {
     pub status: String,
     pending: Vec<Intent>,
     inspector_stale: bool,
+    outline_stale: bool,
     quit_armed: bool,
     ui: Option<Widgets>,
     /// The game's resolution, framed in the preview (ADR-039).
@@ -109,6 +131,7 @@ impl EditorApp {
             status: "Click a node to inspect it".into(),
             pending: Vec::new(),
             inspector_stale: true,
+            outline_stale: false,
             quit_armed: false,
             ui: None,
             viewport: None,
@@ -140,15 +163,136 @@ impl EditorApp {
         }
     }
 
-    fn apply(&mut self, intent: Intent, tree: &mut NodeTree) {
-        let Some(ui) = self.ui.clone() else { return };
+    fn save(&mut self) -> bool {
+        match self.doc.save() {
+            Ok(()) => {
+                self.status = format!("Saved {}", self.file_name());
+                true
+            }
+            Err(e) => {
+                self.status = format!("Save failed: {e}");
+                false
+            }
+        }
+    }
+
+    /// The document changed: refresh the outline and inspector, and
+    /// drop a selection that was removed.
+    fn changed(&mut self) {
+        self.outline_stale = true;
+        self.inspector_stale = true;
+        if self.selected.is_some_and(|id| !self.doc.is_live(id)) {
+            self.selected = None;
+        }
+    }
+
+    /// Report an edit's result in the status line.
+    fn report(&mut self, done: &str, r: Result<(), crate::EditorError>) {
+        match r {
+            Ok(()) => {
+                self.status = done.to_string();
+                self.changed();
+            }
+            Err(e) => self.status = e.to_string(),
+        }
+    }
+
+    pub fn undo(&mut self) {
+        match self.doc.undo() {
+            Ok(true) => self.report("Undone", Ok(())),
+            Ok(false) => self.status = "Nothing to undo".into(),
+            Err(e) => self.status = e.to_string(),
+        }
+    }
+
+    pub fn redo(&mut self) {
+        match self.doc.redo() {
+            Ok(true) => self.report("Redone", Ok(())),
+            Ok(false) => self.status = "Nothing to redo".into(),
+            Err(e) => self.status = e.to_string(),
+        }
+    }
+
+    pub fn delete_selected(&mut self) {
+        let Some(id) = self.selected else {
+            self.status = "Select a node to delete".into();
+            return;
+        };
+        let parent = self.doc.tree().parent(id);
+        let r = self.doc.remove_node(id);
+        let ok = r.is_ok();
+        self.report("Deleted (Ctrl+Z to undo)", r);
+        if ok {
+            self.select(parent);
+        }
+    }
+
+    fn rename_selected(&mut self, name: &str) {
+        let Some(id) = self.selected else {
+            self.status = "Select a node to rename".into();
+            return;
+        };
+        let r = self.doc.rename_node(id, name.trim());
+        self.report(&format!("Renamed to {}", name.trim()), r);
+    }
+
+    fn add_class(&mut self, class: &str) {
+        let parent = self
+            .selected
+            .filter(|&id| self.doc.is_live(id))
+            .unwrap_or_else(|| self.doc.root());
+        match self.doc.add_node(parent, class) {
+            Ok(id) => {
+                self.report(&format!("Added a {class}"), Ok(()));
+                self.select(Some(id));
+            }
+            Err(e) => self.status = e.to_string(),
+        }
+    }
+
+    fn apply(&mut self, intent: Intent, tree: &mut NodeTree) -> bool {
+        let Some(ui) = self.ui.clone() else {
+            return true;
+        };
         match intent {
             Intent::Click(button) if button == ui.save => {
-                self.status = match self.doc.save() {
-                    Ok(()) => format!("Saved {}", self.file_name()),
-                    Err(e) => format!("Save failed: {e}"),
+                self.save();
+            }
+            Intent::Click(button) if button == ui.undo => self.undo(),
+            Intent::Click(button) if button == ui.redo => self.redo(),
+            Intent::Click(button) if button == ui.delete => self.delete_selected(),
+            Intent::Click(button) if button == ui.add => {
+                let open = !is_shown(tree, ui.classes);
+                set_visible(tree, ui.classes, open);
+                self.status = if open {
+                    "Pick a class to add under the selection".into()
+                } else {
+                    String::new()
                 };
             }
+            Intent::Click(button) if button == ui.rename => {
+                let text = node_mut::<TextInput>(tree, ui.name)
+                    .map(|t| t.text().to_string())
+                    .unwrap_or_default();
+                self.rename_selected(&text);
+            }
+            Intent::Click(button) if button == ui.save_quit => {
+                set_visible(tree, ui.dialog, false);
+                return !self.save();
+            }
+            Intent::Click(button) if button == ui.discard_quit => return false,
+            Intent::Click(button) if button == ui.cancel_quit => {
+                set_visible(tree, ui.dialog, false);
+                self.status = "Kept editing".into();
+            }
+            Intent::Click(button) if ui.class_buttons.iter().any(|&(b, _)| b == button) => {
+                let class = ui.class_buttons.iter().find(|&&(b, _)| b == button);
+                set_visible(tree, ui.classes, false);
+                if let Some(&(_, class)) = class {
+                    self.add_class(class);
+                }
+            }
+            Intent::Submit { input, text } if input == ui.name => self.rename_selected(&text),
             Intent::Click(button) => {
                 if let Some(&(_, node)) = ui.outline.iter().find(|(b, _)| *b == button) {
                     self.select(Some(node));
@@ -157,10 +301,10 @@ impl EditorApp {
             }
             Intent::Submit { input, text } => {
                 let Some(row) = ui.rows.iter().position(|&(_, _, i)| i == input) else {
-                    return;
+                    return true;
                 };
                 let (Some(node), Some(key)) = (self.selected, self.row_keys[row]) else {
-                    return;
+                    return true;
                 };
                 self.status = match self.doc.set_property_text(node, key, &text) {
                     Ok(()) => format!(
@@ -177,6 +321,39 @@ impl EditorApp {
                     field.set_text(shown);
                 }
             }
+        }
+        true
+    }
+
+    fn outline_text(&self, node: NodeId, depth: usize, name: &str) -> String {
+        let mark = if self.selected == Some(node) {
+            "> "
+        } else {
+            "  "
+        };
+        format!("{mark}{}{name}", "    ".repeat(depth))
+    }
+
+    /// Replace the outline's buttons with one per live node.
+    fn rebuild_outline(&mut self, ctx: &mut NodeContext, ui: &Widgets) {
+        for &(button, _) in &ui.outline {
+            ctx.despawn(button);
+        }
+        let outline = self
+            .doc
+            .outline()
+            .iter()
+            .map(|row| {
+                let text = self.outline_text(row.id, row.depth, &row.name);
+                let b = ctx.spawn_child(
+                    ui.outline_list,
+                    Button::new(text).with_align(Alignment::Left),
+                );
+                (b, row.id)
+            })
+            .collect();
+        if let Some(w) = self.ui.as_mut() {
+            w.outline = outline;
         }
     }
 
@@ -203,15 +380,20 @@ impl EditorApp {
                 "Save"
             });
         }
+        let (can_undo, can_redo) = (self.doc.can_undo(), self.doc.can_redo());
+        for (id, on) in [(ui.undo, can_undo), (ui.redo, can_redo)] {
+            if let Some(b) = node_mut::<Button>(tree, id)
+                && b.is_disabled() == on
+            {
+                b.set_disabled(!on);
+            }
+        }
         let outline = self.doc.outline();
         for (&(button, node), row) in ui.outline.iter().zip(&outline) {
-            let mark = if self.selected == Some(node) {
-                "> "
-            } else {
-                "  "
-            };
-            let text = format!("{mark}{}{}", "    ".repeat(row.depth), row.name);
-            if let Some(b) = node_mut::<Button>(tree, button) {
+            let text = self.outline_text(node, row.depth, &row.name);
+            if let Some(b) = node_mut::<Button>(tree, button)
+                && b.text != text
+            {
                 b.set_text(text);
             }
         }
@@ -239,6 +421,14 @@ impl EditorApp {
             None => "Nothing selected".into(),
         };
         set_label(tree, ui.header, header);
+        let name = self
+            .selected
+            .and_then(|id| self.doc.tree().get(id))
+            .map(|n| n.name().to_string())
+            .unwrap_or_default();
+        if let Some(field) = node_mut::<TextInput>(tree, ui.name) {
+            field.set_text(name);
+        }
         for (i, &(row, key_label, input)) in ui.rows.iter().enumerate() {
             let prop = props.get(i);
             self.row_keys[i] = prop.map(|(k, _)| *k);
@@ -313,20 +503,62 @@ impl Node for EditorApp {
     }
 
     fn process(&mut self, _dt: f32, ctx: &mut NodeContext) {
-        if ctx.input().is_key_pressed(Key::Escape) {
+        let Some(ui) = self.ui.clone() else { return };
+        let input = ctx.input();
+        let down = |keys: &[Key]| keys.iter().any(|&k| input.is_key_down(k));
+        let ctrl = down(&[
+            Key::LeftControl,
+            Key::RightControl,
+            Key::LeftSuper,
+            Key::RightSuper,
+        ]);
+        let shift = down(&[Key::LeftShift, Key::RightShift]);
+        let pressed = |k| input.is_key_pressed(k);
+        let (save, undo, redo) = (
+            ctrl && pressed(Key::S),
+            ctrl && pressed(Key::Z) && !shift,
+            ctrl && (pressed(Key::Y) || (pressed(Key::Z) && shift)),
+        );
+        let delete = pressed(Key::Delete);
+        let close = pressed(Key::Escape) || input.close_requested;
+        let tree = ctx.tree();
+        let typing = node_mut::<UiRoot>(tree, ui.ui_root)
+            .and_then(|r| r.focused())
+            .is_some_and(|f| tree.get(f).is_some_and(|n| n.as_any().is::<TextInput>()));
+
+        if close {
             if !self.doc.is_dirty() || self.quit_armed {
                 ctx.quit();
                 return;
             }
             self.quit_armed = true;
-            self.status = "Unsaved changes: Escape again to quit".into();
+            set_visible(tree, ui.dialog, true);
+            self.status = "Unsaved changes: Escape again to quit without saving".into();
         }
-        let tree = ctx.tree();
+        if save {
+            self.save();
+        }
+        if undo {
+            self.undo();
+        }
+        if redo {
+            self.redo();
+        }
+        if delete && !typing {
+            self.delete_selected();
+        }
         for intent in std::mem::take(&mut self.pending) {
             self.quit_armed = false;
-            self.apply(intent, tree);
+            if !self.apply(intent, tree) {
+                ctx.quit();
+                return;
+            }
         }
-        self.sync(tree);
+        if self.outline_stale {
+            self.outline_stale = false;
+            self.rebuild_outline(ctx, &ui);
+        }
+        self.sync(ctx.tree());
     }
 
     /// The preview: the scene's own nodes, drawn inside a clipped
@@ -401,7 +633,13 @@ fn set_label(tree: &mut NodeTree, id: NodeId, text: impl Into<String>) {
 fn set_visible(tree: &mut NodeTree, id: NodeId, visible: bool) {
     if let Some(row) = node_mut::<HBox>(tree, id) {
         row.base_mut().visible = visible;
+    } else if let Some(panel) = node_mut::<Panel>(tree, id) {
+        panel.base_mut().visible = visible;
     }
+}
+
+fn is_shown(tree: &NodeTree, id: NodeId) -> bool {
+    tree.get(id).is_some_and(|n| n.visible())
 }
 
 fn add(tree: &mut NodeTree, parent: NodeId, node: impl Node) -> NodeId {
@@ -419,6 +657,7 @@ pub fn build_tree(doc: Document) -> NodeTree {
 /// (for example [`EditorApp::with_viewport`]).
 pub fn build_app_tree(app: EditorApp) -> NodeTree {
     let outline_rows = app.doc.outline();
+    let classes = app.doc.addable_classes();
     let mut tree = NodeTree::with_root(app);
     let root = tree.root().expect("root");
     let ui = add(&mut tree, root, UiRoot::new(Theme::dark()));
@@ -441,6 +680,18 @@ pub fn build_app_tree(app: EditorApp) -> NodeTree {
             .with_anchors(Anchors::FULL_RECT),
     );
     let save = add(&mut tree, bar, Button::new("Save"));
+    let undo = add(&mut tree, bar, Button::new("Undo"));
+    let redo = add(&mut tree, bar, Button::new("Redo"));
+    let add_button = add(&mut tree, bar, Button::new("Add"));
+    let delete = add(&mut tree, bar, Button::new("Delete"));
+    let name = add(
+        &mut tree,
+        bar,
+        TextInput::new()
+            .with_placeholder("name")
+            .with_min_size(Vec2::new(NAME_W, 0.0)),
+    );
+    let rename = add(&mut tree, bar, Button::new("Rename"));
     let status = add(&mut tree, bar, Label::new(""));
 
     // Outline
@@ -457,7 +708,8 @@ pub fn build_app_tree(app: EditorApp) -> NodeTree {
         outline_panel,
         ScrollContainer::new().with_anchors(Anchors::FULL_RECT),
     );
-    let list = add(&mut tree, scroll, VBox::new().with_spacing(2.0));
+    let outline_list = add(&mut tree, scroll, VBox::new().with_spacing(2.0));
+    let list = outline_list;
     let outline = outline_rows
         .iter()
         .map(|row| {
@@ -510,9 +762,72 @@ pub fn build_app_tree(app: EditorApp) -> NodeTree {
         .collect();
     let more = add(&mut tree, column, Label::new("").with_color(theme.text_dim));
 
+    // Class picker (Add), over the outline.
+    let classes_panel = add(
+        &mut tree,
+        ui,
+        Panel::new()
+            .with_padding(Margins::all(8.0))
+            .with_offset(Vec2::new(OUTLINE_W, TOOLBAR_H))
+            .with_min_size(Vec2::new(PICKER_W, 0.0))
+            .hidden(),
+    );
+    let picker = add(&mut tree, classes_panel, VBox::new().with_spacing(2.0));
+    add(
+        &mut tree,
+        picker,
+        Label::new("Add under the selection").with_color(theme.text_dim),
+    );
+    let class_buttons = classes
+        .iter()
+        .map(|&c| {
+            let b = add(
+                &mut tree,
+                picker,
+                Button::new(c).with_align(Alignment::Left),
+            );
+            (b, c)
+        })
+        .collect();
+
+    // Unsaved-changes dialog.
+    let dialog = add(
+        &mut tree,
+        ui,
+        Panel::new()
+            .with_padding(Margins::all(16.0))
+            .with_offset(Vec2::new(WINDOW_W / 2.0 - DIALOG_W / 2.0, WINDOW_H / 3.0))
+            .with_min_size(Vec2::new(DIALOG_W, 0.0))
+            .hidden(),
+    );
+    let dialog_column = add(&mut tree, dialog, VBox::new().with_spacing(10.0));
+    add(
+        &mut tree,
+        dialog_column,
+        Label::new("The scene has unsaved changes."),
+    );
+    let dialog_row = add(&mut tree, dialog_column, HBox::new().with_spacing(8.0));
+    let save_quit = add(&mut tree, dialog_row, Button::new("Save and quit"));
+    let discard_quit = add(&mut tree, dialog_row, Button::new("Quit without saving"));
+    let cancel_quit = add(&mut tree, dialog_row, Button::new("Cancel"));
+
     let widgets = Widgets {
+        ui_root: ui,
         save,
+        undo,
+        redo,
+        add: add_button,
+        delete,
+        name,
+        rename,
         status,
+        classes: classes_panel,
+        class_buttons,
+        dialog,
+        save_quit,
+        discard_quit,
+        cancel_quit,
+        outline_list,
         outline,
         header,
         more,

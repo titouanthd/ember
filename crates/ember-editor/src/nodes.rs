@@ -19,6 +19,19 @@ pub struct Player {
     pub speed: f32,
     #[export]
     pub max_hp: f32,
+    /// Hits taken, counted by `on_hit` (not saved).
+    pub hits: u32,
+}
+
+/// The `hit` signal of the fixture scene's `Hitbox → Player` connection.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Hit;
+
+impl Player {
+    /// Receiver of the scene-declared `hit` connection.
+    pub fn on_hit(&mut self, _: &Hit) {
+        self.hits += 1;
+    }
 }
 
 impl ember_scene::Node for Player {
@@ -82,6 +95,7 @@ impl ember_scene::Node for Sprite {
 pub fn register(classes: &mut ClassDB) {
     classes.register_node::<Player>();
     classes.register_node::<Sprite>();
+    classes.register_receiver::<Player, Hit>("hit", "on_hit", Player::on_hit);
 }
 
 /// A `ClassDB` with the built-in classes.

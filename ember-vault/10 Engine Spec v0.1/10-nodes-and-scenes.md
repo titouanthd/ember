@@ -438,8 +438,9 @@ groups in v0.1 — those are v0.2 candidates.
 - **Names preserved.** A child called `Sprite` in the packed scene is
   called `Sprite` in every instance.
 - **Ids fresh.** Every node in every instance has a unique `NodeId`.
-- **Signals re-wired.** *Not yet implemented:* connections in a scene file
-  are validated but not wired (ADR-025).
+- **Signals re-wired.** Connections in a scene file are wired after
+  every node exists, through receivers registered on the `ClassDB`
+  (spec 30 §8, M4.1).
 - **Properties applied.** Each property goes through `Node::set_property`;
   unknown or mistyped keys warn and are skipped but stay in the template.
   The `#[export]` derive support is *not yet implemented*.
