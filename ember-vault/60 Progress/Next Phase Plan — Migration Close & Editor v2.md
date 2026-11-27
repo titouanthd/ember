@@ -172,10 +172,12 @@ The proof (M1) already makes the editor general. M4 makes it a real tool. Each s
 - **Done:** `PackedScene::instantiate_tracked` keeps a `NodeOrigin` per node (properties as written, values as loaded); `PackedScene::resave` writes the tree with the file's uid, ext / sub resources and connections. A property is written if the file had it (in the file's form while unchanged, so `Int(5)` stays `Int(5)`) or if it differs from the class default; unknown keys go back as written; a node with no origin (M4.2's added nodes) writes every export. Connections are wired after all nodes exist, in file order, by `ClassDbNodes::register_receiver::<N, T>(signal, method, fn(&mut N, &T))`; one with no receiver warns and is skipped. `player.escene` was rewritten once in canonical form (comment and entry order only). `ember-editor/tests/lossless.rs` fails when a new `.escene` has no round-trip test.
 - **Left for M4.2:** a renamed or removed node must update or drop the connections that name it (`resave` keeps the file's connection list as is); nested `instance:` nodes still save inline (no repo scene uses them); a receiver gets `(&mut N, &T)`, no `NodeContext`.
 
-### M4.2 Node editing + undo (1 session) · **ADR-045 "Editor commands and undo"**
+### M4.2 Node editing + undo (1 session) · **ADR-045 "Editor commands and undo"** — ✅ `203c0a4` (2026-11-27)
 - A command stack: `SetProperty`, `AddNode(class, parent)`, `RemoveNode`, `RenameNode`, `Reparent`, each one reversible.
 - Undo / redo with Ctrl+Z / Ctrl+Shift+Z, and Ctrl+S to save. These need `Key::LeftControl` / `RightControl` / `Super` (a small input addition, like Semicolon and Shift).
 - The outline gets **Add** (a class picker over `ClassDB`), **Delete** and **Rename**, and the dirty flag asks before closing.
+- **Done:** see [[50-design-decisions#ADR-045: Editor commands and undo|ADR-045]]. Commands live on `Document` (one linear stack; removed nodes stay detached, so ids never die); connections are kept by id and saved with their current paths, so rename / reparent follow them and M4.1's left-over is closed. Toolbar: Undo, Redo, Add (class picker), Delete, name field + Rename; Ctrl / Cmd + Z, + Shift + Z, + Y, + S, Delete. The close button asks through `WindowConfig::confirm_close` → `Input::close_requested` (Save and quit / Quit without saving / Cancel). Tests: `ember-editor/tests/commands.rs` (9, `Document`), `tests/app_commands.rs` (9, `SceneLoop`), `ember-scene/tests/attach_at.rs`.
+- **Not done:** Reparent has no outline UI yet (drag and drop → M4.3); Play / Stop (optional) not started; added nodes do not run `ready` in the editor.
 
 ### M4.3 Inspector v2 + panel split (1 session)
 - `app.rs` (469 lines) is split into `toolbar.rs`, `outline.rs`, `inspector.rs` and `preview.rs`, each a `Control` subtree talking through signals (ADR-036).
@@ -191,7 +193,7 @@ The proof (M1) already makes the editor general. M4 makes it a real tool. Each s
 ### Phase 9 exit criteria (Editor v2)
 - [ ] the M1 proof checklist passes
 - [x] every `.escene` in the repo round-trips byte-for-byte (connections, ext resources included) *(M4.1)*
-- [ ] add / remove / rename / reparent a node, each undoable
+- [x] add / remove / rename / reparent a node, each undoable *(M4.2; reparent from code / tests only, UI in M4.3)*
 - [ ] typed editors for bool, number, `Vec2`, `Color`, enum
 - [ ] at least one other migrated game (suggested: breakout, bricks as data) also opens with `make edit GAME=…`
 

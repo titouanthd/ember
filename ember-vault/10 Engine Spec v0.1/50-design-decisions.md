@@ -2019,3 +2019,73 @@ textures, which blur pixel art.
 - Node/scene concepts → [[10-nodes-and-scenes]]
 - Roadmap phases → [[40-roadmap]]
 - Glossary → [[51-glossary]]
+
+## ADR-045: Editor commands and undo
+
+**Status:** accepted (2026-11-27) — M4.2 (`203c0a4`), [[Next Phase Plan — Migration Close & Editor v2]]
+
+### Context
+
+The editor (ADR-039) could only set properties, with no undo. M4.2 adds
+structural edits (add, remove, rename, reparent a node), each undoable,
+and must keep M4.1's lossless save: unchanged nodes save as they were
+read, and scene connections follow the nodes they name.
+
+### Decision
+
+- **Every edit is a `Command`** applied through `Document::apply`:
+  `SetProperty { node, key, before, after }`, `AddNode { node, parent,
+  index }`, `RemoveNode { node, parent, index }`, `RenameNode { node,
+  before, after }`, `Reparent { node, from, to }` (each end a
+  `(parent, index)`). A command holds both states, so `redo` and `undo`
+  are the same operation run either way. The helpers (`set_property`,
+  `add_node`, `remove_node`, `rename_node`, `reparent`) check the edit,
+  build the command and apply it; a refused edit changes nothing and
+  pushes nothing.
+- **Nodes keep their `NodeId` for the whole session.** Remove *detaches*
+  the subtree and keeps it in the document's tree (outside the root, so
+  it is neither drawn, listed nor saved); undo attaches it again at the
+  same index. Add inserts the node once; undo detaches it, redo
+  re-attaches the same node. No command ever points at a dead id, so
+  the stack needs no id remapping.
+- **One linear stack.** `apply` drops the redo tail. The document is
+  dirty when the stack position differs from the position at the last
+  open or save, so undoing back to the saved state makes it clean.
+- **Connections are kept by `NodeId`** (`SceneConnection { signal, from,
+  to, method }`, from `PackedScene::instantiate_tracked`), and
+  `PackedScene::resave_with` writes their paths from the tree as it is
+  at save time. Rename and reparent update them for free; a connection
+  whose end is not under the root (a removed node) is left out of the
+  file and comes back if the removal is undone.
+- **Names:** a node name must be valid (non-empty, no `/`, not `.` or
+  `..`) and unique among its siblings, because a scene path must name
+  one node. `add_node` names the node after its class, adding `2`, `3`…
+  when taken; rename and reparent refuse a clash. The root cannot be
+  removed or reparented.
+- **`NodeTree::attach_at(child, parent, index)`** puts a child at a
+  given place among its siblings, so undo restores the outline order
+  (and the saved node order).
+- **Shortcuts:** Ctrl+Z undo, Ctrl+Shift+Z (and Ctrl+Y) redo, Ctrl+S
+  save; Cmd (new `Key::LeftSuper` / `RightSuper`) works as Ctrl. The
+  Delete key removes the selection only while no text field has focus
+  (a text field uses it); the Ctrl shortcuts always act on the document.
+- **Outline UI:** the toolbar has Undo, Redo (greyed when empty), Add
+  (a class picker listing `Document::addable_classes`, adding under the
+  selection), Delete, and a name field with Rename (Enter also renames).
+  The outline's buttons are rebuilt after each structural edit.
+- **Close prompt:** `WindowConfig::confirm_close(true)` makes the runner
+  call macroquad's `prevent_quit` and report the window's close button
+  as `Input::close_requested`. With unsaved changes, Escape or the close
+  button opens a dialog: Save and quit / Quit without saving / Cancel;
+  pressing Escape or close a second time quits without saving (as the
+  Escape-twice rule did before).
+
+### Consequences
+
+- Added nodes do not run `ready` in the editor (the document's tree is
+  flushed once, on open); a node that builds itself in `ready` previews
+  as its defaults until the scene is reopened.
+- Reparent is a document command with tests; its outline UI (drag and
+  drop) is left to M4.3. Play / Stop stays undone.
+- A command stores whole `Variant`s; the stack is unbounded for a
+  session (scenes are small).
