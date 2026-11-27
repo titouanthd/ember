@@ -645,6 +645,9 @@ persistence API lands.
   battle through the `World` node (mechanical), plus 3 new tests (tree
   shape; units and shots as nodes, a dead unit's node despawned; R
   swaps the world).
+- **Acceptance passed (2026-11-27):** the user played chapters 1, 2 and
+  5, bought an upgrade and checked save / load on the node-tree build —
+  no problem. All 20 items of spec 42 are met.
 
 ## 6. Rollback
 

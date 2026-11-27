@@ -10,7 +10,7 @@ wave: "4 — Format, Process & Reference"
 
 # 42 — Acceptance Tests
 
-> **Status:** 🟡 in progress — `ember-wars` runs as a node tree (`f16fe0c`, `0ad070c`); items 1–10 and 16–20 met, the manual items 11–15 wait for the user
+> **Status:** ✅ `ember-wars` acceptance passed (2026-11-27) — node tree (`f16fe0c`, `0ad070c`); all 20 items met. The whole-workspace gate (§8) is `make pre-push`
 > **Audience:** implementers, reviewers
 > **Prerequisites:** [[40-roadmap]], [[41-migration-guide]]
 
@@ -61,7 +61,8 @@ is complete for v0.1's scope.
 > steps are done. **Step 1 — port** (`f16fe0c`): one root node on
 > `SceneLoop`, `main.rs` 5 lines, no macroquad. **Step 2 — node tree**
 > (`0ad070c`): a level is a `World` node; catapults, units and
-> projectiles are nodes (§4.1). Only the manual items (11–15) remain.
+> projectiles are nodes (§4.1). The user played the manual items
+> (11–15) on 2026-11-27 with no problem: **all 20 items are met.**
 >
 > | Item | State |
 > |---|---|
@@ -75,7 +76,7 @@ is complete for v0.1's scope.
 > | 8 `Catapult` and `Unit` are nodes | ✅ `CatapultNode` (class `Catapult`) and `UnitNode` (class `Unit`), hand-written `Object` / `NodeName` like pong |
 > | 9 lib tests pass | ✅ 302 (the "316" below is stale; 301 before the port, +1 `frame` test) |
 > | 10 20 scenario tests pass | ✅ unchanged |
-> | 11–15 manual play-throughs, upgrade UI, save/load | ⬜ the user plays |
+> | 11–15 manual play-throughs, upgrade UI, save/load | ✅ played by the user on the node-tree build (2026-11-27), no problem |
 > | 16 no new `unsafe` | ✅ none in the game |
 > | 17 no new `unwrap()` outside tests | ✅ count unchanged (68) |
 > | 18–20 nothing added to `ember_servers` / `ember_scene` just for ember-wars | ✅ no engine change in either step |

@@ -103,7 +103,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] accretion *(`ddf58a6`: root node; high DPI, viewport follows the window; per-frame `frame` snapshot; `main.rs` 5 lines; no macroquad; 125 unit + 2 balance + 6 `SceneLoop` tests; web saves broken before and after, see §5.16)*
 - [x] ember-wars — **ported** *(`f16fe0c`: root node; high DPI, viewport follows the window; `main.rs` 5 lines; no macroquad; 302 lib + 20 scenario tests)*
   - [x] node tree *(`0ad070c`: `World` node with catapults, units and projectiles as nodes; signals to the root; draw calls identical to the port; 10 `SceneLoop` tests)* → [[42-acceptance-tests]]
-  - [ ] manual acceptance (items 11–15: chapters 1, 2, 5; upgrade UI; save/load) — the user
+  - [x] manual acceptance *(items 11–15: chapters 1, 2, 5; upgrade UI; save/load — played by the user, 2026-11-27, no problem; spec 42's 20 items all met)*
 
 ## Phase 8 — Cleanup
 - [x] no `Cooldown::new` / `with_duration` call sites ⚑
