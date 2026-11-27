@@ -59,7 +59,7 @@ gantt
 - [x] stale targets skipped — `tests/signal_stale_target.rs`
 - [x] cyclic signals don't overflow — `tests/signal_cycle.rs`
 - [x] `ScopedConnection` drop disconnects — `tests/scoped_connection.rs`
-- [ ] scene-declared connections wired from `.escene`
+- [x] scene-declared connections wired from `.escene` *(M4.1 `8b20132`: `register_receiver`, `tests/scene_connections.rs`; Pong's `PointScored` in `pong.escene`)*
 
 ## Phase 4 — Servers ✅ closed 2026-11-22 (ADR-033)
 - [x] engine crates (except legacy `ember-stdlib`) import no macroquad — games → Phase 7 exit, stdlib → Phase 8 (ADR-033)
@@ -123,7 +123,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] headless `games/pong/tests/editor.rs` *(`6aaf9a0`: 4 tests)*
 
 **Editor v2 (M4):**
-- [ ] lossless save: connections, ext resources, unknown properties; scene-declared connections wired (closes Phase 3)
+- [x] lossless save: connections, ext resources, unknown properties; scene-declared connections wired (closes Phase 3) *(M4.1 `8b20132`: `PackedScene::resave`; `ember-editor/tests/lossless.rs` checks every `.escene` in the repo)*
 - [ ] add / remove / rename / reparent nodes, undo / redo (ADR-045)
 - [ ] typed inspector (bool, number, `Vec2`, `Color`, enum), no 16-property cap
 - [ ] `app.rs` split into toolbar / outline / inspector / preview panels

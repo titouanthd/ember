@@ -34,7 +34,7 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 022 | [[50-design-decisions#ADR-022: Tree passes take `Servers`; nodes are checked out while they run\|Tree passes take `Servers`; nodes are checked out while they run]] | ✅ |
 | 023 | [[50-design-decisions#ADR-023: One tree-level `SignalTable`; handlers are `Arc`, dispatch lives on `NodeContext`\|One tree-level `SignalTable`; handlers are `Arc`, dispatch lives on `NodeContext`]] | ✅ |
 | 024 | [[50-design-decisions#ADR-024: `ClassDB` is generic over `Object`; node construction is an extension\|`ClassDB` is generic over `Object`; node construction is an extension]] | ✅ |
-| 025 | [[50-design-decisions#ADR-025: `.escene` loading takes a `ClassDB` and a tree; properties go through `Node::set_property`\|`.escene` loading takes a `ClassDB` and a tree; properties go through `Node::set_property`]] | ✅ (connections not wired) |
+| 025 | [[50-design-decisions#ADR-025: `.escene` loading takes a `ClassDB` and a tree; properties go through `Node::set_property`\|`.escene` loading takes a `ClassDB` and a tree; properties go through `Node::set_property`]] | ✅ (connections wired since M4.1) |
 | 026 | [[50-design-decisions#ADR-026: `AssetServer` is type-driven and synchronous; GPU loads take a renderer\|`AssetServer` is type-driven and synchronous; GPU loads take a renderer]] | ✅ (deferred items open) |
 | 027 | [[50-design-decisions#ADR-027: Nested `instance:` is resolved by `instantiate_with`\|Nested `instance:` is resolved by `instantiate_with`]] | ✅ |
 | 028 | [[50-design-decisions#ADR-028: `LinearPhysics` lives in `ember-servers` and joins `Servers`\|`LinearPhysics` lives in `ember-servers` and joins `Servers`]] | ✅ |

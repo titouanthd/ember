@@ -363,11 +363,16 @@ The engine validates these at load time and returns
 
 ## 8. Section 5: Connections
 
-> *Not yet implemented (ADR-025):* connections are parsed and validated
+> *As built (M4.1):* connections are validated at parse time
 > (`from`/`to` must resolve to a node; else `SceneError::Parse`) and
-> round-tripped, but **never wired**. No `SignalReceiver` / method-name
-> dispatch exists. `from`/`to` are root-relative like `parent`
-> (`"."` = root).
+> wired by `instantiate`. Instead of a `SignalReceiver` trait, a game
+> registers each receiver on the `ClassDB`:
+> `db.register_receiver::<Scoreboard, PointScored>("PointScored",
+> "on_point_scored", Scoreboard::on_point_scored)`, where the method is
+> `fn(&mut N, &T)`. A connection whose target class has no matching
+> `(signal, method)` warns and is skipped (like an unknown property).
+> Signals are broadcast by type, so `from` is not a filter yet.
+> `from`/`to` are root-relative like `parent` (`"."` = root).
 
 ### 8.1 Purpose
 
@@ -415,6 +420,12 @@ emit a signal in `ready` and its connections are already live.
 `PackedScene::from_file(path)?.to_ron()` produces text that parses to
 an equivalent `PackedScene` (tested in `ember-scene/tests/packed_scene.rs`). The text may differ (whitespace, ordering
 of `properties` keys) but the semantics are identical.
+
+A file already in canonical form (what `to_ron` writes) survives the
+editor byte for byte: `PackedScene::instantiate_tracked` + `resave`
+keep the header, connections, unknown keys and each unchanged value as
+written (M4.1; `ember-editor/tests/lossless.rs` covers every `.escene`
+in the repo).
 
 ### 9.2 Unknown properties
 

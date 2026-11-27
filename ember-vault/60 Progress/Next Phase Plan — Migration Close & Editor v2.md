@@ -165,10 +165,12 @@ Each round follows the migration recipe in [[41-migration-guide#5. Per-game note
 
 The proof (M1) already makes the editor general. M4 makes it a real tool. Each session is one round, with tests on `Document` (headless) plus `SceneLoop` tests on the app.
 
-### M4.1 Lossless documents (1 session)
+### M4.1 Lossless documents (1 session) — ✅ `8b20132` (2026-11-27)
 - `Document` keeps `ext_resources`, `connections` and unknown properties, and writes them back on save. Today they are dropped.
 - Scene-declared connections get wired at instantiate time. **This closes the Phase 3 open item**, and Pong's `PointScored` connection moves into `pong.escene`.
 - Test: opening and saving every `.escene` in the repo changes no byte.
+- **Done:** `PackedScene::instantiate_tracked` keeps a `NodeOrigin` per node (properties as written, values as loaded); `PackedScene::resave` writes the tree with the file's uid, ext / sub resources and connections. A property is written if the file had it (in the file's form while unchanged, so `Int(5)` stays `Int(5)`) or if it differs from the class default; unknown keys go back as written; a node with no origin (M4.2's added nodes) writes every export. Connections are wired after all nodes exist, in file order, by `ClassDbNodes::register_receiver::<N, T>(signal, method, fn(&mut N, &T))`; one with no receiver warns and is skipped. `player.escene` was rewritten once in canonical form (comment and entry order only). `ember-editor/tests/lossless.rs` fails when a new `.escene` has no round-trip test.
+- **Left for M4.2:** a renamed or removed node must update or drop the connections that name it (`resave` keeps the file's connection list as is); nested `instance:` nodes still save inline (no repo scene uses them); a receiver gets `(&mut N, &T)`, no `NodeContext`.
 
 ### M4.2 Node editing + undo (1 session) · **ADR-045 "Editor commands and undo"**
 - A command stack: `SetProperty`, `AddNode(class, parent)`, `RemoveNode`, `RenameNode`, `Reparent`, each one reversible.
@@ -188,7 +190,7 @@ The proof (M1) already makes the editor general. M4 makes it a real tool. Each s
 
 ### Phase 9 exit criteria (Editor v2)
 - [ ] the M1 proof checklist passes
-- [ ] every `.escene` in the repo round-trips byte-for-byte (connections, ext resources included)
+- [x] every `.escene` in the repo round-trips byte-for-byte (connections, ext resources included) *(M4.1)*
 - [ ] add / remove / rename / reparent a node, each undoable
 - [ ] typed editors for bool, number, `Vec2`, `Color`, enum
 - [ ] at least one other migrated game (suggested: breakout, bricks as data) also opens with `make edit GAME=…`
