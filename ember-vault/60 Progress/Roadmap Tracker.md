@@ -111,7 +111,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [ ] no `audio.rs` in games
 - [ ] workspace tests + clippy green
 - [ ] `CHANGELOG.md`
-- [ ] no macroquad-backed `ember-stdlib` module left (`audio`, `config::env_color`, `fonts`, `graphics`, `input`, `juice`, `layout`, `music`, `sprite`, `ui`); allowlist empty
+- [x] no macroquad-backed `ember-stdlib` module left (`audio`, `config::env_color`, `fonts`, `graphics`, `input`, `juice`, `layout`, `music`, `sprite`, `ui`); allowlist empty *(M5.1 `ce5547a`: `env_color`, `Sprite`, `layout` on engine types, `clock::format_time` new, `music` without `MacroquadMusic`, the rest deleted; `ember-stdlib` has no macroquad dependency)*
 - [ ] games' local twins (`env_color`, `Sprite`) replaced by engine-typed stdlib versions
 
 ## Phase 9 — Editor v2 (new, see [[Next Phase Plan — Migration Close & Editor v2]])

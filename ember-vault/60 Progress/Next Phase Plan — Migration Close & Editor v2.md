@@ -202,6 +202,21 @@ The proof (M1) already makes the editor general. M4 makes it a real tool. Each s
 - `CHANGELOG.md`, and the tracker's Phase 8 boxes.
 - `40-roadmap` gains Phase 9 (Editor v2). [[Doc–Code Discrepancies]] items #4 (phase numbering) and #18 (Makefile `CRATES`) get closed.
 
+**Rounds:** M5.1 stdlib modules · M5.2 twins, `CHANGELOG.md`, vault.
+
+**M5.1 ✅ (`ce5547a`, 2026-11-27).** Grep first: games used only `music::{MusicBackend, MusicPlayer, TrackSpec}` (bore-inc); every other mention was a doc comment on a local twin.
+- Engine-typed: `config::env_color` and `Sprite` (`ember_core::Color`), `layout::centered_rect` (`ember_core::math::Rect`), new `clock::format_time` (the pure `TimerDisplay::format`).
+- `music` keeps the playlist logic; `MacroquadMusic` is gone.
+- Deleted (no users): `audio`, `fonts`, `graphics`, `input`, `juice`, `ui`. Text/font helpers stay as game-local `RenderingServer` code; shared font helpers are a v0.2 candidate.
+- `ember-stdlib` has no macroquad dependency; `xtask/macroquad-allowlist.txt` holds comments only; `make macroquad` OK; `cargo check --workspace --all-targets` clean.
+
+**M5.2 handover — the twins to switch** (mechanical, tests must stay green):
+- `env_color` → `ember_stdlib::config::env_color`: air-hockey, bore-inc, bullet-hell, ember-wars, freecell, jade-garden, memory, minesweeper, simon, zhuo-ji (each `src/config.rs`). **pong is left to M4** (it owns `games/pong`); switch at merge.
+- `Sprite` → `ember_stdlib::Sprite`: breakout, asteroids (`src/components.rs`); pong's twin left to M4.
+- `format_time` → `ember_stdlib::clock::format_time`: freecell, memory, minesweeper (`src/scene.rs`). Not jade-garden's `fmt_time` (`M:SS`, rounded: another format).
+- `centered_rect` → `ember_stdlib::layout::centered_rect`: zhuo-ji (`src/ui/mod.rs`), ember-wars (`ui/upgrade_modal.rs`, inline).
+- Then: `CHANGELOG.md`, 40-roadmap Phase 9, discrepancies #4 and #18 (fix `Makefile` `CRATES`), the "no `audio.rs` in games" box (the four left are `AudioServer` sound banks: reword to "no macroquad `audio.rs`" after checking pagoda's and jade-garden's macroquad mentions), and fix the doc comments that still name deleted modules (pagoda `ui.rs`, taiji `app.rs`, zhuo-ji `ui/mod.rs`, ember-wars `fonts.rs`, jade-garden `util.rs`/`audio.rs`).
+
 ---
 
 ## After M3 — order agreed (2026-11-27)
