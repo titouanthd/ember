@@ -61,7 +61,7 @@ Rounds keep the current rhythm: **one game or one engine feature per round**. I 
 
 ---
 
-## M1 — Pong, and the editor opens it (proof first)
+## M1 — Pong, and the editor opens it (proof first) — ✅ proof checked 2026-11-27
 
 ### M1.1 Finish Pong (0.5 session) — ✅ `09dd9b8`
 - `macroquad::Color` → `ember_core::Color` in `config.rs`, `components.rs` and `scene.rs` (the `color()` bridge goes away).
@@ -108,11 +108,13 @@ Rounds keep the current rhythm: **one game or one engine feature per round**. I 
 - Stretch goal: a **Play / Stop** toggle that runs `process` in the preview and restores the document on Stop.
 
 ### Proof checklist — the editor opens Pong
-- [ ] `make edit GAME=pong` opens a window showing the outline `Pong / PlayerPaddle / AiPaddle / Ball / Scoreboard`
-- [ ] the preview shows the Pong court at 800 × 600, scaled into the panel
-- [ ] selecting `PlayerPaddle` shows `size`, `speed`, `color`; changing `size` to `16, 160` updates the preview
-- [ ] Save writes `pong.escene`; reopening it shows the change
-- [ ] `cargo run -p pong` with the saved scene plays with the taller paddle
+> [!success] Checked in the window, 2026-11-27
+> The user ran the five checks with `make edit GAME=pong`. The edit used was **`Ball.size` 20 → 50**, not `PlayerPaddle.size` → `16, 160`: same path (select → inspector → Enter → preview → Save → `cargo run -p pong`), and the user accepted it as the proof. Save wrote `pong.escene` in place; play showed the bigger ball. The scene was then restored to its committed sizes. No code change was needed. **M1 is closed.**
+- [x] `make edit GAME=pong` opens a window showing the outline `Pong / PlayerPaddle / AiPaddle / Ball / Scoreboard`
+- [x] the preview shows the Pong court at 800 × 600, scaled into the panel
+- [x] selecting `PlayerPaddle` shows `size`, `speed`, `color`; changing `size` to `16, 160` updates the preview *(proved on `Ball.size` 20 → 50)*
+- [x] Save writes `pong.escene`; reopening it shows the change
+- [x] `cargo run -p pong` with the saved scene plays with the taller paddle *(the bigger ball)*
 - [x] headless test: `games/pong/tests/editor.rs` opens `pong.escene` in `ember_editor::Document`, edits, saves and reloads *(`6aaf9a0`)*
 
 ---
