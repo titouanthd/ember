@@ -22,6 +22,7 @@ pub mod ui;
 pub mod units;
 pub mod upgrades;
 pub mod weapons;
+pub mod world;
 
 pub use components::*;
 pub use systems::{Game, GameStats, Phase};

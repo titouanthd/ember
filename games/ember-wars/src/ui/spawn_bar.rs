@@ -1,5 +1,7 @@
 //! Barre de spawn en bas de l'écran — un bouton par unité.
 
+use std::collections::HashSet;
+
 use crate::frame::{mouse_position, screen_height, screen_width};
 use ember::prelude::*;
 use glam::Vec2;
@@ -35,7 +37,15 @@ impl SpawnBar {
         }
     }
 
-    pub fn draw(&self, gfx: &mut dyn RenderingServer, ctx: &GameContext, game: &Game) {
+    /// `at_cap`: the kinds the player has at their `max_alive` cap (the
+    /// units live in their nodes while the world draws).
+    pub fn draw(
+        &self,
+        gfx: &mut dyn RenderingServer,
+        ctx: &GameContext,
+        game: &Game,
+        at_cap: &HashSet<String>,
+    ) {
         let stats = all_units();
         let total = stats.len();
         let vw = screen_width();
@@ -52,7 +62,7 @@ impl SpawnBar {
                 .copied()
                 .unwrap_or_default();
             let enough_mana = game.player_mana.current >= s.cost;
-            let max_alive_ok = can_spawn(&s.id, crate::components::Team::Player, &game.units);
+            let max_alive_ok = !at_cap.contains(&s.id);
             let ready = is_unlocked && cooldown.is_ready() && enough_mana && max_alive_ok;
 
             let hovered = r.contains(mouse);

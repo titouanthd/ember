@@ -1,17 +1,23 @@
-//! Ember Wars as a node tree: one root node, `EmberWars`, running the
-//! app (`App`: menu, upgrade modal, level) and drawing through the
-//! `RenderingServer` on a high-DPI window whose viewport follows its
-//! size.
+//! Ember Wars as a node tree, on a high-DPI window whose viewport
+//! follows its size:
 //!
-//! This is the port step of the acceptance test (spec 42): the game's
-//! data stays in `Game`, as in the other games. Turning catapults, units
-//! and projectiles into nodes is the next round.
+//! ```text
+//! EmberWars        the campaign: menu, upgrade modal, progress, saving
+//! └── World        the level being played, when there is one (world.rs)
+//! ```
+//!
+//! The root spawns a `World` when a level is picked and listens to its
+//! signals: `LevelFinished` banks and saves, `RestartLevel` swaps in a
+//! fresh world, `LeaveLevel` despawns it.
 
 use std::path::Path;
 
-use crate::app::{App, Saver, seed_from_time};
+use crate::app::{App, MenuOutcome, Saver, seed_from_time};
 use crate::config::GameContext;
+use crate::menu::AppScreen;
 use crate::progress::{self, Progress};
+use crate::systems::Game;
+use crate::world::{LeaveLevel, LevelFinished, RestartLevel, World};
 use crate::{fonts, frame};
 use ember::prelude::*;
 
@@ -20,13 +26,15 @@ use ember::prelude::*;
 pub const WINDOW_W: f32 = 1600.0;
 pub const WINDOW_H: f32 = 900.0;
 
-/// Frame time cap, as before.
-const MAX_FRAME_DT: f32 = 0.05;
+/// Frame time cap, as before (the world caps its battle `dt`).
+pub const MAX_FRAME_DT: f32 = 0.05;
 
 pub struct EmberWars {
     name: String,
     pub ctx: GameContext,
     pub app: App,
+    /// The level being played.
+    pub world: Option<NodeId>,
 }
 
 impl EmberWars {
@@ -37,8 +45,24 @@ impl EmberWars {
             name: "EmberWars".into(),
             ctx,
             app: App::new(progress, save, seed),
+            world: None,
         }
     }
+
+    fn play(&mut self, game: Game, ctx: &mut NodeContext) {
+        let me = ctx.current_id();
+        self.world = Some(ctx.spawn_child(me, World::new(&self.ctx, game)));
+    }
+}
+
+/// The root, from a signal handler (which runs with the root as its
+/// target).
+fn root_of<'a>(ctx: &'a mut NodeContext) -> Option<&'a mut EmberWars> {
+    let me = ctx.current_id();
+    ctx.tree()
+        .get_mut(me)?
+        .as_any_mut()
+        .downcast_mut::<EmberWars>()
 }
 
 impl Object for EmberWars {
@@ -65,6 +89,36 @@ impl NodeName for EmberWars {
 impl Node for EmberWars {
     fn ready(&mut self, ctx: &mut NodeContext) {
         fonts::load_default_font(ctx.render());
+        let me = ctx.current_id();
+        ctx.connect::<LevelFinished>(me, |ctx, ev| {
+            if let Some(root) = root_of(ctx) {
+                root.app.finish_level(ev);
+            }
+        });
+        ctx.connect::<LeaveLevel>(me, |ctx, _| {
+            let Some(root) = root_of(ctx) else { return };
+            let world = root.world.take();
+            root.app.screen = AppScreen::Menu;
+            if let Some(world) = world {
+                ctx.despawn(world);
+            }
+        });
+        ctx.connect::<RestartLevel>(me, |ctx, ev| {
+            let Some(root) = root_of(ctx) else { return };
+            let Ok(game) = root.app.new_game(&root.ctx, &ev.level_id) else {
+                return;
+            };
+            let world = World::new(&root.ctx, game);
+            let old = root.world.take();
+            if let Some(old) = old {
+                ctx.despawn(old);
+            }
+            let me = ctx.current_id();
+            let new = ctx.spawn_child(me, world);
+            if let Some(root) = root_of(ctx) {
+                root.world = Some(new);
+            }
+        });
     }
 
     fn process(&mut self, dt: f32, ctx: &mut NodeContext) {
@@ -81,8 +135,10 @@ impl Node for EmberWars {
         let input = ctx.input().clone();
         frame::begin(size, input.mouse_pos, dt);
 
-        if !self.app.update(&input, &self.ctx, dt.min(MAX_FRAME_DT)) {
-            ctx.quit();
+        match self.app.update(&input, &self.ctx) {
+            MenuOutcome::Stay => {}
+            MenuOutcome::Quit => ctx.quit(),
+            MenuOutcome::Play(game) => self.play(*game, ctx),
         }
     }
 
