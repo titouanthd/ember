@@ -90,6 +90,16 @@ impl ClassDB {
             .get(&TypeId::of::<E>())?
             .downcast_ref()
     }
+
+    /// The class's extension of type `E`, for adding to it after
+    /// registration (e.g. scene-connection receivers, spec 30 §8).
+    pub fn extension_mut<E: Any + Send + Sync>(&mut self, class_name: &str) -> Option<&mut E> {
+        self.classes
+            .get_mut(class_name)?
+            .extensions
+            .get_mut(&TypeId::of::<E>())?
+            .downcast_mut()
+    }
 }
 
 #[cfg(test)]

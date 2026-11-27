@@ -81,6 +81,22 @@ struct SceneFile {
     connections: Vec<Connection>,
 }
 
+/// What a scene file said about one node that the node itself does not
+/// keep, so a save can write the node back as it was read (M4.1).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct NodeOrigin {
+    /// Every property the file wrote for this node, as written. Keys the
+    /// node does not export are written back unchanged.
+    pub written: BTreeMap<String, Variant>,
+    /// What the node returned for each written, exported key right after
+    /// loading. While it still holds that value, the save writes the
+    /// file's own text for it (`Int(5)` stays `Int(5)`).
+    pub loaded: BTreeMap<String, Variant>,
+}
+
+/// Each instantiated node's [`NodeOrigin`], by id.
+pub type NodeOrigins = HashMap<NodeId, NodeOrigin>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct PackedScene {
     file: SceneFile,
@@ -219,15 +235,35 @@ impl PackedScene {
     /// detached; the caller attaches it or calls `set_root`.
     ///
     /// Unknown or mistyped properties are skipped with a warning (they
-    /// stay in the template). Connections are validated but not wired:
-    /// see ADR-025. Nodes with `instance:` fail with `Asset`; use
-    /// [`Self::instantiate_with`] for those.
+    /// stay in the template). Connections are wired once every node
+    /// exists, in file order, through the receivers registered with
+    /// `ClassDbNodes::register_receiver`; one with no receiver is
+    /// skipped with a warning (spec 30 §8). Nodes with `instance:` fail
+    /// with `Asset`; use [`Self::instantiate_with`] for those.
     pub fn instantiate(
         &self,
         classes: &ClassDB,
         tree: &mut NodeTree,
     ) -> Result<NodeId, SceneError> {
-        self.build(classes, None, tree, &mut Vec::new())
+        self.build(
+            classes,
+            None,
+            tree,
+            &mut Vec::new(),
+            &mut NodeOrigins::new(),
+        )
+    }
+
+    /// Like [`Self::instantiate`], also returning what the file said
+    /// about each node, for [`Self::resave`].
+    pub fn instantiate_tracked(
+        &self,
+        classes: &ClassDB,
+        tree: &mut NodeTree,
+    ) -> Result<(NodeId, NodeOrigins), SceneError> {
+        let mut origins = NodeOrigins::new();
+        let root = self.build(classes, None, tree, &mut Vec::new(), &mut origins)?;
+        Ok((root, origins))
     }
 
     /// Like [`Self::instantiate`], resolving `instance:` entries through
@@ -238,7 +274,13 @@ impl PackedScene {
         assets: &AssetServer,
         tree: &mut NodeTree,
     ) -> Result<NodeId, SceneError> {
-        self.build(classes, Some(assets), tree, &mut Vec::new())
+        self.build(
+            classes,
+            Some(assets),
+            tree,
+            &mut Vec::new(),
+            &mut NodeOrigins::new(),
+        )
     }
 
     fn build(
@@ -247,6 +289,7 @@ impl PackedScene {
         assets: Option<&AssetServer>,
         tree: &mut NodeTree,
         chain: &mut Vec<String>,
+        origins: &mut NodeOrigins,
     ) -> Result<NodeId, SceneError> {
         if chain.contains(&self.file.uid) {
             chain.push(self.file.uid.clone());
@@ -262,7 +305,7 @@ impl PackedScene {
         let mut ids: HashMap<&str, NodeId> = HashMap::new();
         let mut result = Ok(());
         for (n, path) in self.file.nodes.iter().zip(&self.paths) {
-            match self.build_node(n, path, classes, assets, tree, chain, &ids) {
+            match self.build_node(n, path, classes, assets, tree, chain, &ids, origins) {
                 Ok(id) => {
                     ids.insert(path, id);
                 }
@@ -274,7 +317,10 @@ impl PackedScene {
         }
         chain.pop();
         match result {
-            Ok(()) => Ok(ids[root_path]),
+            Ok(()) => {
+                self.wire(classes, tree, &ids);
+                Ok(ids[root_path])
+            }
             Err(e) => {
                 if let Some(&root) = ids.get(root_path) {
                     tree.remove(root);
@@ -294,6 +340,7 @@ impl PackedScene {
         tree: &mut NodeTree,
         chain: &mut Vec<String>,
         ids: &HashMap<&str, NodeId>,
+        origins: &mut NodeOrigins,
     ) -> Result<NodeId, SceneError> {
         let id = if n.instance.is_empty() {
             let node = classes
@@ -311,13 +358,19 @@ impl PackedScene {
                 .load::<PackedScene>(&n.instance)
                 .map_err(|e| SceneError::Asset(format!("{}: {e}", n.instance)))?;
             let nested = handle.get();
-            nested.build(classes, Some(assets), tree, chain)?
+            nested.build(classes, Some(assets), tree, chain, origins)?
         };
-        let finish = |tree: &mut NodeTree| -> Result<(), SceneError> {
+        let mut origin = NodeOrigin::default();
+        let mut finish = |tree: &mut NodeTree| -> Result<(), SceneError> {
             let node = tree.get_mut(id).ok_or(SceneError::NotFound(id))?;
             node.set_name(n.name.clone());
             for (key, value) in &n.properties {
-                if !node.set_property(key, value) {
+                origin.written.insert(key.clone(), value.clone());
+                let set = node.set_property(key, value);
+                if let Some(back) = node.get_property(key) {
+                    origin.loaded.insert(key.clone(), back);
+                }
+                if !set {
                     eprintln!(
                         "warning: scene `{}`: node `{}` ignores property `{key}`",
                         self.file.uid, n.name
@@ -339,7 +392,30 @@ impl PackedScene {
             tree.remove(id);
             return Err(e);
         }
+        origins.insert(id, origin);
         Ok(id)
+    }
+
+    /// Wire the file's connections between the nodes just built.
+    fn wire(&self, classes: &ClassDB, tree: &mut NodeTree, ids: &HashMap<&str, NodeId>) {
+        for c in &self.file.connections {
+            let Some(i) = Self::lookup(&self.file, &self.paths, &c.to) else {
+                continue;
+            };
+            let target = ids[self.paths[i].as_str()];
+            let class = tree
+                .get(target)
+                .and_then(|n| classes.class_of(Any::type_id(n.as_any())));
+            let wired = class.is_some_and(|class| {
+                classes.wire_connection(class, &c.signal, &c.method, tree, target)
+            });
+            if !wired {
+                eprintln!(
+                    "warning: scene `{}`: `{}` has no receiver `{}` for `{}`",
+                    self.file.uid, c.to, c.method, c.signal
+                );
+            }
+        }
     }
 
     pub fn instantiate_into(
@@ -447,7 +523,7 @@ impl PackedScene {
     /// properties named `visible` or `z` go to those entry fields only.
     ///
     /// Nodes that came from a nested `instance:` are written inline.
-    /// Connections are not written (none are wired from scenes yet).
+    /// No ext resources or connections are written; see [`Self::resave`].
     /// Fails with `NotSaveable` if a node's type is not registered.
     pub fn from_tree(
         tree: &NodeTree,
@@ -456,7 +532,31 @@ impl PackedScene {
         uid: impl Into<String>,
     ) -> Result<Self, SceneError> {
         let mut w = SceneWriter::new(uid);
-        Self::write_subtree(tree, root, None, classes, &mut w)?;
+        Self::write_subtree(tree, root, None, classes, None, &mut w)?;
+        w.finish()
+    }
+
+    /// This scene with its nodes replaced by the subtree under `root`,
+    /// keeping its uid, ext resources, sub resources and connections
+    /// (M4.1, lossless save). `origins` comes from
+    /// [`Self::instantiate_tracked`]: a node writes the properties its
+    /// file wrote (as written, while unchanged), any other it holds at a
+    /// value other than its class default, and its unknown properties.
+    /// A node without an origin writes every exported property, as
+    /// [`Self::from_tree`] does. Opening a scene and
+    /// resaving it unchanged gives back the same `to_ron` text.
+    pub fn resave(
+        &self,
+        tree: &NodeTree,
+        root: NodeId,
+        classes: &ClassDB,
+        origins: &NodeOrigins,
+    ) -> Result<Self, SceneError> {
+        let mut w = SceneWriter::new(self.file.uid.clone());
+        w.file.ext_resources = self.file.ext_resources.clone();
+        w.file.sub_resources = self.file.sub_resources.clone();
+        Self::write_subtree(tree, root, None, classes, Some(origins), &mut w)?;
+        w.file.connections = self.file.connections.clone();
         w.finish()
     }
 
@@ -465,6 +565,7 @@ impl PackedScene {
         id: NodeId,
         parent: Option<&str>,
         classes: &ClassDB,
+        origins: Option<&NodeOrigins>,
         w: &mut SceneWriter,
     ) -> Result<(), SceneError> {
         let node = tree.get(id).ok_or(SceneError::NotFound(id))?;
@@ -473,12 +574,46 @@ impl PackedScene {
             .class_of(Any::type_id(node.as_any()))
             .ok_or_else(|| SceneError::NotSaveable(name.clone()))?;
         // `visible` and `z` are written as the entry's own fields.
-        let properties = node
+        let exported = node
             .property_list()
             .iter()
             .filter(|&&k| k != "visible" && k != "z")
-            .filter_map(|&k| Some((k.to_string(), node.get_property(k)?)))
-            .collect();
+            .filter_map(|&k| Some((k, node.get_property(k)?)));
+        let properties: BTreeMap<String, Variant> = match origins.and_then(|o| o.get(&id)) {
+            None => exported.map(|(k, v)| (k.to_string(), v)).collect(),
+            Some(o) => {
+                let origin = Some(o);
+                let default = classes.instantiate_node(class);
+                let is_default = |k: &str, v: &Variant| {
+                    default.as_ref().and_then(|d| d.get_property(k)).as_ref() == Some(v)
+                };
+                let mut props = BTreeMap::new();
+                for (k, v) in exported {
+                    let as_written = origin.and_then(|o| {
+                        let file = o.written.get(k)?;
+                        Some(if o.loaded.get(k) == Some(&v) {
+                            file.clone()
+                        } else {
+                            v.clone()
+                        })
+                    });
+                    match as_written {
+                        Some(w) => {
+                            props.insert(k.to_string(), w);
+                        }
+                        None if !is_default(k, &v) => {
+                            props.insert(k.to_string(), v);
+                        }
+                        None => {}
+                    }
+                }
+                // Keys the node does not export (unknown or ignored).
+                for (k, v) in origin.map(|o| &o.written).into_iter().flatten() {
+                    props.entry(k.clone()).or_insert_with(|| v.clone());
+                }
+                props
+            }
+        };
         w.write_node(NodeRecord {
             name: name.clone(),
             class: class.to_string(),
@@ -494,7 +629,7 @@ impl PackedScene {
             Some(p) => format!("{p}/{name}"),
         };
         for &child in tree.children(id) {
-            Self::write_subtree(tree, child, Some(&here), classes, w)?;
+            Self::write_subtree(tree, child, Some(&here), classes, origins, w)?;
         }
         Ok(())
     }

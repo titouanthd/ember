@@ -61,4 +61,12 @@
             },
         ),
     ],
+    connections: [
+        (
+            signal: "PointScored",
+            from: ".",
+            to: "Scoreboard",
+            method: "on_point_scored",
+        ),
+    ],
 )

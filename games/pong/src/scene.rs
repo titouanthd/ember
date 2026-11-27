@@ -6,8 +6,11 @@
 //! ├─ PlayerPaddle Paddle: position, size, speed, color, ai = false
 //! ├─ AiPaddle     Paddle: same, ai = true
 //! ├─ Ball         Ball: size, color
-//! └─ Scoreboard   listens to `PointScored` / `MatchReset`
+//! └─ Scoreboard   `PointScored` (scene connection) / `MatchReset`
 //! ```
+//!
+//! `PointScored` reaches the scoreboard through the scene's
+//! `connections` (wired by `PackedScene::instantiate`, M4.1).
 //!
 //! Every class is `#[derive(Node)]` with `#[export]` fields, so the
 //! editor can open and save the scene (ADR-037). Behaviour stays in
@@ -358,19 +361,20 @@ impl Default for Scoreboard {
     }
 }
 
+impl Scoreboard {
+    /// Receiver of `pong.escene`'s `PointScored` connection.
+    pub fn on_point_scored(&mut self, p: &PointScored) {
+        if p.player_scored {
+            self.player += 1;
+        } else {
+            self.ai += 1;
+        }
+    }
+}
+
 impl Node for Scoreboard {
     fn ready(&mut self, ctx: &mut NodeContext) {
         let me = ctx.current_id();
-        ctx.connect::<PointScored>(me, |ctx, p| {
-            let id = ctx.current_id();
-            if let Some(board) = node_mut::<Scoreboard>(ctx.tree(), id) {
-                if p.player_scored {
-                    board.player += 1;
-                } else {
-                    board.ai += 1;
-                }
-            }
-        });
         ctx.connect::<MatchReset>(me, |ctx, _| {
             let id = ctx.current_id();
             if let Some(board) = node_mut::<Scoreboard>(ctx.tree(), id) {
@@ -489,6 +493,11 @@ pub fn classes() -> ClassDB {
     db.register_node::<PaddleNode>();
     db.register_node::<BallNode>();
     db.register_node::<Scoreboard>();
+    db.register_receiver::<Scoreboard, PointScored>(
+        "PointScored",
+        "on_point_scored",
+        Scoreboard::on_point_scored,
+    );
     db
 }
 

@@ -2,7 +2,7 @@
 
 use crate::value;
 use ember_core::{ClassDB, Variant};
-use ember_scene::{NodeId, NodeTree, PackedScene, SceneError, Servers};
+use ember_scene::{NodeId, NodeOrigins, NodeTree, PackedScene, SceneError, Servers};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -58,12 +58,17 @@ pub struct OutlineRow {
 }
 
 /// An opened scene: the nodes live in their own [`NodeTree`], built by
-/// `PackedScene::instantiate` and saved with `PackedScene::from_tree`.
+/// `PackedScene::instantiate_tracked` and saved with
+/// `PackedScene::resave`, so ext resources, connections and properties
+/// the nodes do not know come back on save (M4.1).
 pub struct Document {
     classes: ClassDB,
     tree: NodeTree,
     root: NodeId,
-    uid: String,
+    /// The scene as opened: its header (uid, ext resources,
+    /// connections) is written back on save.
+    base: PackedScene,
+    origins: NodeOrigins,
     path: Option<PathBuf>,
     dirty: bool,
 }
@@ -81,13 +86,14 @@ impl Document {
     /// Instantiate `scene` with `classes` (no file attached).
     pub fn from_scene(scene: &PackedScene, classes: ClassDB) -> Result<Self, EditorError> {
         let mut tree = NodeTree::new();
-        let root = scene.instantiate(&classes, &mut tree)?;
+        let (root, origins) = scene.instantiate_tracked(&classes, &mut tree)?;
         tree.set_root(root);
         Ok(Self {
             classes,
             tree,
             root,
-            uid: scene.uid().to_string(),
+            base: scene.clone(),
+            origins,
             path: None,
             dirty: false,
         })
@@ -206,12 +212,9 @@ impl Document {
 
     /// The document as a scene (what `save` writes).
     pub fn to_scene(&self) -> Result<PackedScene, EditorError> {
-        Ok(PackedScene::from_tree(
-            &self.tree,
-            self.root,
-            &self.classes,
-            self.uid.clone(),
-        )?)
+        Ok(self
+            .base
+            .resave(&self.tree, self.root, &self.classes, &self.origins)?)
     }
 
     /// Write to the file it was opened from.
