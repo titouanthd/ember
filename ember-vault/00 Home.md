@@ -25,6 +25,7 @@ A 2D game engine in Rust (macroquad backend) built on top of **17 games**. **Thi
 ## Workflow
 - [[Commit & Push]] — commit message format, pre-push checks, push / merge / hotfix flow
 - Rounds: one game or one engine feature per round. Claude commits locally, you run `make pre-push`, play the game and push.
+- [[Token Budget]] — one session per round, plan before building, small tool output (what the 10-round session cost, and why)
 
 ## Maps of content
 - [[Crates MOC]] — 12 engine crates, layers, LOC, test counts

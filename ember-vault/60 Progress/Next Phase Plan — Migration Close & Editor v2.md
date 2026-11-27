@@ -204,6 +204,21 @@ The proof (M1) already makes the editor general. M4 makes it a real tool. Each s
 
 ---
 
+## After M3 — order agreed (2026-11-27)
+
+M3 is done (17 / 17, ember-wars acceptance passed). Next, in this order:
+
+1. **The remaining milestones, each in its own session** ([[Token Budget]]):
+   - **M1 proof** — the editor-opens-Pong checklist in the window (the user checks; the session fixes what fails).
+   - **M4 Editor v2** — M4.1 → M4.2 → M4.3, one round each.
+   - **M5 Phase 8 cleanup** — `ember-stdlib` without macroquad, twins replaced, `CHANGELOG.md`.
+
+   M1 and M4 both touch `crates/ember-editor` and `games/pong`: M4 starts once the M1 proof is merged. M5 is independent (stdlib and games), except pong's twins if any — coordinate at merge.
+2. **Plan engine v0.2**, once v0.1 is tagged (spec 42 §8 gate). Candidates seen during M3: a per-frame screen/pointer/time snapshot in the engine (accretion and ember-wars each wrote one), a typed "children of class `T`" helper, shared font helpers, sprite animation, tilemaps, more `ember_ui` in games.
+3. **A new game, designed for the engine**: it uses the v0.2 features, ships a web build, and is built with the editor (levels and entities as `.escene` data).
+
+---
+
 ## Open questions
 
 1. ~~**bore-inc** is marked *abandoned* (WASM reference only). Should we migrate it, or freeze it?~~ Migrated (`1b08851`) on the user's go-ahead ("Start bore-inc round"); it stays marked abandoned as a game.
