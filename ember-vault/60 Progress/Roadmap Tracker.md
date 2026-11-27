@@ -105,14 +105,14 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
   - [x] node tree *(`0ad070c`: `World` node with catapults, units and projectiles as nodes; signals to the root; draw calls identical to the port; 10 `SceneLoop` tests)* → [[42-acceptance-tests]]
   - [x] manual acceptance *(items 11–15: chapters 1, 2, 5; upgrade UI; save/load — played by the user, 2026-11-27, no problem; spec 42's 20 items all met)*
 
-## Phase 8 — Cleanup (code done 2026-11-27, M5: `ce5547a` `cbdf5da` `6f3a1fd`; the gate is the user's `make pre-push`)
+## Phase 8 — Cleanup ✅ closed 2026-11-27 (M5: `ce5547a` `cbdf5da` `6f3a1fd` `2d013b2`; `make pre-push` passed)
 - [x] no `Cooldown::new` / `with_duration` call sites ⚑
 - [x] no `juice.rs` in games ⚑
 - [x] no macroquad `audio.rs` in games *(reworded in M5.2: the four left — air-hockey, bore-inc, jade-garden, pagoda — are `AudioServer` sound banks; macroquad appears only in their comments)*
-- [ ] workspace tests + clippy green
+- [x] workspace tests + clippy green *(the user's `make pre-push`, 2026-11-27)*
 - [x] `CHANGELOG.md` *(`6f3a1fd`; docs-guard allows the root `CHANGELOG.md`)*
 - [x] no macroquad-backed `ember-stdlib` module left (`audio`, `config::env_color`, `fonts`, `graphics`, `input`, `juice`, `layout`, `music`, `sprite`, `ui`); allowlist empty *(M5.1 `ce5547a`: `env_color`, `Sprite`, `layout` on engine types, `clock::format_time` new, `music` without `MacroquadMusic`, the rest deleted; `ember-stdlib` has no macroquad dependency)*
-- [x] games' local twins (`env_color`, `Sprite`) replaced by engine-typed stdlib versions *(`cbdf5da`: `env_color` ×10, `Sprite` ×2, `format_time` ×3, `centered_rect` ×2; **pong's `env_color` and `Sprite` twins left to M4**, switch at merge)*
+- [x] games' local twins (`env_color`, `Sprite`) replaced by engine-typed stdlib versions *(`cbdf5da`: `env_color` ×10, `Sprite` ×2, `format_time` ×3, `centered_rect` ×2; pong's `env_color` and `Sprite` in `2d013b2` after the M4 merge)*
 
 ## Phase 9 — Editor v2 (new, see [[Next Phase Plan — Migration Close & Editor v2]])
 **Proof — the editor opens Pong (M1):**

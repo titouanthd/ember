@@ -464,8 +464,8 @@ Global:
 
 ## 11. Phase 8 — Cleanup
 
-> **Progress:** 🟡 code done 2026-11-27 (M5: `ce5547a` stdlib, `cbdf5da`
-> twins); the workspace test + clippy gate is the user's `make pre-push`.
+> **Progress:** ✅ **Closed 2026-11-27** (M5: `ce5547a` stdlib, `cbdf5da`
+> + `2d013b2` twins); `make pre-push` passed.
 > `ember-stdlib` has no macroquad dependency and the macroquad allowlist
 > holds comments only. Release notes: `CHANGELOG.md`.
 
@@ -603,7 +603,7 @@ games can begin before the editor exists).
 | M5 — UI works | P5 | A menu can be built with `Button`, `VBox`, `Label` | 🟡 `VBox` + `Label` ✅, `Button` in 5.3 |
 | M6 — Authoring works | P6 | A `.escene` can be edited outside code | ⬜ |
 | M7 — POC complete | P7 | All 17 games run on the engine | 🟡 1/17 |
-| M8 — v0.1 released | P8 | No deprecated APIs remain; no macroquad outside the backends | 🟡 code done (M5); tag after `make pre-push` |
+| M8 — v0.1 released | P8 | No deprecated APIs remain; no macroquad outside the backends | ✅ Phase 8 closed; tag pending (spec 42 §8) |
 | M9 — Editor v2 | P9 | Scenes are edited, not only tuned, in the editor | 🟡 |
 
 ## 15. Cross-references
