@@ -26,7 +26,7 @@ pub use crate as ember_scene;
 pub use class_db::ClassDbNodes;
 pub use context::{DrawContext, NodeContext, Servers};
 pub use error::SceneError;
-pub use node::{Node, NodeId, NodeName};
+pub use node::{Node, NodeId, NodeName, PropertyHint};
 pub use packed::{
     NodeOrigin, NodeOrigins, PackedScene, SceneAssets, SceneConnection, TrackedScene,
 };

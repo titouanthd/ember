@@ -15,5 +15,5 @@ pub mod nodes;
 pub mod run;
 pub mod value;
 
-pub use document::{Command, Document, EditorError, OutlineRow};
+pub use document::{Command, Document, EditorError, OutlineRow, Shift};
 pub use run::{EditorConfig, run};

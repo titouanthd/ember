@@ -3,7 +3,7 @@
 
 use ember_core::MainLoop;
 use ember_core::math::Rect;
-use ember_editor::app::{EditorApp, build_tree};
+use ember_editor::app::{EditorApp, Outline, Toolbar, build_tree, panel};
 use ember_editor::{Document, nodes};
 use ember_input::{Input, InputSink, Key};
 use ember_scene::{NodeId, SceneLoop};
@@ -115,13 +115,13 @@ fn outline_names(e: &Editor) -> Vec<String> {
 fn select(e: &mut Editor, name: &str) {
     let rows = app(e).doc.outline();
     let i = rows.iter().position(|r| r.name == name).unwrap();
-    let button = app(e).widgets().unwrap().outline[i].0;
+    let button = panel::<Outline>(&e.tree).unwrap().rows[i].0;
     click_button(e, button);
     assert_eq!(app(e).selected, Some(rows[i].id));
 }
 
-fn ui(e: &Editor) -> ember_editor::app::Widgets {
-    app(e).widgets().unwrap().clone()
+fn ui(e: &Editor) -> Toolbar {
+    panel::<Toolbar>(&e.tree).unwrap().clone()
 }
 
 #[test]
@@ -131,7 +131,11 @@ fn delete_then_ctrl_z_brings_the_node_back() {
     let w = ui(&e);
     click_button(&mut e, w.delete);
     assert_eq!(outline_names(&e), ["Player", "Sprite", "Gun"]);
-    assert_eq!(ui(&e).outline.len(), 3, "the outline was rebuilt");
+    assert_eq!(
+        panel::<Outline>(&e.tree).unwrap().rows.len(),
+        3,
+        "the outline was rebuilt"
+    );
     assert!(app(&e).doc.is_dirty());
     chord(&mut e, &[Key::LeftControl], Key::Z);
     assert_eq!(outline_names(&e), ["Player", "Sprite", "Gun", "Hitbox"]);
@@ -187,9 +191,9 @@ fn the_name_field_renames_the_selection() {
     let mut e = editor_at(&scratch());
     select(&mut e, "Hitbox");
     let w = ui(&e);
-    assert_eq!(widget::<TextInput>(&e, w.name).text(), "Hitbox");
+    assert_eq!(widget::<TextInput>(&e, w.name_input).text(), "Hitbox");
     e.tree
-        .get_mut(w.name)
+        .get_mut(w.name_input)
         .unwrap()
         .as_any_mut()
         .downcast_mut::<TextInput>()
