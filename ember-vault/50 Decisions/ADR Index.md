@@ -6,7 +6,7 @@ generated: "2026-11-22"
 
 # Architecture Decision Records
 
-All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. The *Code* column is this vault's assessment against the `main` branch.
+ADR-001…049 live in [[50-design-decisions]] (v0.1); ADR-050 on in [[v0.2-50-design-decisions]] (v0.2). Each link below jumps to its heading. The *Code* column is this vault's assessment against the `main` branch.
 
 | ADR | Decision | Code |
 |---|---|---|
@@ -20,7 +20,7 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 008 | [[50-design-decisions#ADR-008: Fixed-step physics, variable-step process\|Fixed-step physics, variable-step process]] | ✅ `FIXED_DT` accumulator in runner |
 | 009 | [[50-design-decisions#ADR-009: Deferred spawn / structural changes\|Deferred spawn / structural changes]] | ✅ deferred spawn/despawn |
 | 010 | [[50-design-decisions#ADR-010: primary_action convenience method\|primary_action convenience method]] | ✅ `primary_action` in ember-input |
-| 011 | [[50-design-decisions#ADR-011: Cooldown::new → running / ready\|Cooldown::new → running / ready]] | ✅ `running`/`ready(d)`, old names `#[deprecated]` (merged 2026-11-22) |
+| 011 | [[50-design-decisions#ADR-011: Cooldown::new → running / ready\|Cooldown::new → running / ready]] | ✅ `running`/`ready(d)`, old names `#[deprecated]` (merged 2026-11-22), removed in 0.2.0 (V1.1) |
 | 012 | [[50-design-decisions#ADR-012: Handle<T> for assets\|Handle<T> for assets]] | ✅ `Handle<T>` |
 | 013 | [[50-design-decisions#ADR-013: No global mutable state\|No global mutable state]] | ✅ no global registry |
 | 014 | [[50-design-decisions#ADR-014: Explicit plugin registration\|Explicit plugin registration]] | ❌ no `Plugin` trait yet |
@@ -59,5 +59,6 @@ All ADRs live in [[50-design-decisions]]. Each link below jumps to its heading. 
 | 047 | [[50-design-decisions#ADR-047: Window options (`run_window_with`)\|Window options (`run_window_with`)]] | ✅ `45392e9` |
 | 048 | [[50-design-decisions#ADR-048: Texture filtering (`set_texture_filter`)\|Texture filtering]] | ✅ `fcf7a8e` |
 | 049 | [[50-design-decisions#ADR-049: Enum exports (`export(enum)`)\|Enum exports (`export(enum)`)]] | ✅ `d373dc4` |
+| 050 | [[v0.2-50-design-decisions#ADR-050: Frame snapshot on `NodeContext`\|Frame snapshot on `NodeContext`]] | ✅ V1.1 |
 
-New ADRs: copy [[ADR Template]].
+New ADRs: copy [[ADR Template]], into [[v0.2-50-design-decisions]].
