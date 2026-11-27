@@ -8,12 +8,20 @@ use crate::input::poll_input;
 use ember_core::{FrameStepper, Image, MainLoop};
 use ember_input::InputSink;
 use macroquad::Window;
+use macroquad::input::{is_quit_requested, prevent_quit};
 use macroquad::miniquad::conf::Icon;
 use macroquad::time::get_frame_time;
 use macroquad::window::{Conf, next_frame, screen_height, screen_width};
 
 /// Run `game` inside an already-open macroquad context.
-pub async fn run<L: MainLoop + InputSink>(mut game: L) {
+pub async fn run<L: MainLoop + InputSink>(game: L) {
+    run_inner(game, false).await;
+}
+
+async fn run_inner<L: MainLoop + InputSink>(mut game: L, confirm_close: bool) {
+    if confirm_close {
+        prevent_quit();
+    }
     if !game.init() {
         return;
     }
@@ -26,7 +34,9 @@ pub async fn run<L: MainLoop + InputSink>(mut game: L) {
             game.resize(size.0, size.1);
         }
         let dt = get_frame_time();
-        game.set_input(poll_input());
+        let mut input = poll_input();
+        input.close_requested = confirm_close && is_quit_requested();
+        game.set_input(input);
         if !stepper.frame(&mut game, dt) {
             break;
         }
@@ -66,6 +76,9 @@ pub struct WindowConfig {
     /// viewport and the mouse stay in logical pixels either way.
     pub high_dpi: bool,
     pub icon: Option<WindowIcon>,
+    /// Keep the window open when its close button is pressed and report
+    /// it as `Input::close_requested`; the game quits itself (ADR-045).
+    pub confirm_close: bool,
 }
 
 impl WindowConfig {
@@ -77,7 +90,13 @@ impl WindowConfig {
             resizable: true,
             high_dpi: false,
             icon: None,
+            confirm_close: false,
         }
+    }
+
+    pub fn confirm_close(mut self, on: bool) -> Self {
+        self.confirm_close = on;
+        self
     }
 
     pub fn high_dpi(mut self, on: bool) -> Self {
@@ -135,7 +154,8 @@ fn to_icon(icon: &WindowIcon) -> Option<Icon> {
 
 /// `run_window` with a full `WindowConfig` (icon, high DPI, resizing).
 pub fn run_window_with<L: MainLoop + InputSink + 'static>(config: WindowConfig, game: L) {
-    Window::from_config(config.to_conf(), run(game));
+    let confirm = config.confirm_close;
+    Window::from_config(config.to_conf(), run_inner(game, confirm));
 }
 
 #[cfg(test)]

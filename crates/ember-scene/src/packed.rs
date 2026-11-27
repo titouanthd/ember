@@ -97,6 +97,25 @@ pub struct NodeOrigin {
 /// Each instantiated node's [`NodeOrigin`], by id.
 pub type NodeOrigins = HashMap<NodeId, NodeOrigin>;
 
+/// A scene connection between two live nodes (ADR-045). Saved with the
+/// paths the nodes have at save time.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SceneConnection {
+    pub signal: String,
+    pub from: NodeId,
+    pub to: NodeId,
+    pub method: String,
+}
+
+/// What [`PackedScene::instantiate_tracked`] returns.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TrackedScene {
+    pub root: NodeId,
+    pub origins: NodeOrigins,
+    /// The file's connections, in file order.
+    pub connections: Vec<SceneConnection>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct PackedScene {
     file: SceneFile,
@@ -255,15 +274,40 @@ impl PackedScene {
     }
 
     /// Like [`Self::instantiate`], also returning what the file said
-    /// about each node, for [`Self::resave`].
+    /// about each node and its connections by id, for
+    /// [`Self::resave_with`].
     pub fn instantiate_tracked(
         &self,
         classes: &ClassDB,
         tree: &mut NodeTree,
-    ) -> Result<(NodeId, NodeOrigins), SceneError> {
+    ) -> Result<TrackedScene, SceneError> {
         let mut origins = NodeOrigins::new();
         let root = self.build(classes, None, tree, &mut Vec::new(), &mut origins)?;
-        Ok((root, origins))
+        let id_of = |rel: &str| {
+            if rel == "." {
+                Some(root)
+            } else {
+                tree.find(root, rel)
+            }
+        };
+        let connections = self
+            .file
+            .connections
+            .iter()
+            .filter_map(|c| {
+                Some(SceneConnection {
+                    signal: c.signal.clone(),
+                    from: id_of(&c.from)?,
+                    to: id_of(&c.to)?,
+                    method: c.method.clone(),
+                })
+            })
+            .collect();
+        Ok(TrackedScene {
+            root,
+            origins,
+            connections,
+        })
     }
 
     /// Like [`Self::instantiate`], resolving `instance:` entries through
@@ -435,6 +479,22 @@ impl PackedScene {
 
 // --- Writing ---------------------------------------------------------
 
+/// `id`'s path below `root` as a scene writes it (`"."` for the root),
+/// or `None` if `id` is not under `root`.
+fn relative_path(tree: &NodeTree, root: NodeId, id: NodeId) -> Option<String> {
+    let mut names = Vec::new();
+    let mut at = id;
+    while at != root {
+        names.push(tree.get(at)?.name().to_string());
+        at = tree.parent(at)?;
+    }
+    if names.is_empty() {
+        return Some(".".into());
+    }
+    names.reverse();
+    Some(names.join("/"))
+}
+
 /// One node for [`SceneWriter::write_node`].
 #[derive(Clone, Debug, PartialEq)]
 pub struct NodeRecord {
@@ -552,11 +612,49 @@ impl PackedScene {
         classes: &ClassDB,
         origins: &NodeOrigins,
     ) -> Result<Self, SceneError> {
+        self.resave_inner(tree, root, classes, origins, None)
+    }
+
+    /// Like [`Self::resave`], writing `connections` (by id) with the
+    /// paths their nodes have now. A connection whose end is not under
+    /// `root` is left out (ADR-045).
+    pub fn resave_with(
+        &self,
+        tree: &NodeTree,
+        root: NodeId,
+        classes: &ClassDB,
+        origins: &NodeOrigins,
+        connections: &[SceneConnection],
+    ) -> Result<Self, SceneError> {
+        self.resave_inner(tree, root, classes, origins, Some(connections))
+    }
+
+    fn resave_inner(
+        &self,
+        tree: &NodeTree,
+        root: NodeId,
+        classes: &ClassDB,
+        origins: &NodeOrigins,
+        connections: Option<&[SceneConnection]>,
+    ) -> Result<Self, SceneError> {
         let mut w = SceneWriter::new(self.file.uid.clone());
         w.file.ext_resources = self.file.ext_resources.clone();
         w.file.sub_resources = self.file.sub_resources.clone();
         Self::write_subtree(tree, root, None, classes, Some(origins), &mut w)?;
-        w.file.connections = self.file.connections.clone();
+        w.file.connections = match connections {
+            None => self.file.connections.clone(),
+            Some(list) => list
+                .iter()
+                .filter_map(|c| {
+                    Some(Connection {
+                        signal: c.signal.clone(),
+                        from: relative_path(tree, root, c.from)?,
+                        to: relative_path(tree, root, c.to)?,
+                        method: c.method.clone(),
+                    })
+                })
+                .collect(),
+        };
         w.finish()
     }
 

@@ -17,7 +17,7 @@ use crate::{Document, value};
 use ember_audio_macroquad::MacroquadAudio;
 use ember_core::ClassDB;
 use ember_core::math::Rect;
-use ember_render_macroquad::{MacroquadRenderer, run_window};
+use ember_render_macroquad::{MacroquadRenderer, WindowConfig, run_window_with};
 use ember_scene::SceneLoop;
 use glam::Vec2;
 use std::path::PathBuf;
@@ -95,12 +95,14 @@ pub fn run(config: EditorConfig) {
         MacroquadAudio::new(),
         Rect::new(0.0, 0.0, WINDOW_W, WINDOW_H),
     );
-    run_window(
+    // The close button asks first when there are unsaved changes (ADR-045).
+    let window = WindowConfig::new(
         &format!("Ember Editor — {path}"),
         WINDOW_W as i32,
         WINDOW_H as i32,
-        editor,
-    );
+    )
+    .confirm_close(true);
+    run_window_with(window, editor);
 }
 
 /// The outline with each node's properties, as `--print` shows it.
