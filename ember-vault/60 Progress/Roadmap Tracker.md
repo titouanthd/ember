@@ -127,7 +127,7 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] add / remove / rename / reparent nodes, undo / redo (ADR-045) *(M4.2 `203c0a4`: `Document` commands, toolbar + shortcuts, close prompt; reparent UI in M4.3a: outline Up / Down / In / Out)*
 - [x] typed inspector (bool, number, `Vec2`, `Color`, enum), no 16-property cap *(M4.3a `d373dc4`: toggle / cycle buttons, part fields, colour swatch, `ScrollContainer`; enum via ADR-049 `#[export(enum)]`; preview click-to-select)*
 - [x] `app.rs` split into toolbar / outline / inspector / preview panels *(M4.3a `d373dc4`: panel nodes send `NodeSelected` / `PropertyEdited` / `CommandRequested`)*
-- [ ] a second game opens with `make edit GAME=…` *(moved to v0.2: Game 18 is the second editable game, round G2 of [[Next Phase Plan — Engine v0.2 & Game 18]])*
+- [ ] a second game opens with `make edit GAME=…` *(moved to v0.2: Game 18, [[Moon Gate]], is the second editable game, round G2 of [[Next Phase Plan — Engine v0.2 & Game 18]])*
 
 ## Engine gaps (M2, one ADR each)
 - [x] ADR-040 camera offset + zoom *(`dfa8b04`)*
@@ -138,3 +138,18 @@ Per game: `main.rs` ≤ 10 lines · logic unchanged · scenarios green · no `ma
 - [x] ADR-043 looping audio / music (bore-inc, jade-garden, pagoda) *(`d5ba842`: `play_looped`, `is_clip_ready`, MP3 natively)*
 - [x] ~~ADR-044 runtime window size + resize signal~~ *(covered by the ADR-041 amendment, `bebe16d`: the viewport follows the window; no signal needed)*
 - [x] ADR-047 window options: icon, high DPI *(`45392e9`)*
+
+## v0.2 — Engine v0.2 & Game 18
+Rounds of [[Next Phase Plan — Engine v0.2 & Game 18]], in plan order.
+- [ ] V0 close v0.1 *(done except the `v0.1.0` tag, left to the user)*
+- [x] G1 Game 18 rules: [[Moon Gate]] crate, `rules.rs`, solver, design note *(2026-11-27: 35 tests; every draft level solvable in par)*
+- [x] V1.1 frame snapshot, `Cooldown` aliases deleted *(ADR-050, PR #9)*
+- [ ] V1.2 typed tree queries *(no groups: Rule of Three)*
+- [ ] V1.3 input action map
+- [ ] V1.4 stdlib text helpers
+- [ ] V2.1 `TileSet` + `TileMap`
+- [ ] V2.2 runtime scene change
+- [ ] G2 Moon Gate on nodes; `make edit GAME=moon-gate` (closes Phase 9)
+- [ ] V3.1 editor tile brush · V3.2 Play / Stop · V3.3 scene picker + instances
+- [ ] V2.3 `AnimatedSprite`, `SpriteFrames`, `Tween`
+- [ ] G3 chapters 1–2 in the editor · G4 menu, stars, chapter 3 · G5 web + tag `v0.2.0`

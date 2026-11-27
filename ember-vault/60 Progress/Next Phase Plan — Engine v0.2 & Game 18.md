@@ -72,7 +72,7 @@ Live checklist: [[Roadmap Tracker]] · previous plan: [[Next Phase Plan — Migr
 
 ## Game 18 — first design draft
 
-> Working title: **to be chosen** (open question 1). Slug and `30 Games/<Name>/` hub + design note get created in G1, from [[Game Design Template]].
+> Name: **Moon Gate** (slug `moon-gate`), chosen 2026-11-27 (open question 1). Hub: [[Moon Gate]]; the design as built: [[Moon Gate — Design]].
 
 ### Pitch
 A small paper-lantern spirit crosses ink-wash courtyards at night. **Every move slides** the spirit until something stops it. Light every lantern in the courtyard to open the gate. Short handcrafted levels, solved in a few moves, with undo and restart always one key away.
@@ -115,7 +115,7 @@ One round per session ([[Token Budget]] §2.1); each engine feature is its own r
 | # | Round | Kind | Sessions | ADR | Unblocks |
 |---|---|---|---:|---|---|
 | **V0** 🟡 | Close v0.1 (tag, CHANGELOG) — tag left to you | chore | 0.5 | — | v0.2 |
-| **G1** | Game 18 rules: crate, `rules.rs`, solver, design note | game, pure | 1 | — | all G rounds |
+| **G1** ✅ | Game 18 rules: crate, `rules.rs`, solver, design note | game, pure | 1 | — | all G rounds |
 | **V1.1** ✅ | Frame snapshot / `time()`; delete the deprecated `Cooldown` aliases | engine | 1 | 050 | G2 |
 | **V1.2** | Typed tree queries | engine | 0.5 | 051 | G2 |
 | **V1.3** | Input action map | engine | 1.5 | 052 | G2 |
@@ -134,6 +134,11 @@ One round per session ([[Token Budget]] §2.1); each engine feature is its own r
 
 G1 needs no engine change, so it can run in parallel with V1.x (different files: a new `games/<slug>` vs `crates/`).
 
+## G1 — Moon Gate rules (1 session) — ✅ done (2026-11-27)
+
+> [!note] As built
+> New crate `games/moon-gate` (lib only, depends on `ember-stdlib` for `Grid`; no binary until G2). `level.rs`: the static board and its ASCII form (`#` `.` `@` `L` `G` `o` `1`–`9` `=` `x`), with parse errors. `rules.rs`: `apply(level, state, dir)` → new `State` + ordered `Event`s (`Step`, `Teleport`, `Push`, `Lit`, `Tore`, `GateOpened`, `Won`) or a `MoveError` (`Blocked`, `Endless`, `Won`); `Game` with undo, restart and `within_par`. `solver.rs`: BFS, shortest solution = par. `levels.rs`: 8 draft levels, two per chapter (1–4, bridge included). Tests: 35 (parser 5, solver 3, `tests/rules.rs` 24 — one scenario per rule —, `tests/levels.rs` 3: every level solvable in exactly its par, each chapter's piece needed, ids in order). Rule choices (lantern lights mid-slide, push leaves the spirit in place, pool loops refused, restart clears undo) are in [[Moon Gate — Design#Decisions made in G1|the design note]]. No engine change. **Left for you:** `make pre-push`, then push.
+
 ## V1.1 — Frame snapshot (1 session) — ✅ done (2026-11-27)
 
 > [!note] As built
@@ -148,7 +153,7 @@ G1 needs no engine change, so it can run in parallel with V1.x (different files:
 
 ## Open questions
 
-1. **Game 18's name** (and slug). Fits the Chinese-themed line (Zhuo Ji, Jade Garden, Pagoda, Taiji)?
+1. ~~**Game 18's name** (and slug). Fits the Chinese-themed line (Zhuo Ji, Jade Garden, Pagoda, Taiji)?~~ **Decided 2026-11-27: Moon Gate** (月门), slug `moon-gate` — picked from Moon Gate, Denglong, Yuan Xiao, Ink Lantern. Hub: [[Moon Gate]].
 2. **Art**: procedural ink-wash (as Pagoda, no asset work) for the whole game, or drawn sprite sheets from G3 on? Drawn art tests `AnimatedSprite` harder.
-3. **Groups** in V1.2: add them now (spec deferred them to v0.2), or wait until a third user appears (Rule of Three)?
+3. ~~**Groups** in V1.2: add them now (spec deferred them to v0.2), or wait until a third user appears (Rule of Three)?~~ **Decided: wait** (Rule of Three); V1.2 ships without groups.
 4. **Mobile**: swipe only, or also on-screen arrows (as Pagoda's shell has a tap button)?
