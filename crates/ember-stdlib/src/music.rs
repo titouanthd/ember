@@ -2,14 +2,11 @@
 //!
 //! [`MusicPlayer`] owns the playlist logic (intro tracks, looping, timed
 //! advance) and delegates actual playback to a [`MusicBackend`]. Games pick
-//! the backend: [`MacroquadMusic`] works everywhere macroquad does (and is
-//! the only option on wasm); a game can plug a native one (e.g. soloud or an
-//! OS player subprocess) for formats macroquad cannot decode.
+//! the backend, usually one on the engine's `AudioServer` (bore-inc's
+//! `EngineMusic`).
 //!
 //! Tracks are advanced by duration, not by "playback ended" callbacks,
-//! because neither macroquad nor subprocess players expose one.
-
-use macroquad::audio::{PlaySoundParams, Sound, load_sound, play_sound, stop_sound};
+//! because not every backend exposes one.
 
 /// One entry in a playlist.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -144,69 +141,6 @@ impl<B: MusicBackend> MusicPlayer<B> {
         if !self.backend.play(self.current, &track) {
             eprintln!("[music] track {} unavailable: {}", self.current, track.path);
             self.playing = false;
-        }
-    }
-}
-
-/// [`MusicBackend`] built on `macroquad::audio` (WebAudio on wasm).
-pub struct MacroquadMusic {
-    sounds: Vec<Option<Sound>>,
-    current: Option<usize>,
-    volume: f32,
-    resolve: fn(&str) -> String,
-}
-
-impl MacroquadMusic {
-    /// `resolve` maps a track's relative path to what `load_sound` expects
-    /// (typically the game's `paths::asset_str`).
-    pub fn new(volume: f32, resolve: fn(&str) -> String) -> Self {
-        Self {
-            sounds: Vec::new(),
-            current: None,
-            volume: volume.clamp(0.0, 1.0),
-            resolve,
-        }
-    }
-}
-
-impl MusicBackend for MacroquadMusic {
-    async fn preload(&mut self, tracks: &[TrackSpec]) {
-        self.sounds.clear();
-        for track in tracks {
-            let full = (self.resolve)(track.path);
-            match load_sound(&full).await {
-                Ok(snd) => self.sounds.push(Some(snd)),
-                Err(e) => {
-                    eprintln!("[music] failed to load {}: {e:?}", track.path);
-                    self.sounds.push(None);
-                }
-            }
-        }
-    }
-
-    fn play(&mut self, idx: usize, _track: &TrackSpec) -> bool {
-        self.stop();
-        match self.sounds.get(idx) {
-            Some(Some(snd)) => {
-                play_sound(
-                    snd,
-                    PlaySoundParams {
-                        looped: true,
-                        volume: self.volume,
-                    },
-                );
-                self.current = Some(idx);
-                true
-            }
-            _ => false,
-        }
-    }
-
-    fn stop(&mut self) {
-        if let Some(idx) = self.current.take()
-            && let Some(Some(snd)) = self.sounds.get(idx)
-        {
-            stop_sound(snd);
         }
     }
 }

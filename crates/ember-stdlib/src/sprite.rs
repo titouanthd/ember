@@ -1,4 +1,4 @@
-use macroquad::prelude::Color;
+use ember_core::Color;
 /// Sera utilisé pour gérer des textures et des sprites dans le futur, mais pour l'instant il ne contient que la couleur et la visibilité.
 /// Composant de rendu : définit la couleur et la visibilité d'une entité.
 #[derive(Debug, Clone, Copy, PartialEq)]
