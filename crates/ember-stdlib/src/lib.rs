@@ -33,3 +33,6 @@ pub mod clock;
 pub mod persistence;
 
 pub mod music;
+
+// Aligned, shadowed and bold text on a RenderingServer (v0.2 V1.4).
+pub mod text;
