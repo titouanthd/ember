@@ -4,10 +4,11 @@
 //! are queued and applied by `flush`, so a pass never iterates a tree
 //! that changes under it. See `21-ember-scene.md §5`.
 
+use crate::scene_change::{SceneChange, SceneLibrary};
 use crate::signal::{ScopedConnection, SignalTable};
 use crate::{DrawContext, Node, NodeContext, NodeId, SceneError, Servers, Signal};
 use slotmap::SlotMap;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 struct NodeSlot {
     /// `None` while the node's callback is running (checked out).
@@ -31,6 +32,10 @@ enum DeferredCmd {
 /// `ready` spawns nodes ...). Hitting it means an unbounded spawn loop.
 const MAX_FLUSH_ROUNDS: usize = 1000;
 
+/// Upper bound on scene changes applied in one go (a new scene whose
+/// `ready` asks for another, ...). Hitting it means a change loop.
+const MAX_SCENE_CHANGES: usize = 64;
+
 #[derive(Default)]
 pub struct NodeTree {
     nodes: SlotMap<NodeId, NodeSlot>,
@@ -46,6 +51,9 @@ pub struct NodeTree {
     /// Members of each group, in join order (ADR-051). A group with no
     /// members has no entry.
     groups: BTreeMap<String, Vec<NodeId>>,
+    /// Requested by `change_scene`, applied by `apply_scene_change`
+    /// (ADR-054). A later request replaces an earlier one.
+    scene_change: Option<SceneChange>,
 }
 
 // `Sync` too (a signal payload is `Send + Sync`), so a whole `NodeTree`
@@ -133,6 +141,7 @@ impl NodeTree {
         self.pending.clear();
         self.deferred_emits.clear();
         self.groups.clear();
+        self.scene_change = None;
         self.root = None;
     }
 
@@ -431,6 +440,99 @@ impl NodeTree {
     /// `f64`, so it keeps millisecond precision over days of play.
     pub fn time(&self) -> f64 {
         self.time
+    }
+
+    // --- Scene change (ADR-054) ---
+
+    /// Ask for the current scene to be replaced. Nothing happens until
+    /// the owner of the frame boundary calls
+    /// [`apply_scene_change`](Self::apply_scene_change) (`SceneLoop` does
+    /// at the end of each `process`). A second request before then
+    /// replaces the first: the last one wins.
+    pub fn change_scene(&mut self, change: impl Into<SceneChange>) {
+        self.scene_change = Some(change.into());
+    }
+
+    /// True while a requested change waits to be applied.
+    pub fn scene_change_pending(&self) -> bool {
+        self.scene_change.is_some()
+    }
+
+    /// Drop a requested change without applying it.
+    pub fn cancel_scene_change(&mut self) -> Option<SceneChange> {
+        self.scene_change.take()
+    }
+
+    /// Apply the requested change, if any; call it between passes. The
+    /// new scene is built first, as a floating subtree; on success every
+    /// old node is finalized (the old root's subtree bottom-up, then any
+    /// other old node in insertion order), queued emits are dropped, the
+    /// new root becomes the root and is readied by a `flush`. A change
+    /// the new scene asks for in its `ready` is applied next, in the same
+    /// call (chained changes). On error nothing of the new scene is
+    /// left, the current scene stays, and the error is returned.
+    ///
+    /// `None` when no change was pending; else the last result.
+    pub fn apply_scene_change(
+        &mut self,
+        servers: &mut Servers,
+        library: &SceneLibrary,
+    ) -> Option<Result<NodeId, SceneError>> {
+        let mut result = None;
+        let mut applied = 0;
+        while let Some(change) = self.scene_change.take() {
+            applied += 1;
+            assert!(applied <= MAX_SCENE_CHANGES, "scene changes never settled");
+            match self.replace_scene(change, servers, library) {
+                Ok(root) => result = Some(Ok(root)),
+                Err(e) => return Some(Err(e)),
+            }
+        }
+        result
+    }
+
+    fn replace_scene(
+        &mut self,
+        change: SceneChange,
+        servers: &mut Servers,
+        library: &SceneLibrary,
+    ) -> Result<NodeId, SceneError> {
+        let old: HashSet<NodeId> = self.nodes.keys().collect();
+        let built = change.run(self, library).and_then(|root| {
+            let fresh = !old.contains(&root) && self.contains(root);
+            if fresh && self.nodes[root].parent.is_none() {
+                Ok(root)
+            } else {
+                Err(SceneError::SceneChange(format!(
+                    "the builder returned {root:?}, which is not a new floating node"
+                )))
+            }
+        });
+        let new_root = match built {
+            Ok(root) => root,
+            Err(e) => {
+                let leaked: Vec<NodeId> =
+                    self.nodes.keys().filter(|id| !old.contains(id)).collect();
+                for id in leaked {
+                    self.remove(id);
+                }
+                return Err(e);
+            }
+        };
+        // Queued spawns become live first so they are finalized too.
+        self.apply_pending();
+        if let Some(root) = self.root {
+            self.remove(root);
+        }
+        let rest: Vec<NodeId> = self.nodes.keys().filter(|id| old.contains(id)).collect();
+        for id in rest {
+            self.remove(id);
+        }
+        self.pending.clear();
+        self.deferred_emits.clear();
+        self.set_root(new_root);
+        self.flush(servers);
+        Ok(new_root)
     }
 
     // --- Signals ---

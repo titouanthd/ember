@@ -33,6 +33,9 @@ pub enum SceneError {
     InstanceCycle(String),
     /// The scene writer met a node whose type is not in the `ClassDB`.
     NotSaveable(String),
+    /// A scene change could not be built (no `ClassDB` or `AssetServer`
+    /// to build with, or a builder that returned a bad root). ADR-054.
+    SceneChange(String),
 }
 
 impl fmt::Display for SceneError {
@@ -53,6 +56,7 @@ impl fmt::Display for SceneError {
             Self::NotSaveable(n) => {
                 write!(f, "node `{n}`: its type is not registered in the ClassDB")
             }
+            Self::SceneChange(m) => write!(f, "scene change failed: {m}"),
             Self::Cycle { child, parent } => {
                 write!(
                     f,

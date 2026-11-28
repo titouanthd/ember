@@ -1,11 +1,13 @@
 //! `SceneLoop`: drives a `NodeTree` as a `MainLoop`.
 
-use crate::{DrawContext, NodeTree, Servers};
+use crate::{DrawContext, NodeTree, SceneError, SceneLibrary, Servers};
+use ember_assets::AssetServer;
 use ember_core::math::Rect;
-use ember_core::{Color, MainLoop};
+use ember_core::{ClassDB, Color, MainLoop};
 use ember_input::{ActionMap, ActionResolver, Input, InputSink};
 use ember_servers::{AudioServer, Camera2d, LinearPhysics, RenderingServer};
 use glam::Vec2;
+use std::sync::Arc;
 
 /// A fixed canvas the game draws on, scaled to fit the window with its
 /// aspect kept; the rest is `bars` (ADR-041).
@@ -32,6 +34,11 @@ pub struct SceneLoop<R: RenderingServer, A: AudioServer> {
     viewport_follows_window: bool,
     /// Fills `Input::actions` in `set_input` (ADR-052).
     actions: Option<ActionResolver>,
+    /// What scene changes build with (ADR-054).
+    classes: Option<Arc<ClassDB>>,
+    assets: Option<Arc<AssetServer>>,
+    /// The last scene change that failed, until taken.
+    scene_error: Option<SceneError>,
 }
 
 impl<R: RenderingServer, A: AudioServer> SceneLoop<R, A> {
@@ -48,6 +55,48 @@ impl<R: RenderingServer, A: AudioServer> SceneLoop<R, A> {
             window: Vec2::new(viewport.w, viewport.h),
             viewport_follows_window: false,
             actions: None,
+            classes: None,
+            assets: None,
+            scene_error: None,
+        }
+    }
+
+    /// The `ClassDB` scene changes instance with (ADR-054). Needed for
+    /// `ctx.change_scene(packed_scene)` and for a path.
+    pub fn with_class_db(mut self, classes: impl Into<Arc<ClassDB>>) -> Self {
+        self.classes = Some(classes.into());
+        self
+    }
+
+    /// The `AssetServer` scene changes load with: `ctx.change_scene(
+    /// "levels/2.escene")`, and `instance:` entries in a changed-to scene.
+    pub fn with_assets(mut self, assets: impl Into<Arc<AssetServer>>) -> Self {
+        self.assets = Some(assets.into());
+        self
+    }
+
+    /// The last scene change that failed, if any; taking it clears it.
+    /// A failed change keeps the current scene.
+    pub fn take_scene_error(&mut self) -> Option<SceneError> {
+        self.scene_error.take()
+    }
+
+    /// Apply a change the tree asked for (`NodeTree::apply_scene_change`).
+    /// `init` and `process` call it at their end.
+    fn apply_scene_change(&mut self) {
+        if !self.tree.scene_change_pending() {
+            return;
+        }
+        let mut servers = Servers {
+            rendering: &mut self.rendering,
+            audio: &mut self.audio,
+            physics: &mut self.physics,
+            input: &self.input,
+        };
+        let library = SceneLibrary::new(self.classes.as_deref(), self.assets.as_deref());
+        if let Some(Err(e)) = self.tree.apply_scene_change(&mut servers, &library) {
+            eprintln!("warning: {e}; keeping the current scene");
+            self.scene_error = Some(e);
         }
     }
 
@@ -154,6 +203,7 @@ impl<R: RenderingServer, A: AudioServer> MainLoop for SceneLoop<R, A> {
             input: &self.input,
         };
         self.tree.flush(&mut servers);
+        self.apply_scene_change();
         true
     }
 
@@ -165,6 +215,8 @@ impl<R: RenderingServer, A: AudioServer> MainLoop for SceneLoop<R, A> {
             input: &self.input,
         };
         self.tree.process(&mut servers, dt);
+        // The frame boundary: the new scene is readied before `draw`.
+        self.apply_scene_change();
         !(self.quit || self.tree.quit_requested())
     }
 

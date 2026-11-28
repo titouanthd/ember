@@ -1,8 +1,9 @@
 //! `NodeContext` and `DrawContext`, plus the `Servers` bundle the tree
 //! hands to every callback.
 
+use crate::scene_change::{SceneChange, SceneLibrary};
 use crate::signal::ScopedConnection;
-use crate::{Node, NodeId, NodeTree, Signal};
+use crate::{Node, NodeId, NodeTree, SceneError, Signal};
 use ember_core::math::Rect;
 use ember_input::Input;
 use ember_servers::{AudioServer, Camera2d, PhysicsServer, RenderingServer};
@@ -273,6 +274,28 @@ impl<'a> NodeContext<'a> {
     /// Queue `id` and its descendants for removal at flush time.
     pub fn despawn(&mut self, id: NodeId) {
         self.tree.despawn(id);
+    }
+
+    // --- Scene change (ADR-054) ---
+
+    /// Replace the whole scene at the end of this frame's `process`
+    /// (`NodeTree::change_scene`): a `PackedScene`, an `.escene` path,
+    /// or a [`SceneChange::build`]. The last request in a frame wins.
+    pub fn change_scene(&mut self, change: impl Into<SceneChange>) {
+        self.tree.change_scene(change);
+    }
+
+    /// [`change_scene`](Self::change_scene) with a builder: it gets the
+    /// tree and the loop's [`SceneLibrary`], and returns the new root,
+    /// floating.
+    pub fn change_scene_with(
+        &mut self,
+        build: impl for<'l> FnOnce(&mut NodeTree, &SceneLibrary<'l>) -> Result<NodeId, SceneError>
+        + Send
+        + Sync
+        + 'static,
+    ) {
+        self.tree.change_scene(SceneChange::build(build));
     }
 }
 
