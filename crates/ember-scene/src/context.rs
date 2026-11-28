@@ -146,6 +146,59 @@ impl<'a> NodeContext<'a> {
         self.tree.find(self.current, path)
     }
 
+    // --- Typed queries and groups (ADR-051) ---
+
+    /// The first node of type `T` in the whole tree, from the root in
+    /// `NodeTree::descendants` order (the root itself included). The
+    /// current node is checked out, so it is never found. For a subtree,
+    /// use `ctx.tree().find_by_class::<T>(id)`.
+    pub fn find_by_class<T: Node>(&self) -> Option<NodeId> {
+        let root = self.tree.root()?;
+        if self.tree.get_as::<T>(root).is_some() {
+            return Some(root);
+        }
+        self.tree.find_by_class::<T>(root)
+    }
+
+    /// Every node of type `T` in the whole tree, in the order of
+    /// [`find_by_class`](Self::find_by_class).
+    pub fn find_all_by_class<T: Node>(&self) -> Vec<NodeId> {
+        let Some(root) = self.tree.root() else {
+            return Vec::new();
+        };
+        let mut all = Vec::new();
+        if self.tree.get_as::<T>(root).is_some() {
+            all.push(root);
+        }
+        all.extend(self.tree.find_all_by_class::<T>(root));
+        all
+    }
+
+    /// The current node's children of type `T`, in child order.
+    pub fn children_of<T: Node>(&self) -> impl Iterator<Item = (NodeId, &T)> + '_ {
+        self.tree.children_of::<T>(self.current)
+    }
+
+    /// Put the current node in `group` (`NodeTree::add_to_group`).
+    pub fn add_to_group(&mut self, group: &str) -> bool {
+        self.tree.add_to_group(self.current, group)
+    }
+
+    /// Take the current node out of `group`.
+    pub fn remove_from_group(&mut self, group: &str) -> bool {
+        self.tree.remove_from_group(self.current, group)
+    }
+
+    /// True if the current node is in `group`.
+    pub fn is_in_group(&self, group: &str) -> bool {
+        self.tree.is_in_group(self.current, group)
+    }
+
+    /// The live members of `group`, in join order (`NodeTree::nodes_in_group`).
+    pub fn nodes_in_group(&self, group: &str) -> Vec<NodeId> {
+        self.tree.nodes_in_group(group)
+    }
+
     /// End the game after the current frame.
     pub fn quit(&mut self) {
         self.tree.request_quit();

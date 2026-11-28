@@ -7,6 +7,7 @@
 use crate::signal::{ScopedConnection, SignalTable};
 use crate::{DrawContext, Node, NodeContext, NodeId, SceneError, Servers, Signal};
 use slotmap::SlotMap;
+use std::collections::BTreeMap;
 
 struct NodeSlot {
     /// `None` while the node's callback is running (checked out).
@@ -16,6 +17,8 @@ struct NodeSlot {
     ready: bool,
     /// Spawned through a context but not yet flushed in.
     pending: bool,
+    /// Groups this node is in, in join order (ADR-051).
+    groups: Vec<String>,
 }
 
 enum DeferredCmd {
@@ -40,6 +43,9 @@ pub struct NodeTree {
     quit: bool,
     signals: SignalTable,
     deferred_emits: Vec<DeferredEmit>,
+    /// Members of each group, in join order (ADR-051). A group with no
+    /// members has no entry.
+    groups: BTreeMap<String, Vec<NodeId>>,
 }
 
 // `Sync` too (a signal payload is `Send + Sync`), so a whole `NodeTree`
@@ -80,6 +86,7 @@ impl NodeTree {
             children: Vec::new(),
             ready: false,
             pending: false,
+            groups: Vec::new(),
         })
     }
 
@@ -104,6 +111,9 @@ impl NodeTree {
                 continue;
             };
             self.signals.remove_target(nid);
+            for group in &slot.groups {
+                self.leave_index(group, nid);
+            }
             if let Some(mut node) = slot.node {
                 node.finalize();
                 if nid == id {
@@ -122,6 +132,7 @@ impl NodeTree {
         }
         self.pending.clear();
         self.deferred_emits.clear();
+        self.groups.clear();
         self.root = None;
     }
 
@@ -141,6 +152,18 @@ impl NodeTree {
             return None;
         }
         slot.node.as_deref_mut()
+    }
+
+    /// The node at `id` as its concrete type `T`; `None` if `id` is not
+    /// live, is checked out (the node whose callback is running), or is
+    /// not a `T` (ADR-051).
+    pub fn get_as<T: Node>(&self, id: NodeId) -> Option<&T> {
+        self.get(id)?.as_any().downcast_ref::<T>()
+    }
+
+    /// Mutable [`get_as`](Self::get_as).
+    pub fn get_as_mut<T: Node>(&mut self, id: NodeId) -> Option<&mut T> {
+        self.get_mut(id)?.as_any_mut().downcast_mut::<T>()
     }
 
     /// True if `id` is live (not stale, not merely queued by `spawn`).
@@ -294,6 +317,91 @@ impl NodeTree {
         Some(cur)
     }
 
+    /// The first descendant of `from` (not `from` itself) whose type is
+    /// `T`, in [`descendants`](Self::descendants) order: depth-first,
+    /// top-down, child order (ADR-051). A checked-out node is not seen.
+    pub fn find_by_class<T: Node>(&self, from: NodeId) -> Option<NodeId> {
+        self.descendants(from)
+            .find(|id| self.get_as::<T>(*id).is_some())
+    }
+
+    /// Every descendant of `from` whose type is `T`, in
+    /// [`descendants`](Self::descendants) order.
+    pub fn find_all_by_class<T: Node>(&self, from: NodeId) -> Vec<NodeId> {
+        self.descendants(from)
+            .filter(|id| self.get_as::<T>(*id).is_some())
+            .collect()
+    }
+
+    /// The direct children of `id` whose type is `T`, in child order,
+    /// already downcast.
+    pub fn children_of<T: Node>(&self, id: NodeId) -> impl Iterator<Item = (NodeId, &T)> + '_ {
+        self.children(id)
+            .iter()
+            .filter_map(|c| Some((*c, self.get_as::<T>(*c)?)))
+    }
+
+    // --- Groups (ADR-051) ---
+
+    /// Put `id` in `group`. Works on a node queued by `spawn` too, so a
+    /// node can tag what it spawns. Returns `false` if `id` has no slot,
+    /// `group` is empty, or `id` is in it already.
+    pub fn add_to_group(&mut self, id: NodeId, group: &str) -> bool {
+        let Some(slot) = self.nodes.get_mut(id) else {
+            return false;
+        };
+        if group.is_empty() || slot.groups.iter().any(|g| g == group) {
+            return false;
+        }
+        slot.groups.push(group.to_string());
+        self.groups.entry(group.to_string()).or_default().push(id);
+        true
+    }
+
+    /// Take `id` out of `group`. Returns `false` if it was not in it.
+    pub fn remove_from_group(&mut self, id: NodeId, group: &str) -> bool {
+        let Some(slot) = self.nodes.get_mut(id) else {
+            return false;
+        };
+        let Some(at) = slot.groups.iter().position(|g| g == group) else {
+            return false;
+        };
+        slot.groups.remove(at);
+        self.leave_index(group, id);
+        true
+    }
+
+    /// True if `id` is live and in `group`.
+    pub fn is_in_group(&self, id: NodeId, group: &str) -> bool {
+        self.nodes
+            .get(id)
+            .is_some_and(|s| !s.pending && s.groups.iter().any(|g| g == group))
+    }
+
+    /// The live members of `group`, in the order they joined; attached
+    /// or floating. A node queued by `spawn` shows up once flushed.
+    pub fn nodes_in_group(&self, group: &str) -> Vec<NodeId> {
+        self.groups.get(group).map_or_else(Vec::new, |members| {
+            members
+                .iter()
+                .copied()
+                .filter(|id| self.contains(*id))
+                .collect()
+        })
+    }
+
+    /// The groups `id` is in, in the order it joined them. Empty for a
+    /// stale id.
+    pub fn groups_of(&self, id: NodeId) -> &[String] {
+        self.nodes.get(id).map_or(&[], |s| &s.groups)
+    }
+
+    /// Every group with at least one member (live or queued), sorted
+    /// by name.
+    pub fn group_names(&self) -> impl Iterator<Item = &str> + '_ {
+        self.groups.keys().map(String::as_str)
+    }
+
     /// Live nodes in insertion order.
     pub fn iter(&self) -> impl Iterator<Item = (NodeId, &dyn Node)> + '_ {
         self.nodes
@@ -430,6 +538,7 @@ impl NodeTree {
             children: Vec::new(),
             ready: false,
             pending: true,
+            groups: Vec::new(),
         });
         self.pending.push(DeferredCmd::Activate(id));
         if let Some(parent) = parent {
@@ -443,6 +552,15 @@ impl NodeTree {
     }
 
     // --- Internals ---
+
+    fn leave_index(&mut self, group: &str, id: NodeId) {
+        if let Some(members) = self.groups.get_mut(group) {
+            members.retain(|m| *m != id);
+            if members.is_empty() {
+                self.groups.remove(group);
+            }
+        }
+    }
 
     fn apply_pending(&mut self) {
         for cmd in std::mem::take(&mut self.pending) {
