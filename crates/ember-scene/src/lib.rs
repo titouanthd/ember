@@ -12,6 +12,7 @@ pub mod packed;
 pub mod scene;
 pub mod scene_loop;
 pub mod signal;
+pub mod tiles;
 pub mod tree;
 
 #[cfg(test)]
@@ -33,6 +34,7 @@ pub use packed::{
 pub use scene::{NodeRecord, SceneWriter};
 pub use scene_loop::{SceneLoop, VirtualResolution};
 pub use signal::{Handler, ScopedConnection, Signal, SignalTable};
+pub use tiles::{Tile, TileMap, TileSet};
 pub use tree::NodeTree;
 
 pub mod prelude {
@@ -44,6 +46,7 @@ pub mod prelude {
     pub use crate::scene::{NodeRecord, SceneWriter};
     pub use crate::scene_loop::SceneLoop;
     pub use crate::signal::{ScopedConnection, Signal};
+    pub use crate::tiles::{Tile, TileMap, TileSet};
     pub use crate::tree::NodeTree;
     pub use ember_core::Object;
 }

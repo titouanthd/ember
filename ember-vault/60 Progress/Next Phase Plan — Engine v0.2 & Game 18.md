@@ -110,7 +110,7 @@ A small paper-lantern spirit crosses ink-wash courtyards at night. **Every move 
 
 ## Milestones and rounds
 
-One round per session ([[Token Budget]] §2.1); each engine feature is its own round with its own ADR (next free: **ADR-053**), landed just before the game round that needs it (the M2 pattern).
+One round per session ([[Token Budget]] §2.1); each engine feature is its own round with its own ADR (next free: **ADR-054**), landed just before the game round that needs it (the M2 pattern).
 
 | # | Round | Kind | Sessions | ADR | Unblocks |
 |---|---|---|---:|---|---|
@@ -120,7 +120,7 @@ One round per session ([[Token Budget]] §2.1); each engine feature is its own r
 | **V1.2** ✅ | Typed tree queries + node groups | engine | 0.5 | 051 | G2 |
 | **V1.3** ✅ | Input action map | engine | 1.5 | 052 | G2 |
 | **V1.4** ✅ | stdlib text helpers | engine | 0.5 | — | G4 |
-| **V2.1** | `TileSet` + `TileMap` node | engine | 2 | 053 | G2, V3.1 |
+| **V2.1** ✅ | `TileSet` + `TileMap` node | engine | 2 | 053 | G2, V3.1 |
 | **V2.2** | Runtime scene change | engine | 1 | 054 | G4 |
 | **G2** | Game 18 on nodes: board as `TileMap`, pieces as instances, 3 hand-written levels; `make edit GAME=<slug>` opens them (**closes Phase 9**) | game | 1.5 | — | V3 |
 | **V3.1** | Editor tile brush | editor | 1.5 | 055 | G3 |
@@ -158,6 +158,11 @@ G1 needs no engine change, so it can run in parallel with V1.x (different files:
 
 > [!note] As built
 > New module `ember_stdlib::text`: `TextStyle` (size, colour, optional `FontId`, `Align` left / centre / right, optional `Shadow`, fake `bold` offset, `BOLD_OFFSET` = 0.6 as ember-wars), `draw` (anchor x + baseline y; shadow first, bold = a second pass), `measure` (bold adds its offset), `left_edge`, and the shorthands `centered`, `right`, `centered_shadowed`. Same pixels as the games' own helpers for non-bold text. Tests: `crates/ember-stdlib/tests/text.rs` on `MockRenderer`. No ADR (library module); spec note: [[v0.2-ember-stdlib]]. No game migrated (≈ 9 games keep a local `centered`); each drops it when a round touches it. Stacked on V1.3's branch. **Left for you:** `make pre-push`, then push.
+
+## V2.1 — `TileSet` + `TileMap` node (2 sessions) — ✅ done (2026-11-28)
+
+> [!note] As built
+> New module `ember_scene::tiles`. A tile's id is **one character** (its symbol, the level legend: `#`, `.`), `' '` is empty. `TileSet`: optional atlas `texture` path, `tile_size` / `spacing` / `margin`, `tiles` (`symbol`, `name`, optional atlas `(col, row)`, `color` = tint or fill); `.etileset` RON file, an `Asset` (data only), `load_texture` for the atlas; symbols checked printable and unique. `TileMap`, the first built-in scene node (class `"TileMap"`): `position`, `cell_size`, `tile_set` path, `rows` (one string per row in `.escene`, lossless resave), `visible`, `z`; `cell` / `set_cell` / `fill` / `resize` / `rows` / `set_rows` / `used_cells` / `tile_at`; `cell_to_world`, `cell_center`, `cell_rect`, `world_to_cell`, `bounds`. Draws atlas sprites, or colour rects without a texture (procedural art). **Changed from the plan:** cells are `char`s in the map's own row-major storage, not ids on a `Grid<T>` (`Grid` is in `ember-stdlib`, below which `ember-scene` cannot reach; char ids keep the file readable). The game resolves the set after instantiating (nodes have no `AssetServer`). Not done: layers, autotiling, tile collision. Tests: `crates/ember-scene/tests/tilemap.rs` (15). Decision: [[v0.2-50-design-decisions#ADR-053: `TileSet` and the `TileMap` node|ADR-053]]; deltas: [[v0.2-21-ember-scene]] §3, [[v0.2-30-escene-format]] §2. Stacked on V1.4's branch. **Left for you:** `make pre-push`, then push.
 
 ## Definition of done (v0.2.0)
 
