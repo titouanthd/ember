@@ -28,6 +28,10 @@ Each v0.2 round adds its line here.
   `action_pressed`, `action_released`, `action_axis`, `action_vector`,
   `swipe`; `SceneLoop::with_action_map` / `set_action_map`. `Key`,
   `GamepadButton` and `MouseButton` derive serde.
+- **`TileSet` and the `TileMap` node (V2.1, ADR-053):** `ember_scene::tiles`
+  — tiles named by one character, `.etileset` RON files (atlas texture,
+  tile size, spacing, margin; colour-rect fallback), and a `TileMap` node
+  saved as one string per row in `.escene`, with cell ↔ world helpers.
 
 ### Stdlib
 
