@@ -1,7 +1,7 @@
 //! Mouse buttons.
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum MouseButton {
     Left,
     Right,

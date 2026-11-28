@@ -283,6 +283,8 @@ version = "0.1.0"
 dependencies = [
  "ember-core",
  "glam",
+ "ron",
+ "serde",
 ]
 
 [[package]]
