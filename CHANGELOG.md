@@ -22,6 +22,12 @@ Each v0.2 round adds its line here.
   (join order), cleaned up on despawn, and saved as an optional
   `groups: [...]` list per `.escene` node entry (`format` stays 1).
   `NodeRecord` gains a `groups` field.
+- **Input action map (V1.3, ADR-052):** `ActionMap` (RON `input.ron`
+  format: keys, gamepad buttons, mouse buttons, swipes) run by an
+  `ActionResolver` into a new `Input::actions` field; `Input::action`,
+  `action_pressed`, `action_released`, `action_axis`, `action_vector`,
+  `swipe`; `SceneLoop::with_action_map` / `set_action_map`. `Key`,
+  `GamepadButton` and `MouseButton` derive serde.
 
 ### Games
 

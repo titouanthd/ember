@@ -61,5 +61,6 @@ ADR-001…049 live in [[50-design-decisions]] (v0.1); ADR-050 on in [[v0.2-50-de
 | 049 | [[50-design-decisions#ADR-049: Enum exports (`export(enum)`)\|Enum exports (`export(enum)`)]] | ✅ `d373dc4` |
 | 050 | [[v0.2-50-design-decisions#ADR-050: Frame snapshot on `NodeContext`\|Frame snapshot on `NodeContext`]] | ✅ V1.1 |
 | 051 | [[v0.2-50-design-decisions#ADR-051: Typed tree queries and node groups\|Typed tree queries and node groups]] | ✅ V1.2 |
+| 052 | [[v0.2-50-design-decisions#ADR-052: Input action map\|Input action map]] | ✅ V1.3 |
 
 New ADRs: copy [[ADR Template]], into [[v0.2-50-design-decisions]].

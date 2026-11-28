@@ -23,7 +23,7 @@ Found while reading the specs against `main`. Most are fixed on the unmerged bra
 | 10 | [[40-roadmap]] P0 deliverables | `Cooldown::running`/`ready(d)` | main: `new`, `with_duration`, `ready()` (no arg) — ADR-011 accepted but not on main | ✅ merged |
 | 11 | [[26-ember-macros]], [[10-nodes-and-scenes]] | derive + lifecycle overrides | derive writes whole `impl Node`; behavioural nodes must hand-write it | ✅ resolved by ADR-030 (`8cc3112`) |
 | 12 | [[02-principles]] I4 | no `unwrap/expect` in engine crates | 10 in non-test engine code | open |
-| 13 | [[15-input]] | action map (`action_pressed`, `action_axis`, RON) | not implemented | open |
+| 13 | [[15-input]] | action map (`action_pressed`, `action_axis`, RON) | not implemented | ✅ closed 2026-11-28 (V1.3, ADR-052): `ActionMap` (RON) + `ActionResolver`, `Input::action*`, swipes, `SceneLoop::with_action_map`; axes are two actions, no dead zones until gamepad axes exist ([[v0.2-15-input]]) |
 | 14 | [[21-ember-scene]], [[42-acceptance-tests]] §5.4 | `find_by_class`, `find_all_by_class` | missing | ✅ closed 2026-11-28 (V1.2, ADR-051): typed `NodeTree::find_by_class::<T>` / `find_all_by_class::<T>` / `children_of::<T>` / `get_as::<T>`, the `NodeContext` forms, and node groups |
 | 15 | `README.md`, [[Project Recap (version.txt)]] | 3-layer architecture; 1909/1941 tests | pre-engine snapshot (Session 17.9); no mention of the 10 new crates | ✅ README rewritten; `version.txt` moved to the vault |
 | 16 | [[Engine Spec Index]] §7 | — | stray `---S` before §8 (typo) | open |
