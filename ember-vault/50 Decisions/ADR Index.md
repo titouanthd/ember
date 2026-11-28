@@ -63,5 +63,6 @@ ADR-001…049 live in [[50-design-decisions]] (v0.1); ADR-050 on in [[v0.2-50-de
 | 051 | [[v0.2-50-design-decisions#ADR-051: Typed tree queries and node groups\|Typed tree queries and node groups]] | ✅ V1.2 |
 | 052 | [[v0.2-50-design-decisions#ADR-052: Input action map\|Input action map]] | ✅ V1.3 |
 | 053 | [[v0.2-50-design-decisions#ADR-053: `TileSet` and the `TileMap` node\|`TileSet` and the `TileMap` node]] | ✅ V2.1 |
+| 054 | [[v0.2-50-design-decisions#ADR-054: Runtime scene change\|Runtime scene change]] | ✅ V2.2 |
 
 New ADRs: copy [[ADR Template]], into [[v0.2-50-design-decisions]].

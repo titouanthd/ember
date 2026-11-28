@@ -32,6 +32,13 @@ Each v0.2 round adds its line here.
   — tiles named by one character, `.etileset` RON files (atlas texture,
   tile size, spacing, margin; colour-rect fallback), and a `TileMap` node
   saved as one string per row in `.escene`, with cell ↔ world helpers.
+- **Runtime scene change (V2.2, ADR-054):** `ctx.change_scene(...)` with a
+  `PackedScene`, an `.escene` path or a builder closure
+  (`change_scene_with`), applied by `SceneLoop` at the end of `process`:
+  old nodes finalize, the new root is readied before it draws.
+  `SceneLoop::with_class_db` / `with_assets` supply what it builds with;
+  a failed change keeps the scene and is read back with
+  `take_scene_error`. New `SceneError::SceneChange` variant.
 
 ### Stdlib
 

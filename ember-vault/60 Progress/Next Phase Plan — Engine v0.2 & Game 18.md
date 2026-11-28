@@ -110,7 +110,7 @@ A small paper-lantern spirit crosses ink-wash courtyards at night. **Every move 
 
 ## Milestones and rounds
 
-One round per session ([[Token Budget]] §2.1); each engine feature is its own round with its own ADR (next free: **ADR-054**), landed just before the game round that needs it (the M2 pattern).
+One round per session ([[Token Budget]] §2.1); each engine feature is its own round with its own ADR (next free: **ADR-055**), landed just before the game round that needs it (the M2 pattern).
 
 | # | Round | Kind | Sessions | ADR | Unblocks |
 |---|---|---|---:|---|---|
@@ -121,7 +121,7 @@ One round per session ([[Token Budget]] §2.1); each engine feature is its own r
 | **V1.3** ✅ | Input action map | engine | 1.5 | 052 | G2 |
 | **V1.4** ✅ | stdlib text helpers | engine | 0.5 | — | G4 |
 | **V2.1** ✅ | `TileSet` + `TileMap` node | engine | 2 | 053 | G2, V3.1 |
-| **V2.2** | Runtime scene change | engine | 1 | 054 | G4 |
+| **V2.2** ✅ | Runtime scene change | engine | 1 | 054 | G4 |
 | **G2** | Game 18 on nodes: board as `TileMap`, pieces as instances, 3 hand-written levels; `make edit GAME=<slug>` opens them (**closes Phase 9**) | game | 1.5 | — | V3 |
 | **V3.1** | Editor tile brush | editor | 1.5 | 055 | G3 |
 | **V3.2** | Editor Play / Stop | editor | 1 | 056 | G3 |
@@ -163,6 +163,11 @@ G1 needs no engine change, so it can run in parallel with V1.x (different files:
 
 > [!note] As built
 > New module `ember_scene::tiles`. A tile's id is **one character** (its symbol, the level legend: `#`, `.`), `' '` is empty. `TileSet`: optional atlas `texture` path, `tile_size` / `spacing` / `margin`, `tiles` (`symbol`, `name`, optional atlas `(col, row)`, `color` = tint or fill); `.etileset` RON file, an `Asset` (data only), `load_texture` for the atlas; symbols checked printable and unique. `TileMap`, the first built-in scene node (class `"TileMap"`): `position`, `cell_size`, `tile_set` path, `rows` (one string per row in `.escene`, lossless resave), `visible`, `z`; `cell` / `set_cell` / `fill` / `resize` / `rows` / `set_rows` / `used_cells` / `tile_at`; `cell_to_world`, `cell_center`, `cell_rect`, `world_to_cell`, `bounds`. Draws atlas sprites, or colour rects without a texture (procedural art). **Changed from the plan:** cells are `char`s in the map's own row-major storage, not ids on a `Grid<T>` (`Grid` is in `ember-stdlib`, below which `ember-scene` cannot reach; char ids keep the file readable). The game resolves the set after instantiating (nodes have no `AssetServer`). Not done: layers, autotiling, tile collision. Tests: `crates/ember-scene/tests/tilemap.rs` (15). Decision: [[v0.2-50-design-decisions#ADR-053: `TileSet` and the `TileMap` node|ADR-053]]; deltas: [[v0.2-21-ember-scene]] §3, [[v0.2-30-escene-format]] §2. Stacked on V1.4's branch. **Left for you:** `make pre-push`, then push.
+
+## V2.2 — Runtime scene change (1 session) — ✅ done (2026-11-28)
+
+> [!note] As built
+> New module `ember_scene::scene_change`. `ctx.change_scene(change)` / `NodeTree::change_scene` store one pending `SceneChange` (last request in a frame wins): `Packed(Arc<PackedScene>)`, `Path(String)` or `Build(closure)` (`ctx.change_scene_with(|tree, lib| …)`, returns the new root floating; `From` a `PackedScene`, `Arc`, `&str`, `String`). The `ClassDB` / `AssetServer` come from the loop: `SceneLoop::with_class_db` / `with_assets`, lent as a `SceneLibrary` (`instantiate`, `instantiate_path`) while the change is applied; nodes still have no `AssetServer`. Applied by `NodeTree::apply_scene_change` at the end of `SceneLoop::process` (and `init`), after the pass's last flush: build the new root in the same tree (ids stay unique), finalize the old nodes (old root's subtree bottom-up, then other old nodes), `set_root`, `flush` readies it; a change asked for in that `ready` chains in the same call (cap 64). The new scene draws that frame and processes the next. Survive: signal table and group index (minus old nodes), quit flag, `frame()` / `time()`, every `SceneLoop` setting. Errors keep the old scene, remove what the builder left, and go to `SceneLoop::take_scene_error()` (+ stderr); new `SceneError::SceneChange(String)` for no `ClassDB` / `AssetServer` or a bad builder root. **Changed from the plan:** not only `change_scene(path)`: a `PackedScene` and a builder too, so a level number can be passed. Not done: persistent nodes across a change; freeing physics bodies on finalize. Tests: `crates/ember-scene/tests/scene_change.rs` (18). Decision: [[v0.2-50-design-decisions#ADR-054: Runtime scene change|ADR-054]]; delta: [[v0.2-21-ember-scene]] §4. Based on `main` (PR #14 merged). **Left for you:** `make pre-push`, then push.
 
 ## Definition of done (v0.2.0)
 
