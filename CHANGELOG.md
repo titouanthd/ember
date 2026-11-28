@@ -16,6 +16,13 @@ Each v0.2 round adds its line here.
   `viewport()`, `camera()`, `pointer()` (first touch, else the mouse) and
   `pointer_world()`; `DrawContext::time()`.
 
+### Games
+
+- **Moon Gate (G1),** Game 18: new crate `games/moon-gate` with the pure
+  rules of a sliding lantern puzzle (slide, lantern, gate, stone, ink pool,
+  paper bridge), undo, a BFS solver and 8 draft levels, each tested
+  solvable in par. No engine runtime yet.
+
 ### Removed
 
 - `Cooldown::new` and `Cooldown::with_duration`, deprecated in 0.1.0:

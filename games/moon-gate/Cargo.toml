@@ -1,0 +1,13 @@
+[package]
+name = "moon-gate"
+version.workspace = true
+edition.workspace = true
+
+# G1 (rules only): no binary and no engine runtime yet. The node tree,
+# `main.rs` and the `.escene` levels come in round G2.
+[dependencies]
+ember-stdlib.workspace = true
+
+[lib]
+name = "moon_gate"
+path = "src/lib.rs"
