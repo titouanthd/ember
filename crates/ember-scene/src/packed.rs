@@ -58,6 +58,10 @@ struct NodeEntry {
     visible: bool,
     #[serde(default, skip_serializing_if = "is_zero")]
     z: f32,
+    /// Groups the node joins when instantiated, in order (ADR-051).
+    /// Optional: files without it load as before.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    groups: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -205,6 +209,14 @@ impl PackedScene {
                     "node `{}` needs exactly one of `class` and `instance`",
                     n.name
                 )));
+            }
+            for (k, g) in n.groups.iter().enumerate() {
+                if g.is_empty() || n.groups[..k].contains(g) {
+                    return Err(SceneError::Parse(format!(
+                        "node `{}` has an empty or repeated group `{g}`",
+                        n.name
+                    )));
+                }
             }
             if i == 0 {
                 paths.push(n.name.clone());
@@ -430,6 +442,10 @@ impl PackedScene {
             if let Some((parent, _)) = path.rsplit_once('/') {
                 tree.attach(id, ids[parent])?;
             }
+            // After the nested scene's own groups, for an `instance:`.
+            for group in &n.groups {
+                tree.add_to_group(id, group);
+            }
             Ok(())
         };
         if let Err(e) = finish(tree) {
@@ -506,6 +522,8 @@ pub struct NodeRecord {
     pub properties: BTreeMap<String, Variant>,
     pub visible: bool,
     pub z: f32,
+    /// Groups, in join order (ADR-051); empty writes no `groups:` key.
+    pub groups: Vec<String>,
 }
 
 /// Builds an `.escene` file node by node (spec 21 §9, ADR-037). Nodes are
@@ -553,6 +571,7 @@ impl SceneWriter {
             properties: node.properties,
             visible: node.visible,
             z: node.z,
+            groups: node.groups,
         });
     }
 
@@ -579,7 +598,8 @@ impl PackedScene {
 
     /// Save the subtree under `root` as a scene (ADR-037): every node's
     /// class (looked up in `classes` by Rust type), name, exported
-    /// properties (`NodeName::property_list`), `visible` and `z`. Exported
+    /// properties (`NodeName::property_list`), `visible`, `z` and groups
+    /// (ADR-051). Exported
     /// properties named `visible` or `z` go to those entry fields only.
     ///
     /// Nodes that came from a nested `instance:` are written inline.
@@ -719,6 +739,7 @@ impl PackedScene {
             properties,
             visible: node.visible(),
             z: node.z(),
+            groups: tree.groups_of(id).to_vec(),
         });
         // Paths of this node's children, relative to the root.
         let here = match parent {

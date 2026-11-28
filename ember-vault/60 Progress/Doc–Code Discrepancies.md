@@ -24,7 +24,7 @@ Found while reading the specs against `main`. Most are fixed on the unmerged bra
 | 11 | [[26-ember-macros]], [[10-nodes-and-scenes]] | derive + lifecycle overrides | derive writes whole `impl Node`; behavioural nodes must hand-write it | ✅ resolved by ADR-030 (`8cc3112`) |
 | 12 | [[02-principles]] I4 | no `unwrap/expect` in engine crates | 10 in non-test engine code | open |
 | 13 | [[15-input]] | action map (`action_pressed`, `action_axis`, RON) | not implemented | open |
-| 14 | [[21-ember-scene]], [[42-acceptance-tests]] §5.4 | `find_by_class`, `find_all_by_class` | missing | open |
+| 14 | [[21-ember-scene]], [[42-acceptance-tests]] §5.4 | `find_by_class`, `find_all_by_class` | missing | ✅ closed 2026-11-28 (V1.2, ADR-051): typed `NodeTree::find_by_class::<T>` / `find_all_by_class::<T>` / `children_of::<T>` / `get_as::<T>`, the `NodeContext` forms, and node groups |
 | 15 | `README.md`, [[Project Recap (version.txt)]] | 3-layer architecture; 1909/1941 tests | pre-engine snapshot (Session 17.9); no mention of the 10 new crates | ✅ README rewritten; `version.txt` moved to the vault |
 | 16 | [[Engine Spec Index]] §7 | — | stray `---S` before §8 (typo) | open |
 | 17 | [[41-migration-guide]] | per-PR migrations + `MIGRATION_LOG.md` | pong migrated in the scene-core branch; no `MIGRATION_LOG.md` | open |

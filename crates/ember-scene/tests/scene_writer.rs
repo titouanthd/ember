@@ -168,6 +168,7 @@ fn scene_writer_validates_like_the_loader() {
         properties: Default::default(),
         visible: true,
         z: 0.0,
+        groups: Vec::new(),
     };
     let mut w = SceneWriter::new("uid://w");
     w.write_node(record("Root", None));

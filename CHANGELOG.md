@@ -15,6 +15,13 @@ Each v0.2 round adds its line here.
   `process` time, `f64`) and, on `NodeContext`, `time()`, `frame()`,
   `viewport()`, `camera()`, `pointer()` (first touch, else the mouse) and
   `pointer_world()`; `DrawContext::time()`.
+- **Typed tree queries and node groups (V1.2, ADR-051):** `NodeTree::get_as` /
+  `get_as_mut`, `find_by_class::<T>`, `find_all_by_class::<T>` and
+  `children_of::<T>` (also on `NodeContext`); groups with
+  `add_to_group`, `remove_from_group`, `is_in_group`, `nodes_in_group`
+  (join order), cleaned up on despawn, and saved as an optional
+  `groups: [...]` list per `.escene` node entry (`format` stays 1).
+  `NodeRecord` gains a `groups` field.
 
 ### Games
 
