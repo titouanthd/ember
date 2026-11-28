@@ -60,5 +60,6 @@ ADR-001…049 live in [[50-design-decisions]] (v0.1); ADR-050 on in [[v0.2-50-de
 | 048 | [[50-design-decisions#ADR-048: Texture filtering (`set_texture_filter`)\|Texture filtering]] | ✅ `fcf7a8e` |
 | 049 | [[50-design-decisions#ADR-049: Enum exports (`export(enum)`)\|Enum exports (`export(enum)`)]] | ✅ `d373dc4` |
 | 050 | [[v0.2-50-design-decisions#ADR-050: Frame snapshot on `NodeContext`\|Frame snapshot on `NodeContext`]] | ✅ V1.1 |
+| 051 | [[v0.2-50-design-decisions#ADR-051: Typed tree queries and node groups\|Typed tree queries and node groups]] | ✅ V1.2 |
 
 New ADRs: copy [[ADR Template]], into [[v0.2-50-design-decisions]].

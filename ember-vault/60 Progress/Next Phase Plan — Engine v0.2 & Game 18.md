@@ -110,14 +110,14 @@ A small paper-lantern spirit crosses ink-wash courtyards at night. **Every move 
 
 ## Milestones and rounds
 
-One round per session ([[Token Budget]] §2.1); each engine feature is its own round with its own ADR (next free: **ADR-050**), landed just before the game round that needs it (the M2 pattern).
+One round per session ([[Token Budget]] §2.1); each engine feature is its own round with its own ADR (next free: **ADR-052**), landed just before the game round that needs it (the M2 pattern).
 
 | # | Round | Kind | Sessions | ADR | Unblocks |
 |---|---|---|---:|---|---|
 | **V0** 🟡 | Close v0.1 (tag, CHANGELOG) — tag left to you | chore | 0.5 | — | v0.2 |
 | **G1** ✅ | Game 18 rules: crate, `rules.rs`, solver, design note | game, pure | 1 | — | all G rounds |
 | **V1.1** ✅ | Frame snapshot / `time()`; delete the deprecated `Cooldown` aliases | engine | 1 | 050 | G2 |
-| **V1.2** | Typed tree queries | engine | 0.5 | 051 | G2 |
+| **V1.2** ✅ | Typed tree queries + node groups | engine | 0.5 | 051 | G2 |
 | **V1.3** | Input action map | engine | 1.5 | 052 | G2 |
 | **V1.4** | stdlib text helpers | engine | 0.5 | — | G4 |
 | **V2.1** | `TileSet` + `TileMap` node | engine | 2 | 053 | G2, V3.1 |
@@ -144,6 +144,11 @@ G1 needs no engine change, so it can run in parallel with V1.x (different files:
 > [!note] As built
 > `NodeTree::time()` (`f64`, summed from `process` `dt` at the start of the pass) and, on `NodeContext`: `time()`, `frame()`, `viewport()`, `camera()`, `pointer()` (first touch, else the mouse), `pointer_world()` (through the renderer's current camera); `DrawContext::time()`, set by `NodeTree::draw`. `Servers` and the runners are unchanged. Tests: `crates/ember-scene/tests/frame_snapshot.rs` (clock, frame count, physics/draw see the frame's time, bad `dt`, viewport with and without a virtual resolution, world pointer through a camera, touch over mouse). `Cooldown::new` / `with_duration` deleted. Decision: [[v0.2-50-design-decisions#ADR-050: Frame snapshot on `NodeContext`|ADR-050]]; spec delta: [[v0.2-21-ember-scene]] (new folder `10 Engine Spec v0.2/`, index [[v0.2 Spec Index]]). No game migrated yet (accretion / ember-wars `frame.rs`, the `time` counters): done when a round touches them. **Left for you:** `make pre-push`, then push.
 
+## V1.2 — Typed tree queries and groups (0.5 session) — ✅ done (2026-11-28)
+
+> [!note] As built
+> `NodeTree`: `get_as::<T>` / `get_as_mut::<T>` (downcast), `find_by_class::<T>(from)` / `find_all_by_class::<T>(from)` (descendants of `from`, not `from`, in `descendants` order) and `children_of::<T>(id)` (direct children, already downcast). A class is the Rust type: no `ClassDB` needed. Groups, as a tree-side index (no derive change): `add_to_group`, `remove_from_group`, `is_in_group`, `nodes_in_group` (join order), `groups_of`, `group_names`; a queued `spawn` may join at once; `remove` / `despawn` / `clear` clean up. `NodeContext` forms: whole-tree `find_by_class` / `find_all_by_class` (root included), `children_of` of the current node, group calls on the current node. `.escene`: optional `groups: [...]` per node entry, `format` still 1, written by `from_tree` / `resave` / `SceneWriter` (`NodeRecord.groups`). Tests: `crates/ember-scene/tests/tree_queries.rs`, `node_groups.rs` (order, cleanup on despawn, spawned nodes, file round trip and lossless resave, files without groups, bad names, `instance:` entries). Decision: [[v0.2-50-design-decisions#ADR-051: Typed tree queries and node groups|ADR-051]]; spec deltas: [[v0.2-21-ember-scene]] §2, [[v0.2-30-escene-format]]. Closes [[Doc–Code Discrepancies]] #14. No game migrated to `get_as` yet. **Left for you:** `make pre-push`, then push.
+
 ## Definition of done (v0.2.0)
 
 - Every feature in the "In" table has an ADR, tests (headless on mocks), a `CHANGELOG.md` line, and a spec note (a new `10 Engine Spec v0.2/` folder holds the deltas against v0.1; v0.1's files stay frozen).
@@ -155,5 +160,5 @@ G1 needs no engine change, so it can run in parallel with V1.x (different files:
 
 1. ~~**Game 18's name** (and slug). Fits the Chinese-themed line (Zhuo Ji, Jade Garden, Pagoda, Taiji)?~~ **Decided 2026-11-27: Moon Gate** (月门), slug `moon-gate` — picked from Moon Gate, Denglong, Yuan Xiao, Ink Lantern. Hub: [[Moon Gate]].
 2. **Art**: procedural ink-wash (as Pagoda, no asset work) for the whole game, or drawn sprite sheets from G3 on? Drawn art tests `AnimatedSprite` harder.
-3. ~~**Groups** in V1.2: add them now (spec deferred them to v0.2), or wait until a third user appears (Rule of Three)?~~ **Decided: wait** (Rule of Three); V1.2 ships without groups.
+3. ~~**Groups** in V1.2: add them now (spec deferred them to v0.2), or wait until a third user appears (Rule of Three)?~~ **Decided 2026-11-28: add them now**, in V1.2 (ADR-051); this replaces the earlier "wait" answer.
 4. **Mobile**: swipe only, or also on-screen arrows (as Pagoda's shell has a tap button)?
