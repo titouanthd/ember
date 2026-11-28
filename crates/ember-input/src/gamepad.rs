@@ -2,7 +2,7 @@
 //! + d-pad. Analog sticks and triggers are v0.2 — no game uses them yet.
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum GamepadButton {
     /// The "confirm" button — South (Xbox A, PS Cross, Switch B).
     /// Part of `primary_action()` per ADR-010.

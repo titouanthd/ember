@@ -19,6 +19,7 @@
 //! The struct is intentionally **not** `#[non_exhaustive]` — see
 //! ADR-018. Games construct it as a fixture.
 
+use crate::action::{ActionState, Swipe};
 use crate::gamepad::GamepadButton;
 use crate::key::Key;
 use crate::mouse::MouseButton;
@@ -63,6 +64,10 @@ pub struct Input {
     /// when the window was opened with `WindowConfig::confirm_close`;
     /// otherwise the window just closes (ADR-045).
     pub close_requested: bool,
+    /// This frame's named actions (ADR-052), filled by an
+    /// `ActionResolver` (`SceneLoop::with_action_map`). Empty otherwise,
+    /// and every `action*` query is then `false` / `0.0`.
+    pub actions: ActionState,
 }
 
 impl Input {
@@ -161,6 +166,41 @@ impl Input {
                     | crate::touch::TouchPhase::Stationary
             )
         })
+    }
+
+    // --- Named actions (ADR-052) ---
+
+    /// True while `name` is held: any of its bindings is down. `false`
+    /// for an action the map does not define.
+    pub fn action(&self, name: &str) -> bool {
+        self.actions.down.iter().any(|a| a == name)
+    }
+
+    /// True on the frame `name` went down.
+    pub fn action_pressed(&self, name: &str) -> bool {
+        self.actions.pressed.iter().any(|a| a == name)
+    }
+
+    /// True on the frame `name` came back up.
+    pub fn action_released(&self, name: &str) -> bool {
+        self.actions.released.iter().any(|a| a == name)
+    }
+
+    /// `+1.0` while `positive` is held, `-1.0` while `negative` is, `0.0`
+    /// for both or neither. Bindings are digital, so nothing in between.
+    pub fn action_axis(&self, negative: &str, positive: &str) -> f32 {
+        f32::from(u8::from(self.action(positive))) - f32::from(u8::from(self.action(negative)))
+    }
+
+    /// Two axes at once, in screen space (`y` grows downwards), with a
+    /// diagonal scaled to length 1.
+    pub fn action_vector(&self, left: &str, right: &str, up: &str, down: &str) -> Vec2 {
+        Vec2::new(self.action_axis(left, right), self.action_axis(up, down)).normalize_or_zero()
+    }
+
+    /// The swipe recognised this frame, whether or not an action binds it.
+    pub fn swipe(&self) -> Option<Swipe> {
+        self.actions.swipe
     }
 
     // --- Convenience actions (ADR-010) ---

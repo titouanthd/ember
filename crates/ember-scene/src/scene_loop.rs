@@ -3,7 +3,7 @@
 use crate::{DrawContext, NodeTree, Servers};
 use ember_core::math::Rect;
 use ember_core::{Color, MainLoop};
-use ember_input::{Input, InputSink};
+use ember_input::{ActionMap, ActionResolver, Input, InputSink};
 use ember_servers::{AudioServer, Camera2d, LinearPhysics, RenderingServer};
 use glam::Vec2;
 
@@ -30,6 +30,8 @@ pub struct SceneLoop<R: RenderingServer, A: AudioServer> {
     window: Vec2,
     /// Set by `with_viewport_following_window`.
     viewport_follows_window: bool,
+    /// Fills `Input::actions` in `set_input` (ADR-052).
+    actions: Option<ActionResolver>,
 }
 
 impl<R: RenderingServer, A: AudioServer> SceneLoop<R, A> {
@@ -45,7 +47,27 @@ impl<R: RenderingServer, A: AudioServer> SceneLoop<R, A> {
             virtual_resolution: None,
             window: Vec2::new(viewport.w, viewport.h),
             viewport_follows_window: false,
+            actions: None,
         }
+    }
+
+    /// Resolve `map`'s named actions into every `Input` this loop is
+    /// given, so nodes read `ctx.input().action_pressed("jump")`
+    /// (ADR-052).
+    pub fn with_action_map(mut self, map: ActionMap) -> Self {
+        self.set_action_map(Some(map));
+        self
+    }
+
+    /// Swap the action map at runtime (rebinding, spec 15 §11 Q3), or
+    /// drop it with `None`. Held actions start over: one held across
+    /// the swap reads as pressed again on the next frame.
+    pub fn set_action_map(&mut self, map: Option<ActionMap>) {
+        self.actions = map.map(ActionResolver::new);
+    }
+
+    pub fn action_map(&self) -> Option<&ActionMap> {
+        self.actions.as_ref().map(ActionResolver::map)
     }
 
     /// Make the viewport track the window: each `resize` sets it to
@@ -188,7 +210,9 @@ impl<R: RenderingServer, A: AudioServer> MainLoop for SceneLoop<R, A> {
 
 impl<R: RenderingServer, A: AudioServer> InputSink for SceneLoop<R, A> {
     /// With a virtual resolution, mouse and touch positions are mapped
-    /// from window pixels to canvas coordinates.
+    /// from window pixels to canvas coordinates. Then, with an action
+    /// map, `input.actions` is filled (swipe distances are therefore in
+    /// canvas units).
     fn set_input(&mut self, mut input: Input) {
         if self.virtual_resolution.is_some() {
             let camera = self.screen_camera();
@@ -196,6 +220,9 @@ impl<R: RenderingServer, A: AudioServer> InputSink for SceneLoop<R, A> {
             for touch in &mut input.touch_points {
                 touch.position = camera.screen_to_world(touch.position);
             }
+        }
+        if let Some(actions) = &mut self.actions {
+            actions.resolve(&mut input);
         }
         self.input = input;
     }

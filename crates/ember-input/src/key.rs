@@ -9,7 +9,7 @@
 
 /// A keyboard key.
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Key {
     // Navigation / confirmation
     Space,

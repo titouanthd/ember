@@ -1,5 +1,6 @@
 //! The minimum a game imports to read input.
 
+pub use crate::action::{ActionMap, Swipe};
 pub use crate::gamepad::GamepadButton;
 pub use crate::input::{Input, InputSink};
 pub use crate::key::Key;
