@@ -119,7 +119,7 @@ One round per session ([[Token Budget]] §2.1); each engine feature is its own r
 | **V1.1** ✅ | Frame snapshot / `time()`; delete the deprecated `Cooldown` aliases | engine | 1 | 050 | G2 |
 | **V1.2** ✅ | Typed tree queries + node groups | engine | 0.5 | 051 | G2 |
 | **V1.3** ✅ | Input action map | engine | 1.5 | 052 | G2 |
-| **V1.4** | stdlib text helpers | engine | 0.5 | — | G4 |
+| **V1.4** ✅ | stdlib text helpers | engine | 0.5 | — | G4 |
 | **V2.1** | `TileSet` + `TileMap` node | engine | 2 | 053 | G2, V3.1 |
 | **V2.2** | Runtime scene change | engine | 1 | 054 | G4 |
 | **G2** | Game 18 on nodes: board as `TileMap`, pieces as instances, 3 hand-written levels; `make edit GAME=<slug>` opens them (**closes Phase 9**) | game | 1.5 | — | V3 |
@@ -153,6 +153,11 @@ G1 needs no engine change, so it can run in parallel with V1.x (different files:
 
 > [!note] As built
 > `ember-input`: `ActionMap` (serde/RON: `actions: [(name, keys, gamepad, mouse, swipe)]`, optional `swipe_distance` = 32 and `mouse_swipe`; `from_ron` / `to_ron` / `validate`, builder) and `ActionResolver`, which keeps state across frames and fills a new `Input::actions` field. Queries on `Input`: `action`, `action_pressed`, `action_released` (edges across frames, so a second binding does not press again), `action_axis(neg, pos)`, `action_vector(l, r, u, d)`, `swipe()`. Swipes: once per stroke, at `swipe_distance` from the touch-down point (or on lift), dominant direction. `SceneLoop::with_action_map` / `set_action_map` / `action_map` resolve after the virtual-resolution mapping (canvas units). `Key` / `GamepadButton` / `MouseButton` are serde types now. Not done: gamepad sticks and dead zones (no axes exist), asset hot reload (layering), chords. Tests: `crates/ember-input/tests/actions.rs`, `crates/ember-scene/tests/action_map.rs`. Decision: [[v0.2-50-design-decisions#ADR-052: Input action map|ADR-052]]; delta: [[v0.2-15-input]]. Closes [[Doc–Code Discrepancies]] #13. Ran in the V1.2 session at your request (stacked on V1.2's branch). **Left for you:** `make pre-push`, then push.
+
+## V1.4 — stdlib text helpers (0.5 session) — ✅ done (2026-11-28)
+
+> [!note] As built
+> New module `ember_stdlib::text`: `TextStyle` (size, colour, optional `FontId`, `Align` left / centre / right, optional `Shadow`, fake `bold` offset, `BOLD_OFFSET` = 0.6 as ember-wars), `draw` (anchor x + baseline y; shadow first, bold = a second pass), `measure` (bold adds its offset), `left_edge`, and the shorthands `centered`, `right`, `centered_shadowed`. Same pixels as the games' own helpers for non-bold text. Tests: `crates/ember-stdlib/tests/text.rs` on `MockRenderer`. No ADR (library module); spec note: [[v0.2-ember-stdlib]]. No game migrated (≈ 9 games keep a local `centered`); each drops it when a round touches it. Stacked on V1.3's branch. **Left for you:** `make pre-push`, then push.
 
 ## Definition of done (v0.2.0)
 

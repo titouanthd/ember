@@ -29,6 +29,12 @@ Each v0.2 round adds its line here.
   `swipe`; `SceneLoop::with_action_map` / `set_action_map`. `Key`,
   `GamepadButton` and `MouseButton` derive serde.
 
+### Stdlib
+
+- **Text helpers (V1.4):** `ember_stdlib::text` — `TextStyle` (alignment,
+  font, drop shadow, fake bold), `draw`, `measure`, `left_edge`, and the
+  `centered`, `right` and `centered_shadowed` shorthands.
+
 ### Games
 
 - **Moon Gate (G1),** Game 18: new crate `games/moon-gate` with the pure

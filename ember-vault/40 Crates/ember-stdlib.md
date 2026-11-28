@@ -22,7 +22,7 @@ ember-core, glam, macroquad, serde, ron, dotenvy
 
 ## Implementation status
 
-🟡 Legacy layer still used by 16/17 games and still depends on macroquad (allow-listed). Shared `juice` (ADR-029) and `music` (`MusicPlayer`) modules merged 2026-11-22.
+🟡 Legacy layer still used by 16/17 games and still depends on macroquad (allow-listed). Shared `juice` (ADR-029) and `music` (`MusicPlayer`) modules merged 2026-11-22. `text`: aligned, shadowed and bold text on a `RenderingServer` (`TextStyle`, `draw`, `measure`, `centered`, `right`, `centered_shadowed`; v0.2 V1.4, [[v0.2-ember-stdlib]]); the games' local copies are not migrated yet.
 
 ## Spec
 
